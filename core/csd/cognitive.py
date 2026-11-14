@@ -617,11 +617,18 @@ class CognitiveMemoryStore:
         if proposal["decision_event_id"] is not None:
             raise CognitiveIntegrityError("proposal has more than one decision")
         proposal_data = json.loads(proposal["proposal_json"])
-        if payload.get("policy") != {"id": POLICY_ID, "version": POLICY_VERSION}:
+        proposal_event_type = self._proposal_event_type(db, proposal_id)
+        grounded = proposal_event_type == GROUNDED_PROPOSAL_EVENT
+        expected_policy_id = GROUNDED_POLICY_ID if grounded else POLICY_ID
+        if payload.get("policy") != {"id": expected_policy_id, "version": POLICY_VERSION}:
             raise CognitiveIntegrityError("unknown decision policy provenance")
         if payload.get("proposal_event_id") != self._proposal_event_id(db, proposal_id):
             raise CognitiveIntegrityError("decision proposal-event reference mismatch")
-        if payload.get("evidence_event_ids") != proposal_data["evidence_event_ids"]:
+        expected_evidence_ids = (
+            self._grounded_evidence_event_ids(proposal_data)
+            if grounded else proposal_data["evidence_event_ids"]
+        )
+        if payload.get("evidence_event_ids") != expected_evidence_ids:
             raise CognitiveIntegrityError("decision evidence references mismatch")
         if not isinstance(payload.get("reason"), str) or not payload["reason"].strip():
             raise CognitiveIntegrityError("decision reason is missing")
@@ -629,7 +636,7 @@ class CognitiveMemoryStore:
         # A decision is replayable only when its provenance is present in the
         # preceding event history. Missing evidence is permitted solely for a
         # needs_more_evidence outcome; it can never support acceptance.
-        for evidence_id in proposal_data["evidence_event_ids"]:
+        for evidence_id in expected_evidence_ids:
             evidence = db.execute(
                 "SELECT event_type FROM events WHERE event_id=?", (evidence_id,)
             ).fetchone()
@@ -661,19 +668,42 @@ class CognitiveMemoryStore:
         if outcome == "accepted":
             transition_id = _nonempty(payload.get("transition_id"), "transition_id")
             memory_id = _nonempty(payload.get("memory_id"), "memory_id")
-            memory = {
-                "memory_id": memory_id,
-                "memory_kind": proposal_data["memory_kind"],
-                "content": proposal_data["candidate_content"],
-                "evidence_event_ids": proposal_data["evidence_event_ids"],
-                "proposal_id": proposal_id,
-                "proposal_event_id": payload["proposal_event_id"],
-                "decision_event_id": event.event_id,
-                "transition_id": transition_id,
-                "created_at": event.occurred_at,
-                "status": "accepted",
-                "policy": payload["policy"],
-            }
+            if grounded:
+                grounding_outcome, grounding_reason = self._evaluate_grounded_claims(proposal_data)
+                if grounding_outcome != "accepted":
+                    raise CognitiveIntegrityError(
+                        "accepted grounded decision failed deterministic evidence validation: "
+                        + grounding_reason
+                    )
+                memory = {
+                    "memory_id": memory_id,
+                    "memory_kind": proposal_data["memory_kind"],
+                    "claims": proposal_data["claims"],
+                    "evidence_event_ids": expected_evidence_ids,
+                    "proposal_id": proposal_id,
+                    "proposal_event_id": payload["proposal_event_id"],
+                    "decision_event_id": event.event_id,
+                    "transition_id": transition_id,
+                    "created_at": event.occurred_at,
+                    "status": "accepted",
+                    "origin": proposal_data["origin"],
+                    "claim_schema": "grounded-memory-claims.v2",
+                    "policy": payload["policy"],
+                }
+            else:
+                memory = {
+                    "memory_id": memory_id,
+                    "memory_kind": proposal_data["memory_kind"],
+                    "content": proposal_data["candidate_content"],
+                    "evidence_event_ids": expected_evidence_ids,
+                    "proposal_id": proposal_id,
+                    "proposal_event_id": payload["proposal_event_id"],
+                    "decision_event_id": event.event_id,
+                    "transition_id": transition_id,
+                    "created_at": event.occurred_at,
+                    "status": "accepted",
+                    "policy": payload["policy"],
+                }
             db.execute(
                 "INSERT INTO accepted_memories(memory_id,proposal_id,transition_id,memory_json) "
                 "VALUES (?,?,?,?)",
@@ -681,6 +711,16 @@ class CognitiveMemoryStore:
             )
         elif payload.get("transition_id") is not None or payload.get("memory_id") is not None:
             raise CognitiveIntegrityError("non-accepted decision must not contain transition or memory")
+
+    @staticmethod
+    def _proposal_event_type(db: sqlite3.Connection, proposal_id: str) -> str:
+        row = db.execute(
+            "SELECT event_type FROM events WHERE event_id=?",
+            (CognitiveMemoryStore._proposal_event_id(db, proposal_id),),
+        ).fetchone()
+        if row is None:
+            raise CognitiveIntegrityError("proposal event is missing from event history")
+        return str(row["event_type"])
 
     @staticmethod
     def _proposal_event_id(db: sqlite3.Connection, proposal_id: str) -> str:
@@ -713,20 +753,29 @@ class CognitiveMemoryStore:
                 return {"status": "already_decided", "decision": payload}
 
             proposal = json.loads(row["proposal_json"])
-            reason = "proposal and evidence references passed deterministic provenance checks"
-            outcome = "accepted"
-            for evidence_id in proposal["evidence_event_ids"]:
-                try:
-                    evidence_record = self.get_event(evidence_id)
-                except KeyError:
-                    outcome = "needs_more_evidence"
-                    reason = f"referenced evidence event is missing: {evidence_id}"
-                    break
-                if evidence_record["event_type"] != OBSERVATION_EVENT:
-                    outcome = "rejected"
-                    reason = f"evidence event is not an allowed observation: {evidence_id}"
-                    break
-                self._validate_observation(evidence_record["payload"])
+            proposal_event_type = self._proposal_event_type(db, proposal_id)
+            grounded = proposal_event_type == GROUNDED_PROPOSAL_EVENT
+            if grounded:
+                outcome, reason = self._evaluate_grounded_claims(proposal)
+                evidence_event_ids = self._grounded_evidence_event_ids(proposal)
+                decision_policy_id = GROUNDED_POLICY_ID
+            else:
+                reason = "proposal and evidence references passed deterministic provenance checks"
+                outcome = "accepted"
+                evidence_event_ids = proposal["evidence_event_ids"]
+                decision_policy_id = POLICY_ID
+                for evidence_id in evidence_event_ids:
+                    try:
+                        evidence_record = self.get_event(evidence_id)
+                    except KeyError:
+                        outcome = "needs_more_evidence"
+                        reason = f"referenced evidence event is missing: {evidence_id}"
+                        break
+                    if evidence_record["event_type"] != OBSERVATION_EVENT:
+                        outcome = "rejected"
+                        reason = f"evidence event is not an allowed observation: {evidence_id}"
+                        break
+                    self._validate_observation(evidence_record["payload"])
 
             current_state_version = self._authoritative_state_version(db)
             projection_version = int(db.execute(
@@ -755,8 +804,8 @@ class CognitiveMemoryStore:
                 "proposal_id": proposal_id,
                 "proposal_event_id": row["proposal_event_id"],
                 "outcome": outcome,
-                "policy": {"id": POLICY_ID, "version": POLICY_VERSION},
-                "evidence_event_ids": proposal["evidence_event_ids"],
+                "policy": {"id": decision_policy_id, "version": POLICY_VERSION},
+                "evidence_event_ids": evidence_event_ids,
                 "reason": reason,
                 "evaluated_state_version": current_state_version,
                 "transition_id": transition_id,
@@ -919,7 +968,7 @@ class CognitiveMemoryStore:
                 internal = event.event_type == DECISION_EVENT and event.source == DECISION_SOURCE
                 if event.event_type == DECISION_EVENT and not internal:
                     raise CognitiveIntegrityError("forged decision event in durable history")
-                if event.event_type not in {OBSERVATION_EVENT, PROPOSAL_EVENT, DECISION_EVENT}:
+                if event.event_type not in {OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT, DECISION_EVENT}:
                     raise CognitiveIntegrityError(f"unknown event type: {event.event_type}")
                 self._apply_projection_event(db, event, sequence, internal=internal)
 
