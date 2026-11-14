@@ -632,7 +632,7 @@ class CognitiveMemoryStore:
             claim = expected_claims[claim_id]
             if review.get("proposal_digest") != "sha256:" + _digest(_canonical(dict(proposal))):
                 raise CognitiveIntegrityError("semantic review proposal digest is stale")
-            if review.get("claim_digest") != _digest(_canonical(claim)):
+            if review.get("claim_digest") != "sha256:" + _digest(_canonical(claim)):
                 raise CognitiveIntegrityError("semantic review claim digest is stale")
             reviews_by_claim[claim_id].append({
                 "review_event_id": review_event["event_id"],
@@ -1013,7 +1013,7 @@ class CognitiveMemoryStore:
         claim = claim_by_id.get(claim_id)
         if claim is None or claim.get("epistemic_type") != "inference":
             raise ValueError("semantic review target must be an inference claim in the proposal")
-        if claim_digest != _digest(_canonical(claim)):
+        if claim_digest != "sha256:" + _digest(_canonical(claim)):
             raise ValueError("semantic review claim_digest mismatch")
         derived_ids = claim["derived_from_claim_ids"]
         if not set(supporting_ids).issubset(set(derived_ids)):
