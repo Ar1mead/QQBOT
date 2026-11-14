@@ -27,7 +27,7 @@ This implementation is an engineering experiment, not a frozen CSD rule set or a
 
 A text-first grounded-memory v2 path is now implemented as a separate versioned proposal event. It validates exact Unicode-codepoint text spans, requires source-assertion text to equal its quote, keeps inference claims distinct, and preserves claim/evidence provenance in accepted memories. A provider-neutral grounded proposal pipeline binds the source observation, provider identity/version, and CSD state version; it can only submit pending proposals. This path does not establish semantic entailment or source truth, and it has no real model provider connected.
 
-Hosted CI on Python 3.12.16 passed 82 tests across the v1 cognitive store, v1 proposal pipeline, grounded-memory store, grounded proposal pipeline, and original generic persistence baseline. Windows-local verification is still pending.
+Hosted CI on Python 3.12.16 passed 84 tests across the v1 cognitive store, v1 proposal pipeline, grounded-memory store, grounded proposal pipeline, and original generic persistence baseline. The text-only v2 path now also rejects non-text observations before provider invocation and at CSD evaluation. Windows-local verification is still pending.
 
 
 
