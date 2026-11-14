@@ -507,6 +507,11 @@ class CognitiveMemoryStore:
                             f"evidence is not an observation event: {evidence['event_id']}"
                         )
                     self._validate_observation(source_event["payload"])
+                    if source_event["payload"]["coverage"]["modality"] != "text":
+                        return "rejected", (
+                            f"grounded memory v2 requires text evidence, got modality "
+                            f"{source_event['payload']['coverage']['modality']!r}"
+                        )
                     source_text = source_event["payload"]["content"]
                     locator = evidence["locator"]
                     start, end = locator["start"], locator["end"]
