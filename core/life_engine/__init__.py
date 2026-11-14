@@ -16,6 +16,14 @@ from .contracts import (
     ValidatedLifeProposal,
     validate_life_proposal,
 )
+from .motivation import (
+    MotivationEvidence,
+    MotivationSignalState,
+    MotivationSnapshot,
+    MotivationUpdateProposal,
+    ValidatedMotivationUpdate,
+    validate_motivation_update,
+)
 from .engine import LifeEngine
 
 __all__ = [
@@ -26,6 +34,12 @@ __all__ = [
     "GoalProposal",
     "GoalState",
     "LifeEngine",
+    "MotivationEvidence",
+    "MotivationSignalState",
+    "MotivationSnapshot",
+    "MotivationUpdateProposal",
+    "ValidatedMotivationUpdate",
+    "validate_motivation_update",
     "LifeSnapshot",
     "MotivationSignal",
     "ValidatedLifeProposal",
