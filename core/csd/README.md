@@ -8,4 +8,4 @@ Run tests from this directory:
 py -3.12 -m unittest discover -s tests -v
 ```
 
-The database file is created only at the path explicitly passed to CSDStore. The prototype currently uses SQLite WAL mode and synchronous FULL as a conservative test candidate; this is not a production durability guarantee. See the design proposal and ADR 0002.
+The database file is created only at the path explicitly passed to CSDStore. WAL/DELETE journal modes and FULL/NORMAL synchronous modes are selectable for the initial matrix test; defaults are WAL + FULL. These are test candidates, not production durability guarantees. See the design proposal and ADR 0002.
