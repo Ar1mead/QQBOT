@@ -48,7 +48,7 @@ The return value contains accepted memories only. It returns the complete memory
 
 ## 4. Read-only invariant
 
-Before returning results, retrieval compares the accepted-memory projection count with the authoritative accepted-decision count. If they differ, it fails closed with an integrity error and requires Recovery; it does not return a partial list. The same consistency guard applies to both list retrieval and single-memory lookup.
+Before returning results, retrieval compares the accepted-memory projection count with the authoritative accepted-decision count. If they differ, it fails closed with an integrity error and requires Recovery; it does not return a partial list. The same consistency guard applies to both list retrieval and single-memory lookup. The same consistency guard applies to both list retrieval and single-memory lookup.
 
 Retrieval must not:
 - append events;
