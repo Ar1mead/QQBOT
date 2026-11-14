@@ -86,7 +86,7 @@ It never calls `evaluate_proposal`, a model, an adapter, or an external action. 
 
 The test suites cover v1 observation/proposal separation, legacy provider behavior, v2 exact-span and claim-reference validation, Unicode offsets, stale state, missing evidence, proposal identity/idempotency, atomic rollback, projection inconsistency, recovery, tamper detection, provider execution outside transactions, pending-only behavior, and accepted-memory retrieval filters. The current suites contain 22 v1 cognitive-store tests, 11 v1 provider tests, 24 grounded-memory tests, 11 grounded-provider-pipeline tests, 10 retrieval tests, and 16 generic persistence tests.
 
-The GitHub Actions workflow runs the new suite and the unchanged baseline suite on Python 3.12. A green hosted run is not a substitute for testing on the user's Windows 11 / Python 3.12.14 environment. No local Windows, power-loss, or hostile-process isolation claim is made.
+The latest hosted workflow passed 97 tests on Python 3.12.16: 22 v1 cognitive-store, 11 v1 proposal-pipeline, 24 grounded-memory, 11 grounded-proposal-pipeline, 13 retrieval, and 16 original persistence tests. Recovery decision validation uses the event-history prefix through the event preceding the decision being replayed. See [hosted test report 002](../reports/csd-cognitive-slice-hosted-test-report-002.md). A green hosted run is not a substitute for testing on the user's Windows 11 / Python 3.12.14 environment. No local Windows, power-loss, or hostile-process isolation claim is made.
 
 ## 8. Explicit non-goals
 
