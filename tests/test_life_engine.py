@@ -380,7 +380,10 @@ class LifeProposalValidationTests(unittest.TestCase):
             "Stop if the commitment is withdrawn or no longer valid.",
             "Review when the due condition changes.",
         )
-        result = validate_life_proposal(snap, proposal(snap, goals=(candidate,)))
+        selected = choice("no_op", evidence_event_ids=("evt-commitment",))
+        result = validate_life_proposal(
+            snap, proposal(snap, selected, goals=(candidate,))
+        )
         self.assertEqual(
             result.goal_origin_classes,
             (("goal-from-commitment", "internally_initiated"),),
