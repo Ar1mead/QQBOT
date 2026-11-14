@@ -119,7 +119,7 @@ CSD (or a trusted capability broker) supplies:
 - side-effect classification;
 - resource envelope and stop conditions.
 
-The deliberator can select only a known option ID. It cannot add an option, claim a permission grant, alter prerequisites, or lower its side-effect level.
+The deliberator can select only a known option ID. It cannot add an option, claim a permission grant, alter prerequisites, or lower its side-effect level. Active activities also need a trusted current-state record: continuation is blocked when permission was revoked or the stop condition has been met; stopping remains possible, but an external side-effect stop/continue must be governed by ASM.
 
 The local `validate_life_proposal` function is only a defensive input check. CSD must repeat authoritative validation when the proposal is submitted because the process may be stale, buggy, or compromised.
 
@@ -184,6 +184,8 @@ Migration from the existing cognitive-memory prototype must be designed explicit
 1. Pending goal proposals do not appear in the active-goal snapshot.
 2. CSD derives goal origin from immutable signal references.
 3. A user-requested activity cannot be relabeled as internally initiated.
+4. A running activity cannot continue after its permission is revoked or its stop condition is met.
+5. A side-effecting continue/stop request is handed to ASM and is never directly dispatched by Life Engine.
 4. A stale deliberation proposal cannot mutate current state.
 5. Identical event replay does not duplicate goals or choices.
 6. Changed-content ID reuse conflicts.
