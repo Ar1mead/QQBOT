@@ -320,7 +320,7 @@ See [claim-to-evidence grounding design](../design/claim-to-evidence-grounding.m
 - Validate span boundaries and source references deterministically.
 - Keep unsupported inferences uncertain and prevent them from being represented as observed fact.
 
-**Prototype status:** text-first v2 claim/evidence validation and a provider-neutral grounded pipeline are implemented and hosted-tested. **Remaining gap:** no semantic entailment review or real model provider is connected; multimodal locators are not implemented.
+**Prototype status:** text-first v2 claim/evidence validation and a provider-neutral grounded pipeline are implemented and hosted-tested. A separate [semantic review boundary](../design/semantic-review-boundary.md) is now designed but not implemented. **Remaining gap:** no semantic reviewer or real model provider is connected; multimodal locators are not implemented.
 
 **Exit condition for the broader stage:** each durable memory claim can be traced to its source or explicitly marked as inference, with semantic quality assessed separately. This remains required before production memory use.
 
