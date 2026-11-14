@@ -304,6 +304,23 @@ The order below prioritizes foundational correctness without pretending the syst
 
 **Exit condition:** no core module has ambiguous authority to write another module's state or bypass ASM.
 
+### Stage B2 — Provider-neutral memory proposal boundary
+- Expose a replaceable provider contract for semantic candidate generation.
+- Run provider/model work outside CSD write transactions.
+- Bind candidate proposals to persisted evidence and the state version read before generation.
+- Persist proposals as pending only; do not auto-accept provider output.
+- Reject malformed output and stop if the authoritative projection is inconsistent.
+
+**Exit condition:** a provider can propose a memory without acquiring authority to accept it. This still does not validate semantic truth or source entailment.
+
+### Stage B3 — Claim-to-evidence grounding
+- Represent candidate memory as atomic claims rather than one unstructured paragraph alone.
+- Bind direct/source claims to exact evidence spans and preserve inference labels separately.
+- Validate span boundaries and source references deterministically.
+- Keep unsupported inferences uncertain and prevent them from being represented as observed fact.
+
+**Exit condition:** each durable memory claim can be traced to its source or explicitly marked as inference. This must be designed before connecting a real model provider.
+
 ### Stage B1 — First cognitive-state vertical slice
 - Submit one synthetic observation and a separate candidate-memory event through Event Submit.
 - Keep a candidate proposal separate from accepted memory.
