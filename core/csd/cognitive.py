@@ -296,6 +296,27 @@ class CognitiveMemoryStore:
             if existing is not None and existing["proposal_digest"] != proposal_digest:
                 raise ProposalIdentityConflict(proposal_id)
 
+        if event.event_type == SEMANTIC_REVIEW_EVENT:
+            review_id = _nonempty(event.payload.get("review_id"), "review_id")
+            prior_reviews = db.execute(
+                "SELECT e.event_id,e.sequence,e.received_at,p.payload_json "
+                "FROM events e JOIN payloads p ON p.payload_ref=e.payload_ref "
+                "WHERE e.event_type=? ORDER BY e.sequence",
+                (SEMANTIC_REVIEW_EVENT,),
+            ).fetchall()
+            for prior_review in prior_reviews:
+                stored_payload = json.loads(prior_review["payload_json"])
+                if stored_payload.get("review_id") == review_id:
+                    if stored_payload != dict(event.payload):
+                        raise SemanticReviewIdentityConflict(review_id)
+                    return {
+                        "status": "duplicate_review",
+                        "review_id": review_id,
+                        "event_id": prior_review["event_id"],
+                        "sequence": int(prior_review["sequence"]),
+                        "received_at": prior_review["received_at"],
+                    }
+
         db.execute(
             "INSERT OR IGNORE INTO payloads(payload_ref,payload_json) VALUES (?,?)",
             (payload_ref, payload_json),
@@ -587,6 +608,9 @@ class CognitiveMemoryStore:
             elif existing["proposal_digest"] != proposal_digest:
                 raise ProposalIdentityConflict(proposal_id)
             return
+        if event.event_type == SEMANTIC_REVIEW_EVENT:
+            self._validate_semantic_review_event(db, event, current_sequence=sequence)
+            return
         if event.event_type == DECISION_EVENT:
             if not internal or event.source != DECISION_SOURCE:
                 raise CognitiveIntegrityError("non-authoritative decision event")
@@ -738,6 +762,96 @@ class CognitiveMemoryStore:
             )
         elif payload.get("transition_id") is not None or payload.get("memory_id") is not None:
             raise CognitiveIntegrityError("non-accepted decision must not contain transition or memory")
+
+    def _validate_semantic_review_event(
+        self,
+        db: sqlite3.Connection,
+        event: CognitiveEvent,
+        *,
+        current_sequence: int,
+    ) -> None:
+        payload = event.payload
+        allowed = {
+            "review_id", "proposal_id", "proposal_event_id", "proposal_digest",
+            "claim_id", "claim_digest", "reviewer", "contract_version", "outcome",
+            "reasoning_summary", "supporting_claim_ids", "alternative_explanations",
+            "limitations",
+        }
+        if set(payload) != allowed:
+            raise ValueError("semantic review payload contains missing or unsupported fields")
+        review_id = _nonempty(payload.get("review_id"), "review_id")
+        proposal_id = _nonempty(payload.get("proposal_id"), "proposal_id")
+        proposal_event_id = _nonempty(payload.get("proposal_event_id"), "proposal_event_id")
+        proposal_digest = _nonempty(payload.get("proposal_digest"), "proposal_digest")
+        claim_id = _nonempty(payload.get("claim_id"), "claim_id")
+        claim_digest = _nonempty(payload.get("claim_digest"), "claim_digest")
+        reviewer = payload.get("reviewer")
+        if not isinstance(reviewer, Mapping) or set(reviewer) != {"component", "version"}:
+            raise ValueError("reviewer must contain only component and version")
+        reviewer_id = _nonempty(reviewer.get("component"), "reviewer.component")
+        _nonempty(reviewer.get("version"), "reviewer.version")
+        if event.source != f"semantic-review.pipeline:{reviewer_id}":
+            raise ValueError("semantic review source/reviewer mismatch")
+        if payload.get("contract_version") != SEMANTIC_REVIEW_CONTRACT_VERSION:
+            raise ValueError("unsupported semantic review contract version")
+        outcome = _nonempty(payload.get("outcome"), "review.outcome")
+        if outcome not in {"supported", "uncertain", "unsupported", "insufficient_context"}:
+            raise ValueError("unsupported semantic review outcome")
+        _nonempty(payload.get("reasoning_summary"), "reasoning_summary")
+
+        def validate_string_list(value: Any, name: str) -> list[str]:
+            if not isinstance(value, list) or any(
+                not isinstance(item, str) or not item.strip() for item in value
+            ):
+                raise ValueError(f"{name} must be a string list")
+            if len(set(value)) != len(value):
+                raise ValueError(f"{name} must not contain duplicates")
+            return value
+
+        supporting_ids = validate_string_list(
+            payload.get("supporting_claim_ids"), "supporting_claim_ids"
+        )
+        validate_string_list(payload.get("alternative_explanations"), "alternative_explanations")
+        validate_string_list(payload.get("limitations"), "limitations")
+
+        proposal = db.execute(
+            "SELECT proposal_digest,proposal_event_id,proposal_json,status,decision_event_id "
+            "FROM proposals WHERE proposal_id=?",
+            (proposal_id,),
+        ).fetchone()
+        if proposal is None:
+            raise CognitiveIntegrityError("semantic review references missing proposal")
+        if proposal["decision_event_id"] is not None or proposal["status"] != "pending":
+            raise ValueError("semantic review cannot be submitted after a terminal proposal decision")
+        if proposal_event_id != proposal["proposal_event_id"]:
+            raise ValueError("semantic review proposal_event_id mismatch")
+        if proposal_digest != proposal["proposal_digest"]:
+            raise ValueError("semantic review proposal_digest mismatch")
+        proposal_json = json.loads(proposal["proposal_json"])
+        if self._proposal_event_type(db, proposal_id) != GROUNDED_PROPOSAL_EVENT:
+            raise ValueError("semantic review applies only to grounded v2 proposals")
+        claim_by_id = {claim["claim_id"]: claim for claim in proposal_json["claims"]}
+        claim = claim_by_id.get(claim_id)
+        if claim is None or claim.get("epistemic_type") != "inference":
+            raise ValueError("semantic review target must be an inference claim in the proposal")
+        if claim_digest != _digest(_canonical(claim)):
+            raise ValueError("semantic review claim_digest mismatch")
+        derived_ids = claim["derived_from_claim_ids"]
+        if not set(supporting_ids).issubset(set(derived_ids)):
+            raise ValueError("supporting_claim_ids must be direct source claims for the inference")
+        if outcome == "supported" and not supporting_ids:
+            raise ValueError("supported review requires at least one supporting source claim")
+
+        duplicate = db.execute(
+            "SELECT e.event_id,p.payload_json FROM events e "
+            "JOIN payloads p ON p.payload_ref=e.payload_ref "
+            "WHERE e.event_type=? AND e.sequence<?",
+            (SEMANTIC_REVIEW_EVENT, current_sequence),
+        ).fetchall()
+        for row in duplicate:
+            prior = json.loads(row["payload_json"])
+            if prior.get("review_id") == review_id:
+                raise CognitiveIntegrityError("duplicate semantic review ID in durable history")
 
     @staticmethod
     def _proposal_event_type(db: sqlite3.Connection, proposal_id: str) -> str:
