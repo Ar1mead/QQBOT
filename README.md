@@ -54,6 +54,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - [Vertical-slice storage and authority decision analysis](docs/design/vertical-slice-storage-decision-analysis.md)
 - [CSD cognitive-slice implementation decisions](docs/design/csd-cognitive-slice-implementation-decision.md)
 - [CSD cognitive-memory hosted test report 001](docs/reports/csd-cognitive-memory-hosted-test-report-001.md)
+- [Grounded-memory v2 hosted test report 001](docs/reports/csd-grounded-memory-v2-hosted-test-report-001.md)
 - [Memory proposal provider contract](docs/design/memory-proposal-provider-contract.md)
 - [Claim-to-evidence grounding](docs/design/claim-to-evidence-grounding.md)
 - [Grounded memory proposal v2](docs/design/grounded-memory-proposal-v2.md)
