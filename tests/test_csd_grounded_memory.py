@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
+import json
+from pathlib import Path
 import tempfile
 import unittest
 
@@ -103,6 +106,47 @@ class GroundedMemoryV2Tests(unittest.TestCase):
         self.store.submit_event(event)
         return event
 
+    def submit_supported_review(self, proposal_id="grounded-proposal-1",
+                                claim_id="claim-inference-1",
+                                review_id="review-supported-1",
+                                outcome="supported",
+                                supporting_claim_ids=None):
+        stored = self.store.get_proposal(proposal_id)
+        claim = next(
+            item for item in stored["proposal"]["claims"]
+            if item["claim_id"] == claim_id
+        )
+        canonical = lambda value: json.dumps(
+            value, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False,
+        )
+        digest = lambda value: "sha256:" + hashlib.sha256(
+            canonical(value).encode("utf-8")
+        ).hexdigest()
+        event = CognitiveEvent(
+            event_id=f"evt-{review_id}",
+            occurred_at="2026-11-14T10:02:00+00:00",
+            correlation_id="corr-grounded",
+            event_type="cognition.semantic_review_recorded.v1",
+            source="semantic-review.pipeline:test.reviewer",
+            payload={
+                "review_id": review_id,
+                "proposal_id": proposal_id,
+                "proposal_event_id": stored["proposal_event_id"],
+                "proposal_digest": stored["proposal_digest"],
+                "claim_id": claim_id,
+                "claim_digest": digest(claim),
+                "reviewer": {"component": "test.reviewer", "version": "0.1"},
+                "contract_version": "semantic-review.v1",
+                "outcome": outcome,
+                "reasoning_summary": "Synthetic test review; not a truth oracle.",
+                "supporting_claim_ids": supporting_claim_ids or ["claim-source-1"],
+                "alternative_explanations": [],
+                "limitations": ["Synthetic test fixture."],
+            },
+        )
+        return self.store.submit_event(event)
+
     def test_grounded_proposal_is_pending_and_not_yet_memory(self):
         self.submit_pending()
         proposal = self.store.get_proposal("grounded-proposal-1")
@@ -147,6 +191,11 @@ class GroundedMemoryV2Tests(unittest.TestCase):
             self.source_claim(),
             self.inference_claim(),
         ])
+        self.assertEqual(
+            self.store.evaluate_proposal("grounded-proposal-1")["status"],
+            "awaiting_review",
+        )
+        self.submit_supported_review()
         self.assertEqual(
             self.store.evaluate_proposal("grounded-proposal-1")["status"],
             "accepted",
@@ -342,6 +391,7 @@ class GroundedMemoryV2Tests(unittest.TestCase):
             self.source_claim(),
             self.inference_claim(),
         ])
+        self.submit_supported_review()
         self.store.evaluate_proposal("grounded-proposal-1")
         before = self.store.get_memories()
         self.store.close()
