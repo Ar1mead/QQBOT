@@ -18,4 +18,4 @@ py -3.12 -m unittest discover -s tests -p "test_csd_store.py" -v
 
 The generic store's WAL/DELETE journal modes and FULL/NORMAL synchronous modes are test candidates, not production durability guarantees. The cognitive slice currently uses the same selectable SQLite settings but has not been validated for Windows power-loss behavior.
 
-The cognitive-memory implementation is an engineering prototype only. See [implementation decisions](../../docs/design/csd-cognitive-slice-implementation-decision.md) and the [vertical-slice design](../../docs/design/first-cognitive-state-vertical-slice.md).
+The cognitive-memory implementation and provider-neutral proposal pipeline are engineering prototypes only. See the [memory proposal provider contract](../../docs/design/memory-proposal-provider-contract.md). See [implementation decisions](../../docs/design/csd-cognitive-slice-implementation-decision.md) and the [vertical-slice design](../../docs/design/first-cognitive-state-vertical-slice.md).
