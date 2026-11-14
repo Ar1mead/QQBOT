@@ -29,7 +29,7 @@
 | SIG-022 | Writing inclination emerges from an internal reflection | Diary activity may be considered | A fixed writing quota is created |
 | SIG-023 | No writing inclination exists during a wake opportunity | No diary activity is proposed | A diary entry or "reason for not writing" is forced |
 | SIG-024 | A diary draft is discarded | It is not automatically promoted to general memory | Discarded text becomes autobiographical fact |
-| SIG-025 | A saved diary entry later supports an interest hypothesis | Scope and provenance are preserved | Diary privacy scope is widened silently |
+| SIG-025 | A saved diary entry later supports an interest hypothesis | Scope and provenance are preserved | Diary privacy scope is widened silently |\n| SIG-026 | New motivation signal is proposed without a statement | Reject the proposal | An empty signal tag is persisted |\n| SIG-027 | Reinforcement attempts to rewrite the signal statement/scope | Reject or require contextualize | Meaning changes silently during evidence reinforcement |\n| SIG-028 | Contextualize supplies a revised statement/scope | New version retains predecessor relation | Old signal version is overwritten |\n| SIG-029 | A self-accepted commitment is fulfilled | Preserve commitment lineage separately | Follow-through is automatically counted as topic interest |
 
 ## Coverage notes
 
