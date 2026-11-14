@@ -19,6 +19,8 @@ on:
   pull_request:
     paths:
       - "core/csd/**"
+      - "core/life_engine/**"
+      - "tests/test_life_engine.py"
       - "tests/test_csd_cognitive.py"
       - "tests/test_csd_proposal_pipeline.py"
       - "tests/test_csd_grounded_memory.py"
