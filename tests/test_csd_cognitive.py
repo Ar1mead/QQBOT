@@ -175,7 +175,7 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
             "needs_more_evidence",
         )
 
-    def test_wrong_evidence_type_is_rejected(self):
+    def test_valid_observation_evidence_is_accepted(self):
         self.store.submit_event(CognitiveEvent(
             event_id="evt-other",
             occurred_at="2026-11-14T10:00:00+00:00",
