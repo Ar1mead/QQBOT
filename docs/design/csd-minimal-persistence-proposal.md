@@ -188,22 +188,15 @@ The first vertical slice is not complete until tests demonstrate:
 9. A damaged or unverifiable event log causes a safe stop with the original files preserved.
 10. Recovery does not call any external action executor. The test should use a spy/failing stub and assert it is never invoked; the production CSD API should not accept such an executor in the first place.
 
-## 11. Implementation-language decision — still open
+## 11. Implementation-language decision — provisional prototype choice
 
 Do not select a language solely because DSH uses Node.js. CSD must remain independent of the runtime.
 
-Known local options:
-- Python 3.12.14 is already present and includes the standard-library `sqlite3` module.
-- Node.js 24.21.0 is already present; a Node SQLite implementation would need its exact runtime API/stability and dependency behavior checked.
+For the first disposable reference prototype, Python 3.12 standard-library `sqlite3` is selected. Python's documented SQLite API is stable and supports explicit transaction control without adding a third-party package. Node.js 24.21.0's built-in `node:sqlite` is classified by the official v24 documentation as Stability 1.2 — Release candidate, not Stable (Stability 2). This makes Python the more conservative choice for a first persistence-focused spike.
 
-A small implementation spike should compare:
-- stable SQLite API availability;
-- Windows packaging and startup behavior;
-- migration and test tooling;
-- clean integration from DSH without making DSH a CSD dependency;
-- ability to run CSD tests and recovery independently.
+This is **not** a decision that production CSD must use Python. The prototype must remain isolated and portable. The final language/process topology will be reconsidered after testing Windows lifecycle, DSH integration boundaries, and the maturity of Node's SQLite API.
 
-No language choice is frozen by this document. A Python reference implementation is a reasonable first spike because it can use the standard library without adding a dependency, but a long-lived production decision should follow the integration spike.
+See [ADR 0002](../decisions/0002-csd-reference-implementation-language.md) for the decision and source links.
 
 ## 12. Decisions still requiring evidence or explicit confirmation
 
