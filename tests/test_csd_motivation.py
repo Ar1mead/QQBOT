@@ -81,7 +81,7 @@ def motivation_proposal(
     kind="interest",
     subject="topic:blue-boat",
     scope="general",
-    statement="A tentative interest in blue-boat videos.",
+    statement=None,
     support=("interaction-1",),
     counter=(),
     new_signal_id="signal-blue-boat",
@@ -92,6 +92,10 @@ def motivation_proposal(
     source_component="test.synthesizer",
     at="2026-11-14T10:05:00+00:00",
 ):
+    effective_statement = (
+        statement if statement is not None
+        else ("A tentative interest in blue-boat videos." if operation == "create" else None)
+    )
     return envelope(
         f"event-{proposal_id}",
         MOTIVATION_PROPOSAL_EVENT,
@@ -102,7 +106,7 @@ def motivation_proposal(
             "kind": kind,
             "subject_ref": subject,
             "scope": scope,
-            "statement": statement,
+            "statement": effective_statement,
             "supporting_event_ids": list(support),
             "counter_evidence_event_ids": list(counter),
             "new_signal_id": new_signal_id,
