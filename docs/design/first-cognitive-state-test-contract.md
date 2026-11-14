@@ -34,6 +34,11 @@ No LLM, network, platform adapter, external action, personal content, or user ac
 | COG-015 | CSD separation of event and memory; vertical-slice §3 and §6 | Several observations exist, none proposed as memory | Retrieve accepted memories | No automatic memory appears | Event history and memory projection remain distinct | Every event becomes a memory by default |
 | COG-016 | CSD decision lifecycle; vertical-slice §4.3 and §9 | Proposal is validly deferred or rejected | Evaluate proposal | Decision is durable; no accepted memory is created | Decision outcome and reason are retrievable | Rejected/deferred proposal is treated as accepted or erased |
 
+| COG-017 | Proposal identity distinct from event identity; storage decision analysis §5 | One proposal_id already exists | Submit a second event_id with identical immutable proposal content | Event identity remains distinct but proposal resolves to the existing aggregate | Exactly one proposal lifecycle and at most one accepted memory | Second event creates a second proposal decision or accepted memory |
+| COG-018 | Proposal identity immutability; storage decision analysis §5 | One proposal_id already exists | Submit a second event_id with changed immutable proposal content | Proposal-identity conflict; original proposal remains unchanged | Original proposal digest and decision state are preserved | Same proposal_id silently changes meaning |
+| COG-019 | CSD-owned decision authority; storage decision analysis §4 and §6 | Public Event Submit is available | Submit a reserved CSD decision event through the public path | Submission is rejected | No decision event or accepted-memory transition is committed | Runtime, model, or adapter forges a CSD decision |
+| COG-020 | CSD Recovery; storage decision analysis §7 | Proposal is persisted but not yet evaluated | Close, reopen, run Recovery | Proposal remains pending | No decision event or accepted memory is synthesized | Recovery evaluates or auto-accepts a pending proposal |
+
 ## Coverage and limits
 
 Covered by this proposed contract:
