@@ -2,7 +2,7 @@
 
 - Branch: `feature/csd-persistence-spike`
 - Test date: 2026-11-14
-- Result: **12 tests passed**
+- Result: **16 tests passed**
 - Status: prototype validation only; not a production acceptance report.
 
 ## Execution environment
@@ -31,6 +31,10 @@ The user's local Python 3.12.14 environment has **not** yet been used to run thi
 | `test_journal_and_synchronous_mode_matrix_round_trip` | PASS | Basic reopen/recovery round-trip under WAL/DELETE × FULL/NORMAL |
 | `test_process_exit_mid_transaction_rolls_back_event` | PASS | Abrupt child-process exit before commit leaves no accepted event |
 | `test_process_exit_after_commit_is_safe_to_retry` | PASS | Abrupt child-process exit after commit is safely handled by idempotent resubmission |
+| `test_multiple_connections_serialize_concurrent_writers` | PASS | 20 concurrent writes from 8 workers are serialized without losing events |
+| `test_busy_timeout_fails_cleanly_then_retry_succeeds` | PASS | A held writer lock times out without partial writes; retry succeeds after release |
+| `test_sqlite_backup_restores_event_log_and_projection` | PASS | SQLite backup restores a recoverable event log and projection |
+| `test_event_envelope_tampering_causes_safe_stop` | PASS | Event-envelope digest mismatch stops recovery |
 | `test_invalid_timezone_is_rejected` | PASS | Naive timestamps are rejected |
 
 ## What this proves
@@ -45,7 +49,11 @@ The current prototype can:
 - stop when payload integrity fails;
 - run basic round-trip checks under four SQLite journal/synchronous combinations;
 - survive simulated abrupt process exit before commit without accepting a partial event;
-- safely handle a process exit after commit but before the caller receives the result, using idempotent resubmission.
+- safely handle a process exit after commit but before the caller receives the result, using idempotent resubmission;
+- serialize 20 concurrent writes from eight independent worker connections;
+- time out cleanly under a held writer lock and accept a retry after lock release;
+- restore a recoverable event log and projection using SQLite's backup API;
+- detect event-envelope tampering during recovery.
 
 ## What this does not prove
 
@@ -54,7 +62,7 @@ This run does **not** establish:
 - Windows-specific process termination and file-locking behavior;
 - physical power-loss durability;
 - correctness under forced process termination at every transaction boundary;
-- multi-process write contention or high-volume concurrent readers;
+- multi-process behavior on Windows or high-volume concurrent readers;
 - backup/restore continuity;
 - long-term event schema migration;
 - encryption, privacy, or retention suitability;
@@ -66,6 +74,6 @@ The four-mode test is a functional round-trip test, not a comparative durability
 
 1. Run the exact suite under the user's Python 3.12.14 interpreter after the user is ready to perform one local verification step.
 2. Add forced process-termination tests around transaction boundaries.
-3. Add multi-connection contention tests and measure busy-timeout behavior.
-4. Test backup/restore and event-tail continuity.
+3. Repeat multi-connection contention and busy-timeout tests on Windows.
+4. Test backup/restore continuity across process restart and interrupted backup.
 5. Review the event schema, recovery report, and privacy requirements before any real personal data is written.
