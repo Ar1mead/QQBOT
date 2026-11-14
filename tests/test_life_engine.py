@@ -259,7 +259,7 @@ class LifeProposalValidationTests(unittest.TestCase):
 
     def test_goal_cannot_originate_from_inactive_signal(self):
         inactive = signal(active=False)
-        snap = snapshot(signals=(inactive,), options=(option(),))
+        snap = snapshot(signals=(inactive,), options=())
         candidate = GoalProposal(
             "goal-inactive", "Explore", ("sig-interest",), "Reason.",
             "Done.", "Stop.", "Review.",
@@ -339,6 +339,52 @@ class LifeProposalValidationTests(unittest.TestCase):
         snap = snapshot(signals=(inactive,), options=(option(),))
         with self.assertRaises(ValueError):
             validate_life_proposal(snap, proposal(snap))
+
+    def test_activity_can_be_grounded_in_an_active_goal_without_current_signal(self):
+        snap = snapshot(
+            signals=(),
+            options=(option(source_ids=(), serves_goal_ids=("goal-1",)),),
+            active=(),
+        )
+        selected = choice(
+            "start_activity",
+            considered_activity_ids=("activity-read",),
+            activity_id="activity-read",
+            goal_id="goal-1",
+            evidence_event_ids=("evt-goal-1",),
+        )
+        self.assertFalse(validate_life_proposal(snap, proposal(snap, selected)).requires_asm_governance)
+
+    def test_activity_without_signal_or_goal_origin_is_rejected(self):
+        snap = snapshot(
+            options=(option(source_ids=(), serves_goal_ids=()),),
+        )
+        with self.assertRaises(ValueError):
+            validate_life_proposal(snap, proposal(snap))
+
+    def test_self_accepted_commitment_is_classified_as_internal_origin(self):
+        commitment = MotivationSignal(
+            "sig-commitment",
+            "commitment",
+            "self_commitment",
+            "A self-accepted commitment.",
+            ("evt-commitment",),
+        )
+        snap = snapshot(signals=(commitment,), options=())
+        candidate = GoalProposal(
+            "goal-from-commitment",
+            "Fulfil the commitment",
+            ("sig-commitment",),
+            "The individual previously accepted this commitment.",
+            "The commitment is fulfilled.",
+            "Stop if the commitment is withdrawn or no longer valid.",
+            "Review when the due condition changes.",
+        )
+        result = validate_life_proposal(snap, proposal(snap, goals=(candidate,)))
+        self.assertEqual(
+            result.goal_origin_classes,
+            (("goal-from-commitment", "internally_initiated"),),
+        )
 
 
 class LifeEngineOrchestrationTests(unittest.TestCase):
