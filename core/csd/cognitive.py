@@ -586,7 +586,7 @@ class CognitiveMemoryStore:
 
     @staticmethod
     def _authoritative_state_version(
-        db: sqlite3.Connection, *, exclude_event_id: str | None = None
+        db: sqlite3.Connection, *, through_sequence: int | None = None
     ) -> int:
         query = (
             "SELECT p.payload_json FROM events e "
@@ -594,9 +594,11 @@ class CognitiveMemoryStore:
             "WHERE e.event_type=?"
         )
         params: list[Any] = [DECISION_EVENT]
-        if exclude_event_id is not None:
-            query += " AND e.event_id<>?"
-            params.append(exclude_event_id)
+        if through_sequence is not None:
+            if not isinstance(through_sequence, int) or isinstance(through_sequence, bool):
+                raise ValueError("through_sequence must be an integer or None")
+            query += " AND e.sequence<=?"
+            params.append(through_sequence)
         query += " ORDER BY e.sequence"
         version = 0
         for row in db.execute(query, params).fetchall():
@@ -657,8 +659,14 @@ class CognitiveMemoryStore:
                 raise CognitiveIntegrityError("decision references disallowed evidence type")
 
         evaluated_version = payload.get("evaluated_state_version")
+        event_sequence_row = db.execute(
+            "SELECT sequence FROM events WHERE event_id=?", (event.event_id,)
+        ).fetchone()
+        if event_sequence_row is None:
+            raise CognitiveIntegrityError("decision event is missing from durable history")
+        event_sequence = int(event_sequence_row["sequence"])
         current_version = self._authoritative_state_version(
-            db, exclude_event_id=event.event_id
+            db, through_sequence=event_sequence - 1
         )
         projection_version = int(db.execute(
             "SELECT COUNT(*) FROM accepted_memories"
