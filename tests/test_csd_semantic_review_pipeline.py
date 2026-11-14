@@ -193,7 +193,7 @@ class SemanticReviewPipelineTests(unittest.TestCase):
         self.create_pending()
         provider = FakeSemanticReviewProvider()
         self.pipeline(provider).review_proposal("semantic-pipeline-proposal")
-        self.assertTrue(provider.called_in_transaction)
+        self.assertEqual(len(provider.called_in_transaction), 1)
         self.assertFalse(any(provider.called_in_transaction))
 
     def test_review_pipeline_never_evaluates_proposal(self):
