@@ -152,6 +152,8 @@ A candidate claim may quote or describe hostile instructions found in source mat
 - any later external action still requires the separate ASM authorization path.
 
 ## 9. Recommended staged implementation
+A concrete text-first schema proposal is now documented in [Grounded Memory Proposal v2](grounded-memory-proposal-v2.md). It remains a design proposal and has not been implemented or tested.
+
 
 1. Add a versioned claim array to a new proposal event schema; do not mutate the existing v1 event meaning.
 2. Implement exact text-range validation first, using synthetic fixtures.
