@@ -122,7 +122,7 @@ class MemoryRetrievalTests(unittest.TestCase):
             "A blue cup sat nearby.",
             memory_kind="object_observation",
         )
-        self.add_legacy("memory-legacy", "A note about a silver leaf.")
+        self.add_legacy("memory-legacy", "A legacy note about an antique map.")
 
     def test_retrieval_returns_accepted_memories_only(self):
         self.add_grounded("accepted-one", "A silver leaf rested on the windowsill.")
