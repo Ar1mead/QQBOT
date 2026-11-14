@@ -67,6 +67,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - [Motivation and life-engine test contract](docs/design/motivation-and-life-engine-test-contract.md)
 - [Motivation signal formation and lifecycle](docs/design/motivation-signal-formation-and-lifecycle.md)
 - [Motivation signal test contract](docs/design/motivation-signal-test-contract.md)
+- [Motivation signal CSD integration contract](docs/design/motivation-signal-csd-integration-contract.md)
 - [Life Engine to CSD event contract](docs/design/life-engine-csd-event-contract.md)
 - [Life Engine reference slice](core/life_engine/README.md)\n- [Motivation proposal validator](core/life_engine/motivation.py)
 - [Specification status register](docs/specifications/status.md)
