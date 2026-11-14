@@ -60,6 +60,8 @@ The provider's candidate text is untrusted model output. It must not be interpre
 
 The provider ID and version are provenance labels, not cryptographic authentication. This Python interface is not a security boundary against hostile code in the same process.
 
+Before a real model provider is connected, the next required design is [claim-to-evidence grounding](claim-to-evidence-grounding.md). It defines atomic claims, epistemic types, and source-specific locators.
+
 ## 6. Current limits
 
 - One observation per call.
