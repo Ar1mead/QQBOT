@@ -224,6 +224,8 @@ class MemoryRetrievalTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.get_memories(epistemic_type="objective_fact")
         with self.assertRaises(ValueError):
+            self.store.get_memories(epistemic_type=["inference"])
+        with self.assertRaises(ValueError):
             self.store.get_memories(limit=True)
         with self.assertRaises(ValueError):
             self.store.get_memories(offset=-1)
