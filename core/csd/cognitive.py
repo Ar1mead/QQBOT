@@ -1448,7 +1448,10 @@ class CognitiveMemoryStore:
                 internal = event.event_type == DECISION_EVENT and event.source == DECISION_SOURCE
                 if event.event_type == DECISION_EVENT and not internal:
                     raise CognitiveIntegrityError("forged decision event in durable history")
-                if event.event_type not in {OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT, DECISION_EVENT}:
+                if event.event_type not in {
+                    OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
+                    SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
+                }:
                     raise CognitiveIntegrityError(f"unknown event type: {event.event_type}")
                 self._apply_projection_event(db, event, sequence, internal=internal)
 
