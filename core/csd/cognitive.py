@@ -890,11 +890,91 @@ class CognitiveMemoryStore:
             "payload": payload,
         }
 
-    def get_memories(self) -> list[dict[str, Any]]:
+    def get_memories(
+        self,
+        *,
+        query: str | None = None,
+        memory_kind: str | None = None,
+        epistemic_type: str | None = None,
+        evidence_event_id: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Retrieve accepted memories with explicit prototype filters.
+
+        query is a case-insensitive substring filter over stored memory/claim
+        text. It is deliberately not described as semantic retrieval.
+        """
+        if query is not None:
+            _nonempty(query, "query")
+        if memory_kind is not None:
+            _nonempty(memory_kind, "memory_kind")
+        if epistemic_type is not None and epistemic_type not in {
+            "source_assertion", "inference"
+        }:
+            raise ValueError("epistemic_type must be source_assertion or inference")
+        if evidence_event_id is not None:
+            _nonempty(evidence_event_id, "evidence_event_id")
+        if limit is not None and (
+            not isinstance(limit, int) or isinstance(limit, bool) or limit <= 0
+        ):
+            raise ValueError("limit must be a positive integer or None")
+        if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
+            raise ValueError("offset must be a non-negative integer")
+
         rows = self._db.execute(
             "SELECT memory_json FROM accepted_memories ORDER BY rowid"
         ).fetchall()
-        return [json.loads(row["memory_json"]) for row in rows]
+        memories = [json.loads(row["memory_json"]) for row in rows]
+        if memory_kind is not None:
+            memories = [m for m in memories if m.get("memory_kind") == memory_kind]
+        if epistemic_type is not None:
+            memories = [
+                m for m in memories
+                if any(
+                    claim.get("epistemic_type") == epistemic_type
+                    for claim in m.get("claims", [])
+                )
+            ]
+        if evidence_event_id is not None:
+            def has_evidence(memory: Mapping[str, Any]) -> bool:
+                refs = set(memory.get("evidence_event_ids", []))
+                for claim in memory.get("claims", []):
+                    for evidence in claim.get("evidence", []):
+                        event_id = evidence.get("event_id")
+                        if isinstance(event_id, str):
+                            refs.add(event_id)
+                return evidence_event_id in refs
+            memories = [m for m in memories if has_evidence(m)]
+        if query is not None:
+            needle = query.casefold()
+            def contains_text(memory: Mapping[str, Any]) -> bool:
+                parts: list[str] = []
+                content = memory.get("content")
+                if isinstance(content, str):
+                    parts.append(content)
+                for claim in memory.get("claims", []):
+                    text = claim.get("text")
+                    if isinstance(text, str):
+                        parts.append(text)
+                return any(needle in part.casefold() for part in parts)
+            memories = [m for m in memories if contains_text(m)]
+
+        selected = memories[offset:]
+        if limit is not None:
+            selected = selected[:limit]
+        return selected
+
+    def get_memory(self, memory_id: str) -> dict[str, Any]:
+        """Retrieve one accepted memory by stable ID, with full provenance."""
+        _nonempty(memory_id, "memory_id")
+        row = self._db.execute(
+            "SELECT memory_json FROM accepted_memories WHERE memory_id=?",
+            (memory_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(memory_id)
+        return json.loads(row["memory_json"])
 
     def get_proposal(self, proposal_id: str) -> dict[str, Any]:
         row = self._db.execute(
