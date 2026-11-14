@@ -310,7 +310,8 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         self.seed_pending()
         self.store.evaluate_proposal("proposal-synthetic-1")
         self.store._db.execute("DELETE FROM accepted_memories")
-        self.assertEqual(self.store.get_memories(), [])
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_memories()
         self.assertFalse(self.store.get_state_snapshot()["projection_consistent"])
         result = self.store.recover()
         self.assertEqual(result["accepted_memories"], 1)
