@@ -46,6 +46,15 @@ class GoalState:
 
 
 @dataclass(frozen=True)
+class ActiveActivityState:
+    activity_id: str
+    required_capability: str
+    permission_granted: bool
+    stop_condition_met: bool
+    side_effect_level: SideEffectLevel
+
+
+@dataclass(frozen=True)
 class ActivityOption:
     """A capability-filtered option supplied by trusted runtime/CSD context.
 
@@ -71,6 +80,7 @@ class LifeSnapshot:
     goals: tuple[GoalState, ...]
     activity_options: tuple[ActivityOption, ...]
     active_activity_ids: tuple[str, ...] = ()
+    active_activity_states: tuple[ActiveActivityState, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -205,6 +215,25 @@ def validate_life_proposal(
     active_activity_ids = _unique_nonempty(
         snapshot.active_activity_ids, "snapshot.active_activity_ids"
     )
+    active_activity_by_id: dict[str, ActiveActivityState] = {}
+    for active in snapshot.active_activity_states:
+        if not isinstance(active, ActiveActivityState):
+            raise TypeError("active_activity_states must contain ActiveActivityState values")
+        if not active.activity_id or not active.activity_id.strip():
+            raise ValueError("active activity_id must be non-empty")
+        if active.activity_id in active_activity_by_id:
+            raise ValueError(f"duplicate active activity_id: {active.activity_id}")
+        if active.activity_id not in active_activity_ids:
+            raise ValueError("active activity state is not listed as active in the snapshot")
+        if not active.required_capability or not active.required_capability.strip():
+            raise ValueError("active activity required_capability must be non-empty")
+        if active.side_effect_level not in {"none", "read_only", "external_side_effect"}:
+            raise ValueError("active activity has unsupported side_effect_level")
+        if not isinstance(active.permission_granted, bool):
+            raise ValueError("active activity permission_granted must be boolean")
+        if not isinstance(active.stop_condition_met, bool):
+            raise ValueError("active activity stop_condition_met must be boolean")
+        active_activity_by_id[active.activity_id] = active
     new_goal_ids: set[str] = set()
     goal_origin_classes: list[tuple[str, str]] = []
     for goal_proposal in proposal.goal_proposals:
@@ -297,6 +326,15 @@ def validate_life_proposal(
             raise ValueError(f"{choice.disposition} must reference only the existing active activity")
         if choice.goal_id is not None:
             raise ValueError(f"{choice.disposition} cannot include a goal transition")
+        active_state = active_activity_by_id.get(choice.active_activity_id)
+        if active_state is None:
+            raise ValueError("active activity details are required for continuation or stop")
+        if choice.disposition == "continue_activity":
+            if not active_state.permission_granted:
+                raise PermissionError("active activity no longer has the required capability permission")
+            if active_state.stop_condition_met:
+                raise ValueError("activity stop condition has already been met")
+        requires_asm = active_state.side_effect_level == "external_side_effect"
     elif choice.disposition in {"pause_goal", "abandon_goal", "revise_goal"}:
         if choice.goal_id is None:
             raise ValueError(f"{choice.disposition} requires goal_id")
