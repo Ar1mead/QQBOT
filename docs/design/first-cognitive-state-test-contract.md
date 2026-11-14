@@ -39,6 +39,8 @@ No LLM, network, platform adapter, external action, personal content, or user ac
 | COG-019 | CSD-owned decision authority; storage decision analysis §4 and §6 | Public Event Submit is available | Submit a reserved CSD decision event through the public path | Submission is rejected | No decision event or accepted-memory transition is committed | Runtime, model, or adapter forges a CSD decision |
 | COG-020 | CSD Recovery; storage decision analysis §7 | Proposal is persisted but not yet evaluated | Close, reopen, run Recovery | Proposal remains pending | No decision event or accepted memory is synthesized | Recovery evaluates or auto-accepts a pending proposal |
 
+| COG-021 | Event history is authoritative; implementation decision §3 and §6 | Accepted decision exists but accepted-memory projection is incomplete | Attempt to evaluate another proposal before Recovery | Evaluation stops with an integrity error; after Recovery the projection is rebuilt and evaluation can proceed | Event-derived state version remains stable; projection consistency becomes true after Recovery | Damaged projection silently lowers state version or allows stale proposal acceptance |
+
 ## Coverage and limits
 
 Covered by this proposed contract:
