@@ -420,7 +420,7 @@ class CognitiveMemoryStore:
                 if outcome != "needs_more_evidence":
                     raise CognitiveIntegrityError("decision references missing evidence")
                 continue
-            if evidence["event_type"] != OBSERVATION_EVENT:
+            if evidence["event_type"] != OBSERVATION_EVENT and outcome != "rejected":
                 raise CognitiveIntegrityError("decision references disallowed evidence type")
 
         evaluated_version = payload.get("evaluated_state_version")
