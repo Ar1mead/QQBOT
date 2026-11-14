@@ -5,6 +5,7 @@ ASM-governed execution adapters are intentionally separate and not yet wired.
 """
 
 from .contracts import (
+    ActiveActivityState,
     ActivityOption,
     ChoiceProposal,
     DeliberationProposal,
@@ -18,6 +19,7 @@ from .contracts import (
 from .engine import LifeEngine
 
 __all__ = [
+    "ActiveActivityState",
     "ActivityOption",
     "ChoiceProposal",
     "DeliberationProposal",
