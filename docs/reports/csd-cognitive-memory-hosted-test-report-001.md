@@ -29,7 +29,7 @@ Workflow job: `132478100617` — success.
 
 ## 3. Cognitive-memory test coverage
 
-The 21 tests cover:
+The 22 cognitive-store tests cover:
 - observation is not automatically accepted as memory;
 - candidate proposal remains separate from accepted memory;
 - CSD evaluation creates one accepted memory with evidence and decision provenance;
@@ -47,13 +47,27 @@ The 21 tests cover:
 - event-envelope tampering is detected;
 - repeated and concurrent evaluation produce only one decision and one accepted memory.
 
-## 4. Baseline preservation
+## 4. Proposal-pipeline coverage
+
+The 11 provider-pipeline tests cover:
+- candidate generation persists only a pending proposal;
+- the provider runs outside the SQLite transaction;
+- the provider receives the current accepted-state version;
+- an empty result creates no event or proposal;
+- invalid provider output and confidence are rejected;
+- provider failure leaves CSD unchanged;
+- non-observation input is rejected;
+- an inconsistent projection blocks provider invocation;
+- corrupted observation evidence is rejected before provider invocation;
+- a pending proposal can later be evaluated through CSD's separate authority path.
+
+## 5. Baseline preservation
 
 The original `CSDStore` source and its 16 tests were not modified by the cognitive slice. The new `CognitiveMemoryStore` is isolated in `core/csd/cognitive.py` and uses a separate SQLite database/schema.
 
 This avoids silently changing the baseline spike. It does not settle the final production database topology or migration strategy.
 
-## 5. Issues found and corrected during CI
+## 6. Issues found and corrected during CI
 
 The first CI attempts were not green:
 1. The first compile check found an incorrectly escaped newline in `core/csd/__init__.py`. The export file was rewritten with valid Python syntax.
@@ -61,7 +75,7 @@ The first CI attempts were not green:
 
 After those corrections and the additional provider-pipeline work, all three suites passed in the same hosted run.
 
-## 6. What this result does not prove
+## 7. What this result does not prove
 
 This report does **not** prove:
 - execution on the user's Windows 11 / Python 3.12.14 environment;
@@ -74,6 +88,6 @@ This report does **not** prove:
 
 The deterministic policy checks structure, evidence references, evidence type, and accepted-state version. It does not understand the meaning of the candidate text.
 
-## 7. Next validation step
+## 8. Next validation step
 
 Before integrating this store with a runtime, run the test suites on the user's Windows machine using Python 3.12.14, then add Windows-specific process interruption, multi-process locking, backup/recovery, and durability tests. Do not use real personal data in the first local run.
