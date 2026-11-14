@@ -30,7 +30,7 @@ A durable signal hypothesis should preserve at least:
 
 - a concise versioned statement of what the signal means, separate from subject identity and scope;
 
-- signal ID and version;
+- signal ID and version;\n- a concise statement of the signal hypothesis, distinct from its subject reference and scope;
 - kind and subject/topic/entity;
 - context/scope (where or under what conditions it applies);
 - current lifecycle and activation state;
@@ -60,7 +60,7 @@ For each relevant encounter, preserve:
 - whether she explored related material or raised her own questions;
 - whether she later expressed attraction, aversion, boredom, or indifference.
 
-An exposure or a user-requested action is evidence that the content was encountered, not evidence of independent preference. A deliberate choice among available alternatives is stronger evidence of interest, but still not proof by itself.
+An exposure or a user-requested action is evidence that the content was encountered, not evidence of independent preference. The signal's initial origin remains immutable even if later versions accumulate independently initiated evidence; current maturity is derived from that cumulative lineage rather than by rewriting the origin label. A deliberate choice among available alternatives is stronger evidence of interest, but still not proof by itself.
 
 ### 4.2 Maturity is not a raw count
 
