@@ -313,6 +313,15 @@ The order below prioritizes foundational correctness without pretending the syst
 
 **Exit condition:** a provider can propose a memory without acquiring authority to accept it. This still does not validate semantic truth or source entailment.
 
+### Stage B4 — Accepted-memory retrieval
+- Expose read-only list and single-memory retrieval.
+- Filter by text substring, memory kind, epistemic type, and source event.
+- Support stable insertion-order pagination.
+- Return full provenance for matching accepted memories; never expose pending proposals through the accepted-memory API.
+- Fail closed when the accepted-memory projection count differs from the authoritative accepted-decision count.
+
+**Prototype status:** implemented and hosted-tested. This is deterministic filtering, not semantic/vector retrieval; projection checking is count-based and does not replace full Recovery integrity validation.
+
 ### Stage B3 — Claim-to-evidence grounding
 See [claim-to-evidence grounding design](../design/claim-to-evidence-grounding.md) and the [grounded memory proposal v2 schema](../design/grounded-memory-proposal-v2.md).
 - Represent candidate memory as atomic claims rather than one unstructured paragraph alone.
