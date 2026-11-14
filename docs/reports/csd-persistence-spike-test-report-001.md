@@ -2,7 +2,7 @@
 
 - Branch: `feature/csd-persistence-spike`
 - Test date: 2026-11-14
-- Result: **10 tests passed**
+- Result: **12 tests passed**
 - Status: prototype validation only; not a production acceptance report.
 
 ## Execution environment
@@ -14,7 +14,7 @@ Tests were executed in the assistant's isolated execution environment, not on th
 - Test runner: Python standard-library `unittest`
 - Dependencies: Python standard library only
 
-The user's local Python 3.12.14 environment has **not** yet been used to run this code. Compatibility with that exact local interpreter remains to be confirmed.
+The user's local Python 3.12.14 environment has **not** yet been used to run this code. Compatibility with that exact local interpreter remains to be confirmed. The subprocess interruption tests ran on this isolated Linux environment; Windows process and file-locking behavior remains unverified.
 
 ## Test results
 
@@ -29,6 +29,8 @@ The user's local Python 3.12.14 environment has **not** yet been used to run thi
 | `test_corrupt_payload_causes_safe_stop` | PASS | Payload corruption stops recovery and preserves the database |
 | `test_recovery_api_has_no_action_executor_parameter` | PASS | Recovery API has no action-executor injection point |
 | `test_journal_and_synchronous_mode_matrix_round_trip` | PASS | Basic reopen/recovery round-trip under WAL/DELETE × FULL/NORMAL |
+| `test_process_exit_mid_transaction_rolls_back_event` | PASS | Abrupt child-process exit before commit leaves no accepted event |
+| `test_process_exit_after_commit_is_safe_to_retry` | PASS | Abrupt child-process exit after commit is safely handled by idempotent resubmission |
 | `test_invalid_timezone_is_rejected` | PASS | Naive timestamps are rejected |
 
 ## What this proves
@@ -41,12 +43,15 @@ The current prototype can:
 - recover a projection using a snapshot and subsequent event tail;
 - reject a damaged snapshot and rebuild from the event log;
 - stop when payload integrity fails;
-- run basic round-trip checks under four SQLite journal/synchronous combinations.
+- run basic round-trip checks under four SQLite journal/synchronous combinations;
+- survive simulated abrupt process exit before commit without accepting a partial event;
+- safely handle a process exit after commit but before the caller receives the result, using idempotent resubmission.
 
 ## What this does not prove
 
 This run does **not** establish:
 - behavior on the user's Windows 11 / Python 3.12.14 installation;
+- Windows-specific process termination and file-locking behavior;
 - physical power-loss durability;
 - correctness under forced process termination at every transaction boundary;
 - multi-process write contention or high-volume concurrent readers;
