@@ -1108,12 +1108,6 @@ class CognitiveMemoryStore:
                     "accepted-memory projection is out of sync; run Recovery before evaluation"
                 )
             based_on_version = int(proposal["based_on"]["state_version"])
-            if outcome == "accepted" and based_on_version != current_state_version:
-                outcome = "deferred"
-                reason = (
-                    f"stale proposal state_version={based_on_version}; "
-                    f"current state_version={current_state_version}"
-                )
 
             semantic_review_event_ids: list[str] = []
             semantic_review_status = "not_applicable"
@@ -1144,6 +1138,13 @@ class CognitiveMemoryStore:
                     elif semantic_review_status in {"uncertain", "conflicting"}:
                         outcome = "deferred"
                         reason = review_summary["reason"]
+
+            if outcome == "accepted" and based_on_version != current_state_version:
+                outcome = "deferred"
+                reason = (
+                    f"stale proposal state_version={based_on_version}; "
+                    f"current state_version={current_state_version}"
+                )
 
             decision_number = int(db.execute(
                 "SELECT COUNT(*) FROM events WHERE event_type=?",
