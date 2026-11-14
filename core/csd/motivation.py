@@ -163,6 +163,9 @@ class CognitiveMotivationMixin:
                 raise ValueError("commitment_accepted must preserve user_request or self_commitment origin")
             if origin_event_id is None:
                 raise ValueError("commitment_accepted requires origin_event_id")
+        if origin in {"user_request", "platform_recommendation", "external_opportunity", "self_commitment"}:
+            if origin_event_id is None:
+                raise ValueError(f"{origin} evidence requires origin_event_id")
         if origin_event_id is not None:
             row = db.execute(
                 "SELECT sequence FROM events WHERE event_id=?", (origin_event_id,)
@@ -524,9 +527,13 @@ class CognitiveMotivationMixin:
                     })
 
         time_points = {item["occurred_at"] for item in voluntary.values()}
-        if proposal["operation"] == "contextualize":
+        if proposal["operation"] == "contextualize" or (
+            current_target is not None and current_target.get("interest_stage") == "contextual"
+        ):
             interest_stage = "contextual"
         elif len(voluntary) >= 2 and len(time_points) >= 2:
+            interest_stage = "emerging"
+        elif current_target is not None and current_target.get("interest_stage") == "emerging":
             interest_stage = "emerging"
         else:
             interest_stage = "tentative"
@@ -818,6 +825,22 @@ class CognitiveMotivationMixin:
         ).fetchone()[0])
         if expected != versions or signals != distinct:
             self._raise_cognitive_integrity("motivation signal projection is out of sync; run Recovery")
+        mismatches = int(self._db.execute(
+            "SELECT COUNT(*) FROM motivation_signals s "
+            "LEFT JOIN motivation_signal_versions v "
+            "ON v.signal_id=s.signal_id AND v.signal_version=s.signal_version "
+            "WHERE v.signal_id IS NULL OR v.signal_json<>s.signal_json "
+            "OR v.decision_event_id<>s.decision_event_id "
+            "OR v.transition_id<>s.transition_id"
+        ).fetchone()[0])
+        latest_mismatches = int(self._db.execute(
+            "SELECT COUNT(*) FROM motivation_signals s "
+            "JOIN (SELECT signal_id,MAX(signal_version) AS max_version "
+            "FROM motivation_signal_versions GROUP BY signal_id) v "
+            "ON v.signal_id=s.signal_id WHERE s.signal_version<>v.max_version"
+        ).fetchone()[0])
+        if mismatches or latest_mismatches:
+            self._raise_cognitive_integrity("latest motivation signal projection differs from version history; run Recovery")
 
     @staticmethod
     def _accepted_transition_count(
