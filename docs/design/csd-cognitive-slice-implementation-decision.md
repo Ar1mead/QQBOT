@@ -60,7 +60,7 @@ It never calls `evaluate_proposal`, a model, an adapter, or an external action. 
 
 ## 7. Test and verification status
 
-The new suite covers observation/proposal separation, accepted memory provenance, public decision-event and reserved-ID rejection, event/proposal idempotency and conflicts, stale state, missing evidence, atomic rollback, projection inconsistency handling, recovery, tamper detection, repeated evaluation, and concurrent evaluation. The current suite contains 21 tests.
+The cognitive-memory and provider-pipeline suites cover observation/proposal separation, accepted memory provenance, public decision-event and reserved-ID rejection, strict event schemas, event/proposal idempotency and conflicts, stale state, missing evidence, atomic rollback, projection inconsistency handling, recovery, tamper detection, repeated/concurrent evaluation, provider execution outside transactions, provider failure isolation, and pending-only proposal generation. The current cognitive and pipeline suites contain 22 and 9 tests respectively.
 
 The GitHub Actions workflow runs the new suite and the unchanged baseline suite on Python 3.12. A green hosted run is not a substitute for testing on the user's Windows 11 / Python 3.12.14 environment. No local Windows, power-loss, or hostile-process isolation claim is made.
 
