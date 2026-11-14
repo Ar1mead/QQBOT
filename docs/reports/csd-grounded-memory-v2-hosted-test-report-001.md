@@ -1,16 +1,16 @@
 # Grounded Memory v2 — Hosted Test Report 001
 
 > Status: **hosted CI passed; Windows-local verification pending**  
-> Tested commit: `f32bd3ea6025bf8a23f389e7ae3b638c48a15c59`  
+> Tested commit: `7d57ed2dfbb3bed76fe8208de79a8cef49bdc4cf`  
 > Branch: `feature/csd-cognitive-memory-slice`  
-> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43607418207)
+> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43607709889)
 
 ## 1. Environment
 
 - Runner: GitHub-hosted Ubuntu 26.04
 - Python: CPython 3.12.16
 - Dependencies: Python standard library only
-- Workflow job: `132484962739` — success
+- Workflow job: `132485859315` — success
 
 ## 2. Test results
 
@@ -21,9 +21,9 @@
 | v1 provider-neutral proposal pipeline | 11 passed |
 | Grounded-memory v2 store and decision path | 24 passed |
 | Grounded-memory v2 provider pipeline | 11 passed |
-| Accepted-memory retrieval | 10 passed |
+| Accepted-memory retrieval | 13 passed |
 | Original generic CSD persistence baseline | 16 passed |
-| **Total** | **94 passed** |
+| **Total** | **97 passed** |
 
 The original generic persistence implementation and its 16 tests remain unchanged.
 
@@ -71,6 +71,8 @@ The 10 retrieval tests cover:
 - stable insertion-order limit/offset pagination;
 - full-provenance single-memory lookup;
 - read-only behavior with unchanged event count and authoritative state;
+- list and single-record reads fail closed when the accepted-memory projection is incomplete;
+- Recovery restores the retrieval results from the event history;
 - invalid filter arguments, including non-string epistemic-type filters.
 
 This API is deterministic substring/filter retrieval, not embedding-based or semantic retrieval.
