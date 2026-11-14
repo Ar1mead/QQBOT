@@ -1,7 +1,7 @@
 # AI Individual Project
 
 > Repository: `Ar1mead/QQBOT`  
-> Status: isolated CSD persistence reference spike; not production-ready and not merged to main.
+> Status: architecture and isolated CSD reference work in progress; not production-ready and not merged to main.
 
 ## Purpose
 
@@ -15,24 +15,26 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 
 - `core/csd/` — authoritative long-term cognitive state.
 - `core/asm/` — action safety, attempt lifecycle, verification, retry, and recovery.
-- `core/life_engine/` — drives, interests, goals, planning, autonomous activity, and self-initiated activities such as journaling.
-- `core/memory/` — memory formation, retrieval, revision, and forgetting.
-- `core/personality/` — identity, stable traits, and evolving preferences.
+- `core/life_engine/` — drives, interests, goals, deliberation, planning, autonomous activity, and self-initiated activities such as journaling.
+- `core/memory/` — memory formation, retrieval, revision, consolidation, and forgetting.
+- `core/personality/` — identity, stable traits, self-model, and evolving preferences.
 - `adapters/` — runtime and platform integrations such as DSH, SurfCore, Bilibili, and QQ.
 - `docs/` — architecture, specifications, and technical decisions.
 - `tests/` — automated tests.
 
 ## Current phase
 
-1. Establish project documentation and preserve the status of existing specifications.
-2. Inventory the actual local DSH and SurfCore versions and source trees.
-3. Implement the smallest independently persistent and recoverable CSD core.
-4. Integrate ASM and the autonomous life engine incrementally.
-5. Add platform capabilities behind explicit permission boundaries, starting with read-only Bilibili access.
+1. Define the persistent-individual runtime model and module ownership.
+2. Preserve and refine CSD/ASM specification status without promoting unresolved interpretations into rules.
+3. Validate the isolated CSD persistence reference on the target Windows environment.
+4. Implement the smallest useful cognitive state transitions, then memory, self-model, affect/drives, deliberation, and life-engine behavior.
+5. Add platform capabilities behind explicit permission boundaries, starting with read-only Bilibili perception.
 
 ## Engineering principles
 
 - Cognitive state is independent of the runtime and platform adapters.
+- One authoritative path governs durable state transitions.
+- Observations, interpretations, memories, preferences, affect, goals, commitments, and diary entries remain distinguishable.
 - Autonomous activities must be possible without user prompts or rigid recurring schedules; the system must also be able to choose not to act.
 - Journaling must not be reduced to scheduled report generation: the individual can self-initiate it, choose its content and timing, or choose not to write.
 - External side effects must be traceable and recoverable; recovery must not replay them.
@@ -44,6 +46,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 ## Documentation index
 
 - [Architecture overview](docs/architecture/overview.md)
+- [Persistent individual runtime model](docs/architecture/individual-runtime-model.md)
 - [Specification status register](docs/specifications/status.md)
 - [Software baseline](docs/inventory/software-baseline.md)
 - [SurfCore v0.8.8 capability assessment and integration plan](docs/inventory/surfcore-capability-assessment.md)
@@ -52,8 +55,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - [CSD persistence spike test report 001](docs/reports/csd-persistence-spike-test-report-001.md)
 - [CSD reference-prototype language decision](docs/decisions/0002-csd-reference-implementation-language.md)
 - [Repository scope decision](docs/decisions/0001-repository-scope.md)
-- [CSD reference-prototype language decision](docs/decisions/0002-csd-reference-implementation-language.md)
 
 ## Specification status
 
-This repository bootstrap does not declare CSD or ASM fully frozen. Previously confirmed ASM baselines remain confirmed; unresolved ASM-5.4 questions remain unresolved. See `docs/specifications/status.md`.
+This repository does not declare CSD or ASM fully frozen. Previously confirmed ASM baselines remain confirmed; unresolved ASM-5.4 questions remain unresolved. See `docs/specifications/status.md`.
