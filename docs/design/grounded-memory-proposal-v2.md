@@ -14,7 +14,7 @@ This design introduces a new event type/version. It does not reinterpret or muta
 ## 2. Scope
 
 First implementation:
-- text observation records only;
+- observation records whose declared coverage modality is exactly `text`;
 - one observation event per proposal;
 - source-assertion claims with exactly one exact text span each;
 - exactly one distinct observation event per proposal in this first version;
@@ -100,7 +100,7 @@ There is deliberately no free-form memory narrative field in this first v2 schem
 Required:
 - non-empty claim_id and text;
 - exactly one evidence reference;
-- each reference identifies an existing observation event;
+- each reference identifies an existing observation event whose declared coverage modality is exactly `text`;
 - locator kind is `text_range`;
 - unit is `unicode_codepoint`;
 - start/end are non-negative integers with start less than end;
@@ -148,7 +148,7 @@ CSD must never silently rewrite a bad quote to make it pass. The original propos
 
 ## 6A. Prototype implementation status
 
-The v2 event type `cognition.grounded_memory_candidate_proposed.v1` is implemented in the isolated `CognitiveMemoryStore` prototype.
+The v2 event type `cognition.grounded_memory_candidate_proposed.v1` is implemented in the isolated `CognitiveMemoryStore` prototype. Non-text observations are rejected both before provider invocation and during CSD evaluation.
 
 The CSD evaluator currently:
 - checks the strict claim schema;
