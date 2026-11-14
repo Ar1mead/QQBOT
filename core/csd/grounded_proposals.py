@@ -186,6 +186,9 @@ class GroundedMemoryProposalPipeline:
         observation = self.store.get_event(observation_event_id)
         if observation["event_type"] != OBSERVATION_EVENT:
             raise ValueError("grounded proposal generation requires an observation event")
+        coverage = observation["payload"].get("coverage")
+        if not isinstance(coverage, Mapping) or coverage.get("modality") != "text":
+            raise ValueError("grounded memory v2 provider requires a text observation")
 
         state = self.store.get_state_snapshot()
         if not state["projection_consistent"]:
