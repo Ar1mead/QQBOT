@@ -1,0 +1,668 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import sqlite3
+import tempfile
+import unittest
+
+from core.csd import (
+    CognitiveEvent,
+    CognitiveIdempotencyConflict,
+    CognitiveIntegrityError,
+    CognitiveMemoryStore,
+    INTERACTION_EVENT,
+    MOTIVATION_DECISION_EVENT,
+    MOTIVATION_PROPOSAL_EVENT,
+)
+from core.csd.cognitive import (
+    DECISION_EVENT,
+    OBSERVATION_EVENT,
+    PROPOSAL_EVENT,
+)
+
+
+def envelope(event_id, event_type, source, payload, *, at="2026-11-14T10:00:00+00:00"):
+    return CognitiveEvent(
+        event_id=event_id,
+        occurred_at=at,
+        correlation_id="corr-motivation-tests",
+        event_type=event_type,
+        source=source,
+        payload=payload,
+    )
+
+
+def interaction(
+    event_id,
+    *,
+    kind="voluntary_selection",
+    origin="internal_state",
+    encounter="enc-1",
+    subject="topic:blue-boat",
+    selected="item:blue-boat",
+    choice_set=None,
+    meaningful=True,
+    origin_event_id=None,
+    related_event_id=None,
+    at="2026-11-14T10:00:00+00:00",
+    adapter="test.adapter",
+):
+    if choice_set is None:
+        choice_set = ["item:blue-boat", "item:red-boat"] if kind in {
+            "voluntary_selection", "return_visit"
+        } else []
+    return envelope(
+        event_id,
+        INTERACTION_EVENT,
+        f"interaction-adapter:{adapter}",
+        {
+            "encounter_id": encounter,
+            "subject_ref": subject,
+            "evidence_kind": kind,
+            "origin": origin,
+            "context": "synthetic local test context",
+            "meaningful_alternatives": meaningful,
+            "choice_set_refs": list(choice_set),
+            "selected_ref": selected,
+            "origin_event_id": origin_event_id,
+            "related_event_id": related_event_id,
+            "adapter": {"component": adapter, "version": "0.1"},
+            "session_scope": "synthetic-test-session",
+        },
+        at=at,
+    )
+
+
+def motivation_proposal(
+    proposal_id,
+    *,
+    operation="create",
+    kind="interest",
+    subject="topic:blue-boat",
+    scope="general",
+    statement="A tentative interest in blue-boat videos.",
+    support=("interaction-1",),
+    counter=(),
+    new_signal_id="signal-blue-boat",
+    target_signal_id=None,
+    target_version=None,
+    based_on=0,
+    requested_stage="tentative",
+    source_component="test.synthesizer",
+    at="2026-11-14T10:05:00+00:00",
+):
+    return envelope(
+        f"event-{proposal_id}",
+        MOTIVATION_PROPOSAL_EVENT,
+        f"motivation-proposal:{source_component}",
+        {
+            "proposal_id": proposal_id,
+            "operation": operation,
+            "kind": kind,
+            "subject_ref": subject,
+            "scope": scope,
+            "statement": statement,
+            "supporting_event_ids": list(support),
+            "counter_evidence_event_ids": list(counter),
+            "new_signal_id": new_signal_id,
+            "target_signal_id": target_signal_id,
+            "target_signal_version": target_version,
+            "requested_interest_stage": requested_stage if kind == "interest" else None,
+            "rationale": "Synthetic hypothesis; not a factual verdict.",
+            "origin": {"component": source_component, "version": "0.1"},
+            "based_on": {"state_version": based_on},
+        },
+        at=at,
+    )
+
+
+class CognitiveMotivationStoreTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.db_path = Path(self.temp_dir.name) / "cognitive-motivation.sqlite3"
+        self.store = CognitiveMemoryStore(self.db_path)
+
+    def tearDown(self):
+        try:
+            self.store.close()
+        except sqlite3.ProgrammingError:
+            pass
+        self.temp_dir.cleanup()
+
+    def add_interaction(self, event):
+        return self.store.submit_event(event)
+
+    def add_proposal(self, event):
+        return self.store.submit_event(event)
+
+    def test_migration_creates_schema_v2_and_preserves_existing_event_data(self):
+        first = self.add_interaction(interaction("interaction-1"))
+        self.add_proposal(motivation_proposal("proposal-migration"))
+        accepted = self.store.evaluate_motivation_proposal("proposal-migration")
+        self.assertEqual(accepted["status"], "accepted")
+        before_events = self.store.get_state_snapshot()["event_count"]
+        before_signals = self.store.get_motivation_signals()
+
+        self.store.close()
+        connection = sqlite3.connect(self.db_path)
+        connection.execute("DROP TABLE motivation_signal_versions")
+        connection.execute("DROP TABLE motivation_signals")
+        connection.execute("DROP TABLE motivation_proposals")
+        connection.execute("PRAGMA user_version = 1")
+        connection.commit()
+        connection.close()
+
+        self.store = CognitiveMemoryStore(self.db_path)
+        version = int(self.store._db.execute("PRAGMA user_version").fetchone()[0])
+        self.assertEqual(version, 2)
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], before_events)
+        self.assertEqual(self.store.get_motivation_signals(), before_signals)
+        self.assertEqual(self.store.get_event("interaction-1")["event_type"], INTERACTION_EVENT)
+
+    def test_fresh_schema_is_v2(self):
+        self.assertEqual(
+            int(self.store._db.execute("PRAGMA user_version").fetchone()[0]),
+            2,
+        )
+
+    def test_voluntary_choice_requires_internal_origin_and_real_choice_set(self):
+        bad = interaction(
+            "interaction-bad-origin",
+            kind="voluntary_selection",
+            origin="user_request",
+            origin_event_id="missing-trigger",
+        )
+        with self.assertRaises(ValueError):
+            self.add_interaction(bad)
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], 0)
+
+    def test_voluntary_choice_requires_selected_item_in_choice_set(self):
+        bad = interaction(
+            "interaction-bad-choice",
+            selected="item:not-offered",
+        )
+        with self.assertRaises(ValueError):
+            self.add_interaction(bad)
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], 0)
+
+    def test_voluntary_choice_requires_at_least_two_alternatives(self):
+        bad = interaction(
+            "interaction-one-choice",
+            choice_set=["item:blue-boat"],
+        )
+        with self.assertRaises(ValueError):
+            self.add_interaction(bad)
+
+    def test_platform_autoplay_cannot_be_mislabeled_as_internal(self):
+        bad = interaction(
+            "interaction-autoplay-forged",
+            kind="platform_autoplay",
+            origin="internal_state",
+            meaningful=False,
+            choice_set=[],
+            selected="item:blue-boat",
+            origin_event_id="missing-trigger",
+        )
+        with self.assertRaises(ValueError):
+            self.add_interaction(bad)
+
+    def test_user_requested_action_requires_existing_origin_event(self):
+        source = envelope(
+            "source-user-request",
+            OBSERVATION_EVENT,
+            "test.user-request-fixture",
+            {
+                "observation_id": "obs-user-request",
+                "observation_kind": "text_fixture",
+                "content": "Synthetic user request provenance.",
+                "source_ref": "fixture://user-request",
+                "observed_at": "2026-11-14T09:59:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+            at="2026-11-14T09:59:00+00:00",
+        )
+        self.store.submit_event(source)
+        requested = interaction(
+            "interaction-requested",
+            kind="user_requested_action",
+            origin="user_request",
+            meaningful=False,
+            choice_set=[],
+            selected="item:blue-boat",
+            origin_event_id="source-user-request",
+        )
+        self.assertEqual(self.add_interaction(requested)["status"], "accepted")
+
+    def test_return_visit_requires_prior_same_subject_and_item(self):
+        prior = interaction(
+            "interaction-prior",
+            kind="user_requested_action",
+            origin="user_request",
+            meaningful=False,
+            choice_set=[],
+            selected="item:blue-boat",
+        )
+        # This fixture's origin event is deliberately present first.
+        source = envelope(
+            "source-user-request",
+            OBSERVATION_EVENT,
+            "test.user-request-fixture",
+            {
+                "observation_id": "obs-request",
+                "observation_kind": "text_fixture",
+                "content": "A request.",
+                "source_ref": "fixture://request",
+                "observed_at": "2026-11-14T09:58:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+            at="2026-11-14T09:58:00+00:00",
+        )
+        self.store.submit_event(source)
+        prior_payload = dict(prior.payload)
+        prior_payload["origin_event_id"] = "source-user-request"
+        prior = envelope(
+            prior.event_id, prior.event_type, prior.source, prior_payload,
+            at="2026-11-14T09:59:00+00:00",
+        )
+        self.add_interaction(prior)
+
+        returned = interaction(
+            "interaction-return",
+            kind="return_visit",
+            origin="internal_state",
+            encounter="enc-2",
+            related_event_id="interaction-prior",
+            at="2026-11-14T11:00:00+00:00",
+        )
+        self.add_interaction(returned)
+        bad = interaction(
+            "interaction-return-wrong",
+            kind="return_visit",
+            origin="internal_state",
+            encounter="enc-3",
+            related_event_id="interaction-prior",
+            selected="item:red-boat",
+            at="2026-11-14T12:00:00+00:00",
+        )
+        with self.assertRaises(ValueError):
+            self.add_interaction(bad)
+
+    def test_adapter_source_must_match_adapter_metadata(self):
+        good = interaction("interaction-adapter-source")
+        bad = envelope(
+            good.event_id,
+            good.event_type,
+            "interaction-adapter:other",
+            good.payload,
+            at=good.occurred_at,
+        )
+        with self.assertRaises(ValueError):
+            self.add_interaction(bad)
+
+    def test_interaction_event_identity_is_idempotent(self):
+        event = interaction("interaction-idempotent")
+        self.assertEqual(self.add_interaction(event)["status"], "accepted")
+        self.assertEqual(self.add_interaction(event)["status"], "duplicate")
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], 1)
+
+    def test_interaction_event_identity_conflict_is_rejected(self):
+        event = interaction("interaction-conflict")
+        self.add_interaction(event)
+        changed = interaction(
+            "interaction-conflict",
+            encounter="different-encounter",
+        )
+        with self.assertRaises(CognitiveIdempotencyConflict):
+            self.add_interaction(changed)
+
+    def test_observation_event_cannot_be_used_as_motivation_evidence(self):
+        observation = envelope(
+            "observation-not-interaction",
+            OBSERVATION_EVENT,
+            "test.observation",
+            {
+                "observation_id": "obs-1",
+                "observation_kind": "text_fixture",
+                "content": "Not an interaction choice.",
+                "source_ref": "fixture://obs",
+                "observed_at": "2026-11-14T09:59:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+        )
+        self.store.submit_event(observation)
+        proposal = motivation_proposal(
+            "proposal-wrong-evidence",
+            support=("observation-not-interaction",),
+        )
+        with self.assertRaises(ValueError):
+            self.add_proposal(proposal)
+
+    def test_motivation_proposal_requires_exact_schema(self):
+        self.add_interaction(interaction("interaction-1"))
+        event = motivation_proposal("proposal-extra-field")
+        payload = dict(event.payload)
+        payload["origin_class"] = "internally_initiated"
+        forged = envelope(
+            event.event_id,
+            event.event_type,
+            event.source,
+            payload,
+            at=event.occurred_at,
+        )
+        with self.assertRaises(ValueError):
+            self.add_proposal(forged)
+
+    def test_motivation_proposal_identity_conflict_is_rejected(self):
+        self.add_interaction(interaction("interaction-1"))
+        first = motivation_proposal("proposal-identity")
+        self.add_proposal(first)
+        second = motivation_proposal(
+            "proposal-identity",
+            statement="A changed statement with the same proposal identity.",
+        )
+        second = envelope(
+            "event-proposal-identity-copy",
+            second.event_type,
+            second.source,
+            second.payload,
+            at=second.occurred_at,
+        )
+        with self.assertRaises(CognitiveIdempotencyConflict):
+            self.add_proposal(second)
+
+    def test_create_interest_proposal_becomes_accepted_signal(self):
+        self.add_interaction(interaction("interaction-1"))
+        self.add_proposal(motivation_proposal("proposal-create"))
+        result = self.store.evaluate_motivation_proposal("proposal-create")
+        self.assertEqual(result["status"], "accepted")
+        signals = self.store.get_motivation_signals()
+        self.assertEqual(len(signals), 1)
+        self.assertEqual(signals[0]["signal_id"], "signal-blue-boat")
+        self.assertEqual(signals[0]["signal_version"], 1)
+        self.assertEqual(signals[0]["origin_class"], "internally_initiated")
+        self.assertEqual(signals[0]["interest_stage"], "tentative")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], 1)
+        self.assertTrue(self.store.get_state_snapshot()["projection_consistent"])
+
+    def test_user_request_origin_is_preserved_when_later_independent_choices_accumulate(self):
+        source = envelope(
+            "source-user-request",
+            OBSERVATION_EVENT,
+            "test.user-request",
+            {
+                "observation_id": "obs-request",
+                "observation_kind": "text_fixture",
+                "content": "Synthetic request.",
+                "source_ref": "fixture://request",
+                "observed_at": "2026-11-14T09:58:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+            at="2026-11-14T09:58:00+00:00",
+        )
+        self.store.submit_event(source)
+        requested = interaction(
+            "interaction-request",
+            kind="user_requested_action",
+            origin="user_request",
+            meaningful=False,
+            choice_set=[],
+            selected="item:blue-boat",
+            origin_event_id="source-user-request",
+            at="2026-11-14T09:59:00+00:00",
+        )
+        self.add_interaction(requested)
+        self.add_proposal(motivation_proposal(
+            "proposal-initial-user",
+            support=("interaction-request",),
+            based_on=0,
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("proposal-initial-user")["status"],
+            "accepted",
+        )
+        first = self.store.get_motivation_signal("signal-blue-boat")
+        self.assertEqual(first["origin_class"], "user_requested_encounter")
+        self.assertEqual(first["voluntary_encounters"], [])
+
+        chosen = interaction(
+            "interaction-voluntary-1",
+            kind="voluntary_selection",
+            origin="internal_state",
+            encounter="enc-voluntary-1",
+            at="2026-11-14T10:30:00+00:00",
+        )
+        self.add_interaction(chosen)
+        self.add_proposal(motivation_proposal(
+            "proposal-reinforce-one",
+            operation="reinforce",
+            support=("interaction-voluntary-1",),
+            new_signal_id=None,
+            target_signal_id="signal-blue-boat",
+            target_version=1,
+            based_on=1,
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("proposal-reinforce-one")["status"],
+            "accepted",
+        )
+        second = self.store.get_motivation_signal("signal-blue-boat")
+        self.assertEqual(second["origin_class"], "user_requested_encounter")
+        self.assertEqual(len(second["voluntary_encounters"]), 1)
+        self.assertEqual(second["interest_stage"], "tentative")
+
+        returned = interaction(
+            "interaction-voluntary-2",
+            kind="return_visit",
+            origin="internal_state",
+            encounter="enc-voluntary-2",
+            related_event_id="interaction-request",
+            at="2026-11-14T12:00:00+00:00",
+        )
+        self.add_interaction(returned)
+        self.add_proposal(motivation_proposal(
+            "proposal-reinforce-two",
+            operation="reinforce",
+            support=("interaction-voluntary-2",),
+            new_signal_id=None,
+            target_signal_id="signal-blue-boat",
+            target_version=2,
+            based_on=2,
+            requested_stage="emerging",
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("proposal-reinforce-two")["status"],
+            "accepted",
+        )
+        third = self.store.get_motivation_signal("signal-blue-boat")
+        self.assertEqual(third["origin_class"], "user_requested_encounter")
+        self.assertEqual(len(third["voluntary_encounters"]), 2)
+        self.assertEqual(third["interest_stage"], "emerging")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], 3)
+
+    def test_update_cannot_reuse_prior_evidence(self):
+        self.add_interaction(interaction("interaction-1"))
+        self.add_proposal(motivation_proposal("proposal-create"))
+        self.store.evaluate_motivation_proposal("proposal-create")
+        proposal = motivation_proposal(
+            "proposal-reuse",
+            operation="reinforce",
+            support=("interaction-1",),
+            new_signal_id=None,
+            target_signal_id="signal-blue-boat",
+            target_version=1,
+            based_on=1,
+        )
+        with self.assertRaises(ValueError):
+            self.add_proposal(proposal)
+
+    def test_update_target_version_must_be_positive_integer(self):
+        self.add_interaction(interaction("interaction-1"))
+        self.add_proposal(motivation_proposal("proposal-create"))
+        self.store.evaluate_motivation_proposal("proposal-create")
+        event = motivation_proposal(
+            "proposal-bool-version",
+            operation="reinforce",
+            support=("interaction-2",),
+            new_signal_id=None,
+            target_signal_id="signal-blue-boat",
+            target_version=True,
+            based_on=1,
+        )
+        with self.assertRaises(ValueError):
+            self.add_proposal(event)
+
+    def test_motivation_proposal_stale_global_state_is_deferred(self):
+        self.add_interaction(interaction("interaction-1"))
+        self.add_proposal(motivation_proposal("proposal-create"))
+        self.store.evaluate_motivation_proposal("proposal-create")
+        second = interaction(
+            "interaction-2",
+            encounter="enc-2",
+            at="2026-11-14T11:00:00+00:00",
+        )
+        self.add_interaction(second)
+        self.add_proposal(motivation_proposal(
+            "proposal-stale-state",
+            operation="reinforce",
+            support=("interaction-2",),
+            new_signal_id=None,
+            target_signal_id="signal-blue-boat",
+            target_version=1,
+            based_on=0,
+        ))
+        result = self.store.evaluate_motivation_proposal("proposal-stale-state")
+        self.assertEqual(result["status"], "deferred")
+        self.assertEqual(self.store.get_motivation_signal("signal-blue-boat")["signal_version"], 1)
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], 1)
+
+    def test_pausing_signal_is_a_durable_state_transition(self):
+        self.add_interaction(interaction("interaction-1"))
+        self.add_proposal(motivation_proposal("proposal-create"))
+        self.store.evaluate_motivation_proposal("proposal-create")
+        pause = motivation_proposal(
+            "proposal-pause",
+            operation="pause",
+            support=(),
+            new_signal_id=None,
+            target_signal_id="signal-blue-boat",
+            target_version=1,
+            based_on=1,
+        )
+        self.add_proposal(pause)
+        result = self.store.evaluate_motivation_proposal("proposal-pause")
+        self.assertEqual(result["status"], "accepted")
+        state = self.store.get_motivation_signal("signal-blue-boat")
+        self.assertEqual(state["status"], "paused")
+        self.assertEqual(state["signal_version"], 2)
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], 2)
+
+    def test_csd_decision_event_cannot_be_forged_through_public_submit(self):
+        forged = envelope(
+            "forged-motivation-decision",
+            MOTIVATION_DECISION_EVENT,
+            "csd.authority.v1",
+            {},
+        )
+        with self.assertRaises(ValueError):
+            self.store.submit_event(forged)
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], 0)
+
+    def test_failed_motivation_projection_rolls_back_decision_and_signal(self):
+        self.add_interaction(interaction("interaction-1"))
+        self.add_proposal(motivation_proposal("proposal-atomic"))
+        original = self.store._apply_motivation_decision
+
+        def fail(*args, **kwargs):
+            raise RuntimeError("injected failure before commit")
+
+        self.store._apply_motivation_decision = fail
+        before = self.store.get_state_snapshot()["event_count"]
+        with self.assertRaises(RuntimeError):
+            self.store.evaluate_motivation_proposal("proposal-atomic")
+        self.store._apply_motivation_decision = original
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], before)
+        self.assertEqual(self.store.get_motivation_proposal("proposal-atomic")["status"], "pending")
+        self.assertEqual(self.store.get_motivation_signals(), [])
+
+    def test_recovery_rebuilds_motivation_projections_without_provider(self):
+        self.add_interaction(interaction("interaction-1"))
+        self.add_proposal(motivation_proposal("proposal-recover"))
+        self.store.evaluate_motivation_proposal("proposal-recover")
+        before = self.store.get_motivation_signals()
+
+        def forbidden(*args, **kwargs):
+            raise AssertionError("recovery must never invoke a synthesizer")
+
+        self.store.evaluate_motivation_proposal = forbidden
+        report = self.store.recover()
+        self.assertEqual(report["motivation_signals"], 1)
+        self.assertEqual(self.store.get_motivation_signals(), before)
+
+    def test_recovery_repairs_deleted_motivation_projection(self):
+        self.add_interaction(interaction("interaction-1"))
+        self.add_proposal(motivation_proposal("proposal-rebuild"))
+        self.store.evaluate_motivation_proposal("proposal-rebuild")
+        self.store._db.execute("DELETE FROM motivation_signals")
+        self.assertFalse(self.store.get_state_snapshot()["projection_consistent"])
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_motivation_signals()
+        self.store.recover()
+        self.assertTrue(self.store.get_state_snapshot()["projection_consistent"])
+        self.assertEqual(len(self.store.get_motivation_signals()), 1)
+
+    def test_memory_and_motivation_share_one_global_state_version(self):
+        self.add_interaction(interaction("interaction-1"))
+        self.add_proposal(motivation_proposal("proposal-first-motivation"))
+        self.store.evaluate_motivation_proposal("proposal-first-motivation")
+
+        observation = envelope(
+            "memory-observation",
+            OBSERVATION_EVENT,
+            "test.observation",
+            {
+                "observation_id": "obs-memory",
+                "observation_kind": "text_fixture",
+                "content": "A fictional boat beside a bridge.",
+                "source_ref": "fixture://memory",
+                "observed_at": "2026-11-14T12:30:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+            at="2026-11-14T12:30:00+00:00",
+        )
+        self.store.submit_event(observation)
+        memory_proposal = envelope(
+            "memory-proposal-event",
+            PROPOSAL_EVENT,
+            "test.memory-provider",
+            {
+                "proposal_id": "memory-proposal-1",
+                "memory_kind": "episodic_candidate",
+                "candidate_content": "I encountered a fictional description of a boat.",
+                "evidence_event_ids": ["memory-observation"],
+                "origin": {"component": "test.memory-provider", "version": "0.1"},
+                "uncertainty": {"label": "fixture", "confidence": None},
+                "based_on": {"state_version": 1},
+                "operation": "create",
+            },
+            at="2026-11-14T12:31:00+00:00",
+        )
+        self.store.submit_event(memory_proposal)
+        self.assertEqual(self.store.evaluate_proposal("memory-proposal-1")["status"], "accepted")
+        state = self.store.get_state_snapshot()
+        self.assertEqual(state["state_version"], 2)
+        self.assertEqual(state["accepted_memory_count"], 1)
+        self.assertEqual(state["motivation_signal_count"], 1)
+        self.assertTrue(state["projection_consistent"])
+
+    def test_memory_decision_after_motivation_does_not_break_recovery(self):
+        self.test_memory_and_motivation_share_one_global_state_version()
+        before = self.store.get_state_snapshot()
+        self.store.recover()
+        after = self.store.get_state_snapshot()
+        self.assertEqual(after["state_version"], before["state_version"])
+        self.assertTrue(after["projection_consistent"])
+
+
+if __name__ == "__main__":
+    unittest.main()
