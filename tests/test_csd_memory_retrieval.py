@@ -6,6 +6,7 @@ import unittest
 
 from core.csd import (
     CognitiveEvent,
+    CognitiveIntegrityError,
     CognitiveMemoryStore,
 )
 from core.csd.cognitive import (
