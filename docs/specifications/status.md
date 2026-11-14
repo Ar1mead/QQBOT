@@ -25,17 +25,30 @@ A provider-neutral proposal pipeline turns a replaceable provider's output into 
 
 A text-first grounded-memory v2 path is implemented as a separate versioned proposal event. It validates exact Unicode-codepoint text spans, requires source-assertion text to equal its quote, keeps inference claims distinct, and preserves claim/evidence provenance in accepted memories. The grounded proposal pipeline binds the source observation, provider identity/version, and CSD state version; it can only submit pending proposals. This path does not establish semantic entailment or source truth, and no real proposal model provider is connected.
 
-A semantic-review event and provider-neutral review pipeline have since been added in the current branch. Review records bind to immutable proposal and inference-claim digests. The reviewer submits attributed opinions only; CSD remains the decision authority. Missing reviews leave proposals pending, conflicting or uncertain reviews defer, unsupported reviews reject, and insufficient-context reviews request more evidence. This remains an in-process prototype: reviewer identity strings are not authentication, no real reviewer provider is connected, and semantic review does not prove objective truth. The semantic-review tests were added after the 97-test hosted run described below; that run does not validate the latest semantic-review code.
+A semantic-review event and provider-neutral review pipeline have been added. Review records bind to immutable proposal and inference-claim digests. The reviewer submits attributed opinions only; CSD remains the decision authority. Missing reviews leave proposals pending, conflicting or uncertain reviews defer, unsupported reviews reject, and insufficient-context reviews request more evidence. This remains an in-process prototype: reviewer identity strings are not authentication, no real reviewer provider is connected, and semantic review does not prove objective truth.
 
 Deterministic accepted-memory retrieval is implemented with substring, memory-kind, epistemic-type, evidence-event, and pagination filters. Reads fail closed if the accepted-memory projection count differs from the authoritative decision count; Recovery can rebuild it from event history. Semantic/vector retrieval is not implemented.
 
-Hosted CI on Python 3.12.16 passed 97 tests across the v1 cognitive store, v1 proposal pipeline, grounded-memory store, grounded proposal pipeline, accepted-memory retrieval, and original generic persistence baseline at commit `7d57ed2dfbb3bed76fe8208de79a8cef49bdc4cf`. This is a historical result for that commit, not the current branch head. Subsequent semantic-review code and tests require a fresh hosted run. Windows-local verification is also pending.
+Hosted CI on Python 3.12.16 passed 97 tests at commit `7d57ed2dfbb3bed76fe8208de79a8cef49bdc4cf`. That historical result covered the v1 cognitive store, v1 proposal pipeline, grounded-memory store, grounded proposal pipeline, accepted-memory retrieval, and original generic persistence baseline. It did **not** cover the later semantic-review files or the new Life Engine prototype. The current workflow has been extended to include semantic-review and life-engine tests, but a current successful run has not yet been verified. Windows-local verification is also pending.
 
 ### Memory lifecycle
 
-A separate design proposal now distinguishes epistemic standing, validity, accessibility, lifecycle relations, and privacy/retention. It covers revision, supersession, consolidation, accessibility decay, cognitive forgetting, privacy erasure, and diary isolation. None of these lifecycle operations is implemented in the current prototype. In particular, the current append-only plaintext event store cannot claim secure content erasure. See `docs/design/memory-lifecycle-and-revision-contract.md`.
+A separate design proposal distinguishes epistemic standing, validity, accessibility, lifecycle relations, and privacy/retention. It covers revision, supersession, consolidation, accessibility decay, cognitive forgetting, privacy erasure, and diary isolation. None of these lifecycle operations is implemented in the current prototype. In particular, the current append-only plaintext event store cannot claim secure content erasure. See `docs/design/memory-lifecycle-and-revision-contract.md`.
 
-This implementation remains an engineering experiment, not a frozen CSD rule set or a complete memory system. It does not yet implement autobiographical memory consolidation, forgetting, personality change, drives, autonomous goal formation, diary motivation, or autonomous life behavior.
+### Motivation and Life Engine
+
+A provider-neutral reference slice has been added under `core/life_engine/`. It defines distinct motivational signal types, goal proposals with explicit origin references and lifecycle criteria, trusted activity options, and deliberation choices including a first-class `no_op`. Goal-origin classification is derived from the authoritative snapshot references; the deliberator cannot self-assert an internal origin. A selected external side-effect activity is only marked as requiring ASM governance; it is never dispatched by this package.
+
+The slice has no real deliberation model, no CSD snapshot-reader or proposal-sink adapter, no persistent motivation/goal/activity event schema, and no learning/update reducer for drives or interests. It is not yet connected to CSD, DSH, SurfCore, Bilibili, QQ, or a scheduler. Its local validation is not a security boundary; CSD must repeat all authoritative checks. The test file and GitHub Actions step have been added, but a successful hosted run on the current branch has not yet been verified.
+
+The design intentionally rejects a universal weighted priority formula. Hard permissions and prerequisites are admission gates; remaining choices are deliberated with reasons, alternatives, uncertainty, and the option to wait or do nothing. The model may suggest a choice but cannot grant capabilities or bypass ASM.
+
+See:
+- `docs/design/motivation-and-life-engine-contract.md`
+- `docs/design/motivation-and-life-engine-test-contract.md`
+- `core/life_engine/README.md`
+
+This implementation remains an engineering experiment, not a frozen CSD rule set or a complete memory/motivation system. It does not yet implement autobiographical consolidation, forgetting, personality change, drive learning, autonomous goal formation by a real model, diary motivation, or autonomous life behavior.
 
 ## ASM-5.3
 
