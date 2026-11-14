@@ -28,6 +28,9 @@ These tests are intended for the first provider-neutral implementation. They do 
 | INT-005 | Goal remains active but no good activity exists | Goal remains active while life engine returns no-op/wait | A random activity is selected |
 | INT-006 | A model proposes an unlisted candidate or fabricates a permission | Reject invalid proposal; preserve diagnostics | Model-created authority is trusted |
 | INT-007 | Two candidate activities are incomparable | Preserve the tradeoff or defer | Arbitrary score breaks the tie silently |
+| INT-008 | Permission is revoked while an activity is running | Continuation is blocked; stopping remains available through the proper governance path | Previously granted permission is assumed permanent |
+| INT-009 | An activity's stop condition is already met | Continuation is blocked | The activity is continued because it was previously started |
+| INT-010 | A running external side-effect activity is continued or stopped | Hand off through ASM | Life Engine directly dispatches or cancels a platform action |
 | LIFE-001 | Process restarts with an active goal and no active external action | Recover goal/activity state and re-deliberate when safe | A previously planned action is assumed completed |
 | LIFE-002 | Recovery replays goal/decision events | State is reconstructed from durable events | Model is called again or external action is replayed |
 | LIFE-003 | An event is duplicated with identical immutable content | Idempotent duplicate | Duplicate goal or activity is created |
