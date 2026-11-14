@@ -41,6 +41,14 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - Confirmed specifications, proposals, assumptions, and unresolved questions must be labelled separately.
 - No destructive changes to existing local installations without explicit approval.
 
+## Documentation index
+
+- [Architecture overview](docs/architecture/overview.md)
+- [Specification status register](docs/specifications/status.md)
+- [Software baseline](docs/inventory/software-baseline.md)
+- [SurfCore v0.8.8 capability assessment and integration plan](docs/inventory/surfcore-capability-assessment.md)
+- [Repository scope decision](docs/decisions/0001-repository-scope.md)
+
 ## Specification status
 
 This repository bootstrap does not declare CSD or ASM fully frozen. Previously confirmed ASM baselines remain confirmed; unresolved ASM-5.4 questions remain unresolved. See `docs/specifications/status.md`.
