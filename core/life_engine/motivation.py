@@ -203,8 +203,10 @@ def validate_motivation_update(
             "externally_exposed", "mixed_origin",
         }:
             raise ValueError(f"unsupported signal origin_class: {signal.origin_class}")
-        _unique(signal.supporting_event_ids, "signal.supporting_event_ids")
-        _unique(signal.counter_evidence_event_ids, "signal.counter_evidence_event_ids")
+        prior_support = _unique(signal.supporting_event_ids, "signal.supporting_event_ids")
+        prior_counter = _unique(signal.counter_evidence_event_ids, "signal.counter_evidence_event_ids")
+        if prior_support & prior_counter:
+            raise ValueError("stored signal support and counterevidence references overlap")
         signal_by_id[signal.signal_id] = signal
 
     supporting_ids = _unique(proposal.supporting_event_ids, "supporting_event_ids")
@@ -255,6 +257,11 @@ def validate_motivation_update(
             raise ValueError("update cannot change a signal's kind or subject identity")
         if target.status != "active":
             raise ValueError("only active signals can be updated by this operation")
+        prior_evidence_ids = (
+            set(target.supporting_event_ids) | set(target.counter_evidence_event_ids)
+        )
+        if referenced_ids & prior_evidence_ids:
+            raise ValueError("signal update must cite new evidence not already attached to the target")
 
     if proposal.operation in {"create", "reinforce"} and not supporting:
         raise ValueError(f"{proposal.operation} requires supporting evidence")
@@ -318,18 +325,23 @@ def validate_motivation_update(
         target.origin_class if target is not None
         else _derive_origin(supporting)
     )
-    voluntary_encounter_ids = tuple(sorted({
-        item.encounter_id
-        for item in supporting
+    voluntary_evidence = [
+        item for item in supporting
         if item.evidence_kind in {"voluntary_selection", "return_visit"}
         and item.origin in {"internal_state", "self_commitment"}
         and item.meaningful_alternatives
+    ]
+    voluntary_encounter_ids = tuple(sorted({
+        item.encounter_id for item in voluntary_evidence
     }))
+    emerging_supported = (
+        proposal.kind == "interest"
+        and len(voluntary_encounter_ids) >= 2
+        and len({item.occurred_at for item in voluntary_evidence}) >= 2
+    )
     return ValidatedMotivationUpdate(
         proposal=proposal,
         derived_origin_class=origin_class,
         voluntary_encounter_ids=voluntary_encounter_ids,
-        emerging_interest_supported=(
-            proposal.kind == "interest" and len(voluntary_encounter_ids) >= 2
-        ),
+        emerging_interest_supported=emerging_supported,
     )
