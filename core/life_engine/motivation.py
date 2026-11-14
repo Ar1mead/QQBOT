@@ -61,6 +61,8 @@ class MotivationSignalState:
     supporting_event_ids: tuple[str, ...]
     counter_evidence_event_ids: tuple[str, ...] = ()
     statement: str = ""
+    # CSD-derived summary: (encounter_id, representative_timestamp, supporting_event_id).
+    voluntary_encounters: tuple[tuple[str, str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -232,6 +234,19 @@ def validate_motivation_update(
         prior_counter = _unique(signal.counter_evidence_event_ids, "signal.counter_evidence_event_ids")
         if prior_support & prior_counter:
             raise ValueError("stored signal support and counterevidence references overlap")
+        seen_encounters: set[str] = set()
+        for entry in signal.voluntary_encounters:
+            if not isinstance(entry, (tuple, list)) or len(entry) != 3:
+                raise ValueError("voluntary_encounters entries must contain encounter_id, timestamp, evidence_event_id")
+            encounter_id, timestamp, event_id = entry
+            _nonempty(encounter_id, "voluntary encounter_id")
+            _validate_timestamp(timestamp)
+            _nonempty(event_id, "voluntary evidence_event_id")
+            if encounter_id in seen_encounters:
+                raise ValueError("voluntary_encounters must have unique encounter IDs")
+            if event_id not in prior_support:
+                raise ValueError("voluntary encounter evidence must belong to signal supporting events")
+            seen_encounters.add(encounter_id)
         signal_by_id[signal.signal_id] = signal
 
     supporting_ids = _unique(proposal.supporting_event_ids, "supporting_event_ids")
@@ -363,7 +378,7 @@ def validate_motivation_update(
 
     origin_class = (
         target.origin_class if target is not None
-        else _derive_origin(supporting)
+        else _derive_origin(selected_evidence)
     )
     effective_statement = (
         proposal.statement if proposal.operation == "create"
@@ -376,13 +391,25 @@ def validate_motivation_update(
         and item.origin == "internal_state"
         and item.meaningful_alternatives
     ]
-    voluntary_encounter_ids = tuple(sorted({
-        item.encounter_id for item in voluntary_evidence
-    }))
+    encounter_records: dict[str, tuple[str, str]] = {}
+    if target is not None:
+        encounter_records.update({
+            entry[0]: (entry[1], entry[2])
+            for entry in target.voluntary_encounters
+        })
+    for encounter_id in sorted({item.encounter_id for item in voluntary_evidence}):
+        candidates = [
+            item for item in voluntary_evidence if item.encounter_id == encounter_id
+        ]
+        earliest = min(candidates, key=lambda item: (item.occurred_at, item.event_id))
+        encounter_records.setdefault(
+            encounter_id, (earliest.occurred_at, earliest.event_id)
+        )
+    voluntary_encounter_ids = tuple(sorted(encounter_records))
     emerging_supported = (
         proposal.kind == "interest"
         and len(voluntary_encounter_ids) >= 2
-        and len({item.occurred_at for item in voluntary_evidence}) >= 2
+        and len({item[0] for item in encounter_records.values()}) >= 2
     )
     return ValidatedMotivationUpdate(
         proposal=proposal,
