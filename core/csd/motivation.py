@@ -280,9 +280,7 @@ class CognitiveMotivationMixin:
         counter_ids = _m_string_list(payload.get("counter_evidence_event_ids"), "counter_evidence_event_ids")
         if set(supporting_ids) & set(counter_ids):
             raise ValueError("supporting and counterevidence event IDs must be disjoint")
-        if any(item not in supporting_ids + counter_ids for item in []):
-            raise ValueError("invalid evidence reference")
-
+ 
         statement = payload.get("statement")
         if operation == "create":
             _m_nonempty(payload.get("new_signal_id"), "new_signal_id")
@@ -302,8 +300,8 @@ class CognitiveMotivationMixin:
                 raise ValueError("target_signal_version must be a positive integer")
             if operation != "contextualize" and statement is not None:
                 raise ValueError("only contextualize may supply a replacement statement")
-            if operation != "contextualize" and payload["scope"] == "":
-                raise ValueError("scope is required")
+            if operation == "contextualize" and statement is not None:
+                _m_nonempty(statement, "statement")
 
         requested_stage = payload.get("requested_interest_stage")
         if kind == "interest":
@@ -429,6 +427,18 @@ class CognitiveMotivationMixin:
                 "signal": None,
                 "evidence_event_ids": proposal["supporting_event_ids"] + proposal["counter_evidence_event_ids"],
             }
+        if proposal["operation"] == "create":
+            duplicate_signal = db.execute(
+                "SELECT 1 FROM motivation_signals WHERE signal_id=?",
+                (proposal["new_signal_id"],),
+            ).fetchone()
+            if duplicate_signal is not None:
+                return {
+                    "outcome": "rejected",
+                    "reason": "new signal identity was accepted by another proposal",
+                    "signal": None,
+                    "evidence_event_ids": proposal["supporting_event_ids"] + proposal["counter_evidence_event_ids"],
+                }
 
         supporting_ids = proposal["supporting_event_ids"]
         counter_ids = proposal["counter_evidence_event_ids"]
@@ -611,6 +621,13 @@ class CognitiveMotivationMixin:
             "reason": prepared.get("reason", "already decided"),
             "evaluated_state_version": current_version,
         }
+        allowed_payload_fields = {
+            "proposal_id", "proposal_event_id", "outcome", "policy",
+            "evidence_event_ids", "signal", "transition_id", "reason",
+            "evaluated_state_version",
+        }
+        if set(payload) != allowed_payload_fields:
+            self._raise_cognitive_integrity("motivation decision contains missing or unsupported fields")
         for key, value in expected.items():
             if payload.get(key) != value:
                 self._raise_cognitive_integrity(f"motivation decision {key} does not match CSD evaluation")
@@ -620,7 +637,8 @@ class CognitiveMotivationMixin:
 
         transition_id = payload.get("transition_id")
         if outcome == "accepted":
-            _m_nonempty(transition_id, "motivation transition_id")
+            if transition_id != f"csd-motivation-transition:{proposal_id}":
+                self._raise_cognitive_integrity("motivation transition_id does not match proposal identity")
             signal = prepared["signal"]
             signal_json = json.dumps(
                 signal, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
