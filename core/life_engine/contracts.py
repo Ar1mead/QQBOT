@@ -202,8 +202,8 @@ def validate_life_proposal(
             raise ValueError("required_capability must be non-empty")
         _unique_nonempty(option.source_signal_ids, "activity.source_signal_ids")
         _unique_nonempty(option.serves_goal_ids, "activity.serves_goal_ids")
-        if not option.source_signal_ids:
-            raise ValueError(f"activity {option.activity_id} must cite a motivation signal")
+        if not option.source_signal_ids and not option.serves_goal_ids:
+            raise ValueError(f"activity {option.activity_id} must cite a motivation signal or an accepted goal")
         if not set(option.source_signal_ids).issubset(signal_by_id):
             raise ValueError(f"activity {option.activity_id} references unknown motivation signal")
         if any(not signal_by_id[item].active for item in option.source_signal_ids):
