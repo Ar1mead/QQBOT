@@ -51,6 +51,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - [CSD v0.1 and architecture reconciliation](docs/reports/csd-v0.1-architecture-reconciliation.md)
 - [First cognitive-state vertical slice](docs/design/first-cognitive-state-vertical-slice.md)
 - [First cognitive-state test contract](docs/design/first-cognitive-state-test-contract.md)
+- [Vertical-slice storage and authority decision analysis](docs/design/vertical-slice-storage-decision-analysis.md)
 - [Specification status register](docs/specifications/status.md)
 - [Software baseline](docs/inventory/software-baseline.md)
 - [SurfCore v0.8.8 capability assessment and integration plan](docs/inventory/surfcore-capability-assessment.md)
