@@ -186,6 +186,7 @@ class MotivationEvidenceOriginTests(unittest.TestCase):
 
     def test_emerging_interest_can_accumulate_across_signal_versions(self):
         prior = signal(
+            origin="user_requested_encounter",
             supporting=("ev-old",),
             voluntary_encounters=(("enc-old", "2026-11-13T10:00:00+00:00", "ev-old"),),
         )
@@ -202,6 +203,7 @@ class MotivationEvidenceOriginTests(unittest.TestCase):
         )
         self.assertTrue(result.emerging_interest_supported)
         self.assertEqual(result.voluntary_encounter_ids, ("enc-new", "enc-old"))
+        self.assertEqual(result.derived_origin_class, "user_requested_encounter")
 
     def test_stored_voluntary_encounter_must_reference_supporting_event(self):
         invalid = signal(
@@ -231,6 +233,38 @@ class MotivationEvidenceOriginTests(unittest.TestCase):
                 snapshot(evidence_items=(new,), signals=(invalid,)),
                 create_proposal(
                     operation="reinforce", target="interest-1",
+                    target_version=1, supporting=("ev-new",),
+                ),
+            )
+
+    def test_one_evidence_event_cannot_represent_two_encounters(self):
+        invalid = signal(
+            voluntary_encounters=(
+                ("enc-1", "2026-11-13T10:00:00+00:00", "old-support"),
+                ("enc-2", "2026-11-13T11:00:00+00:00", "old-support"),
+            ),
+        )
+        new = evidence("ev-new", "voluntary_selection", alternatives=True)
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(new,), signals=(invalid,)),
+                create_proposal(
+                    operation="reinforce", target="interest-1",
+                    target_version=1, supporting=("ev-new",),
+                ),
+            )
+
+    def test_non_interest_signal_cannot_carry_interest_encounter_summary(self):
+        invalid = signal(
+            kind="need",
+            voluntary_encounters=(("enc-1", "2026-11-13T10:00:00+00:00", "old-support"),),
+        )
+        item = evidence("ev-new", "need_condition")
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,), signals=(invalid,)),
+                create_proposal(
+                    kind="need", operation="reinforce", target="interest-1",
                     target_version=1, supporting=("ev-new",),
                 ),
             )
