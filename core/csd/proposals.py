@@ -14,6 +14,7 @@ import uuid
 from .cognitive import (
     OBSERVATION_EVENT,
     CognitiveEvent,
+    CognitiveIntegrityError,
     CognitiveMemoryStore,
 )
 
@@ -65,7 +66,12 @@ class MemoryProposalPipeline:
         if observation_event["event_type"] != OBSERVATION_EVENT:
             raise ValueError("proposal generation requires an observation event")
 
-        state_version = int(self.store.get_state_snapshot()["state_version"])
+        state = self.store.get_state_snapshot()
+        if not state["projection_consistent"]:
+            raise CognitiveIntegrityError(
+                "accepted-memory projection is out of sync; run Recovery before proposal generation"
+            )
+        state_version = int(state["state_version"])
         candidates = self.provider.propose(
             observation_event,
             state_version=state_version,
