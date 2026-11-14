@@ -39,12 +39,13 @@ A separate design proposal distinguishes epistemic standing, validity, accessibi
 
 A provider-neutral reference slice has been added under `core/life_engine/`. It defines distinct motivational signal types, goal proposals with explicit origin references and lifecycle criteria, trusted activity options, and deliberation choices including a first-class `no_op`. Goal-origin classification is derived from the authoritative snapshot references; the deliberator cannot self-assert an internal origin. A selected external side-effect activity is only marked as requiring ASM governance; it is never dispatched by this package.
 
-The slice has no real deliberation model, no CSD snapshot-reader or proposal-sink adapter, no persistent motivation/goal/activity event schema, and no learning/update reducer for drives or interests. It is not yet connected to CSD, DSH, SurfCore, Bilibili, QQ, or a scheduler. Its local validation is not a security boundary; CSD must repeat all authoritative checks. The test file and GitHub Actions step have been added, but a successful hosted run on the current branch has not yet been verified.
+The slice has no real deliberation model, no CSD snapshot-reader or proposal-sink adapter, no persistent motivation/goal/activity event schema, and no learning/update reducer for drives or interests. It is not yet connected to CSD, DSH, SurfCore, Bilibili, QQ, or a scheduler. Its local validation is not a security boundary; CSD must repeat all authoritative checks. The 28-case Life Engine test suite was mirrored into an isolated verification environment and passed there under Python 3.13.5. This is not a run of the exact remote checkout or the target Windows environment. The GitHub Actions workflow includes the Life Engine test step, but a successful hosted run on the current branch has not yet been verified. A CSD event integration proposal now defines how goal proposals, no-op decisions, activity observations, state versions, and ASM handoffs should be persisted without creating a second state store.
 
 The design intentionally rejects a universal weighted priority formula. Hard permissions and prerequisites are admission gates; remaining choices are deliberated with reasons, alternatives, uncertainty, and the option to wait or do nothing. The model may suggest a choice but cannot grant capabilities or bypass ASM.
 
 See:
 - `docs/design/motivation-and-life-engine-contract.md`
+- `docs/design/life-engine-csd-event-contract.md`
 - `docs/design/motivation-and-life-engine-test-contract.md`
 - `core/life_engine/README.md`
 
