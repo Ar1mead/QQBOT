@@ -85,6 +85,30 @@ class MemoryProposalPipelineTests(unittest.TestCase):
             ["evt-pipeline-observation"],
         )
 
+    def test_pipeline_proposal_can_be_evaluated_by_csd_later(self):
+        provider = FakeProvider(self.candidate())
+        self.pipeline(provider).propose_from_observation("evt-pipeline-observation")
+        self.assertEqual(self.store.get_memories(), [])
+        decision = self.store.evaluate_proposal("pipeline-proposal-1")
+        self.assertEqual(decision["status"], "accepted")
+        self.assertEqual(len(self.store.get_memories()), 1)
+
+    def test_pipeline_rejects_invalid_confidence_before_submission(self):
+        invalid = MemoryCandidate(
+            proposal_id="bad-confidence",
+            memory_kind="episodic_candidate",
+            candidate_content="candidate",
+            uncertainty_label="uncertain",
+            confidence=1.5,
+        )
+        provider = FakeProvider(invalid)
+        before = self.store.get_state_snapshot()
+        with self.assertRaises(ValueError):
+            self.pipeline(provider).propose_from_observation(
+                "evt-pipeline-observation"
+            )
+        self.assertEqual(self.store.get_state_snapshot(), before)
+
     def test_provider_runs_outside_sqlite_transaction(self):
         provider = FakeProvider(self.candidate())
         self.pipeline(provider).propose_from_observation("evt-pipeline-observation")
