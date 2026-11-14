@@ -414,8 +414,8 @@ class CognitiveMemoryStore:
                 if set(claim) != {"claim_id", "text", "epistemic_type", "evidence", "uncertainty"}:
                     raise ValueError("source_assertion contains missing or unsupported fields")
                 evidence_items = claim.get("evidence")
-                if not isinstance(evidence_items, list) or not evidence_items:
-                    raise ValueError("source_assertion evidence must be a non-empty list")
+                if not isinstance(evidence_items, list) or len(evidence_items) != 1:
+                    raise ValueError("v2 source_assertion requires exactly one text evidence span")
                 uncertainty = claim.get("uncertainty")
                 if not isinstance(uncertainty, Mapping) or set(uncertainty) != {"label", "confidence"}:
                     raise ValueError("source_assertion uncertainty schema is invalid")
@@ -510,6 +510,10 @@ class CognitiveMemoryStore:
                     source_text = source_event["payload"]["content"]
                     locator = evidence["locator"]
                     start, end = locator["start"], locator["end"]
+                    if claim["text"] != evidence["quoted_text"]:
+                        return "rejected", (
+                            f"source_assertion text must equal its quoted span for claim {claim['claim_id']}"
+                        )
                     if end > len(source_text):
                         return "rejected", (
                             f"text locator is out of bounds for claim {claim['claim_id']}"
