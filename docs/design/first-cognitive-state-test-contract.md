@@ -41,6 +41,10 @@ No LLM, network, platform adapter, external action, personal content, or user ac
 
 | COG-021 | Event history is authoritative; implementation decision §3 and §6 | Accepted decision exists but accepted-memory projection is incomplete | Attempt to evaluate another proposal before Recovery | Evaluation stops with an integrity error; after Recovery the projection is rebuilt and evaluation can proceed | Event-derived state version remains stable; projection consistency becomes true after Recovery | Damaged projection silently lowers state version or allows stale proposal acceptance |
 
+| COG-022 | Proposal generation is not state acceptance; provider contract §4 | Observation and provider are available | Provider returns a candidate | Candidate event is persisted as pending; accepted-memory retrieval remains empty | Provider result is represented only as an untrusted proposal | Provider output directly creates accepted memory |
+| COG-023 | Provider execution outside CSD transaction; provider contract §4 | Provider is configured | Generate a candidate or simulate provider failure | Provider runs outside write transaction; failure leaves CSD unchanged | Transaction state is false during provider call; event/projection counts unchanged after failure | Model/provider call runs while CSD write lock is held |
+| COG-024 | Strict proposal schema; provider contract §3 and implementation decision §5 | Proposal event is submitted | Include unsupported authority-like fields | Event submission is rejected atomically | Event count and accepted memory remain unchanged | Candidate can smuggle accepted status, transition ID, or executable fields |
+
 ## Coverage and limits
 
 Covered by this proposed contract:
