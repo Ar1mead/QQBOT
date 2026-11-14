@@ -56,6 +56,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - [CSD cognitive-memory hosted test report 001](docs/reports/csd-cognitive-memory-hosted-test-report-001.md)
 - [Grounded-memory v2 hosted test report 001](docs/reports/csd-grounded-memory-v2-hosted-test-report-001.md)
 - [CSD cognitive slice hosted test report 002](docs/reports/csd-cognitive-slice-hosted-test-report-002.md)
+- [Accepted-memory retrieval contract](docs/design/memory-retrieval-contract.md)
 - [Memory proposal provider contract](docs/design/memory-proposal-provider-contract.md)
 - [Claim-to-evidence grounding](docs/design/claim-to-evidence-grounding.md)
 - [Grounded memory proposal v2](docs/design/grounded-memory-proposal-v2.md)
