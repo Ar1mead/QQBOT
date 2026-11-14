@@ -909,9 +909,10 @@ class CognitiveMemoryStore:
             _nonempty(query, "query")
         if memory_kind is not None:
             _nonempty(memory_kind, "memory_kind")
-        if epistemic_type is not None and epistemic_type not in {
-            "source_assertion", "inference"
-        }:
+        if epistemic_type is not None and (
+            not isinstance(epistemic_type, str)
+            or epistemic_type not in {"source_assertion", "inference"}
+        ):
             raise ValueError("epistemic_type must be source_assertion or inference")
         if evidence_event_id is not None:
             _nonempty(evidence_event_id, "evidence_event_id")
