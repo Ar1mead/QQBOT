@@ -48,6 +48,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - [Architecture overview](docs/architecture/overview.md)
 - [Persistent individual runtime model](docs/architecture/individual-runtime-model.md)
 - [CSD state authority and cognitive proposal boundary](docs/design/csd-state-authority-boundary.md)
+- [CSD v0.1 and architecture reconciliation](docs/reports/csd-v0.1-architecture-reconciliation.md)
 - [Specification status register](docs/specifications/status.md)
 - [Software baseline](docs/inventory/software-baseline.md)
 - [SurfCore v0.8.8 capability assessment and integration plan](docs/inventory/surfcore-capability-assessment.md)
