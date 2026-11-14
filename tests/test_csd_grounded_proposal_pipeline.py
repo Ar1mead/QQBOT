@@ -11,6 +11,8 @@ from core.csd import (
     GroundedMemoryCandidate,
     GroundedMemoryProposalPipeline,
     GroundedSourceAssertion,
+    SemanticReviewCandidate,
+    SemanticReviewPipeline,
 )
 from core.csd.cognitive import OBSERVATION_EVENT
 
@@ -28,6 +30,30 @@ class FakeGroundedProvider:
         self.called_in_transaction = self.store._db.in_transaction
         self.received_state_version = state_version
         return self.candidates
+
+
+class FakeSemanticReviewProvider:
+    reviewer_id = "test.semantic_reviewer"
+    reviewer_version = "0.1"
+
+    def __init__(self, *, outcome="supported", fail_on_claim=None):
+        self.outcome = outcome
+        self.fail_on_claim = fail_on_claim
+        self.called_in_transaction = []
+        self.calls = []
+
+    def review_inference(self, proposal, inference_claim, supporting_claims):
+        self.called_in_transaction.append(self.store._db.in_transaction)
+        self.calls.append(inference_claim["claim_id"])
+        if inference_claim["claim_id"] == self.fail_on_claim:
+            raise TimeoutError("synthetic review provider failure")
+        return SemanticReviewCandidate(
+            outcome=self.outcome,
+            reasoning_summary="Synthetic semantic review; not a truth oracle.",
+            supporting_claim_ids=[item["claim_id"] for item in supporting_claims],
+            alternative_explanations=["A different interpretation may fit."],
+            limitations=["Only a single text source was supplied."],
+        )
 
 
 class GroundedMemoryProposalPipelineTests(unittest.TestCase):
@@ -106,7 +132,7 @@ class GroundedMemoryProposalPipelineTests(unittest.TestCase):
         self.assertEqual(proposal["origin"]["version"], provider.provider_version)
         self.assertFalse(provider.called_in_transaction)
 
-    def test_provider_candidate_is_accepted_only_after_separate_csd_evaluation(self):
+    def test_inference_requires_separate_semantic_review_before_csd_acceptance(self):
         provider = FakeGroundedProvider([self.candidate(inferences=[
             GroundedInference(
                 claim_id="claim-inference-1",
@@ -121,10 +147,28 @@ class GroundedMemoryProposalPipelineTests(unittest.TestCase):
         )
         self.assertEqual(self.store.get_memories(), [])
         decision = self.store.evaluate_proposal("grounded-pipeline-proposal")
+        self.assertEqual(decision["status"], "awaiting_review")
+
+        reviewer = FakeSemanticReviewProvider()
+        reviewer.store = self.store
+        reviews = SemanticReviewPipeline(self.store, reviewer).review_proposal(
+            "grounded-pipeline-proposal"
+        )
+        self.assertEqual(len(reviews), 1)
+        self.assertFalse(any(reviewer.called_in_transaction))
+        self.assertEqual(
+            self.store.get_proposal("grounded-pipeline-proposal")["status"],
+            "pending",
+        )
+
+        decision = self.store.evaluate_proposal("grounded-pipeline-proposal")
         self.assertEqual(decision["status"], "accepted")
         claims = self.store.get_memories()[0]["claims"]
         self.assertEqual([c["epistemic_type"] for c in claims],
                          ["source_assertion", "inference"])
+        memory = self.store.get_memories()[0]
+        self.assertEqual(memory["semantic_review_status"], "supported")
+        self.assertEqual(memory["semantic_review_event_ids"], [reviews[0]["event_id"]])
 
     def test_provider_runs_outside_write_transaction(self):
         provider = FakeGroundedProvider([self.candidate()])
