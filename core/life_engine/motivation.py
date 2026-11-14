@@ -179,6 +179,25 @@ def validate_motivation_update(
             "external_opportunity", "self_commitment",
         }:
             raise ValueError(f"unsupported evidence origin: {item.origin}")
+        required_origins = {
+            "user_requested_action": {"user_request"},
+            "platform_autoplay": {"platform_recommendation"},
+            "autonomous_question": {"internal_state"},
+            "need_condition": {"internal_state"},
+            "affect_observation": {"internal_state"},
+        }
+        allowed_forced_origins = required_origins.get(item.evidence_kind)
+        if allowed_forced_origins is not None and item.origin not in allowed_forced_origins:
+            raise ValueError(
+                f"{item.evidence_kind} must use a source-derived origin from "
+                f"{sorted(allowed_forced_origins)}"
+            )
+        if item.evidence_kind in {"voluntary_selection", "return_visit"} and item.origin in {
+            "user_request", "platform_recommendation", "external_opportunity"
+        }:
+            raise ValueError(
+                f"{item.evidence_kind} cannot be classified as voluntary when externally requested or pushed"
+            )
         if not isinstance(item.meaningful_alternatives, bool):
             raise ValueError("meaningful_alternatives must be boolean")
         evidence_by_id[item.event_id] = item
