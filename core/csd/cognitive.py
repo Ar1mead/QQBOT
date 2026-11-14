@@ -16,8 +16,16 @@ import sqlite3
 from typing import Any, Mapping
 import uuid
 
+from .motivation import (
+    CognitiveMotivationMixin,
+    INTERACTION_EVENT,
+    MOTIVATION_DECISION_EVENT,
+    MOTIVATION_DECISION_SOURCE,
+    MOTIVATION_PROPOSAL_EVENT,
+)
 
-SCHEMA_VERSION = 1
+
+SCHEMA_VERSION = 2
 OBSERVATION_EVENT = "experience.observation_recorded.v1"
 PROPOSAL_EVENT = "cognition.memory_candidate_proposed.v1"
 GROUNDED_PROPOSAL_EVENT = "cognition.grounded_memory_candidate_proposed.v1"
@@ -87,7 +95,7 @@ def _nonempty(value: Any, name: str) -> str:
     return value
 
 
-class CognitiveMemoryStore:
+class CognitiveMemoryStore(CognitiveMotivationMixin):
     """Single event stream with rebuildable proposal and accepted-memory views."""
 
     def __init__(
@@ -134,58 +142,92 @@ class CognitiveMemoryStore:
             raise CognitiveIntegrityError(
                 f"database schema {version} is newer than supported {SCHEMA_VERSION}"
             )
-        if version == SCHEMA_VERSION:
-            return
-        if version != 0:
+
+        if version == 0:
+            self._db.executescript(
+                """
+                BEGIN IMMEDIATE;
+                CREATE TABLE payloads (
+                    payload_ref TEXT PRIMARY KEY,
+                    payload_json TEXT NOT NULL
+                );
+                CREATE TABLE events (
+                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id TEXT NOT NULL UNIQUE,
+                    occurred_at TEXT NOT NULL,
+                    received_at TEXT NOT NULL,
+                    correlation_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    payload_ref TEXT NOT NULL,
+                    event_digest TEXT NOT NULL,
+                    FOREIGN KEY(payload_ref) REFERENCES payloads(payload_ref)
+                );
+                CREATE TRIGGER events_no_update BEFORE UPDATE ON events
+                BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
+                CREATE TRIGGER events_no_delete BEFORE DELETE ON events
+                BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
+                CREATE TRIGGER payloads_no_update BEFORE UPDATE ON payloads
+                BEGIN SELECT RAISE(ABORT, 'payloads are immutable'); END;
+                CREATE TRIGGER payloads_no_delete BEFORE DELETE ON payloads
+                BEGIN SELECT RAISE(ABORT, 'payloads are immutable'); END;
+
+                CREATE TABLE proposals (
+                    proposal_id TEXT PRIMARY KEY,
+                    proposal_digest TEXT NOT NULL,
+                    proposal_event_id TEXT NOT NULL,
+                    proposal_json TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','deferred','needs_more_evidence')),
+                    decision_event_id TEXT
+                );
+                CREATE TABLE accepted_memories (
+                    memory_id TEXT PRIMARY KEY,
+                    proposal_id TEXT NOT NULL UNIQUE,
+                    transition_id TEXT NOT NULL UNIQUE,
+                    memory_json TEXT NOT NULL,
+                    FOREIGN KEY(proposal_id) REFERENCES proposals(proposal_id)
+                );
+                PRAGMA user_version = 1;
+                COMMIT;
+                """
+            )
+            version = 1
+
+        if version == 1:
+            self._db.executescript(
+                """
+                BEGIN IMMEDIATE;
+                CREATE TABLE motivation_proposals (
+                    proposal_id TEXT PRIMARY KEY,
+                    proposal_digest TEXT NOT NULL,
+                    proposal_event_id TEXT NOT NULL,
+                    proposal_json TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','deferred','needs_more_evidence')),
+                    decision_event_id TEXT
+                );
+                CREATE TABLE motivation_signal_versions (
+                    signal_id TEXT NOT NULL,
+                    signal_version INTEGER NOT NULL CHECK(signal_version > 0),
+                    decision_event_id TEXT NOT NULL UNIQUE,
+                    transition_id TEXT NOT NULL UNIQUE,
+                    signal_json TEXT NOT NULL,
+                    PRIMARY KEY(signal_id, signal_version)
+                );
+                CREATE TABLE motivation_signals (
+                    signal_id TEXT PRIMARY KEY,
+                    signal_version INTEGER NOT NULL CHECK(signal_version > 0),
+                    decision_event_id TEXT NOT NULL,
+                    transition_id TEXT NOT NULL UNIQUE,
+                    signal_json TEXT NOT NULL
+                );
+                PRAGMA user_version = 2;
+                COMMIT;
+                """
+            )
+            version = 2
+
+        if version != SCHEMA_VERSION:
             raise CognitiveIntegrityError(f"unsupported schema version: {version}")
-
-        self._db.executescript(
-            """
-            BEGIN IMMEDIATE;
-            CREATE TABLE payloads (
-                payload_ref TEXT PRIMARY KEY,
-                payload_json TEXT NOT NULL
-            );
-            CREATE TABLE events (
-                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-                event_id TEXT NOT NULL UNIQUE,
-                occurred_at TEXT NOT NULL,
-                received_at TEXT NOT NULL,
-                correlation_id TEXT NOT NULL,
-                event_type TEXT NOT NULL,
-                source TEXT NOT NULL,
-                payload_ref TEXT NOT NULL,
-                event_digest TEXT NOT NULL,
-                FOREIGN KEY(payload_ref) REFERENCES payloads(payload_ref)
-            );
-            CREATE TRIGGER events_no_update BEFORE UPDATE ON events
-            BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
-            CREATE TRIGGER events_no_delete BEFORE DELETE ON events
-            BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
-            CREATE TRIGGER payloads_no_update BEFORE UPDATE ON payloads
-            BEGIN SELECT RAISE(ABORT, 'payloads are immutable'); END;
-            CREATE TRIGGER payloads_no_delete BEFORE DELETE ON payloads
-            BEGIN SELECT RAISE(ABORT, 'payloads are immutable'); END;
-
-            CREATE TABLE proposals (
-                proposal_id TEXT PRIMARY KEY,
-                proposal_digest TEXT NOT NULL,
-                proposal_event_id TEXT NOT NULL,
-                proposal_json TEXT NOT NULL,
-                status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','deferred','needs_more_evidence')),
-                decision_event_id TEXT
-            );
-            CREATE TABLE accepted_memories (
-                memory_id TEXT PRIMARY KEY,
-                proposal_id TEXT NOT NULL UNIQUE,
-                transition_id TEXT NOT NULL UNIQUE,
-                memory_json TEXT NOT NULL,
-                FOREIGN KEY(proposal_id) REFERENCES proposals(proposal_id)
-            );
-            PRAGMA user_version = 1;
-            COMMIT;
-            """
-        )
 
     class _Tx:
         def __init__(self, db: sqlite3.Connection) -> None:
@@ -218,7 +260,10 @@ class CognitiveMemoryStore:
 
     def _validate_event(self, event: CognitiveEvent, *, internal: bool = False) -> str:
         _nonempty(event.event_id, "event_id")
-        if not internal and event.event_id.startswith("csd-decision:"):
+        if not internal and (
+            event.event_id.startswith("csd-decision:")
+            or event.event_id.startswith("csd-motivation-decision:")
+        ):
             raise ValueError("event_id uses a namespace reserved for CSD decisions")
         _nonempty(event.correlation_id, "correlation_id")
         _nonempty(event.event_type, "event_type")
@@ -226,15 +271,18 @@ class CognitiveMemoryStore:
         _timestamp(event.occurred_at, "occurred_at")
         if not isinstance(event.payload, Mapping):
             raise ValueError("payload must be an object")
-        if event.event_type == DECISION_EVENT and not internal:
+        if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT} and not internal:
             raise ValueError("CSD decision events are reserved for the internal authority path")
         if event.event_type not in {
             OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
             SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
+            INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
         }:
             raise ValueError(f"unsupported event type: {event.event_type}")
-        if event.event_type == DECISION_EVENT and event.source != DECISION_SOURCE:
+        if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT} and event.source != DECISION_SOURCE:
             raise ValueError("decision event source must identify CSD authority")
+        if event.event_type == MOTIVATION_DECISION_EVENT and event.source != MOTIVATION_DECISION_SOURCE:
+            raise ValueError("motivation decision event source must identify CSD authority")
         if event.event_type == SEMANTIC_REVIEW_EVENT:
             reviewer = event.payload.get("reviewer")
             if not isinstance(reviewer, Mapping) or not isinstance(reviewer.get("component"), str):
@@ -301,6 +349,18 @@ class CognitiveMemoryStore:
             ).fetchone()
             if existing is not None and existing["proposal_digest"] != proposal_digest:
                 raise ProposalIdentityConflict(proposal_id)
+
+        if event.event_type == MOTIVATION_PROPOSAL_EVENT:
+            proposal_id = _nonempty(event.payload.get("proposal_id"), "proposal_id")
+            proposal_digest = _digest(payload_json)
+            existing = db.execute(
+                "SELECT proposal_digest FROM motivation_proposals WHERE proposal_id=?",
+                (proposal_id,),
+            ).fetchone()
+            if existing is not None and existing["proposal_digest"] != proposal_digest:
+                raise CognitiveIdempotencyConflict(
+                    f"motivation proposal identity conflict: {proposal_id}"
+                )
 
         if event.event_type == SEMANTIC_REVIEW_EVENT:
             review_id = _nonempty(event.payload.get("review_id"), "review_id")
@@ -732,6 +792,13 @@ class CognitiveMemoryStore:
                 raise CognitiveIntegrityError("non-authoritative decision event")
             self._apply_decision(db, event)
             return
+        if event.event_type in {
+            INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
+        }:
+            self._apply_motivation_projection_event(
+                db, event, sequence, internal=internal
+            )
+            return
         raise CognitiveIntegrityError(f"unhandled event type at sequence {sequence}")
 
     @staticmethod
@@ -739,11 +806,11 @@ class CognitiveMemoryStore:
         db: sqlite3.Connection, *, through_sequence: int | None = None
     ) -> int:
         query = (
-            "SELECT p.payload_json FROM events e "
+            "SELECT e.event_type,p.payload_json FROM events e "
             "JOIN payloads p ON p.payload_ref=e.payload_ref "
-            "WHERE e.event_type=?"
+            "WHERE e.event_type IN (?,?)"
         )
-        params: list[Any] = [DECISION_EVENT]
+        params: list[Any] = [DECISION_EVENT, MOTIVATION_DECISION_EVENT]
         if through_sequence is not None:
             if not isinstance(through_sequence, int) or isinstance(through_sequence, bool):
                 raise ValueError("through_sequence must be an integer or None")
@@ -828,10 +895,13 @@ class CognitiveMemoryStore:
         current_version = self._authoritative_state_version(
             db, through_sequence=event_sequence - 1
         )
-        projection_version = int(db.execute(
+        projection_version = self._accepted_transition_count(
+            db, {DECISION_EVENT}, through_sequence=event_sequence - 1
+        )
+        projected_memories = int(db.execute(
             "SELECT COUNT(*) FROM accepted_memories"
         ).fetchone()[0])
-        if projection_version != current_version:
+        if projected_memories != projection_version:
             raise CognitiveIntegrityError("accepted-memory projection is out of sync with event history")
         if (not isinstance(evaluated_version, int)
                 or isinstance(evaluated_version, bool)
@@ -1100,13 +1170,8 @@ class CognitiveMemoryStore:
                     self._validate_observation(evidence_record["payload"])
 
             current_state_version = self._authoritative_state_version(db)
-            projection_version = int(db.execute(
-                "SELECT COUNT(*) FROM accepted_memories"
-            ).fetchone()[0])
-            if projection_version != current_state_version:
-                raise CognitiveIntegrityError(
-                    "accepted-memory projection is out of sync; run Recovery before evaluation"
-                )
+            self._assert_accepted_projection_consistent()
+            self._assert_motivation_projection_consistent()
             based_on_version = int(proposal["based_on"]["state_version"])
 
             semantic_review_event_ids: list[str] = []
@@ -1238,7 +1303,7 @@ class CognitiveMemoryStore:
         }
 
     def _assert_accepted_projection_consistent(self) -> None:
-        authoritative_count = self._authoritative_state_version(self._db)
+        authoritative_count = self._accepted_transition_count(self._db, {DECISION_EVENT})
         projected_count = int(self._db.execute(
             "SELECT COUNT(*) FROM accepted_memories"
         ).fetchone()[0])
@@ -1385,12 +1450,29 @@ class CognitiveMemoryStore:
         accepted_memory_count = int(self._db.execute(
             "SELECT COUNT(*) FROM accepted_memories"
         ).fetchone()[0])
+        motivation_signal_count = int(self._db.execute(
+            "SELECT COUNT(*) FROM motivation_signals"
+        ).fetchone()[0])
+        motivation_signal_version_count = int(self._db.execute(
+            "SELECT COUNT(*) FROM motivation_signal_versions"
+        ).fetchone()[0])
+        memory_consistent = (
+            accepted_memory_count == self._accepted_transition_count(self._db, {DECISION_EVENT})
+        )
+        motivation_consistent = True
+        try:
+            self._assert_motivation_projection_consistent()
+        except CognitiveIntegrityError:
+            motivation_consistent = False
         return {
             "event_count": int(self._db.execute("SELECT COUNT(*) FROM events").fetchone()[0]),
             "state_version": state_version,
             "proposal_count": int(self._db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0]),
             "accepted_memory_count": accepted_memory_count,
-            "projection_consistent": accepted_memory_count == state_version,
+            "motivation_signal_count": motivation_signal_count,
+            "motivation_signal_version_count": motivation_signal_version_count,
+            "motivation_proposal_count": int(self._db.execute("SELECT COUNT(*) FROM motivation_proposals").fetchone()[0]),
+            "projection_consistent": memory_consistent and motivation_consistent,
         }
 
     def recover(self) -> dict[str, int]:
@@ -1444,13 +1526,18 @@ class CognitiveMemoryStore:
         with self._tx() as db:
             db.execute("DELETE FROM accepted_memories")
             db.execute("DELETE FROM proposals")
+            db.execute("DELETE FROM motivation_signal_versions")
+            db.execute("DELETE FROM motivation_signals")
+            db.execute("DELETE FROM motivation_proposals")
             for sequence, event in parsed:
-                internal = event.event_type == DECISION_EVENT and event.source == DECISION_SOURCE
-                if event.event_type == DECISION_EVENT and not internal:
+                decision_types = {DECISION_EVENT, MOTIVATION_DECISION_EVENT}
+                internal = event.event_type in decision_types and event.source == DECISION_SOURCE
+                if event.event_type in decision_types and not internal:
                     raise CognitiveIntegrityError("forged decision event in durable history")
                 if event.event_type not in {
                     OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
                     SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
+                    INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
                 }:
                     raise CognitiveIntegrityError(f"unknown event type: {event.event_type}")
                 self._apply_projection_event(db, event, sequence, internal=internal)
@@ -1460,5 +1547,14 @@ class CognitiveMemoryStore:
             "proposals": int(self._db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0]),
             "accepted_memories": int(self._db.execute(
                 "SELECT COUNT(*) FROM accepted_memories"
+            ).fetchone()[0]),
+            "motivation_proposals": int(self._db.execute(
+                "SELECT COUNT(*) FROM motivation_proposals"
+            ).fetchone()[0]),
+            "motivation_signals": int(self._db.execute(
+                "SELECT COUNT(*) FROM motivation_signals"
+            ).fetchone()[0]),
+            "motivation_signal_versions": int(self._db.execute(
+                "SELECT COUNT(*) FROM motivation_signal_versions"
             ).fetchone()[0]),
         }
