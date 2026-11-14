@@ -5,7 +5,7 @@ This directory contains an isolated, provider-neutral proposal layer for the fir
 ## Files
 
 - `contracts.py` — typed motivation signals, goal state, trusted activity options, goal proposals, and deliberation choices.
-- `motivation.py` — validates evidence-grounded motivation update proposals against a trusted snapshot; it does not accept or persist signal state.
+- `motivation.py` — validates evidence-grounded motivation update proposals against a trusted snapshot, including signal statement/version, supporting/counterevidence, and source-origin restrictions; it does not accept or persist signal state.
 - `engine.py` — read snapshot -> ask deliberator -> validate references and hard admissibility -> submit a pending proposal to a CSD-facing sink.
 - Active activity snapshots carry current permission and stop-condition state; continuation is blocked after permission revocation or a met stop condition. Stopping/continuing an external side-effect activity is flagged for ASM governance. A new activity may be motivated by an active signal or by an accepted ongoing goal; it must not be source-free. Ordinary activity options cannot advance paused or blocked goals.
 - `__init__.py` — package exports.
@@ -42,8 +42,10 @@ py -3.12 -m unittest discover -s tests -p "test_motivation_synthesis.py" -v
 py -3.12 -m unittest discover -s tests -p "test_life_engine.py" -v
 ```
 
-The design contract and proposed test coverage are in:
+The design contracts and proposed test coverage are in:
 - [Motivation, Goals, and Intentions Contract](../../docs/design/motivation-and-life-engine-contract.md)
 - [Motivation and Life-Engine Test Contract](../../docs/design/motivation-and-life-engine-test-contract.md)
+- [Motivation Signal Formation and Lifecycle](../../docs/design/motivation-signal-formation-and-lifecycle.md)
+- [Motivation Signal CSD Integration Contract](../../docs/design/motivation-signal-csd-integration-contract.md)
 
 This is a reference prototype, not evidence of subjective desire, consciousness, or a complete autonomous individual.
