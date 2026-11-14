@@ -1,0 +1,316 @@
+"""Evidence-grounded motivation update proposals.
+
+This module validates proposed signal changes against a trusted CSD snapshot.
+It does not mutate signal state, determine semantic truth, or execute actions.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Literal, Sequence
+
+
+EvidenceKind = Literal[
+    "passive_exposure",
+    "user_requested_action",
+    "platform_autoplay",
+    "voluntary_selection",
+    "return_visit",
+    "autonomous_question",
+    "question_encountered",
+    "need_condition",
+    "commitment_accepted",
+    "affect_observation",
+    "counter_evidence",
+    "resolution",
+]
+EvidenceOrigin = Literal[
+    "internal_state", "user_request", "platform_recommendation",
+    "external_opportunity", "self_commitment",
+]
+SignalKind = Literal["interest", "need", "curiosity", "commitment", "affect"]
+SignalStatus = Literal["active", "paused", "resolved"]
+MotivationOperation = Literal[
+    "create", "reinforce", "weaken", "contextualize", "pause", "resolve"
+]
+InterestStage = Literal["tentative", "emerging", "contextual"]
+
+
+@dataclass(frozen=True)
+class MotivationEvidence:
+    event_id: str
+    encounter_id: str
+    subject_ref: str
+    evidence_kind: EvidenceKind
+    origin: EvidenceOrigin
+    occurred_at: str
+    context: str
+    meaningful_alternatives: bool = False
+
+
+@dataclass(frozen=True)
+class MotivationSignalState:
+    signal_id: str
+    version: int
+    kind: SignalKind
+    subject_ref: str
+    scope: str
+    status: SignalStatus
+    origin_class: str
+    supporting_event_ids: tuple[str, ...]
+    counter_evidence_event_ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class MotivationSnapshot:
+    state_version: int
+    evidence: tuple[MotivationEvidence, ...]
+    signals: tuple[MotivationSignalState, ...]
+
+
+@dataclass(frozen=True)
+class MotivationUpdateProposal:
+    proposal_id: str
+    based_on_state_version: int
+    operation: MotivationOperation
+    kind: SignalKind
+    subject_ref: str
+    scope: str
+    rationale: str
+    supporting_event_ids: tuple[str, ...] = ()
+    counter_evidence_event_ids: tuple[str, ...] = ()
+    new_signal_id: str | None = None
+    target_signal_id: str | None = None
+    target_signal_version: int | None = None
+    requested_interest_stage: InterestStage | None = None
+
+
+@dataclass(frozen=True)
+class ValidatedMotivationUpdate:
+    proposal: MotivationUpdateProposal
+    derived_origin_class: str
+    voluntary_encounter_ids: tuple[str, ...]
+    emerging_interest_supported: bool
+
+
+def _nonempty(value: object, name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{name} must be a non-empty string")
+    return value
+
+
+def _unique(values: Sequence[str], name: str) -> set[str]:
+    if isinstance(values, (str, bytes)):
+        raise ValueError(f"{name} must be a sequence of strings")
+    result: set[str] = set()
+    for value in values:
+        _nonempty(value, name)
+        if value in result:
+            raise ValueError(f"{name} contains duplicate values")
+        result.add(value)
+    return result
+
+
+def _validate_timestamp(value: str) -> None:
+    _nonempty(value, "occurred_at")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("occurred_at must be ISO-8601") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("occurred_at must include a timezone offset")
+
+
+def _derive_origin(evidence: Sequence[MotivationEvidence]) -> str:
+    origins = {item.origin for item in evidence}
+    if origins and origins.issubset({"internal_state", "self_commitment"}):
+        return "internally_initiated"
+    if origins == {"user_request"}:
+        return "user_requested_encounter"
+    if origins and origins.issubset({"platform_recommendation", "external_opportunity"}):
+        return "externally_exposed"
+    return "mixed_origin"
+
+
+def validate_motivation_update(
+    snapshot: MotivationSnapshot,
+    proposal: MotivationUpdateProposal,
+) -> ValidatedMotivationUpdate:
+    """Validate evidence lineage and update identity without accepting state."""
+    if not isinstance(snapshot, MotivationSnapshot):
+        raise TypeError("snapshot must be MotivationSnapshot")
+    if not isinstance(proposal, MotivationUpdateProposal):
+        raise TypeError("proposal must be MotivationUpdateProposal")
+    if (
+        not isinstance(snapshot.state_version, int)
+        or isinstance(snapshot.state_version, bool)
+        or snapshot.state_version < 0
+    ):
+        raise ValueError("snapshot state_version must be a non-negative integer")
+    if proposal.based_on_state_version != snapshot.state_version:
+        raise ValueError("motivation proposal is stale")
+
+    _nonempty(proposal.proposal_id, "proposal_id")
+    _nonempty(proposal.subject_ref, "subject_ref")
+    _nonempty(proposal.scope, "scope")
+    _nonempty(proposal.rationale, "rationale")
+
+    evidence_by_id: dict[str, MotivationEvidence] = {}
+    for item in snapshot.evidence:
+        if not isinstance(item, MotivationEvidence):
+            raise TypeError("snapshot evidence must contain MotivationEvidence values")
+        _nonempty(item.event_id, "evidence.event_id")
+        _nonempty(item.encounter_id, "evidence.encounter_id")
+        _nonempty(item.subject_ref, "evidence.subject_ref")
+        _nonempty(item.context, "evidence.context")
+        _validate_timestamp(item.occurred_at)
+        if item.event_id in evidence_by_id:
+            raise ValueError(f"duplicate evidence event_id: {item.event_id}")
+        if item.evidence_kind not in {
+            "passive_exposure", "user_requested_action", "platform_autoplay",
+            "voluntary_selection", "return_visit", "autonomous_question",
+            "question_encountered", "need_condition", "commitment_accepted",
+            "affect_observation", "counter_evidence", "resolution",
+        }:
+            raise ValueError(f"unsupported evidence kind: {item.evidence_kind}")
+        if item.origin not in {
+            "internal_state", "user_request", "platform_recommendation",
+            "external_opportunity", "self_commitment",
+        }:
+            raise ValueError(f"unsupported evidence origin: {item.origin}")
+        if not isinstance(item.meaningful_alternatives, bool):
+            raise ValueError("meaningful_alternatives must be boolean")
+        evidence_by_id[item.event_id] = item
+
+    signal_by_id: dict[str, MotivationSignalState] = {}
+    for signal in snapshot.signals:
+        if not isinstance(signal, MotivationSignalState):
+            raise TypeError("snapshot signals must contain MotivationSignalState values")
+        _nonempty(signal.signal_id, "signal.signal_id")
+        _nonempty(signal.subject_ref, "signal.subject_ref")
+        _nonempty(signal.scope, "signal.scope")
+        if signal.signal_id in signal_by_id:
+            raise ValueError(f"duplicate signal_id: {signal.signal_id}")
+        if not isinstance(signal.version, int) or isinstance(signal.version, bool) or signal.version < 1:
+            raise ValueError("signal version must be a positive integer")
+        if signal.status not in {"active", "paused", "resolved"}:
+            raise ValueError(f"unsupported signal status: {signal.status}")
+        _unique(signal.supporting_event_ids, "signal.supporting_event_ids")
+        _unique(signal.counter_evidence_event_ids, "signal.counter_evidence_event_ids")
+        signal_by_id[signal.signal_id] = signal
+
+    supporting_ids = _unique(proposal.supporting_event_ids, "supporting_event_ids")
+    counter_ids = _unique(proposal.counter_evidence_event_ids, "counter_evidence_event_ids")
+    if supporting_ids & counter_ids:
+        raise ValueError("supporting and counterevidence references must be disjoint")
+    referenced_ids = supporting_ids | counter_ids
+    if not referenced_ids.issubset(evidence_by_id):
+        raise ValueError("motivation proposal references unknown evidence")
+    selected_evidence = [evidence_by_id[item] for item in sorted(referenced_ids)]
+    if any(item.subject_ref != proposal.subject_ref for item in selected_evidence):
+        raise ValueError("motivation evidence subject does not match proposal subject")
+    supporting = [evidence_by_id[item] for item in sorted(supporting_ids)]
+    counter = [evidence_by_id[item] for item in sorted(counter_ids)]
+
+    if proposal.kind not in {"interest", "need", "curiosity", "commitment", "affect"}:
+        raise ValueError(f"unsupported motivation signal kind: {proposal.kind}")
+    if proposal.operation not in {
+        "create", "reinforce", "weaken", "contextualize", "pause", "resolve"
+    }:
+        raise ValueError(f"unsupported motivation operation: {proposal.operation}")
+
+    target: MotivationSignalState | None = None
+    if proposal.operation == "create":
+        _nonempty(proposal.new_signal_id, "new_signal_id")
+        if proposal.new_signal_id in signal_by_id:
+            raise ValueError("new_signal_id already exists")
+        if proposal.target_signal_id is not None or proposal.target_signal_version is not None:
+            raise ValueError("create operation cannot target an existing signal")
+    else:
+        if proposal.new_signal_id is not None:
+            raise ValueError("update operation cannot assign a new_signal_id")
+        _nonempty(proposal.target_signal_id, "target_signal_id")
+        target = signal_by_id.get(proposal.target_signal_id)
+        if target is None:
+            raise ValueError("target signal does not exist")
+        if proposal.target_signal_version != target.version:
+            raise ValueError("target signal version is stale")
+        if target.kind != proposal.kind or target.subject_ref != proposal.subject_ref:
+            raise ValueError("update cannot change a signal's kind or subject identity")
+        if target.status != "active":
+            raise ValueError("only active signals can be updated by this operation")
+
+    if proposal.operation in {"create", "reinforce"} and not supporting:
+        raise ValueError(f"{proposal.operation} requires supporting evidence")
+    if proposal.operation == "weaken" and not counter:
+        raise ValueError("weaken requires counterevidence")
+    if proposal.operation == "contextualize" and not (supporting or counter):
+        raise ValueError("contextualize requires supporting or counterevidence")
+    if proposal.operation == "resolve" and not any(
+        item.evidence_kind == "resolution" for item in supporting
+    ):
+        raise ValueError("resolve requires explicit resolution evidence")
+    if proposal.operation in {"pause", "resolve"} and (supporting or counter) == []:
+        # A pause can be an intentional CSD-side choice without a new evidence
+        # event; resolution, in contrast, always requires resolution evidence.
+        if proposal.operation == "resolve":
+            raise ValueError("resolve requires evidence")
+
+    if proposal.kind == "interest":
+        if proposal.requested_interest_stage not in {"tentative", "emerging", "contextual", None}:
+            raise ValueError("established interest maturity is CSD-derived, not provider-assigned")
+        if proposal.operation in {"create", "reinforce"}:
+            allowed_support = {
+                "passive_exposure", "user_requested_action", "platform_autoplay",
+                "voluntary_selection", "return_visit", "affect_observation",
+            }
+            if any(item.evidence_kind not in allowed_support for item in supporting):
+                raise ValueError("interest evidence contains an incompatible evidence kind")
+            voluntary = [
+                item for item in supporting
+                if item.evidence_kind in {"voluntary_selection", "return_visit"}
+                and item.origin in {"internal_state", "self_commitment"}
+                and item.meaningful_alternatives
+            ]
+            distinct_encounters = {item.encounter_id for item in voluntary}
+            if proposal.requested_interest_stage == "emerging" and len(distinct_encounters) < 2:
+                raise ValueError(
+                    "emerging interest requires voluntary evidence from distinct encounters"
+                )
+        elif proposal.requested_interest_stage is not None:
+            raise ValueError("interest stage can only be proposed for create/reinforce")
+
+    elif proposal.requested_interest_stage is not None:
+        raise ValueError("requested_interest_stage applies only to interest signals")
+
+    required_kind = {
+        "need": "need_condition",
+        "curiosity": "autonomous_question",
+        "commitment": "commitment_accepted",
+        "affect": "affect_observation",
+    }.get(proposal.kind)
+    if required_kind and proposal.operation in {"create", "reinforce"}:
+        if not any(item.evidence_kind == required_kind for item in supporting):
+            raise ValueError(f"{proposal.kind} proposal requires {required_kind} evidence")
+
+    if proposal.operation == "pause" and target is None:
+        raise ValueError("pause requires an existing active signal")
+
+    origin_class = (
+        target.origin_class if target is not None
+        else _derive_origin(supporting)
+    )
+    voluntary_encounter_ids = tuple(sorted({
+        item.encounter_id
+        for item in supporting
+        if item.evidence_kind in {"voluntary_selection", "return_visit"}
+        and item.origin in {"internal_state", "self_commitment"}
+        and item.meaningful_alternatives
+    }))
+    return ValidatedMotivationUpdate(
+        proposal=proposal,
+        derived_origin_class=origin_class,
+        voluntary_encounter_ids=voluntary_encounter_ids,
+        emerging_interest_supported=len(voluntary_encounter_ids) >= 2,
+    )
