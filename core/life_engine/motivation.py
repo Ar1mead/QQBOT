@@ -60,6 +60,7 @@ class MotivationSignalState:
     origin_class: str
     supporting_event_ids: tuple[str, ...]
     counter_evidence_event_ids: tuple[str, ...] = ()
+    statement: str = ""
 
 
 @dataclass(frozen=True)
@@ -84,11 +85,13 @@ class MotivationUpdateProposal:
     target_signal_id: str | None = None
     target_signal_version: int | None = None
     requested_interest_stage: InterestStage | None = None
+    statement: str | None = None
 
 
 @dataclass(frozen=True)
 class ValidatedMotivationUpdate:
     proposal: MotivationUpdateProposal
+    effective_statement: str
     derived_origin_class: str
     voluntary_encounter_ids: tuple[str, ...]
     emerging_interest_supported: bool
@@ -211,6 +214,7 @@ def validate_motivation_update(
         _nonempty(signal.signal_id, "signal.signal_id")
         _nonempty(signal.subject_ref, "signal.subject_ref")
         _nonempty(signal.scope, "signal.scope")
+        _nonempty(signal.statement, "signal.statement")
         if signal.signal_id in signal_by_id:
             raise ValueError(f"duplicate signal_id: {signal.signal_id}")
         if not isinstance(signal.version, int) or isinstance(signal.version, bool) or signal.version < 1:
@@ -257,6 +261,7 @@ def validate_motivation_update(
     target: MotivationSignalState | None = None
     if proposal.operation == "create":
         _nonempty(proposal.new_signal_id, "new_signal_id")
+        _nonempty(proposal.statement, "statement")
         if proposal.new_signal_id in signal_by_id:
             raise ValueError("new_signal_id already exists")
         if proposal.target_signal_id is not None or proposal.target_signal_version is not None:
@@ -276,10 +281,12 @@ def validate_motivation_update(
             raise ValueError("target signal version is stale or invalid")
         if target.kind != proposal.kind or target.subject_ref != proposal.subject_ref:
             raise ValueError("update cannot change a signal's kind or subject identity")
-        if target.status != "active":
-            raise ValueError("only active signals can be updated by this operation")
+        if proposal.operation != "contextualize" and proposal.statement is not None and proposal.statement != target.statement:
+            raise ValueError("only contextualize may revise a signal statement")
         if proposal.operation != "contextualize" and proposal.scope != target.scope:
             raise ValueError("only contextualize may change a signal's scope")
+        if target.status != "active":
+            raise ValueError("only active signals can be updated by this operation")
         prior_evidence_ids = (
             set(target.supporting_event_ids) | set(target.counter_evidence_event_ids)
         )
@@ -348,6 +355,11 @@ def validate_motivation_update(
         target.origin_class if target is not None
         else _derive_origin(supporting)
     )
+    effective_statement = (
+        proposal.statement if proposal.operation == "create"
+        else (proposal.statement if proposal.operation == "contextualize" and proposal.statement is not None
+              else target.statement)
+    )
     voluntary_evidence = [
         item for item in supporting
         if item.evidence_kind in {"voluntary_selection", "return_visit"}
@@ -364,6 +376,7 @@ def validate_motivation_update(
     )
     return ValidatedMotivationUpdate(
         proposal=proposal,
+        effective_statement=effective_statement,
         derived_origin_class=origin_class,
         voluntary_encounter_ids=voluntary_encounter_ids,
         emerging_interest_supported=emerging_supported,
