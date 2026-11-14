@@ -113,6 +113,27 @@ class CSDStoreTests(unittest.TestCase):
         parameters = inspect.signature(CSDStore.recover).parameters
         self.assertEqual(tuple(parameters), ("self",))
 
+    def test_journal_and_synchronous_mode_matrix_round_trip(self):
+        self.store.close()
+        for journal_mode in ("WAL", "DELETE"):
+            for synchronous in ("FULL", "NORMAL"):
+                with self.subTest(journal_mode=journal_mode, synchronous=synchronous):
+                    db_path = self.db_path.parent / f"{journal_mode.lower()}-{synchronous.lower()}.sqlite3"
+                    with CSDStore(
+                        db_path,
+                        journal_mode=journal_mode,
+                        synchronous=synchronous,
+                    ) as candidate:
+                        candidate.submit_event(self.event(event_id=f"{journal_mode}-{synchronous}"))
+                        expected = candidate.get_state_snapshot()["state"]
+                    with CSDStore(
+                        db_path,
+                        journal_mode=journal_mode,
+                        synchronous=synchronous,
+                    ) as reopened:
+                        result = reopened.recover()
+                        self.assertEqual(result.state, expected)
+
     def test_invalid_timezone_is_rejected(self):
         bad = Event(
             event_id="evt-bad",
