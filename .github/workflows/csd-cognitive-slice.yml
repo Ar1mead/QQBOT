@@ -32,5 +32,7 @@ jobs:
         run: python -m compileall -q core tests
       - name: Run cognitive-memory slice tests
         run: python -m unittest discover -s tests -p "test_csd_cognitive.py" -v
+      - name: Run provider-neutral proposal pipeline tests
+        run: python -m unittest discover -s tests -p "test_csd_proposal_pipeline.py" -v
       - name: Run existing persistence baseline tests
         run: python -m unittest discover -s tests -p "test_csd_store.py" -v
