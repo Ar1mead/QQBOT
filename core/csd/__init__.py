@@ -1,6 +1,13 @@
-"""Minimal CSD persistence reference prototype."""
+"""CSD persistence and cognitive-memory reference prototypes."""
 
-from .cognitive import (\n    CognitiveEvent,\n    CognitiveIdempotencyConflict,\n    CognitiveIntegrityError,\n    CognitiveMemoryStore,\n    ProposalIdentityConflict,\n)\nfrom .store import (
+from .cognitive import (
+    CognitiveEvent,
+    CognitiveIdempotencyConflict,
+    CognitiveIntegrityError,
+    CognitiveMemoryStore,
+    ProposalIdentityConflict,
+)
+from .store import (
     CSDStore,
     Event,
     IdempotencyConflict,
@@ -9,7 +16,12 @@ from .cognitive import (\n    CognitiveEvent,\n    CognitiveIdempotencyConflict,
 )
 
 __all__ = [
-    "CognitiveEvent",\n    "CognitiveIdempotencyConflict",\n    "CognitiveIntegrityError",\n    "CognitiveMemoryStore",\n    "ProposalIdentityConflict",\n    "CSDStore",
+    "CognitiveEvent",
+    "CognitiveIdempotencyConflict",
+    "CognitiveIntegrityError",
+    "CognitiveMemoryStore",
+    "ProposalIdentityConflict",
+    "CSDStore",
     "Event",
     "IdempotencyConflict",
     "RecoveryResult",
