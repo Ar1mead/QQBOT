@@ -28,6 +28,8 @@ These types may relate to each other but must remain distinct. An interest can c
 
 A durable signal hypothesis should preserve at least:
 
+- a concise versioned statement of what the signal means, separate from subject identity and scope;
+
 - signal ID and version;
 - kind and subject/topic/entity;
 - context/scope (where or under what conditions it applies);
@@ -174,7 +176,7 @@ A provider-neutral motivation synthesizer may read an authorized snapshot and re
 - based-on state version;
 - component/model/policy provenance.
 
-The evidence snapshot is a trusted projection. Its event kind, origin, meaningful-alternatives flag, timestamp, and subject reference must be derived by CSD/adapters from immutable event metadata and verified interaction context. They must never be accepted as free-form model labels. The local validator cannot authenticate those fields or prove that a source event actually represents voluntary choice.\n\nCSD must:
+The evidence snapshot is a trusted projection. Its event kind, origin, meaningful-alternatives flag, timestamp, and subject reference must be derived by CSD/adapters from immutable event metadata and verified interaction context. They must never be accepted as free-form model labels. The local validator cannot authenticate those fields or prove that a source event actually represents voluntary choice.\n\nThe current validator also requires a statement when creating a signal. Reinforcement/weakening/pause/resolution preserve the existing statement and scope; only an explicit contextualize proposal may supply a revised statement or scope. This is an engineering guard to prevent routine evidence updates from silently rewriting what the signal means.\n\nCSD must:
 - verify that referenced events exist and their source/origin classifications are authentic;
 - verify that user-requested and platform-triggered events are not presented as independent voluntary choices;
 - reject unknown signal types and unauthorized fields;
