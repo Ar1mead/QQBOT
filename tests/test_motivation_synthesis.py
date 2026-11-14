@@ -91,7 +91,7 @@ def create_proposal(
         new_signal_id=signal_id if operation == "create" else None,
         target_signal_id=target,
         target_signal_version=target_version,
-        requested_interest_stage=stage if kind == "interest" else None,
+        requested_interest_stage=(stage if kind == "interest" and operation in {"create", "reinforce"} else None),
     )
 
 
@@ -193,6 +193,41 @@ class MotivationEvidenceOriginTests(unittest.TestCase):
             validate_motivation_update(
                 snapshot(evidence_items=(item,)),
                 create_proposal(stage="established"),
+            )
+
+    def test_user_requested_event_cannot_be_mislabeled_as_internal(self):
+        item = evidence("ev-1", "user_requested_action", origin="internal_state")
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,)),
+                create_proposal(),
+            )
+
+    def test_platform_autoplay_cannot_be_mislabeled_as_external_opportunity_or_internal(self):
+        item = evidence("ev-1", "platform_autoplay", origin="external_opportunity")
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,)),
+                create_proposal(),
+            )
+
+    def test_voluntary_selection_cannot_be_user_requested(self):
+        item = evidence(
+            "ev-1", "voluntary_selection",
+            origin="user_request", alternatives=True,
+        )
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,)),
+                create_proposal(),
+            )
+
+    def test_autonomous_question_cannot_be_user_question(self):
+        item = evidence("ev-1", "autonomous_question", origin="user_request")
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,)),
+                create_proposal(kind="curiosity"),
             )
 
 
