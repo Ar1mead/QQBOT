@@ -84,7 +84,7 @@ All fixtures must be synthetic and contain no real personal data.
                      |
               Memory Retrieval
 
-The candidate producer is a test fixture, not an autonomous cognitive service. The evaluator is a deterministic test policy, not a claim that a rule-based check can judge the meaning or importance of a human experience.
+The candidate producer is a test fixture, not an autonomous cognitive service. The evaluator is a deterministic provenance policy, not a semantic judge. It does not determine whether candidate wording faithfully summarizes the source, whether the event is objectively true, or whether the content matters to a real individual.
 
 ## 4. Proposed event shapes
 
@@ -142,7 +142,7 @@ Synthetic payload:
         "confidence": null
       },
       "based_on": {
-        "state_sequence": 1
+        "state_version": 0
       },
       "operation": "create"
     }
@@ -176,8 +176,8 @@ For this first slice, use a deterministic test policy with narrow mechanical che
 
 1. The proposal schema and identity are valid.
 2. Every referenced evidence event exists and is of an allowed observation type.
-3. The proposal does not claim more than the synthetic observation fixture supports.
-4. The proposal's referenced state sequence is not stale for the fields it intends to change.
+3. The evaluator validates evidence existence and type only; it does not semantically verify whether candidate wording overclaims the source.
+4. The proposal's referenced accepted-state version is not stale for the fields it intends to change.
 5. The same proposal has not already received a conflicting terminal decision.
 
 This policy tests provenance, authority, idempotency, and transaction mechanics. It does not evaluate emotional significance, personal importance, truth beyond the source record, or whether a real individual would remember the experience.
@@ -230,7 +230,7 @@ The following must hold:
 - Recovery does not call a model, rerun proposal evaluation, or execute an adapter/tool action.
 - A corrupt or contradictory decision/event history causes a safe stop rather than silently inventing or discarding accepted memories.
 
-The current generic event-count reducer cannot satisfy these semantics by itself. It must be extended or replaced by a typed projection/reducer for this slice. Do not change the existing spike in place until the design and test contract are reviewed.
+The current generic event-count reducer cannot satisfy these semantics by itself. The prototype therefore preserves it unchanged and adds a separate typed CognitiveMemoryStore with a separate SQLite schema. This is a temporary implementation boundary, not a final two-database architecture.
 
 ## 8. Proposed API mapping
 
