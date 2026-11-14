@@ -208,6 +208,36 @@ class MemoryRetrievalTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.store.get_memory("not-a-memory")
 
+    def test_list_retrieval_fails_closed_on_incomplete_projection(self):
+        self.add_grounded("accepted-memory", "A silver leaf rested on the windowsill.")
+        self.store._db.execute(
+            "DELETE FROM accepted_memories WHERE proposal_id=?",
+            ("accepted-memory",),
+        )
+        with self.assertRaisesRegex(CognitiveIntegrityError, "run Recovery"):
+            self.store.get_memories()
+
+    def test_single_memory_retrieval_fails_closed_on_incomplete_projection(self):
+        self.add_grounded("accepted-memory", "A silver leaf rested on the windowsill.")
+        memory_id = self.store.get_memories()[0]["memory_id"]
+        self.store._db.execute(
+            "DELETE FROM accepted_memories WHERE memory_id=?",
+            (memory_id,),
+        )
+        with self.assertRaisesRegex(CognitiveIntegrityError, "run Recovery"):
+            self.store.get_memory(memory_id)
+
+    def test_recovery_restores_retrieval_results(self):
+        self.seed()
+        before = self.store.get_memories()
+        self.store.close()
+        self.store = CognitiveMemoryStore(self.db_path)
+        self.store._db.execute("DELETE FROM accepted_memories")
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_memories()
+        self.store.recover()
+        self.assertEqual(self.store.get_memories(), before)
+
     def test_retrieval_does_not_mutate_authoritative_state(self):
         self.seed()
         before_state = self.store.get_state_snapshot()
