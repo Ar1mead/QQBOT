@@ -143,7 +143,7 @@ Interest maturity is a derived policy output, not a field that a provider can as
 
 ### 5.2 CSD state version
 
-The global CSD `state_version` represents authoritative state transitions, not every event in the log.
+The initial origin classification is immutable history: if a signal first arose from a user request, later independent choices must not rewrite that origin. A separate CSD-derived voluntary-encounter summary can accumulate across accepted signal versions. The snapshot should retain unique encounter IDs, representative timestamps, and the supporting event ID for each independently verified voluntary choice. Later interest-maturity evaluation considers the cumulative verified history, not only the newest proposal. This allows an initially user-requested topic to develop a separately evidenced autonomous interest without pretending that the first encounter was self-initiated.\n\nThe global CSD `state_version` represents authoritative state transitions, not every event in the log.
 
 - Observation and interaction events append evidence but do not automatically mutate motivation state.
 - Pending signal proposals do not increment state_version.
@@ -174,6 +174,7 @@ The CSD Goal/Motivation Retrieval path should expose only accepted signal state,
 
 A snapshot may include:
 - signal ID/version, kind, statement, subject and scope;
+- immutable initial origin classification and CSD-derived cumulative voluntary-encounter references;
 - current lifecycle state and CSD-derived maturity;
 - origin class and provenance references;
 - supporting and counterevidence references;
