@@ -209,6 +209,8 @@ class CognitiveMemoryStore:
 
     def _validate_event(self, event: CognitiveEvent, *, internal: bool = False) -> str:
         _nonempty(event.event_id, "event_id")
+        if not internal and event.event_id.startswith("csd-decision:"):
+            raise ValueError("event_id uses a namespace reserved for CSD decisions")
         _nonempty(event.correlation_id, "correlation_id")
         _nonempty(event.event_type, "event_type")
         _nonempty(event.source, "source")
@@ -420,7 +422,7 @@ class CognitiveMemoryStore:
                 "SELECT event_type FROM events WHERE event_id=?", (evidence_id,)
             ).fetchone()
             if evidence is None:
-                if outcome != "needs_more_evidence":
+                if outcome not in {"needs_more_evidence", "rejected"}:
                     raise CognitiveIntegrityError("decision references missing evidence")
                 continue
             if evidence["event_type"] != OBSERVATION_EVENT and outcome != "rejected":
