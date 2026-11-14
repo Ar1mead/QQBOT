@@ -6,6 +6,7 @@ This directory contains two isolated Python 3.12 / SQLite reference implementati
 - `cognitive.py`: the typed cognitive-memory slice, using a separate SQLite database and a separate event/projection schema.
 - `proposals.py`: a v1 provider-neutral interface that converts model/provider output into untrusted candidate events; it never accepts memory state.
 - `grounded_proposals.py`: the v2 typed provider boundary for claim-level text evidence; it binds evidence and state provenance and submits pending proposals only.
+- Accepted-memory reads: deterministic substring, memory-kind, epistemic-type, evidence-event, and pagination filters; list/single reads fail closed on a count mismatch with the authoritative accepted-decision history.
 
 No real model-provider adapter is included. These reference prototypes do not integrate with DSH, SurfCore, network services, platform clients, or external-action executors. Provider interfaces are tested only with synthetic providers.
 
