@@ -293,9 +293,31 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         self.store.evaluate_proposal("proposal-synthetic-1")
         self.store._db.execute("DELETE FROM accepted_memories")
         self.assertEqual(self.store.get_memories(), [])
+        self.assertFalse(self.store.get_state_snapshot()["projection_consistent"])
         result = self.store.recover()
         self.assertEqual(result["accepted_memories"], 1)
         self.assertEqual(len(self.store.get_memories()), 1)
+
+    def test_evaluation_refuses_out_of_sync_memory_projection(self):
+        self.seed_pending()
+        self.store.evaluate_proposal("proposal-synthetic-1")
+        self.store.submit_event(self.proposal(
+            event_id="evt-proposal-2",
+            proposal_id="proposal-synthetic-2",
+            state_version=1,
+        ))
+        self.store._db.execute("DELETE FROM accepted_memories")
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.evaluate_proposal("proposal-synthetic-2")
+        self.assertEqual(
+            self.store.get_proposal("proposal-synthetic-2")["status"], "pending"
+        )
+        self.assertFalse(self.store.get_state_snapshot()["projection_consistent"])
+        self.store.recover()
+        self.assertTrue(self.store.get_state_snapshot()["projection_consistent"])
+        self.assertEqual(
+            self.store.evaluate_proposal("proposal-synthetic-2")["status"], "accepted"
+        )
 
     def test_recovery_rejects_event_digest_tampering(self):
         self.store.submit_event(self.observation())
