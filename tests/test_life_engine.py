@@ -43,7 +43,8 @@ def option(activity_id="activity-read", *, permission=True, prerequisites=True,
 
 
 def snapshot(*, signals=None, goals=None, options=None, active=("activity-running",),
-             active_permission=True, active_stop=False, active_side_effect="read_only", version=4):
+             active_permission=True, active_stop=False, active_side_effect="read_only",
+             include_active_details=True, version=4):
     active_ids = tuple(active)
     active_states = tuple(
         ActiveActivityState(
@@ -54,7 +55,7 @@ def snapshot(*, signals=None, goals=None, options=None, active=("activity-runnin
             active_side_effect,
         )
         for activity_id in active_ids
-    )
+    ) if include_active_details else ()
     return LifeSnapshot(
         state_version=version,
         signals=tuple(signals if signals is not None else (signal(),)),
@@ -288,6 +289,11 @@ class LifeProposalValidationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_life_proposal(snap, proposal(snap, selected))
 
+    def test_activity_cannot_target_a_paused_goal(self):
+        snap = snapshot(goals=(GoalState("goal-1", "Understand", "paused"),))
+        with self.assertRaises(ValueError):
+            validate_life_proposal(snap, proposal(snap))
+
     def test_stop_requires_known_active_activity(self):
         snap = snapshot(active=("activity-running",))
         selected = choice("stop_activity", active_activity_id="activity-running")
@@ -310,6 +316,12 @@ class LifeProposalValidationTests(unittest.TestCase):
         snap = snapshot(active_permission=False)
         selected = choice("continue_activity", active_activity_id="activity-running")
         with self.assertRaises(PermissionError):
+            validate_life_proposal(snap, proposal(snap, selected))
+
+    def test_continue_activity_requires_trusted_active_state_details(self):
+        snap = snapshot(include_active_details=False)
+        selected = choice("continue_activity", active_activity_id="activity-running")
+        with self.assertRaises(ValueError):
             validate_life_proposal(snap, proposal(snap, selected))
 
     def test_continue_activity_is_blocked_when_stop_condition_is_met(self):
