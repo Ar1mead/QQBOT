@@ -213,7 +213,19 @@ See [ADR 0002](../decisions/0002-csd-reference-implementation-language.md) for t
 
 These are not blockers for a disposable synthetic vertical-slice prototype, but they are blockers for claiming production-ready persistence.
 
-## 13. Recommended execution order
+## 13. Prototype implementation status
+
+An isolated Python reference spike now exists on branch `feature/csd-persistence-spike`:
+
+- `core/csd/store.py` — SQLite event ingestion, idempotency, deterministic projection, snapshots and recovery.
+- `tests/test_csd_store.py` — synthetic persistence and recovery tests.
+- `core/csd/README.md` — how to run the isolated test suite.
+
+The current test run passed 10 tests in the assistant's isolated environment (Python 3.13.5, SQLite 3.46.1). This is not the user's Windows environment and does not yet verify the reported local Python 3.12.14 runtime. See [test report 001](../reports/csd-persistence-spike-test-report-001.md).
+
+The prototype is not merged to `main`, is not connected to DSH/SurfCore, and must not store real personal memories yet. Forced process termination, power-loss behavior, multi-process contention, backup/restore, privacy and retention remain untested.
+
+## 14. Recommended execution order
 
 1. Implement a disposable prototype with synthetic events and no external integrations.
 2. Run idempotency, atomicity, snapshot and recovery tests.
