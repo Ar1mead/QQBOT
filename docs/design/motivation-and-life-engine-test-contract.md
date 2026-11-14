@@ -31,6 +31,9 @@ These tests are intended for the first provider-neutral implementation. They do 
 | INT-008 | Permission is revoked while an activity is running | Continuation is blocked; stopping remains available through the proper governance path | Previously granted permission is assumed permanent |
 | INT-009 | An activity's stop condition is already met | Continuation is blocked | The activity is continued because it was previously started |
 | INT-010 | A running external side-effect activity is continued or stopped | Hand off through ASM | Life Engine directly dispatches or cancels a platform action |
+| INT-011 | A candidate activity has no active motivation signal but serves an accepted goal | It may be considered with the goal reference preserved | A valid ongoing goal is discarded as a motivation source |
+| INT-012 | A candidate activity has neither a motivation signal nor an accepted goal source | Reject the source-free option | An arbitrary activity is presented as internally motivated |
+| GOAL-007 | A self-accepted commitment is the source of a goal | Preserve commitment provenance and classify the origin accordingly | A user assignment is rewritten as a self-commitment |
 | LIFE-001 | Process restarts with an active goal and no active external action | Recover goal/activity state and re-deliberate when safe | A previously planned action is assumed completed |
 | LIFE-002 | Recovery replays goal/decision events | State is reconstructed from durable events | Model is called again or external action is replayed |
 | LIFE-003 | An event is duplicated with identical immutable content | Idempotent duplicate | Duplicate goal or activity is created |
