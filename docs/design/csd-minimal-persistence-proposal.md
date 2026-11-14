@@ -189,6 +189,10 @@ The first vertical slice is not complete until tests demonstrate:
 10. Recovery does not call any external action executor. The test should use a spy/failing stub and assert it is never invoked; the production CSD API should not accept such an executor in the first place.
 11. Forced process termination before commit leaves no partially accepted event.
 12. Forced process termination after commit but before the caller receives the result is safe to retry using the same event ID.
+13. Multiple independent connections can submit events concurrently without lost updates.
+14. A writer-lock timeout leaves no partial event/projection update, and a later retry can succeed.
+15. A SQLite backup can be reopened and recovered with the same event-derived state.
+16. Tampering with an immutable event envelope is detected during recovery.
 
 ## 11. Implementation-language decision — provisional prototype choice
 
@@ -223,7 +227,7 @@ An isolated Python reference spike now exists on branch `feature/csd-persistence
 - `tests/test_csd_store.py` — synthetic persistence and recovery tests.
 - `core/csd/README.md` — how to run the isolated test suite.
 
-The current test run passed 12 tests in the assistant's isolated environment (Python 3.13.5, SQLite 3.46.1), including process termination before and after commit. This is not the user's Windows environment and does not yet verify the reported local Python 3.12.14 runtime. See [test report 001](../reports/csd-persistence-spike-test-report-001.md).
+The current test run passed 16 tests in the assistant's isolated environment (Python 3.13.5, SQLite 3.46.1), including process termination, concurrent writers, lock timeout, backup restore, and event-integrity checks. This is not the user's Windows environment and does not yet verify the reported local Python 3.12.14 runtime. See [test report 001](../reports/csd-persistence-spike-test-report-001.md).
 
 The prototype is not merged to `main`, is not connected to DSH/SurfCore, and must not store real personal memories yet. Forced process termination, power-loss behavior, multi-process contention, backup/restore, privacy and retention remain untested.
 
