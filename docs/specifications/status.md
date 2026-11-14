@@ -46,6 +46,8 @@ The design intentionally rejects a universal weighted priority formula. Hard per
 See:
 - `docs/design/motivation-and-life-engine-contract.md`
 - `docs/design/life-engine-csd-event-contract.md`
+- `docs/design/motivation-signal-formation-and-lifecycle.md`
+- `docs/design/motivation-signal-test-contract.md`
 - `docs/design/motivation-and-life-engine-test-contract.md`
 - `core/life_engine/README.md`
 
