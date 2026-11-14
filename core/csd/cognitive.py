@@ -312,20 +312,29 @@ class CognitiveMemoryStore:
 
     @staticmethod
     def _validate_observation(payload: Mapping[str, Any]) -> None:
+        allowed = {"observation_id", "observation_kind", "content", "source_ref", "observed_at", "coverage"}
+        if set(payload) != allowed:
+            raise ValueError("observation payload contains missing or unsupported fields")
         _nonempty(payload.get("observation_id"), "observation_id")
         _nonempty(payload.get("observation_kind"), "observation_kind")
         _nonempty(payload.get("content"), "content")
         _nonempty(payload.get("source_ref"), "source_ref")
         _timestamp(payload.get("observed_at"), "observed_at")
         coverage = payload.get("coverage")
-        if not isinstance(coverage, Mapping):
-            raise ValueError("coverage must be an object")
+        if not isinstance(coverage, Mapping) or set(coverage) != {"modality", "complete_for_fixture"}:
+            raise ValueError("coverage must contain only modality and complete_for_fixture")
         _nonempty(coverage.get("modality"), "coverage.modality")
         if not isinstance(coverage.get("complete_for_fixture"), bool):
             raise ValueError("coverage.complete_for_fixture must be boolean")
 
     @staticmethod
     def _validate_proposal(payload: Mapping[str, Any]) -> None:
+        allowed = {
+            "proposal_id", "memory_kind", "candidate_content", "evidence_event_ids",
+            "origin", "uncertainty", "based_on", "operation",
+        }
+        if set(payload) != allowed:
+            raise ValueError("proposal payload contains missing or unsupported fields")
         _nonempty(payload.get("proposal_id"), "proposal_id")
         _nonempty(payload.get("memory_kind"), "memory_kind")
         _nonempty(payload.get("candidate_content"), "candidate_content")
@@ -337,22 +346,29 @@ class CognitiveMemoryStore:
         if len(set(refs)) != len(refs):
             raise ValueError("evidence_event_ids must not contain duplicates")
         origin = payload.get("origin")
-        if not isinstance(origin, Mapping):
-            raise ValueError("origin must be an object")
+        if not isinstance(origin, Mapping) or set(origin) != {"component", "version"}:
+            raise ValueError("origin must contain only component and version")
         _nonempty(origin.get("component"), "origin.component")
         _nonempty(origin.get("version"), "origin.version")
         based_on = payload.get("based_on")
-        if not isinstance(based_on, Mapping):
-            raise ValueError("based_on must be an object")
+        if not isinstance(based_on, Mapping) or set(based_on) != {"state_version"}:
+            raise ValueError("based_on must contain only state_version")
         version = based_on.get("state_version")
         if not isinstance(version, int) or isinstance(version, bool) or version < 0:
             raise ValueError("based_on.state_version must be a non-negative integer")
         if payload.get("operation") != "create":
             raise ValueError("this slice only supports operation=create")
         uncertainty = payload.get("uncertainty")
-        if not isinstance(uncertainty, Mapping):
-            raise ValueError("uncertainty must be an object")
+        if not isinstance(uncertainty, Mapping) or set(uncertainty) - {"label", "confidence"}:
+            raise ValueError("uncertainty contains unsupported fields")
         _nonempty(uncertainty.get("label"), "uncertainty.label")
+        confidence = uncertainty.get("confidence")
+        if confidence is not None and (
+            not isinstance(confidence, (int, float))
+            or isinstance(confidence, bool)
+            or not 0.0 <= float(confidence) <= 1.0
+        ):
+            raise ValueError("uncertainty.confidence must be null or between 0 and 1")
 
     def _apply_projection_event(
         self,
@@ -601,6 +617,30 @@ class CognitiveMemoryStore:
                 "sequence": appended["sequence"],
                 "reason": reason,
             }
+
+    def get_event(self, event_id: str) -> dict[str, Any]:
+        """Read one immutable event with its content-addressed payload."""
+        _nonempty(event_id, "event_id")
+        row = self._db.execute(
+            "SELECT e.sequence,e.event_id,e.occurred_at,e.received_at,e.correlation_id,"
+            "e.event_type,e.source,e.payload_ref,p.payload_json "
+            "FROM events e JOIN payloads p ON p.payload_ref=e.payload_ref "
+            "WHERE e.event_id=?",
+            (event_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(event_id)
+        return {
+            "sequence": int(row["sequence"]),
+            "event_id": row["event_id"],
+            "occurred_at": row["occurred_at"],
+            "received_at": row["received_at"],
+            "correlation_id": row["correlation_id"],
+            "event_type": row["event_type"],
+            "source": row["source"],
+            "payload_ref": row["payload_ref"],
+            "payload": json.loads(row["payload_json"]),
+        }
 
     def get_memories(self) -> list[dict[str, Any]]:
         rows = self._db.execute(
