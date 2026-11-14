@@ -8,6 +8,7 @@ on:
       - "core/csd/**"
       - "core/life_engine/**"
       - "tests/test_life_engine.py"
+      - "tests/test_motivation_synthesis.py"
       - "tests/test_csd_cognitive.py"
       - "tests/test_csd_proposal_pipeline.py"
       - "tests/test_csd_grounded_memory.py"
@@ -62,5 +63,7 @@ jobs:
         run: python -m unittest discover -s tests -p "test_csd_semantic_review_pipeline.py" -v
       - name: Run existing persistence baseline tests
         run: python -m unittest discover -s tests -p "test_csd_store.py" -v
+      - name: Run motivation signal synthesis tests
+        run: python -m unittest discover -s tests -p "test_motivation_synthesis.py" -v
       - name: Run motivation and life-engine tests
         run: python -m unittest discover -s tests -p "test_life_engine.py" -v
