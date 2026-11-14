@@ -58,6 +58,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - [Memory proposal provider contract](docs/design/memory-proposal-provider-contract.md)
 - [Claim-to-evidence grounding](docs/design/claim-to-evidence-grounding.md)
 - [Grounded memory proposal v2](docs/design/grounded-memory-proposal-v2.md)
+- [Semantic review boundary](docs/design/semantic-review-boundary.md)
 - [Specification status register](docs/specifications/status.md)
 - [Software baseline](docs/inventory/software-baseline.md)
 - [SurfCore v0.8.8 capability assessment and integration plan](docs/inventory/surfcore-capability-assessment.md)
