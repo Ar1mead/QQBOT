@@ -44,6 +44,7 @@ def signal(
     supporting=("old-support",),
     counter=(),
     statement="A tentative interest in the blue-boat topic.",
+    voluntary_encounters=(),
 ):
     return MotivationSignalState(
         signal_id=signal_id,
@@ -56,6 +57,7 @@ def signal(
         supporting_event_ids=supporting,
         counter_evidence_event_ids=counter,
         statement=statement,
+        voluntary_encounters=voluntary_encounters,
     )
 
 
@@ -182,6 +184,57 @@ class MotivationEvidenceOriginTests(unittest.TestCase):
                 create_proposal(supporting=("ev-1", "ev-2"), stage="emerging"),
             )
 
+    def test_emerging_interest_can_accumulate_across_signal_versions(self):
+        prior = signal(
+            supporting=("ev-old",),
+            voluntary_encounters=(("enc-old", "2026-11-13T10:00:00+00:00", "ev-old"),),
+        )
+        new = evidence(
+            "ev-new", "voluntary_selection", encounter="enc-new",
+            at="2026-11-14T10:00:00+00:00", alternatives=True,
+        )
+        result = validate_motivation_update(
+            snapshot(evidence_items=(new,), signals=(prior,)),
+            create_proposal(
+                operation="reinforce", target="interest-1",
+                target_version=1, supporting=("ev-new",),
+            ),
+        )
+        self.assertTrue(result.emerging_interest_supported)
+        self.assertEqual(result.voluntary_encounter_ids, ("enc-new", "enc-old"))
+
+    def test_stored_voluntary_encounter_must_reference_supporting_event(self):
+        invalid = signal(
+            supporting=("ev-old",),
+            voluntary_encounters=(("enc-old", "2026-11-13T10:00:00+00:00", "unknown-event"),),
+        )
+        new = evidence("ev-new", "voluntary_selection", alternatives=True)
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(new,), signals=(invalid,)),
+                create_proposal(
+                    operation="reinforce", target="interest-1",
+                    target_version=1, supporting=("ev-new",),
+                ),
+            )
+
+    def test_duplicate_stored_voluntary_encounter_ids_are_rejected(self):
+        invalid = signal(
+            voluntary_encounters=(
+                ("enc-old", "2026-11-13T10:00:00+00:00", "old-support"),
+                ("enc-old", "2026-11-13T11:00:00+00:00", "old-support"),
+            ),
+        )
+        new = evidence("ev-new", "voluntary_selection", alternatives=True)
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(new,), signals=(invalid,)),
+                create_proposal(
+                    operation="reinforce", target="interest-1",
+                    target_version=1, supporting=("ev-new",),
+                ),
+            )
+
     def test_mixed_user_and_internal_evidence_is_not_purely_internal(self):
         items = (
             evidence("ev-1", "voluntary_selection", origin="internal_state",
@@ -192,6 +245,17 @@ class MotivationEvidenceOriginTests(unittest.TestCase):
         result = validate_motivation_update(
             snapshot(evidence_items=items),
             create_proposal(supporting=("ev-1", "ev-2")),
+        )
+        self.assertEqual(result.derived_origin_class, "mixed_origin")
+
+    def test_creation_origin_includes_counterevidence_provenance(self):
+        items = (
+            evidence("ev-1", "passive_exposure", origin="platform_recommendation"),
+            evidence("ev-2", "counter_evidence", origin="internal_state"),
+        )
+        result = validate_motivation_update(
+            snapshot(evidence_items=items),
+            create_proposal(supporting=("ev-1",), counter=("ev-2",)),
         )
         self.assertEqual(result.derived_origin_class, "mixed_origin")
 
