@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from core.life_engine import (
+    ActiveActivityState,
     ActivityOption,
     ChoiceProposal,
     DeliberationProposal,
@@ -41,7 +42,19 @@ def option(activity_id="activity-read", *, permission=True, prerequisites=True,
     )
 
 
-def snapshot(*, signals=None, goals=None, options=None, active=("activity-running",), version=4):
+def snapshot(*, signals=None, goals=None, options=None, active=("activity-running",),
+             active_permission=True, active_stop=False, active_side_effect="read_only", version=4):
+    active_ids = tuple(active)
+    active_states = tuple(
+        ActiveActivityState(
+            activity_id,
+            "bilibili.read",
+            active_permission,
+            active_stop,
+            active_side_effect,
+        )
+        for activity_id in active_ids
+    )
     return LifeSnapshot(
         state_version=version,
         signals=tuple(signals if signals is not None else (signal(),)),
@@ -49,7 +62,8 @@ def snapshot(*, signals=None, goals=None, options=None, active=("activity-runnin
             GoalState("goal-1", "Understand one topic", "active", ("evt-goal-1",)),
         )),
         activity_options=tuple(options if options is not None else (option(),)),
-        active_activity_ids=tuple(active),
+        active_activity_ids=active_ids,
+        active_activity_states=active_states,
     )
 
 
@@ -291,6 +305,28 @@ class LifeProposalValidationTests(unittest.TestCase):
         selected = choice("continue_activity", active_activity_id="activity-running")
         self.assertEqual(validate_life_proposal(snap, proposal(snap, selected)).proposal.choice.disposition,
                          "continue_activity")
+
+    def test_continue_activity_is_blocked_after_permission_revocation(self):
+        snap = snapshot(active_permission=False)
+        selected = choice("continue_activity", active_activity_id="activity-running")
+        with self.assertRaises(PermissionError):
+            validate_life_proposal(snap, proposal(snap, selected))
+
+    def test_continue_activity_is_blocked_when_stop_condition_is_met(self):
+        snap = snapshot(active_stop=True)
+        selected = choice("continue_activity", active_activity_id="activity-running")
+        with self.assertRaises(ValueError):
+            validate_life_proposal(snap, proposal(snap, selected))
+
+    def test_continue_side_effecting_activity_requires_asm(self):
+        snap = snapshot(active_side_effect="external_side_effect")
+        selected = choice("continue_activity", active_activity_id="activity-running")
+        self.assertTrue(validate_life_proposal(snap, proposal(snap, selected)).requires_asm_governance)
+
+    def test_stopping_side_effecting_activity_requires_asm(self):
+        snap = snapshot(active_side_effect="external_side_effect")
+        selected = choice("stop_activity", active_activity_id="activity-running")
+        self.assertTrue(validate_life_proposal(snap, proposal(snap, selected)).requires_asm_governance)
 
     def test_noop_cannot_smuggle_an_activity_selection(self):
         snap = snapshot()
