@@ -43,6 +43,7 @@ def signal(
     origin="internally_initiated",
     supporting=("old-support",),
     counter=(),
+    statement="A tentative interest in the blue-boat topic.",
 ):
     return MotivationSignalState(
         signal_id=signal_id,
@@ -54,6 +55,7 @@ def signal(
         origin_class=origin,
         supporting_event_ids=supporting,
         counter_evidence_event_ids=counter,
+        statement=statement,
     )
 
 
@@ -77,6 +79,7 @@ def create_proposal(
     target_version=None,
     version=7,
     subject="topic:blue-boat",
+    statement="The topic may be interesting to explore.",
 ):
     return MotivationUpdateProposal(
         proposal_id="proposal-1",
@@ -92,6 +95,7 @@ def create_proposal(
         target_signal_id=target,
         target_signal_version=target_version,
         requested_interest_stage=(stage if kind == "interest" and operation in {"create", "reinforce"} else None),
+        statement=statement,
     )
 
 
@@ -247,6 +251,24 @@ class MotivationEvidenceIntegrityTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_motivation_update(snapshot(), create_proposal())
 
+    def test_create_requires_a_signal_statement(self):
+        candidate = create_proposal(statement=None)
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(evidence("ev-1", "passive_exposure"),)),
+                candidate,
+            )
+
+    def test_existing_signal_requires_a_statement(self):
+        item = evidence("ev-1", "voluntary_selection", alternatives=True)
+        invalid = signal(statement="")
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,), signals=(invalid,)),
+                create_proposal(operation="reinforce", target="interest-1",
+                                target_version=1, supporting=("ev-1",)),
+            )
+
     def test_evidence_subject_must_match_proposal_subject(self):
         item = evidence("ev-1", "passive_exposure", subject="creator:other")
         with self.assertRaises(ValueError):
@@ -388,6 +410,35 @@ class MotivationSignalOperationTests(unittest.TestCase):
                             target_version=1, supporting=("ev-new",)),
         )
         self.assertEqual(result.proposal.operation, "reinforce")
+        self.assertEqual(result.effective_statement, old.statement)
+
+    def test_reinforce_cannot_rewrite_signal_statement(self):
+        old = signal(supporting=("ev-old",))
+        item = evidence("ev-new", "voluntary_selection", alternatives=True)
+        candidate = create_proposal(
+            operation="reinforce", target="interest-1", target_version=1,
+            supporting=("ev-new",), statement="A completely different interest.",
+        )
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,), signals=(old,)),
+                candidate,
+            )
+
+    def test_contextualize_can_refine_statement_and_scope(self):
+        old = signal(supporting=("ev-old",))
+        item = evidence("ev-new", "voluntary_selection", alternatives=True)
+        candidate = create_proposal(
+            operation="contextualize", target="interest-1", target_version=1,
+            supporting=("ev-new",), statement="Interest in this topic during quiet evenings.",
+        )
+        from dataclasses import replace
+        candidate = replace(candidate, scope="quiet evenings")
+        result = validate_motivation_update(
+            snapshot(evidence_items=(item,), signals=(old,)),
+            candidate,
+        )
+        self.assertEqual(result.effective_statement, "Interest in this topic during quiet evenings.")
 
     def test_signal_revision_cannot_reuse_old_evidence(self):
         old = signal(supporting=("ev-old",))
