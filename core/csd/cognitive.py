@@ -630,7 +630,7 @@ class CognitiveMemoryStore:
                     "semantic review history references a non-inference claim"
                 )
             claim = expected_claims[claim_id]
-            if review.get("proposal_digest") != _digest(_canonical(dict(proposal))):
+            if review.get("proposal_digest") != "sha256:" + _digest(_canonical(dict(proposal))):
                 raise CognitiveIntegrityError("semantic review proposal digest is stale")
             if review.get("claim_digest") != _digest(_canonical(claim)):
                 raise CognitiveIntegrityError("semantic review claim digest is stale")
@@ -1004,7 +1004,7 @@ class CognitiveMemoryStore:
             raise ValueError("semantic review cannot be submitted after a terminal proposal decision")
         if proposal_event_id != proposal["proposal_event_id"]:
             raise ValueError("semantic review proposal_event_id mismatch")
-        if proposal_digest != proposal["proposal_digest"]:
+        if proposal_digest != "sha256:" + proposal["proposal_digest"]:
             raise ValueError("semantic review proposal_digest mismatch")
         proposal_json = json.loads(proposal["proposal_json"])
         if self._proposal_event_type(db, proposal_id) != GROUNDED_PROPOSAL_EVENT:
@@ -1350,7 +1350,7 @@ class CognitiveMemoryStore:
             raise CognitiveIntegrityError("proposal projection digest mismatch")
         return {
             "proposal": proposal,
-            "proposal_digest": row["proposal_digest"],
+            "proposal_digest": "sha256:" + row["proposal_digest"],
             "proposal_event_id": row["proposal_event_id"],
             "status": row["status"],
             "decision_event_id": row["decision_event_id"],
