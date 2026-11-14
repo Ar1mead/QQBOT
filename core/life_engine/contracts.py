@@ -154,8 +154,10 @@ def validate_life_proposal(
             raise ValueError(f"unsupported signal kind: {signal.kind}")
         if signal.origin not in {"internal_state", "external_opportunity", "user_request", "commitment"}:
             raise ValueError(f"unsupported signal origin: {signal.origin}")
-        if not signal.description.strip():
+        if not isinstance(signal.description, str) or not signal.description.strip():
             raise ValueError("signal description must be non-empty")
+        if not isinstance(signal.active, bool):
+            raise ValueError("signal.active must be boolean")
         _unique_nonempty(signal.evidence_event_ids, "signal.evidence_event_ids")
         signal_by_id[signal.signal_id] = signal
 
@@ -186,8 +188,12 @@ def validate_life_proposal(
             raise ValueError("required_capability must be non-empty")
         _unique_nonempty(option.source_signal_ids, "activity.source_signal_ids")
         _unique_nonempty(option.serves_goal_ids, "activity.serves_goal_ids")
+        if not option.source_signal_ids:
+            raise ValueError(f"activity {option.activity_id} must cite a motivation signal")
         if not set(option.source_signal_ids).issubset(signal_by_id):
             raise ValueError(f"activity {option.activity_id} references unknown motivation signal")
+        if any(not signal_by_id[item].active for item in option.source_signal_ids):
+            raise ValueError(f"activity {option.activity_id} references an inactive motivation signal")
         if not set(option.serves_goal_ids).issubset(goal_by_id):
             raise ValueError(f"activity {option.activity_id} references unknown goal")
         activity_by_id[option.activity_id] = option
@@ -217,8 +223,10 @@ def validate_life_proposal(
         origin_ids = _unique_nonempty(goal_proposal.origin_signal_ids, "goal.origin_signal_ids")
         if not origin_ids or not origin_ids.issubset(signal_by_id):
             raise ValueError("goal proposal must cite one or more signals in the current snapshot")
+        if any(not signal_by_id[item].active for item in origin_ids):
+            raise ValueError("goal proposal cannot originate from an inactive signal")
         origins = {signal_by_id[item].origin for item in origin_ids}
-        if "internal_state" in origins or "commitment" in origins:
+        if origins.issubset({"internal_state", "commitment"}):
             origin_class = "internally_initiated"
         elif origins == {"user_request"}:
             origin_class = "user_requested"
@@ -284,6 +292,9 @@ def validate_life_proposal(
     elif choice.disposition in {"pause_goal", "abandon_goal", "revise_goal"}:
         if choice.goal_id is None:
             raise ValueError(f"{choice.disposition} requires goal_id")
+        current_goal = goal_by_id[choice.goal_id]
+        if choice.disposition == "pause_goal" and current_goal.status != "active":
+            raise ValueError("pause_goal requires an active goal")
     elif choice.disposition in {"wait", "request_information", "decline", "no_op"}:
         if choice.activity_id is not None or choice.active_activity_id is not None:
             raise ValueError(f"{choice.disposition} cannot select an activity")
