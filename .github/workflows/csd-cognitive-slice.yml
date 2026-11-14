@@ -7,11 +7,13 @@ on:
     paths:
       - "core/csd/**"
       - "tests/test_csd_cognitive.py"
+      - "tests/test_csd_proposal_pipeline.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   pull_request:
     paths:
       - "core/csd/**"
       - "tests/test_csd_cognitive.py"
+      - "tests/test_csd_proposal_pipeline.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   workflow_dispatch:
 
