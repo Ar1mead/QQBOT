@@ -1104,14 +1104,17 @@ class CognitiveMemoryStore:
                 review_summary = self._semantic_review_summary(db, proposal_id, proposal)
                 semantic_review_event_ids = review_summary["review_event_ids"]
                 semantic_review_status = review_summary["status"]
+                if (
+                    outcome in {"accepted", "deferred"}
+                    and semantic_review_status == "awaiting_review"
+                ):
+                    return {
+                        "status": "awaiting_review",
+                        "proposal_id": proposal_id,
+                        "claim_ids": review_summary["missing_claim_ids"],
+                        "reason": review_summary["reason"],
+                    }
                 if outcome == "accepted":
-                    if semantic_review_status == "awaiting_review":
-                        return {
-                            "status": "awaiting_review",
-                            "proposal_id": proposal_id,
-                            "claim_ids": review_summary["missing_claim_ids"],
-                            "reason": review_summary["reason"],
-                        }
                     if semantic_review_status == "unsupported":
                         outcome = "rejected"
                         reason = review_summary["reason"]
@@ -1312,17 +1315,48 @@ class CognitiveMemoryStore:
         return json.loads(row["memory_json"])
 
     def get_proposal(self, proposal_id: str) -> dict[str, Any]:
+        _nonempty(proposal_id, "proposal_id")
         row = self._db.execute(
-            "SELECT proposal_json,status,decision_event_id FROM proposals WHERE proposal_id=?",
+            "SELECT proposal_json,proposal_digest,proposal_event_id,status,decision_event_id "
+            "FROM proposals WHERE proposal_id=?",
             (proposal_id,),
         ).fetchone()
         if row is None:
             raise KeyError(proposal_id)
+        proposal = json.loads(row["proposal_json"])
+        if _digest(_canonical(proposal)) != row["proposal_digest"]:
+            raise CognitiveIntegrityError("proposal projection digest mismatch")
         return {
-            "proposal": json.loads(row["proposal_json"]),
+            "proposal": proposal,
+            "proposal_digest": row["proposal_digest"],
+            "proposal_event_id": row["proposal_event_id"],
             "status": row["status"],
             "decision_event_id": row["decision_event_id"],
         }
+
+    def get_semantic_reviews(self, proposal_id: str) -> list[dict[str, Any]]:
+        """Return immutable proposal-bound review events in event order."""
+        proposal = self.get_proposal(proposal_id)
+        rows = self._db.execute(
+            "SELECT event_id,sequence FROM events WHERE event_type=? ORDER BY sequence",
+            (SEMANTIC_REVIEW_EVENT,),
+        ).fetchall()
+        reviews: list[dict[str, Any]] = []
+        for row in rows:
+            event = self.get_event(row["event_id"])
+            payload = event["payload"]
+            if payload.get("proposal_id") != proposal_id:
+                continue
+            if payload.get("proposal_event_id") != proposal["proposal_event_id"]:
+                raise CognitiveIntegrityError("review references a different proposal event")
+            if payload.get("proposal_digest") != proposal["proposal_digest"]:
+                raise CognitiveIntegrityError("review proposal digest does not match stored proposal")
+            reviews.append({
+                "event_id": event["event_id"],
+                "sequence": event["sequence"],
+                "payload": payload,
+            })
+        return reviews
 
     def get_state_snapshot(self) -> dict[str, Any]:
         state_version = self._authoritative_state_version(self._db)
