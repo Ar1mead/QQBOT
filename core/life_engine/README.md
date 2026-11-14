@@ -6,6 +6,7 @@ This directory contains an isolated, provider-neutral proposal layer for the fir
 
 - `contracts.py` — typed motivation signals, goal state, trusted activity options, goal proposals, and deliberation choices.
 - `engine.py` — read snapshot -> ask deliberator -> validate references and hard admissibility -> submit a pending proposal to a CSD-facing sink.
+- Active activity snapshots carry current permission and stop-condition state; continuation is blocked after permission revocation or a met stop condition. Stopping/continuing an external side-effect activity is flagged for ASM governance.
 - `__init__.py` — package exports.
 
 ## Current behavior
