@@ -197,6 +197,34 @@ class GroundedMemoryV2Tests(unittest.TestCase):
         self.assertEqual(result["status"], "needs_more_evidence")
         self.assertEqual(self.store.get_memories(), [])
 
+    def test_non_text_observation_cannot_ground_v2_memory(self):
+        image_observation = CognitiveEvent(
+            event_id="evt-grounded-image-observation",
+            occurred_at="2026-11-14T10:00:05+00:00",
+            correlation_id="corr-grounded",
+            event_type=OBSERVATION_EVENT,
+            source="test.observation_fixture",
+            payload={
+                "observation_id": "obs-grounded-image",
+                "observation_kind": "image_fixture",
+                "content": "A caption extracted from an image.",
+                "source_ref": "fixture://grounded/image",
+                "observed_at": "2026-11-14T09:59:00+00:00",
+                "coverage": {"modality": "image", "complete_for_fixture": True},
+            },
+        )
+        self.store.submit_event(image_observation)
+        self.submit_pending(claims=[self.source_claim(
+            quote="A blue paper boat passed the bridge.",
+            event_id="evt-grounded-image-observation",
+            start=0,
+            end=len("A blue paper boat passed the bridge."),
+        )])
+        result = self.store.evaluate_proposal("grounded-proposal-1")
+        self.assertEqual(result["status"], "rejected")
+        self.assertIn("requires text evidence", result["reason"])
+        self.assertEqual(self.store.get_memories(), [])
+
     def test_existing_non_observation_evidence_is_rejected(self):
         other = CognitiveEvent(
             event_id="evt-other-proposal",
