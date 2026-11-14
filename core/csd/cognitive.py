@@ -547,10 +547,11 @@ class CognitiveMemoryStore:
             reason = "proposal and evidence references passed deterministic provenance checks"
             outcome = "accepted"
             for evidence_id in proposal["evidence_event_ids"]:
-                evidence = db.execute(
-                    "SELECT event_type,payload_ref FROM events WHERE event_id=?",
-                    (evidence_id,),
-                ).fetchone()
+                evidence_record = self.get_event(evidence_id)
+                evidence = {
+                    "event_type": evidence_record["event_type"],
+                    "payload_ref": evidence_record["payload_ref"],
+                }
                 if evidence is None:
                     outcome = "needs_more_evidence"
                     reason = f"referenced evidence event is missing: {evidence_id}"
@@ -623,13 +624,33 @@ class CognitiveMemoryStore:
         _nonempty(event_id, "event_id")
         row = self._db.execute(
             "SELECT e.sequence,e.event_id,e.occurred_at,e.received_at,e.correlation_id,"
-            "e.event_type,e.source,e.payload_ref,p.payload_json "
+            "e.event_type,e.source,e.payload_ref,e.event_digest,p.payload_json "
             "FROM events e JOIN payloads p ON p.payload_ref=e.payload_ref "
             "WHERE e.event_id=?",
             (event_id,),
         ).fetchone()
         if row is None:
             raise KeyError(event_id)
+        payload_json = row["payload_json"]
+        if "sha256:" + _digest(payload_json) != row["payload_ref"]:
+            raise CognitiveIntegrityError(f"payload digest failure: {event_id}")
+        try:
+            payload = json.loads(payload_json)
+        except json.JSONDecodeError as exc:
+            raise CognitiveIntegrityError(f"invalid event payload: {event_id}") from exc
+        if not isinstance(payload, dict):
+            raise CognitiveIntegrityError(f"event payload is not an object: {event_id}")
+        event = CognitiveEvent(
+            event_id=row["event_id"],
+            occurred_at=row["occurred_at"],
+            correlation_id=row["correlation_id"],
+            event_type=row["event_type"],
+            source=row["source"],
+            payload=payload,
+        )
+        _timestamp(row["received_at"], "received_at")
+        if self._event_digest(event, row["payload_ref"], row["received_at"]) != row["event_digest"]:
+            raise CognitiveIntegrityError(f"event envelope digest failure: {event_id}")
         return {
             "sequence": int(row["sequence"]),
             "event_id": row["event_id"],
@@ -639,7 +660,7 @@ class CognitiveMemoryStore:
             "event_type": row["event_type"],
             "source": row["source"],
             "payload_ref": row["payload_ref"],
-            "payload": json.loads(row["payload_json"]),
+            "payload": payload,
         }
 
     def get_memories(self) -> list[dict[str, Any]]:
