@@ -63,6 +63,7 @@ No LLM, network, platform adapter, external action, personal content, or user ac
 | COG-039 | Memory Retrieval contract §2.1 and §5 | Several accepted memories exist | Retrieve with limit and offset | Stable insertion-order page is returned | Repeated query over unchanged data yields the same page | Retrieval arbitrarily reorders results |
 | COG-040 | Memory Retrieval contract §2.2 | One accepted memory has a stable memory_id | Call get_memory(memory_id) | Full accepted record and provenance are returned; unknown ID is not found | Returned record matches list retrieval | A pending proposal is accessible through accepted-memory lookup |
 | COG-041 | Memory Retrieval contract §4 | Accepted memories and event history exist | Call get_memories/get_memory with filters | Read operations do not mutate CSD | Event count and authoritative state snapshot remain unchanged | Retrieval creates events, changes state, or triggers external actions |
+| COG-042 | Memory Retrieval contract §2.1 and §5 | Retrieval filter arguments are supplied | Pass an unsupported or non-string epistemic_type | Filter is rejected with ValueError | No query side effect or state mutation occurs | Invalid filter types are coerced or silently ignored |
 
 ## Coverage and limits
 
