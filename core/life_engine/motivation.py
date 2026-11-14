@@ -269,6 +269,8 @@ def validate_motivation_update(
     else:
         if proposal.new_signal_id is not None:
             raise ValueError("update operation cannot assign a new_signal_id")
+        if proposal.operation == "contextualize" and proposal.statement is not None:
+            _nonempty(proposal.statement, "statement")
         _nonempty(proposal.target_signal_id, "target_signal_id")
         target = signal_by_id.get(proposal.target_signal_id)
         if target is None:
@@ -311,7 +313,7 @@ def validate_motivation_update(
     if proposal.kind == "interest":
         if proposal.requested_interest_stage not in {"tentative", "emerging", "contextual", None}:
             raise ValueError("established interest maturity is CSD-derived, not provider-assigned")
-        if proposal.operation in {"create", "reinforce"}:
+        if proposal.operation in {"create", "reinforce", "contextualize"}:
             allowed_support = {
                 "passive_exposure", "user_requested_action", "platform_autoplay",
                 "voluntary_selection", "return_visit", "affect_observation",
