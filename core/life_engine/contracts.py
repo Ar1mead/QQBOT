@@ -1,0 +1,297 @@
+"""Typed, provider-neutral contracts for autonomous motivation and choice.
+
+This package creates deliberation proposals only. It does not own durable state,
+call models, execute activities, or grant capabilities.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Literal, Sequence
+
+
+SignalKind = Literal["need", "interest", "curiosity", "affect", "commitment", "opportunity"]
+SignalOrigin = Literal["internal_state", "external_opportunity", "user_request", "commitment"]
+SideEffectLevel = Literal["none", "read_only", "external_side_effect"]
+Disposition = Literal[
+    "start_activity",
+    "continue_activity",
+    "wait",
+    "request_information",
+    "pause_goal",
+    "abandon_goal",
+    "revise_goal",
+    "decline",
+    "stop_activity",
+    "no_op",
+]
+
+
+@dataclass(frozen=True)
+class MotivationSignal:
+    signal_id: str
+    kind: SignalKind
+    origin: SignalOrigin
+    description: str
+    evidence_event_ids: tuple[str, ...]
+    active: bool = True
+
+
+@dataclass(frozen=True)
+class GoalState:
+    goal_id: str
+    desired_condition: str
+    status: Literal["active", "paused", "blocked"]
+    evidence_event_ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ActivityOption:
+    """A capability-filtered option supplied by trusted runtime/CSD context.
+
+    The deliberator may select an option by ID. It cannot create its own
+    permission flag, capability grant, or prerequisite result.
+    """
+
+    activity_id: str
+    activity_kind: str
+    description: str
+    source_signal_ids: tuple[str, ...]
+    serves_goal_ids: tuple[str, ...]
+    required_capability: str
+    permission_granted: bool
+    prerequisites_satisfied: bool
+    side_effect_level: SideEffectLevel
+
+
+@dataclass(frozen=True)
+class LifeSnapshot:
+    state_version: int
+    signals: tuple[MotivationSignal, ...]
+    goals: tuple[GoalState, ...]
+    activity_options: tuple[ActivityOption, ...]
+    active_activity_ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class GoalProposal:
+    goal_id: str
+    desired_condition: str
+    origin_signal_ids: tuple[str, ...]
+    rationale: str
+    success_condition: str
+    stop_condition: str
+    review_condition: str
+
+
+@dataclass(frozen=True)
+class ChoiceProposal:
+    disposition: Disposition
+    rationale: str
+    considered_activity_ids: tuple[str, ...] = ()
+    activity_id: str | None = None
+    goal_id: str | None = None
+    active_activity_id: str | None = None
+    evidence_event_ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class DeliberationProposal:
+    based_on_state_version: int
+    goal_proposals: tuple[GoalProposal, ...]
+    choice: ChoiceProposal
+
+
+@dataclass(frozen=True)
+class ValidatedLifeProposal:
+    """Validated proposal plus derived origin classifications.
+
+    This is still untrusted proposed state. Only the CSD sink may persist an
+    authoritative transition from it.
+    """
+
+    proposal: DeliberationProposal
+    goal_origin_classes: tuple[tuple[str, str], ...]
+    requires_asm_governance: bool
+
+
+def _unique_nonempty(values: Sequence[str], field_name: str) -> set[str]:
+    if isinstance(values, (str, bytes)):
+        raise ValueError(f"{field_name} must be a sequence, not a string")
+    result: set[str] = set()
+    for value in values:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{field_name} must contain non-empty strings")
+        if value in result:
+            raise ValueError(f"{field_name} must not contain duplicates")
+        result.add(value)
+    return result
+
+
+def validate_life_proposal(
+    snapshot: LifeSnapshot,
+    proposal: DeliberationProposal,
+) -> ValidatedLifeProposal:
+    """Validate references and hard admissibility; never rank or execute options."""
+    if not isinstance(snapshot, LifeSnapshot):
+        raise TypeError("snapshot must be LifeSnapshot")
+    if not isinstance(proposal, DeliberationProposal):
+        raise TypeError("deliberator must return DeliberationProposal")
+    if not isinstance(snapshot.state_version, int) or isinstance(snapshot.state_version, bool) or snapshot.state_version < 0:
+        raise ValueError("snapshot.state_version must be a non-negative integer")
+    if proposal.based_on_state_version != snapshot.state_version:
+        raise ValueError("proposal was generated from a stale or different state version")
+
+    signal_by_id: dict[str, MotivationSignal] = {}
+    for signal in snapshot.signals:
+        if not isinstance(signal, MotivationSignal):
+            raise TypeError("snapshot signals must be MotivationSignal values")
+        if not signal.signal_id or not signal.signal_id.strip():
+            raise ValueError("signal_id must be non-empty")
+        if signal.signal_id in signal_by_id:
+            raise ValueError(f"duplicate signal_id: {signal.signal_id}")
+        if signal.kind not in {"need", "interest", "curiosity", "affect", "commitment", "opportunity"}:
+            raise ValueError(f"unsupported signal kind: {signal.kind}")
+        if signal.origin not in {"internal_state", "external_opportunity", "user_request", "commitment"}:
+            raise ValueError(f"unsupported signal origin: {signal.origin}")
+        if not signal.description.strip():
+            raise ValueError("signal description must be non-empty")
+        _unique_nonempty(signal.evidence_event_ids, "signal.evidence_event_ids")
+        signal_by_id[signal.signal_id] = signal
+
+    goal_by_id: dict[str, GoalState] = {}
+    for goal in snapshot.goals:
+        if not isinstance(goal, GoalState):
+            raise TypeError("snapshot goals must be GoalState values")
+        if not goal.goal_id or not goal.goal_id.strip():
+            raise ValueError("goal_id must be non-empty")
+        if goal.goal_id in goal_by_id:
+            raise ValueError(f"duplicate goal_id: {goal.goal_id}")
+        if goal.status not in {"active", "paused", "blocked"}:
+            raise ValueError(f"unsupported current goal status: {goal.status}")
+        _unique_nonempty(goal.evidence_event_ids, "goal.evidence_event_ids")
+        goal_by_id[goal.goal_id] = goal
+
+    activity_by_id: dict[str, ActivityOption] = {}
+    for option in snapshot.activity_options:
+        if not isinstance(option, ActivityOption):
+            raise TypeError("snapshot activity_options must be ActivityOption values")
+        if not option.activity_id or not option.activity_id.strip():
+            raise ValueError("activity_id must be non-empty")
+        if option.activity_id in activity_by_id:
+            raise ValueError(f"duplicate activity_id: {option.activity_id}")
+        if option.side_effect_level not in {"none", "read_only", "external_side_effect"}:
+            raise ValueError(f"unsupported side_effect_level: {option.side_effect_level}")
+        if not option.required_capability or not option.required_capability.strip():
+            raise ValueError("required_capability must be non-empty")
+        _unique_nonempty(option.source_signal_ids, "activity.source_signal_ids")
+        _unique_nonempty(option.serves_goal_ids, "activity.serves_goal_ids")
+        if not set(option.source_signal_ids).issubset(signal_by_id):
+            raise ValueError(f"activity {option.activity_id} references unknown motivation signal")
+        if not set(option.serves_goal_ids).issubset(goal_by_id):
+            raise ValueError(f"activity {option.activity_id} references unknown goal")
+        activity_by_id[option.activity_id] = option
+
+    active_activity_ids = _unique_nonempty(
+        snapshot.active_activity_ids, "snapshot.active_activity_ids"
+    )
+    new_goal_ids: set[str] = set()
+    goal_origin_classes: list[tuple[str, str]] = []
+    for goal_proposal in proposal.goal_proposals:
+        if not isinstance(goal_proposal, GoalProposal):
+            raise TypeError("goal_proposals must contain GoalProposal values")
+        if not goal_proposal.goal_id or not goal_proposal.goal_id.strip():
+            raise ValueError("proposed goal_id must be non-empty")
+        if goal_proposal.goal_id in goal_by_id or goal_proposal.goal_id in new_goal_ids:
+            raise ValueError(f"goal identity already exists in snapshot/proposal: {goal_proposal.goal_id}")
+        new_goal_ids.add(goal_proposal.goal_id)
+        for name, value in (
+            ("desired_condition", goal_proposal.desired_condition),
+            ("rationale", goal_proposal.rationale),
+            ("success_condition", goal_proposal.success_condition),
+            ("stop_condition", goal_proposal.stop_condition),
+            ("review_condition", goal_proposal.review_condition),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"goal proposal {name} must be non-empty")
+        origin_ids = _unique_nonempty(goal_proposal.origin_signal_ids, "goal.origin_signal_ids")
+        if not origin_ids or not origin_ids.issubset(signal_by_id):
+            raise ValueError("goal proposal must cite one or more signals in the current snapshot")
+        origins = {signal_by_id[item].origin for item in origin_ids}
+        if "internal_state" in origins or "commitment" in origins:
+            origin_class = "internally_initiated"
+        elif origins == {"user_request"}:
+            origin_class = "user_requested"
+        elif origins == {"external_opportunity"}:
+            origin_class = "externally_triggered"
+        else:
+            origin_class = "mixed_origin"
+        goal_origin_classes.append((goal_proposal.goal_id, origin_class))
+
+    choice = proposal.choice
+    if not isinstance(choice, ChoiceProposal):
+        raise TypeError("proposal.choice must be ChoiceProposal")
+    if choice.disposition not in {
+        "start_activity", "continue_activity", "wait", "request_information",
+        "pause_goal", "abandon_goal", "revise_goal", "decline", "stop_activity", "no_op",
+    }:
+        raise ValueError(f"unsupported disposition: {choice.disposition}")
+    if not isinstance(choice.rationale, str) or not choice.rationale.strip():
+        raise ValueError("choice rationale must be non-empty")
+
+    considered_ids = _unique_nonempty(
+        choice.considered_activity_ids, "choice.considered_activity_ids"
+    )
+    if not considered_ids.issubset(activity_by_id):
+        raise ValueError("considered_activity_ids contains an option outside the snapshot")
+    evidence_ids = _unique_nonempty(choice.evidence_event_ids, "choice.evidence_event_ids")
+    valid_evidence_ids = {
+        event_id
+        for signal in signal_by_id.values()
+        for event_id in signal.evidence_event_ids
+    } | {
+        event_id
+        for goal in goal_by_id.values()
+        for event_id in goal.evidence_event_ids
+    }
+    if not evidence_ids.issubset(valid_evidence_ids):
+        raise ValueError("choice evidence must reference source events present in the snapshot")
+
+    if choice.goal_id is not None and choice.goal_id not in goal_by_id:
+        raise ValueError("choice.goal_id must reference an existing accepted goal")
+    if choice.activity_id is not None and choice.activity_id not in activity_by_id:
+        raise ValueError("choice.activity_id is outside the trusted activity options")
+    if choice.active_activity_id is not None and choice.active_activity_id not in active_activity_ids:
+        raise ValueError("choice.active_activity_id is not active in the snapshot")
+
+    requires_asm = False
+    if choice.disposition == "start_activity":
+        if choice.activity_id is None:
+            raise ValueError("start_activity requires activity_id")
+        option = activity_by_id[choice.activity_id]
+        if not option.permission_granted:
+            raise PermissionError("activity option lacks the required capability permission")
+        if not option.prerequisites_satisfied:
+            raise ValueError("activity prerequisites are not satisfied")
+        if choice.goal_id is not None and choice.goal_id not in option.serves_goal_ids:
+            raise ValueError("selected activity is not linked to the selected goal")
+        requires_asm = option.side_effect_level == "external_side_effect"
+    elif choice.disposition in {"continue_activity", "stop_activity"}:
+        if choice.active_activity_id is None:
+            raise ValueError(f"{choice.disposition} requires an active_activity_id")
+        if choice.disposition == "continue_activity" and choice.activity_id is not None:
+            raise ValueError("continue_activity must use active_activity_id, not a new activity_id")
+    elif choice.disposition in {"pause_goal", "abandon_goal", "revise_goal"}:
+        if choice.goal_id is None:
+            raise ValueError(f"{choice.disposition} requires goal_id")
+    elif choice.disposition in {"wait", "request_information", "decline", "no_op"}:
+        if choice.activity_id is not None or choice.active_activity_id is not None:
+            raise ValueError(f"{choice.disposition} cannot select an activity")
+    else:
+        raise ValueError(f"unhandled disposition: {choice.disposition}")
+
+    return ValidatedLifeProposal(
+        proposal=proposal,
+        goal_origin_classes=tuple(goal_origin_classes),
+        requires_asm_governance=requires_asm,
+    )
