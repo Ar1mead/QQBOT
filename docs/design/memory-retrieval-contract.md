@@ -48,6 +48,8 @@ The return value contains accepted memories only. It returns the complete memory
 
 ## 4. Read-only invariant
 
+Before returning results, retrieval compares the accepted-memory projection count with the authoritative accepted-decision count. If they differ, it fails closed with an integrity error and requires Recovery; it does not return a partial list.
+
 Retrieval must not:
 - append events;
 - update a decision or memory status;
@@ -56,7 +58,7 @@ Retrieval must not:
 - create retrieval-derived memories;
 - trigger an external action.
 
-The current tests assert that event count and authoritative state snapshot remain unchanged after reads.
+The current tests assert that event count and authoritative state snapshot remain unchanged after reads, and that list/single-record retrieval fails closed when the accepted-memory projection is incomplete.
 
 ## 5. Known limitations
 
