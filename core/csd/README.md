@@ -7,7 +7,7 @@ This directory contains two isolated Python 3.12 / SQLite reference implementati
 - `proposals.py`: a v1 provider-neutral interface that converts model/provider output into untrusted candidate events; it never accepts memory state.
 - `grounded_proposals.py`: the v2 typed provider boundary for claim-level text evidence; it binds evidence and state provenance and submits pending proposals only.
 
-Neither implementation integrates with DSH, SurfCore, models, network services, platform clients, or external-action executors.
+No real model-provider adapter is included. These reference prototypes do not integrate with DSH, SurfCore, network services, platform clients, or external-action executors. Provider interfaces are tested only with synthetic providers.
 
 Run tests from the repository root:
 
@@ -21,4 +21,4 @@ py -3.12 -m unittest discover -s tests -p "test_csd_store.py" -v
 
 The generic store's WAL/DELETE journal modes and FULL/NORMAL synchronous modes are test candidates, not production durability guarantees. The cognitive slice currently uses the same selectable SQLite settings but has not been validated for Windows power-loss behavior.
 
-The cognitive-memory implementation and provider-neutral proposal pipeline are engineering prototypes only. See the [memory proposal provider contract](../../docs/design/memory-proposal-provider-contract.md). See [implementation decisions](../../docs/design/csd-cognitive-slice-implementation-decision.md) and the [vertical-slice design](../../docs/design/first-cognitive-state-vertical-slice.md).
+The cognitive-memory implementation and both provider-neutral pipelines are engineering prototypes only. The v1 free-form candidate pipeline is retained for compatibility; a real provider should target the grounded v2 path in pending-only mode. See the [memory proposal provider contract](../../docs/design/memory-proposal-provider-contract.md) and [grounded-memory v2 design](../../docs/design/grounded-memory-proposal-v2.md). See [implementation decisions](../../docs/design/csd-cognitive-slice-implementation-decision.md) and the [vertical-slice design](../../docs/design/first-cognitive-state-vertical-slice.md).
