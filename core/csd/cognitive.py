@@ -98,6 +98,9 @@ def _nonempty(value: Any, name: str) -> str:
 class CognitiveMemoryStore(CognitiveMotivationMixin):
     """Single event stream with rebuildable proposal and accepted-memory views."""
 
+    def _raise_cognitive_integrity(self, message: str) -> None:
+        raise CognitiveIntegrityError(message)
+
     def __init__(
         self,
         database_path: str | Path,
