@@ -67,9 +67,8 @@ A duplicate submission may have a different transport arrival time. The implemen
 Proposed tables:
 
 ### `event_payloads`
-- `payload_digest` — primary key, SHA-256 of canonical payload bytes.
-- `content_type`
-- `payload_bytes` — immutable payload bytes.
+- `payload_ref` — content-addressed primary key (SHA-256 of canonical payload bytes).
+- `payload_json` — immutable canonical payload representation.
 
 ### `events`
 - `sequence` — monotonically increasing local event-log offset.
@@ -79,7 +78,8 @@ Proposed tables:
 - `correlation_id`
 - `event_type`
 - `source`
-- `payload_digest` — foreign key to `event_payloads`.
+- `payload_ref` — foreign key to `event_payloads`.
+- `event_digest` — digest of the immutable event envelope fields, checked during recovery.
 
 ### `projection_state`
 - `state_key` — primary key.
@@ -96,7 +96,7 @@ Proposed tables:
 ### `metadata`
 - schema version and any required storage-format metadata.
 
-The event log is the source for deterministic reconstruction. Projection rows and snapshots are derived and can be rebuilt. A snapshot is an optimization, not the sole copy of state.
+The event log is the source for deterministic reconstruction. Projection rows and snapshots are derived and can be rebuilt. A snapshot is an optimization, not the sole copy of state. The prototype also installs database triggers that reject updates/deletes to event and payload rows; the event digest provides an additional corruption check during recovery.
 
 The first implementation should avoid storing secrets or credentials in event payloads. A later encryption and retention design is required before sensitive personal content is stored.
 
