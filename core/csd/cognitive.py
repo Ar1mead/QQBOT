@@ -235,6 +235,12 @@ class CognitiveMemoryStore:
             raise ValueError(f"unsupported event type: {event.event_type}")
         if event.event_type == DECISION_EVENT and event.source != DECISION_SOURCE:
             raise ValueError("decision event source must identify CSD authority")
+        if event.event_type == SEMANTIC_REVIEW_EVENT:
+            reviewer = event.payload.get("reviewer")
+            if not isinstance(reviewer, Mapping) or not isinstance(reviewer.get("component"), str):
+                raise ValueError("semantic review must include reviewer.component")
+            if event.source != f"semantic-review.pipeline:{reviewer['component']}":
+                raise ValueError("semantic review source/reviewer mismatch")
         return _canonical(dict(event.payload))
 
     def submit_event(self, event: CognitiveEvent) -> dict[str, Any]:
@@ -775,8 +781,18 @@ class CognitiveMemoryStore:
         proposal_event_type = self._proposal_event_type(db, proposal_id)
         grounded = proposal_event_type == GROUNDED_PROPOSAL_EVENT
         expected_policy_id = GROUNDED_POLICY_ID if grounded else POLICY_ID
-        if payload.get("policy") != {"id": expected_policy_id, "version": POLICY_VERSION}:
+        policy = payload.get("policy")
+        allowed_versions = (
+            {POLICY_VERSION, GROUNDED_POLICY_VERSION}
+            if grounded else {POLICY_VERSION}
+        )
+        if (
+            not isinstance(policy, Mapping)
+            or policy.get("id") != expected_policy_id
+            or policy.get("version") not in allowed_versions
+        ):
             raise CognitiveIntegrityError("unknown decision policy provenance")
+        grounded_review_policy = grounded and policy.get("version") == GROUNDED_POLICY_VERSION
         if payload.get("proposal_event_id") != self._proposal_event_id(db, proposal_id):
             raise CognitiveIntegrityError("decision proposal-event reference mismatch")
         expected_evidence_ids = (
@@ -822,6 +838,40 @@ class CognitiveMemoryStore:
                 or evaluated_version != current_version):
             raise CognitiveIntegrityError("decision evaluated against a stale state version")
 
+        semantic_review_event_ids = payload.get("semantic_review_event_ids", [])
+        semantic_review_status = payload.get("semantic_review_status", "not_applicable")
+        if not isinstance(semantic_review_event_ids, list) or any(
+            not isinstance(item, str) or not item.strip()
+            for item in semantic_review_event_ids
+        ):
+            raise CognitiveIntegrityError("decision semantic_review_event_ids is invalid")
+        if len(set(semantic_review_event_ids)) != len(semantic_review_event_ids):
+            raise CognitiveIntegrityError("decision contains duplicate semantic review references")
+
+        if grounded_review_policy:
+            review_summary = self._semantic_review_summary(
+                db, proposal_id, proposal_data, before_sequence=event_sequence
+            )
+            if semantic_review_event_ids != review_summary["review_event_ids"]:
+                raise CognitiveIntegrityError("decision semantic review references mismatch")
+            if semantic_review_status != review_summary["status"]:
+                raise CognitiveIntegrityError("decision semantic review status mismatch")
+            if outcome == "accepted" and review_summary["status"] not in {"supported", "not_applicable"}:
+                raise CognitiveIntegrityError("accepted inference lacks supported semantic review")
+            required_outcomes = {
+                "unsupported": "rejected",
+                "insufficient_context": "needs_more_evidence",
+                "uncertain": "deferred",
+                "conflicting": "deferred",
+            }
+            expected_outcome = required_outcomes.get(review_summary["status"])
+            if expected_outcome is not None and outcome != expected_outcome:
+                raise CognitiveIntegrityError("decision outcome conflicts with semantic review status")
+            if review_summary["status"] == "awaiting_review" and outcome == "accepted":
+                raise CognitiveIntegrityError("proposal accepted before all inference reviews were recorded")
+        elif semantic_review_event_ids or semantic_review_status != "not_applicable":
+            raise CognitiveIntegrityError("decision references semantic reviews outside grounded policy v0.2")
+
         db.execute(
             "UPDATE proposals SET status=?, decision_event_id=? WHERE proposal_id=?",
             (outcome, event.event_id, proposal_id),
@@ -850,6 +900,8 @@ class CognitiveMemoryStore:
                     "origin": proposal_data["origin"],
                     "claim_schema": "grounded-memory-claims.v2",
                     "policy": payload["policy"],
+                    "semantic_review_event_ids": semantic_review_event_ids,
+                    "semantic_review_status": semantic_review_status,
                 }
             else:
                 memory = {
@@ -1010,11 +1062,13 @@ class CognitiveMemoryStore:
                 outcome, reason = self._evaluate_grounded_claims(proposal)
                 evidence_event_ids = self._grounded_evidence_event_ids(proposal)
                 decision_policy_id = GROUNDED_POLICY_ID
+                decision_policy_version = GROUNDED_POLICY_VERSION
             else:
                 reason = "proposal and evidence references passed deterministic provenance checks"
                 outcome = "accepted"
                 evidence_event_ids = proposal["evidence_event_ids"]
                 decision_policy_id = POLICY_ID
+                decision_policy_version = POLICY_VERSION
                 for evidence_id in evidence_event_ids:
                     try:
                         evidence_record = self.get_event(evidence_id)
@@ -1044,6 +1098,30 @@ class CognitiveMemoryStore:
                     f"current state_version={current_state_version}"
                 )
 
+            semantic_review_event_ids: list[str] = []
+            semantic_review_status = "not_applicable"
+            if grounded:
+                review_summary = self._semantic_review_summary(db, proposal_id, proposal)
+                semantic_review_event_ids = review_summary["review_event_ids"]
+                semantic_review_status = review_summary["status"]
+                if outcome == "accepted":
+                    if semantic_review_status == "awaiting_review":
+                        return {
+                            "status": "awaiting_review",
+                            "proposal_id": proposal_id,
+                            "claim_ids": review_summary["missing_claim_ids"],
+                            "reason": review_summary["reason"],
+                        }
+                    if semantic_review_status == "unsupported":
+                        outcome = "rejected"
+                        reason = review_summary["reason"]
+                    elif semantic_review_status == "insufficient_context":
+                        outcome = "needs_more_evidence"
+                        reason = review_summary["reason"]
+                    elif semantic_review_status in {"uncertain", "conflicting"}:
+                        outcome = "deferred"
+                        reason = review_summary["reason"]
+
             decision_number = int(db.execute(
                 "SELECT COUNT(*) FROM events WHERE event_type=?",
                 (DECISION_EVENT,),
@@ -1055,8 +1133,10 @@ class CognitiveMemoryStore:
                 "proposal_id": proposal_id,
                 "proposal_event_id": row["proposal_event_id"],
                 "outcome": outcome,
-                "policy": {"id": decision_policy_id, "version": POLICY_VERSION},
+                "policy": {"id": decision_policy_id, "version": decision_policy_version},
                 "evidence_event_ids": evidence_event_ids,
+                "semantic_review_event_ids": semantic_review_event_ids,
+                "semantic_review_status": semantic_review_status,
                 "reason": reason,
                 "evaluated_state_version": current_state_version,
                 "transition_id": transition_id,
