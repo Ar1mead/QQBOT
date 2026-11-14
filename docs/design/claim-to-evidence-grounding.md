@@ -152,6 +152,9 @@ A candidate claim may quote or describe hostile instructions found in source mat
 - any later external action still requires the separate ASM authorization path.
 
 ## 9. Recommended staged implementation
+
+The current v2 prototype implements only exact text-range grounding. It additionally requires the observation record to declare `coverage.modality = text`; captions or extracted text from image/audio/video records do not become text-source evidence merely because they are stored in a string. Other modalities need their own locators and coverage contracts.
+
 A concrete text-first schema proposal is now documented in [Grounded Memory Proposal v2](grounded-memory-proposal-v2.md). It remains a design proposal and has not been implemented or tested.
 
 
