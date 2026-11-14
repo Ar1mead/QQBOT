@@ -141,7 +141,7 @@ A model may compare qualitative tradeoffs and recommend a choice, but it cannot 
 
 A goal may generate multiple candidate intentions. An intention should be narrower and shorter-lived than the goal.
 
-An activity candidate must define:
+An activity candidate must be grounded in at least one active motivation signal or an accepted existing goal. A prior goal may remain a legitimate source even when the original interest signal is no longer active. A source-free activity must not be represented as internally motivated.\n\nAn activity candidate must define:
 - what will be attempted;
 - which goal, drive, interest, question, or commitment it serves;
 - prerequisites and available capabilities;
