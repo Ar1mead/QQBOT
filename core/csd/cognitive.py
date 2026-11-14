@@ -228,64 +228,75 @@ class CognitiveMemoryStore:
     def _append_event(
         self, event: CognitiveEvent, payload_json: str, *, internal: bool
     ) -> dict[str, Any]:
+        with self._tx() as db:
+            return self._append_event_in_transaction(
+                db, event, payload_json, internal=internal
+            )
+
+    def _append_event_in_transaction(
+        self,
+        db: sqlite3.Connection,
+        event: CognitiveEvent,
+        payload_json: str,
+        *,
+        internal: bool,
+    ) -> dict[str, Any]:
         if event.event_type == DECISION_EVENT and not internal:
             raise ValueError("reserved decision event")
         payload_ref = "sha256:" + _digest(payload_json)
         event_digest = self._event_digest(event, payload_ref)
         received_at = datetime.now(timezone.utc).isoformat()
 
-        with self._tx() as db:
-            prior = db.execute(
-                "SELECT sequence, occurred_at, correlation_id, event_type, source, "
-                "payload_ref, received_at FROM events WHERE event_id=?",
-                (event.event_id,),
-            ).fetchone()
-            if prior is not None:
-                same = (
-                    prior["occurred_at"] == event.occurred_at
-                    and prior["correlation_id"] == event.correlation_id
-                    and prior["event_type"] == event.event_type
-                    and prior["source"] == event.source
-                    and prior["payload_ref"] == payload_ref
-                )
-                if not same:
-                    raise CognitiveIdempotencyConflict(event.event_id)
-                return {
-                    "status": "duplicate",
-                    "event_id": event.event_id,
-                    "sequence": int(prior["sequence"]),
-                    "received_at": prior["received_at"],
-                }
-
-            if event.event_type == PROPOSAL_EVENT:
-                proposal_id = _nonempty(event.payload.get("proposal_id"), "proposal_id")
-                proposal_digest = _digest(payload_json)
-                existing = db.execute(
-                    "SELECT proposal_digest FROM proposals WHERE proposal_id=?",
-                    (proposal_id,),
-                ).fetchone()
-                if existing is not None and existing["proposal_digest"] != proposal_digest:
-                    raise ProposalIdentityConflict(proposal_id)
-
-            db.execute(
-                "INSERT OR IGNORE INTO payloads(payload_ref,payload_json) VALUES (?,?)",
-                (payload_ref, payload_json),
+        prior = db.execute(
+            "SELECT sequence, occurred_at, correlation_id, event_type, source, "
+            "payload_ref, received_at FROM events WHERE event_id=?",
+            (event.event_id,),
+        ).fetchone()
+        if prior is not None:
+            same = (
+                prior["occurred_at"] == event.occurred_at
+                and prior["correlation_id"] == event.correlation_id
+                and prior["event_type"] == event.event_type
+                and prior["source"] == event.source
+                and prior["payload_ref"] == payload_ref
             )
-            stored = db.execute(
-                "SELECT payload_json FROM payloads WHERE payload_ref=?", (payload_ref,)
+            if not same:
+                raise CognitiveIdempotencyConflict(event.event_id)
+            return {
+                "status": "duplicate",
+                "event_id": event.event_id,
+                "sequence": int(prior["sequence"]),
+                "received_at": prior["received_at"],
+            }
+
+        if event.event_type == PROPOSAL_EVENT:
+            proposal_id = _nonempty(event.payload.get("proposal_id"), "proposal_id")
+            proposal_digest = _digest(payload_json)
+            existing = db.execute(
+                "SELECT proposal_digest FROM proposals WHERE proposal_id=?",
+                (proposal_id,),
             ).fetchone()
-            if stored is None or stored["payload_json"] != payload_json:
-                raise CognitiveIntegrityError("payload digest collision/corruption")
+            if existing is not None and existing["proposal_digest"] != proposal_digest:
+                raise ProposalIdentityConflict(proposal_id)
 
-            cursor = db.execute(
-                "INSERT INTO events(event_id,occurred_at,received_at,correlation_id,"
-                "event_type,source,payload_ref,event_digest) VALUES (?,?,?,?,?,?,?,?)",
-                (event.event_id, event.occurred_at, received_at, event.correlation_id,
-                 event.event_type, event.source, payload_ref, event_digest),
-            )
-            sequence = int(cursor.lastrowid)
-            self._apply_projection_event(db, event, sequence, internal=internal)
+        db.execute(
+            "INSERT OR IGNORE INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (payload_ref, payload_json),
+        )
+        stored = db.execute(
+            "SELECT payload_json FROM payloads WHERE payload_ref=?", (payload_ref,)
+        ).fetchone()
+        if stored is None or stored["payload_json"] != payload_json:
+            raise CognitiveIntegrityError("payload digest collision/corruption")
 
+        cursor = db.execute(
+            "INSERT INTO events(event_id,occurred_at,received_at,correlation_id,"
+            "event_type,source,payload_ref,event_digest) VALUES (?,?,?,?,?,?,?,?)",
+            (event.event_id, event.occurred_at, received_at, event.correlation_id,
+             event.event_type, event.source, payload_ref, event_digest),
+        )
+        sequence = int(cursor.lastrowid)
+        self._apply_projection_event(db, event, sequence, internal=internal)
         return {
             "status": "accepted",
             "event_id": event.event_id,
@@ -398,6 +409,15 @@ class CognitiveMemoryStore:
         if not isinstance(payload.get("reason"), str) or not payload["reason"].strip():
             raise CognitiveIntegrityError("decision reason is missing")
 
+        evaluated_version = payload.get("evaluated_state_version")
+        current_version = int(db.execute(
+            "SELECT COUNT(*) FROM accepted_memories"
+        ).fetchone()[0])
+        if (not isinstance(evaluated_version, int)
+                or isinstance(evaluated_version, bool)
+                or evaluated_version != current_version):
+            raise CognitiveIntegrityError("decision evaluated against a stale state version")
+
         db.execute(
             "UPDATE proposals SET status=?, decision_event_id=? WHERE proposal_id=?",
             (outcome, event.event_id, proposal_id),
@@ -478,19 +498,21 @@ class CognitiveMemoryStore:
                 ).fetchone()["payload_json"])
                 self._validate_observation(evidence_payload)
 
-            current_version = int(db.execute(
-                "SELECT COUNT(*) FROM events WHERE event_type=?",
-                (DECISION_EVENT,),
+            current_state_version = int(db.execute(
+                "SELECT COUNT(*) FROM accepted_memories"
             ).fetchone()[0])
             based_on_version = int(proposal["based_on"]["state_version"])
-            if outcome == "accepted" and based_on_version != current_version:
+            if outcome == "accepted" and based_on_version != current_state_version:
                 outcome = "deferred"
                 reason = (
                     f"stale proposal state_version={based_on_version}; "
-                    f"current state_version={current_version}"
+                    f"current state_version={current_state_version}"
                 )
 
-            decision_number = current_version + 1
+            decision_number = int(db.execute(
+                "SELECT COUNT(*) FROM events WHERE event_type=?",
+                (DECISION_EVENT,),
+            ).fetchone()[0]) + 1
             decision_event_id = f"csd-decision:{proposal_id}:{decision_number}"
             transition_id = f"csd-transition:{proposal_id}" if outcome == "accepted" else None
             memory_id = f"csd-memory:{proposal_id}" if outcome == "accepted" else None
@@ -501,7 +523,7 @@ class CognitiveMemoryStore:
                 "policy": {"id": POLICY_ID, "version": POLICY_VERSION},
                 "evidence_event_ids": proposal["evidence_event_ids"],
                 "reason": reason,
-                "evaluated_state_version": current_version,
+                "evaluated_state_version": current_state_version,
                 "transition_id": transition_id,
                 "memory_id": memory_id,
             }
@@ -514,7 +536,9 @@ class CognitiveMemoryStore:
                 payload=decision_payload,
             )
             payload_json = self._validate_event(decision_event, internal=True)
-            appended = self._append_event(decision_event, payload_json, internal=True)
+            appended = self._append_event_in_transaction(
+                db, decision_event, payload_json, internal=True
+            )
             return {
                 "status": outcome,
                 "decision_event_id": decision_event_id,
@@ -545,7 +569,7 @@ class CognitiveMemoryStore:
         return {
             "event_count": int(self._db.execute("SELECT COUNT(*) FROM events").fetchone()[0]),
             "state_version": int(self._db.execute(
-                "SELECT COUNT(*) FROM events WHERE event_type=?", (DECISION_EVENT,)
+                "SELECT COUNT(*) FROM accepted_memories"
             ).fetchone()[0]),
             "proposal_count": int(self._db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0]),
             "accepted_memory_count": int(self._db.execute(
