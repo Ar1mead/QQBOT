@@ -500,6 +500,23 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.add_proposal(proposal)
 
+    def test_identical_proposal_identity_with_new_event_id_is_idempotent_after_acceptance(self):
+        self.add_interaction(interaction("interaction-1"))
+        first = motivation_proposal("proposal-same")
+        self.add_proposal(first)
+        self.store.evaluate_motivation_proposal("proposal-same")
+        duplicate = envelope(
+            "event-proposal-same-duplicate",
+            first.event_type,
+            first.source,
+            first.payload,
+            at="2026-11-14T11:00:00+00:00",
+        )
+        self.assertEqual(self.add_proposal(duplicate)["status"], "accepted")
+        self.assertEqual(self.store.get_motivation_signals()[0]["signal_version"], 1)
+        self.store.recover()
+        self.assertEqual(self.store.get_motivation_signals()[0]["signal_version"], 1)
+
     def test_update_target_version_must_be_positive_integer(self):
         self.add_interaction(interaction("interaction-1"))
         self.add_proposal(motivation_proposal("proposal-create"))
