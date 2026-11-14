@@ -194,8 +194,15 @@ def validate_motivation_update(
             raise ValueError(f"duplicate signal_id: {signal.signal_id}")
         if not isinstance(signal.version, int) or isinstance(signal.version, bool) or signal.version < 1:
             raise ValueError("signal version must be a positive integer")
+        if signal.kind not in {"interest", "need", "curiosity", "commitment", "affect"}:
+            raise ValueError(f"unsupported signal kind: {signal.kind}")
         if signal.status not in {"active", "paused", "resolved"}:
             raise ValueError(f"unsupported signal status: {signal.status}")
+        if signal.origin_class not in {
+            "internally_initiated", "user_requested_encounter",
+            "externally_exposed", "mixed_origin",
+        }:
+            raise ValueError(f"unsupported signal origin_class: {signal.origin_class}")
         _unique(signal.supporting_event_ids, "signal.supporting_event_ids")
         _unique(signal.counter_evidence_event_ids, "signal.counter_evidence_event_ids")
         signal_by_id[signal.signal_id] = signal
@@ -212,6 +219,10 @@ def validate_motivation_update(
         raise ValueError("motivation evidence subject does not match proposal subject")
     supporting = [evidence_by_id[item] for item in sorted(supporting_ids)]
     counter = [evidence_by_id[item] for item in sorted(counter_ids)]
+    if any(item.evidence_kind == "counter_evidence" for item in supporting):
+        raise ValueError("counter_evidence must be referenced through counter_evidence_event_ids")
+    if any(item.evidence_kind != "counter_evidence" for item in counter):
+        raise ValueError("counter_evidence_event_ids must reference counter_evidence records")
 
     if proposal.kind not in {"interest", "need", "curiosity", "commitment", "affect"}:
         raise ValueError(f"unsupported motivation signal kind: {proposal.kind}")
@@ -234,8 +245,12 @@ def validate_motivation_update(
         target = signal_by_id.get(proposal.target_signal_id)
         if target is None:
             raise ValueError("target signal does not exist")
-        if proposal.target_signal_version != target.version:
-            raise ValueError("target signal version is stale")
+        if (
+            not isinstance(proposal.target_signal_version, int)
+            or isinstance(proposal.target_signal_version, bool)
+            or proposal.target_signal_version != target.version
+        ):
+            raise ValueError("target signal version is stale or invalid")
         if target.kind != proposal.kind or target.subject_ref != proposal.subject_ref:
             raise ValueError("update cannot change a signal's kind or subject identity")
         if target.status != "active":
@@ -243,19 +258,18 @@ def validate_motivation_update(
 
     if proposal.operation in {"create", "reinforce"} and not supporting:
         raise ValueError(f"{proposal.operation} requires supporting evidence")
-    if proposal.operation == "weaken" and not counter:
-        raise ValueError("weaken requires counterevidence")
+    if proposal.operation == "weaken":
+        if not counter:
+            raise ValueError("weaken requires counterevidence")
+        if supporting:
+            raise ValueError("weaken must not include new supporting evidence")
     if proposal.operation == "contextualize" and not (supporting or counter):
         raise ValueError("contextualize requires supporting or counterevidence")
-    if proposal.operation == "resolve" and not any(
-        item.evidence_kind == "resolution" for item in supporting
-    ):
-        raise ValueError("resolve requires explicit resolution evidence")
-    if proposal.operation in {"pause", "resolve"} and (supporting or counter) == []:
-        # A pause can be an intentional CSD-side choice without a new evidence
-        # event; resolution, in contrast, always requires resolution evidence.
-        if proposal.operation == "resolve":
-            raise ValueError("resolve requires evidence")
+    if proposal.operation == "resolve":
+        if not any(item.evidence_kind == "resolution" for item in supporting):
+            raise ValueError("resolve requires explicit resolution evidence")
+        if counter:
+            raise ValueError("resolve cannot include counterevidence as its resolution basis")
 
     if proposal.kind == "interest":
         if proposal.requested_interest_stage not in {"tentative", "emerging", "contextual", None}:
@@ -274,9 +288,12 @@ def validate_motivation_update(
                 and item.meaningful_alternatives
             ]
             distinct_encounters = {item.encounter_id for item in voluntary}
-            if proposal.requested_interest_stage == "emerging" and len(distinct_encounters) < 2:
+            distinct_times = {item.occurred_at for item in voluntary}
+            if proposal.requested_interest_stage == "emerging" and (
+                len(distinct_encounters) < 2 or len(distinct_times) < 2
+            ):
                 raise ValueError(
-                    "emerging interest requires voluntary evidence from distinct encounters"
+                    "emerging interest requires voluntary evidence from distinct, time-separated encounters"
                 )
         elif proposal.requested_interest_stage is not None:
             raise ValueError("interest stage can only be proposed for create/reinforce")
@@ -312,5 +329,7 @@ def validate_motivation_update(
         proposal=proposal,
         derived_origin_class=origin_class,
         voluntary_encounter_ids=voluntary_encounter_ids,
-        emerging_interest_supported=len(voluntary_encounter_ids) >= 2,
+        emerging_interest_supported=(
+            proposal.kind == "interest" and len(voluntary_encounter_ids) >= 2
+        ),
     )
