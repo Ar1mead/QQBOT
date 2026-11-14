@@ -390,6 +390,33 @@ class CognitiveMemoryStore:
             return
         raise CognitiveIntegrityError(f"unhandled event type at sequence {sequence}")
 
+    @staticmethod
+    def _authoritative_state_version(
+        db: sqlite3.Connection, *, exclude_event_id: str | None = None
+    ) -> int:
+        query = (
+            "SELECT p.payload_json FROM events e "
+            "JOIN payloads p ON p.payload_ref=e.payload_ref "
+            "WHERE e.event_type=?"
+        )
+        params: list[Any] = [DECISION_EVENT]
+        if exclude_event_id is not None:
+            query += " AND e.event_id<>?"
+            params.append(exclude_event_id)
+        query += " ORDER BY e.sequence"
+        version = 0
+        for row in db.execute(query, params).fetchall():
+            try:
+                decision = json.loads(row["payload_json"])
+            except json.JSONDecodeError as exc:
+                raise CognitiveIntegrityError("invalid durable decision payload") from exc
+            outcome = decision.get("outcome") if isinstance(decision, dict) else None
+            if outcome not in {"accepted", "rejected", "deferred", "needs_more_evidence"}:
+                raise CognitiveIntegrityError("invalid durable decision outcome")
+            if outcome == "accepted":
+                version += 1
+        return version
+
     def _apply_decision(self, db: sqlite3.Connection, event: CognitiveEvent) -> None:
         payload = event.payload
         proposal_id = _nonempty(payload.get("proposal_id"), "decision.proposal_id")
@@ -429,9 +456,14 @@ class CognitiveMemoryStore:
                 raise CognitiveIntegrityError("decision references disallowed evidence type")
 
         evaluated_version = payload.get("evaluated_state_version")
-        current_version = int(db.execute(
+        current_version = self._authoritative_state_version(
+            db, exclude_event_id=event.event_id
+        )
+        projection_version = int(db.execute(
             "SELECT COUNT(*) FROM accepted_memories"
         ).fetchone()[0])
+        if projection_version != current_version:
+            raise CognitiveIntegrityError("accepted-memory projection is out of sync with event history")
         if (not isinstance(evaluated_version, int)
                 or isinstance(evaluated_version, bool)
                 or evaluated_version != current_version):
@@ -517,9 +549,14 @@ class CognitiveMemoryStore:
                 ).fetchone()["payload_json"])
                 self._validate_observation(evidence_payload)
 
-            current_state_version = int(db.execute(
+            current_state_version = self._authoritative_state_version(db)
+            projection_version = int(db.execute(
                 "SELECT COUNT(*) FROM accepted_memories"
             ).fetchone()[0])
+            if projection_version != current_state_version:
+                raise CognitiveIntegrityError(
+                    "accepted-memory projection is out of sync; run Recovery before evaluation"
+                )
             based_on_version = int(proposal["based_on"]["state_version"])
             if outcome == "accepted" and based_on_version != current_state_version:
                 outcome = "deferred"
@@ -585,15 +622,16 @@ class CognitiveMemoryStore:
         }
 
     def get_state_snapshot(self) -> dict[str, Any]:
+        state_version = self._authoritative_state_version(self._db)
+        accepted_memory_count = int(self._db.execute(
+            "SELECT COUNT(*) FROM accepted_memories"
+        ).fetchone()[0])
         return {
             "event_count": int(self._db.execute("SELECT COUNT(*) FROM events").fetchone()[0]),
-            "state_version": int(self._db.execute(
-                "SELECT COUNT(*) FROM accepted_memories"
-            ).fetchone()[0]),
+            "state_version": state_version,
             "proposal_count": int(self._db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0]),
-            "accepted_memory_count": int(self._db.execute(
-                "SELECT COUNT(*) FROM accepted_memories"
-            ).fetchone()[0]),
+            "accepted_memory_count": accepted_memory_count,
+            "projection_consistent": accepted_memory_count == state_version,
         }
 
     def recover(self) -> dict[str, int]:
