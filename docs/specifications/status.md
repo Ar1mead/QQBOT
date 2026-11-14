@@ -17,6 +17,15 @@ A CSD contract v0.1 has been discussed. Its direction includes:
 
 The CSD contract, recovery details, storage behavior, and test matrix still require implementation-level validation. Do not treat this summary as a verbatim specification.
 
+### Cognitive-memory reference slice
+
+A separate, non-production `CognitiveMemoryStore` prototype has been added on branch `feature/csd-cognitive-memory-slice`. It preserves the original generic `CSDStore` baseline and uses a separate SQLite schema. The prototype distinguishes observation events, candidate-memory proposals, CSD decision events, and accepted-memory projections. The decision event and accepted projection are committed in one transaction; Recovery rebuilds projections from events without reevaluating proposals.
+
+The deterministic policy currently validates proposal shape, evidence existence/type, and accepted-state version only. It does not validate semantic truth or whether candidate wording faithfully represents source material. The in-process authority boundary is not security isolation against hostile code.
+
+This implementation is an engineering experiment, not a frozen CSD rule set or a complete memory system. Hosted Python 3.12 test results and Windows-local results must be recorded separately.
+
+
 ## ASM-5.3
 
 **Status: confirmed semantic working baseline; verbatim source restoration incomplete.**
