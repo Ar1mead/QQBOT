@@ -204,6 +204,18 @@ Do not add importance, emotional intensity, decay, embedding vectors, personalit
 
 Memory Retrieval should return accepted records only, with their evidence references and decision provenance. A candidate proposal may be retrievable through a diagnostic/proposal read, but it must not appear as an accepted memory.
 
+### Identity distinction
+
+Event identity and proposal identity are not interchangeable:
+- the same event_id with identical immutable content is an idempotent duplicate;
+- the same event_id with changed immutable content is a conflict;
+- a different event_id with the same proposal_id and identical immutable proposal content remains a distinct event but must resolve to the same proposal aggregate and must not create a second evaluation/accepted memory;
+- a different event_id with the same proposal_id but changed immutable proposal content is a proposal-identity conflict;
+- a proposal can have at most one terminal decision for this slice;
+- transition_id is distinct from both event_id and proposal_id.
+
+See the [storage and authority decision analysis](vertical-slice-storage-decision-analysis.md) for the recommended representation and reserved internal decision-event boundary.
+
 ## 7. Persistence and recovery requirements
 
 The following must hold:
