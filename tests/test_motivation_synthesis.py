@@ -222,6 +222,17 @@ class MotivationEvidenceOriginTests(unittest.TestCase):
                 create_proposal(),
             )
 
+    def test_self_commitment_followthrough_is_not_interest_evidence(self):
+        item = evidence(
+            "ev-1", "return_visit",
+            origin="self_commitment", alternatives=True,
+        )
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,)),
+                create_proposal(),
+            )
+
     def test_autonomous_question_cannot_be_user_question(self):
         item = evidence("ev-1", "autonomous_question", origin="user_request")
         with self.assertRaises(ValueError):
@@ -248,6 +259,14 @@ class MotivationEvidenceIntegrityTests(unittest.TestCase):
             validate_motivation_update(
                 snapshot(evidence_items=(item,), version=8),
                 create_proposal(version=7),
+            )
+
+    def test_boolean_state_version_is_rejected(self):
+        item = evidence("ev-1", "passive_exposure")
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,), version=1),
+                create_proposal(version=True),
             )
 
     def test_duplicate_event_identity_in_snapshot_is_rejected(self):
@@ -388,6 +407,22 @@ class MotivationSignalOperationTests(unittest.TestCase):
                 snapshot(evidence_items=(item,), signals=(old,)),
                 create_proposal(operation="reinforce", target="interest-1",
                                 target_version=2, supporting=("ev-new",)),
+            )
+
+    def test_non_contextual_update_cannot_change_signal_scope(self):
+        old = signal()
+        item = evidence("ev-new", "voluntary_selection", alternatives=True)
+        changed_scope = create_proposal(
+            operation="reinforce", target="interest-1", target_version=1,
+            supporting=("ev-new",),
+        )
+        changed_scope = MotivationUpdateProposal(
+            **{**changed_scope.__dict__, "scope": "different scope"}
+        )
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,), signals=(old,)),
+                changed_scope,
             )
 
     def test_paused_signal_cannot_be_updated(self):
