@@ -101,6 +101,26 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         self.assertEqual(memory["status"], "accepted")
         self.assertEqual(memory["policy"]["id"], "csd.memory-provenance-check")
 
+    def test_public_submit_cannot_claim_reserved_decision_event_id(self):
+        reserved = CognitiveEvent(
+            event_id="csd-decision:proposal-synthetic-1:1",
+            occurred_at="2026-11-14T10:02:00+00:00",
+            correlation_id="corr-synthetic-1",
+            event_type=OBSERVATION_EVENT,
+            source="test.fixture",
+            payload={
+                "observation_id": "obs-reserved",
+                "observation_kind": "text_fixture",
+                "content": "Reserved event identity test.",
+                "source_ref": "fixture://reserved",
+                "observed_at": "2026-11-14T10:01:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+        )
+        with self.assertRaises(ValueError):
+            self.store.submit_event(reserved)
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], 0)
+
     def test_public_submit_cannot_forge_csd_decision(self):
         self.seed_pending()
         forged = CognitiveEvent(
