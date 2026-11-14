@@ -297,22 +297,26 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
 
     def test_concurrent_evaluation_commits_exactly_one_decision(self):
         self.seed_pending()
-        second_store = CognitiveMemoryStore(self.db_path)
-        try:
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                futures = [
-                    pool.submit(self.store.evaluate_proposal, "proposal-synthetic-1"),
-                    pool.submit(second_store.evaluate_proposal, "proposal-synthetic-1"),
-                ]
-                results = [future.result() for future in futures]
-            self.assertEqual(
-                sorted(result["status"] for result in results),
-                ["accepted", "already_decided"],
-            )
-            self.assertEqual(len(self.store.get_memories()), 1)
-            self.assertEqual(self.store.get_state_snapshot()["state_version"], 1)
-        finally:
-            second_store.close()
+        self.store.close()
+
+        def evaluate_in_own_connection():
+            with CognitiveMemoryStore(self.db_path) as worker_store:
+                return worker_store.evaluate_proposal("proposal-synthetic-1")
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [
+                pool.submit(evaluate_in_own_connection),
+                pool.submit(evaluate_in_own_connection),
+            ]
+            results = [future.result() for future in futures]
+
+        self.store = CognitiveMemoryStore(self.db_path)
+        self.assertEqual(
+            sorted(result["status"] for result in results),
+            ["accepted", "already_decided"],
+        )
+        self.assertEqual(len(self.store.get_memories()), 1)
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], 1)
 
 
 if __name__ == "__main__":
