@@ -1,16 +1,16 @@
 # Grounded Memory v2 — Hosted Test Report 001
 
 > Status: **hosted CI passed; Windows-local verification pending**  
-> Tested commit: `7a92e0336826022b110d01603630e223bebab2f0`  
+> Tested commit: `f32bd3ea6025bf8a23f389e7ae3b638c48a15c59`  
 > Branch: `feature/csd-cognitive-memory-slice`  
-> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43607017635)
+> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43607418207)
 
 ## 1. Environment
 
 - Runner: GitHub-hosted Ubuntu 26.04
 - Python: CPython 3.12.16
 - Dependencies: Python standard library only
-- Workflow job: `132483734545` — success
+- Workflow job: `132484962739` — success
 
 ## 2. Test results
 
@@ -21,8 +21,9 @@
 | v1 provider-neutral proposal pipeline | 11 passed |
 | Grounded-memory v2 store and decision path | 24 passed |
 | Grounded-memory v2 provider pipeline | 11 passed |
+| Accepted-memory retrieval | 10 passed |
 | Original generic CSD persistence baseline | 16 passed |
-| **Total** | **84 passed** |
+| **Total** | **94 passed** |
 
 The original generic persistence implementation and its 16 tests remain unchanged.
 
@@ -60,7 +61,21 @@ The 11 provider-pipeline tests cover:
 - non-observation input is rejected before provider invocation;
 - non-text observations are rejected before provider invocation.
 
-## 4. Implementation boundary
+## 4. Accepted-memory retrieval coverage
+
+The 10 retrieval tests cover:
+- accepted-only results, excluding pending proposals;
+- case-insensitive substring matching across grounded claims and legacy content;
+- source-assertion versus inference filters;
+- evidence-event and memory-kind filters;
+- stable insertion-order limit/offset pagination;
+- full-provenance single-memory lookup;
+- read-only behavior with unchanged event count and authoritative state;
+- invalid filter arguments, including non-string epistemic-type filters.
+
+This API is deterministic substring/filter retrieval, not embedding-based or semantic retrieval.
+
+## 5. Implementation boundary
 
 The v2 event type is `cognition.grounded_memory_candidate_proposed.v1`. The grounded acceptance policy is `csd.grounded-memory-text-evidence@0.1`.
 
@@ -81,7 +96,7 @@ They do **not** establish:
 
 No real model API is connected. The pipeline is provider-neutral and tested with synthetic providers only.
 
-## 5. Issues found during testing
+## 6. Issues found during testing
 
 The first grounded-memory test run found a fixture-construction error: a deliberately nonexistent quote was passed to a helper that attempted to locate it in the source text before submitting the proposal. The test was corrected to supply an explicit locator so that the CSD evaluator—not the test setup—could reject the mismatched quote.
 
@@ -89,7 +104,7 @@ A subsequent review identified that the text-only v2 path did not explicitly enf
 
 After these corrections, all five suites and compile checks passed in the hosted workflow.
 
-## 6. What this result does not prove
+## 7. What this result does not prove
 
 This report does **not** prove:
 - execution on the user's Windows 11 / Python 3.12.14 environment;
@@ -102,7 +117,7 @@ This report does **not** prove:
 - memory consolidation, forgetting, diary motivation, personality evolution, or autonomous life behavior;
 - integration with DSH, SurfCore, Bilibili, QQ, or ASM.
 
-## 7. Next validation and implementation gates
+## 8. Next validation and implementation gates
 
 1. Validate the full test set on the user's Windows/Python environment.
 2. Add semantic review as a separate proposal-analysis input; CSD remains the sole authority that accepts state.
