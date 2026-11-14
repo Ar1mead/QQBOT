@@ -840,6 +840,7 @@ class CognitiveMemoryStore:
 
         semantic_review_event_ids = payload.get("semantic_review_event_ids", [])
         semantic_review_status = payload.get("semantic_review_status", "not_applicable")
+        semantic_review_applied = payload.get("semantic_review_applied", False)
         if not isinstance(semantic_review_event_ids, list) or any(
             not isinstance(item, str) or not item.strip()
             for item in semantic_review_event_ids
@@ -847,29 +848,45 @@ class CognitiveMemoryStore:
             raise CognitiveIntegrityError("decision semantic_review_event_ids is invalid")
         if len(set(semantic_review_event_ids)) != len(semantic_review_event_ids):
             raise CognitiveIntegrityError("decision contains duplicate semantic review references")
+        if not isinstance(semantic_review_applied, bool):
+            raise CognitiveIntegrityError("decision semantic_review_applied must be boolean")
 
         if grounded_review_policy:
-            review_summary = self._semantic_review_summary(
-                db, proposal_id, proposal_data, before_sequence=event_sequence
+            has_inferences = any(
+                claim.get("epistemic_type") == "inference"
+                for claim in proposal_data.get("claims", [])
             )
-            if semantic_review_event_ids != review_summary["review_event_ids"]:
-                raise CognitiveIntegrityError("decision semantic review references mismatch")
-            if semantic_review_status != review_summary["status"]:
-                raise CognitiveIntegrityError("decision semantic review status mismatch")
-            if outcome == "accepted" and review_summary["status"] not in {"supported", "not_applicable"}:
-                raise CognitiveIntegrityError("accepted inference lacks supported semantic review")
-            required_outcomes = {
-                "unsupported": "rejected",
-                "insufficient_context": "needs_more_evidence",
-                "uncertain": "deferred",
-                "conflicting": "deferred",
-            }
-            expected_outcome = required_outcomes.get(review_summary["status"])
-            if expected_outcome is not None and outcome != expected_outcome:
-                raise CognitiveIntegrityError("decision outcome conflicts with semantic review status")
-            if review_summary["status"] == "awaiting_review" and outcome == "accepted":
-                raise CognitiveIntegrityError("proposal accepted before all inference reviews were recorded")
-        elif semantic_review_event_ids or semantic_review_status != "not_applicable":
+            if semantic_review_applied:
+                review_summary = self._semantic_review_summary(
+                    db, proposal_id, proposal_data, before_sequence=event_sequence
+                )
+                if semantic_review_event_ids != review_summary["review_event_ids"]:
+                    raise CognitiveIntegrityError("decision semantic review references mismatch")
+                if semantic_review_status != review_summary["status"]:
+                    raise CognitiveIntegrityError("decision semantic review status mismatch")
+                if review_summary["status"] == "awaiting_review":
+                    raise CognitiveIntegrityError("a decision cannot be committed while review is incomplete")
+                required_outcomes = {
+                    "unsupported": "rejected",
+                    "insufficient_context": "needs_more_evidence",
+                    "uncertain": "deferred",
+                    "conflicting": "deferred",
+                    "supported": None,
+                    "not_applicable": None,
+                }
+                if review_summary["status"] not in required_outcomes:
+                    raise CognitiveIntegrityError("unknown semantic review summary status")
+                expected_outcome = required_outcomes[review_summary["status"]]
+                if expected_outcome is not None and outcome != expected_outcome:
+                    raise CognitiveIntegrityError("decision outcome conflicts with semantic review status")
+                if outcome == "accepted" and review_summary["status"] not in {"supported", "not_applicable"}:
+                    raise CognitiveIntegrityError("accepted inference lacks supported semantic review")
+            else:
+                if semantic_review_event_ids or semantic_review_status != "not_applicable":
+                    raise CognitiveIntegrityError("decision omitted required semantic review provenance")
+                if outcome == "accepted" and has_inferences:
+                    raise CognitiveIntegrityError("inference memory cannot be accepted without semantic review")
+        elif semantic_review_applied or semantic_review_event_ids or semantic_review_status != "not_applicable":
             raise CognitiveIntegrityError("decision references semantic reviews outside grounded policy v0.2")
 
         db.execute(
@@ -1100,21 +1117,24 @@ class CognitiveMemoryStore:
 
             semantic_review_event_ids: list[str] = []
             semantic_review_status = "not_applicable"
-            if grounded:
-                review_summary = self._semantic_review_summary(db, proposal_id, proposal)
-                semantic_review_event_ids = review_summary["review_event_ids"]
-                semantic_review_status = review_summary["status"]
-                if (
-                    outcome in {"accepted", "deferred"}
-                    and semantic_review_status == "awaiting_review"
-                ):
-                    return {
-                        "status": "awaiting_review",
-                        "proposal_id": proposal_id,
-                        "claim_ids": review_summary["missing_claim_ids"],
-                        "reason": review_summary["reason"],
-                    }
-                if outcome == "accepted":
+            semantic_review_applied = False
+            if grounded and outcome == "accepted":
+                has_inferences = any(
+                    claim.get("epistemic_type") == "inference"
+                    for claim in proposal.get("claims", [])
+                )
+                if has_inferences:
+                    review_summary = self._semantic_review_summary(db, proposal_id, proposal)
+                    semantic_review_event_ids = review_summary["review_event_ids"]
+                    semantic_review_status = review_summary["status"]
+                    if semantic_review_status == "awaiting_review":
+                        return {
+                            "status": "awaiting_review",
+                            "proposal_id": proposal_id,
+                            "claim_ids": review_summary["missing_claim_ids"],
+                            "reason": review_summary["reason"],
+                        }
+                    semantic_review_applied = True
                     if semantic_review_status == "unsupported":
                         outcome = "rejected"
                         reason = review_summary["reason"]
@@ -1140,6 +1160,7 @@ class CognitiveMemoryStore:
                 "evidence_event_ids": evidence_event_ids,
                 "semantic_review_event_ids": semantic_review_event_ids,
                 "semantic_review_status": semantic_review_status,
+                "semantic_review_applied": semantic_review_applied,
                 "reason": reason,
                 "evaluated_state_version": current_state_version,
                 "transition_id": transition_id,
