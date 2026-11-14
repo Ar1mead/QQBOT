@@ -312,6 +312,8 @@ class CognitiveMotivationMixin:
                 raise ValueError("interest maturity must be CSD-derived")
             if operation == "contextualize" and requested_stage is not None:
                 raise ValueError("contextualize cannot assign an interest maturity stage")
+            if operation != "contextualize" and requested_stage == "contextual":
+                raise ValueError("contextual interest scope is only produced by contextualize")
         elif requested_stage is not None:
             raise ValueError("requested_interest_stage applies only to interest")
 
@@ -560,7 +562,7 @@ class CognitiveMotivationMixin:
             "interest_stage": interest_stage if proposal["kind"] == "interest" else None,
             "created_at": (
                 current_target["created_at"] if current_target is not None
-                else proposal_event and self.get_event(row["proposal_event_id"])["occurred_at"]
+                else self.get_event(row["proposal_event_id"])["occurred_at"]
             ),
             "updated_at": decision_time,
             "proposal_id": proposal_id,
@@ -684,13 +686,13 @@ class CognitiveMotivationMixin:
         if event.event_type == MOTIVATION_PROPOSAL_EVENT:
             if internal:
                 raise ValueError("motivation proposal events must use public Event Submit")
-            self._validate_motivation_proposal(db, event, current_sequence=sequence)
             payload_json = json.dumps(
                 dict(event.payload), ensure_ascii=False, sort_keys=True,
                 separators=(",", ":"), allow_nan=False,
             )
-            digest = __import__("hashlib").sha256(payload_json.encode("utf-8")).hexdigest()
-            proposal_id = event.payload["proposal_id"]
+            import hashlib
+            digest = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+            proposal_id = _m_nonempty(event.payload.get("proposal_id"), "proposal_id")
             existing = db.execute(
                 "SELECT proposal_digest FROM motivation_proposals WHERE proposal_id=?",
                 (proposal_id,),
@@ -698,7 +700,10 @@ class CognitiveMotivationMixin:
             if existing is not None:
                 if existing["proposal_digest"] != digest:
                     raise ValueError("motivation proposal identity conflict")
+                # Same immutable proposal under a second event ID is a duplicate
+                # lifecycle submission, even if its target has since changed.
                 return
+            self._validate_motivation_proposal(db, event, current_sequence=sequence)
             db.execute(
                 "INSERT INTO motivation_proposals(proposal_id,proposal_digest,proposal_event_id,proposal_json,status,decision_event_id) VALUES (?,?,?,?, 'pending',NULL)",
                 (proposal_id, digest, event.event_id, payload_json),
