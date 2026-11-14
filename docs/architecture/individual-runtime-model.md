@@ -304,6 +304,15 @@ The order below prioritizes foundational correctness without pretending the syst
 
 **Exit condition:** no core module has ambiguous authority to write another module's state or bypass ASM.
 
+### Stage B1 — First cognitive-state vertical slice
+- Submit one synthetic observation and a separate candidate-memory event through Event Submit.
+- Keep a candidate proposal separate from accepted memory.
+- Let CSD evaluate and record the decision under its own authority.
+- Retrieve accepted memory with evidence provenance.
+- Restart and recover without reevaluating proposals or replaying external actions.
+
+**Exit condition:** the observation/proposal/decision/accepted-memory distinction is enforced and survives recovery. This validates one narrow state-transition path, not general semantic memory or autonomous cognition.
+
 ### Stage B — Durable CSD foundation
 - Validate the existing persistence spike on the user's Windows/Python environment.
 - Add schema versioning and explicit migration policy.
