@@ -7,6 +7,13 @@ from .cognitive import (
     CognitiveMemoryStore,
     ProposalIdentityConflict,
 )
+from .grounded_proposals import (
+    GroundedInference,
+    GroundedMemoryCandidate,
+    GroundedMemoryProposalPipeline,
+    GroundedMemoryProposalProvider,
+    GroundedSourceAssertion,
+)
 from .proposals import (
     MemoryCandidate,
     MemoryProposalPipeline,
@@ -25,6 +32,11 @@ __all__ = [
     "CognitiveIdempotencyConflict",
     "CognitiveIntegrityError",
     "CognitiveMemoryStore",
+    "GroundedInference",
+    "GroundedMemoryCandidate",
+    "GroundedMemoryProposalPipeline",
+    "GroundedMemoryProposalProvider",
+    "GroundedSourceAssertion",
     "MemoryCandidate",
     "MemoryProposalPipeline",
     "MemoryProposalProvider",
