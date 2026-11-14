@@ -618,13 +618,20 @@ class CognitiveMemoryStore:
         row = self._db.execute(
             "SELECT e.sequence,e.event_id,e.occurred_at,e.received_at,e.correlation_id,"
             "e.event_type,e.source,e.payload_ref,e.event_digest,p.payload_json "
-            "FROM events e JOIN payloads p ON p.payload_ref=e.payload_ref "
+            "FROM events e LEFT JOIN payloads p ON p.payload_ref=e.payload_ref "
             "WHERE e.event_id=?",
             (event_id,),
         ).fetchone()
         if row is None:
             raise KeyError(event_id)
         payload_json = row["payload_json"]
+        if payload_json is None:
+            raise CognitiveIntegrityError(f"event payload is missing: {event_id}")
+        _nonempty(row["event_id"], "event_id")
+        _nonempty(row["correlation_id"], "correlation_id")
+        _nonempty(row["event_type"], "event_type")
+        _nonempty(row["source"], "source")
+        _timestamp(row["occurred_at"], "occurred_at")
         if "sha256:" + _digest(payload_json) != row["payload_ref"]:
             raise CognitiveIntegrityError(f"payload digest failure: {event_id}")
         try:
