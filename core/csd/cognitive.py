@@ -21,11 +21,14 @@ SCHEMA_VERSION = 1
 OBSERVATION_EVENT = "experience.observation_recorded.v1"
 PROPOSAL_EVENT = "cognition.memory_candidate_proposed.v1"
 GROUNDED_PROPOSAL_EVENT = "cognition.grounded_memory_candidate_proposed.v1"
+SEMANTIC_REVIEW_EVENT = "cognition.semantic_review_recorded.v1"
 DECISION_EVENT = "cognition.memory_candidate_decided.v1"
 DECISION_SOURCE = "csd.authority.v1"
 POLICY_ID = "csd.memory-provenance-check"
 GROUNDED_POLICY_ID = "csd.grounded-memory-text-evidence"
+GROUNDED_POLICY_VERSION = "0.2"
 POLICY_VERSION = "0.1"
+SEMANTIC_REVIEW_CONTRACT_VERSION = "semantic-review.v1"
 
 
 class CognitiveStoreError(Exception):
@@ -38,6 +41,10 @@ class CognitiveIdempotencyConflict(CognitiveStoreError):
 
 class ProposalIdentityConflict(CognitiveStoreError):
     """A proposal identity was reused with different immutable content."""
+
+
+class SemanticReviewIdentityConflict(CognitiveStoreError):
+    """A semantic review identity was reused with different immutable content."""
 
 
 class CognitiveIntegrityError(CognitiveStoreError):
@@ -221,7 +228,10 @@ class CognitiveMemoryStore:
             raise ValueError("payload must be an object")
         if event.event_type == DECISION_EVENT and not internal:
             raise ValueError("CSD decision events are reserved for the internal authority path")
-        if event.event_type not in {OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT, DECISION_EVENT}:
+        if event.event_type not in {
+            OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
+            SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
+        }:
             raise ValueError(f"unsupported event type: {event.event_type}")
         if event.event_type == DECISION_EVENT and event.source != DECISION_SOURCE:
             raise ValueError("decision event source must identify CSD authority")
