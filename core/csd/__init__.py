@@ -1,5 +1,10 @@
 """CSD persistence and cognitive-memory reference prototypes."""
 
+from .motivation import (
+    INTERACTION_EVENT,
+    MOTIVATION_DECISION_EVENT,
+    MOTIVATION_PROPOSAL_EVENT,
+)
 from .cognitive import (
     CognitiveEvent,
     CognitiveIdempotencyConflict,
@@ -33,6 +38,9 @@ from .store import (
 )
 
 __all__ = [
+    "INTERACTION_EVENT",
+    "MOTIVATION_DECISION_EVENT",
+    "MOTIVATION_PROPOSAL_EVENT",
     "CognitiveEvent",
     "CognitiveIdempotencyConflict",
     "CognitiveIntegrityError",
