@@ -314,7 +314,7 @@ The order below prioritizes foundational correctness without pretending the syst
 **Exit condition:** a provider can propose a memory without acquiring authority to accept it. This still does not validate semantic truth or source entailment.
 
 ### Stage B3 — Claim-to-evidence grounding
-See [claim-to-evidence grounding design](../design/claim-to-evidence-grounding.md).
+See [claim-to-evidence grounding design](../design/claim-to-evidence-grounding.md) and the [grounded memory proposal v2 schema](../design/grounded-memory-proposal-v2.md).
 - Represent candidate memory as atomic claims rather than one unstructured paragraph alone.
 - Bind direct/source claims to exact evidence spans and preserve inference labels separately.
 - Validate span boundaries and source references deterministically.
