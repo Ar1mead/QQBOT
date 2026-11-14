@@ -1,9 +1,9 @@
 # CSD Cognitive-Memory Slice — Hosted Test Report 001
 
 > Status: **hosted CI passed; Windows-local verification pending**  
-> Tested commit: `1c05de81891ee889a6a6c9a239e9606eeb2c952e`  
+> Tested commit: `a4451a1c700522b6298de59b837ac00f8a195042`  
 > Current branch: `feature/csd-cognitive-memory-slice`  
-> Current branch HEAD at report creation: `3d525e47a05e46c8e2d855f63297c59f038b5154`
+> Current branch HEAD at report creation: `a4451a1c700522b6298de59b837ac00f8a195042`
 
 ## 1. Environment
 
@@ -11,7 +11,7 @@
 - Python: CPython 3.12.16
 - SQLite: Python standard-library SQLite build on the hosted runner
 - Dependencies: Python standard library only
-- Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43604272330)
+- Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43605144168)
 
 The current branch has three documentation-only commits after the tested commit. A compare check confirmed no source or test files changed after the successful run.
 
@@ -20,11 +20,12 @@ The current branch has three documentation-only commits after the tested commit.
 | Check | Result |
 |---|---:|
 | `python -m compileall -q core tests` | Passed |
-| Cognitive-memory slice suite | 21 tests passed |
+| Cognitive-memory store suite | 22 tests passed |
+| Provider-neutral proposal pipeline suite | 11 tests passed |
 | Original CSD persistence baseline | 16 tests passed |
-| Total | **37 tests passed** |
+| Total | **49 tests passed** |
 
-Workflow job: `132475427954` — success.
+Workflow job: `132478100617` — success.
 
 ## 3. Cognitive-memory test coverage
 
@@ -58,7 +59,7 @@ The first CI attempts were not green:
 1. The first compile check found an incorrectly escaped newline in `core/csd/__init__.py`. The export file was rewritten with valid Python syntax.
 2. The first concurrency test attempted to use a SQLite connection from a thread other than the one that created it. The test was corrected to create one independent connection inside each worker thread. The implementation retains SQLite's default same-thread connection guard.
 
-After those corrections, the cognitive suite and the unchanged baseline suite both passed.
+After those corrections and the additional provider-pipeline work, all three suites passed in the same hosted run.
 
 ## 6. What this result does not prove
 
