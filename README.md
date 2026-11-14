@@ -47,6 +47,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - [Specification status register](docs/specifications/status.md)
 - [Software baseline](docs/inventory/software-baseline.md)
 - [SurfCore v0.8.8 capability assessment and integration plan](docs/inventory/surfcore-capability-assessment.md)
+- [CSD minimal persistence vertical-slice proposal](docs/design/csd-minimal-persistence-proposal.md)
 - [Repository scope decision](docs/decisions/0001-repository-scope.md)
 
 ## Specification status
