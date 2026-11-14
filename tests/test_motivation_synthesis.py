@@ -55,7 +55,7 @@ def signal(
         origin_class=origin,
         supporting_event_ids=supporting,
         counter_evidence_event_ids=counter,
-        statement=effective_statement,
+        statement=statement,
     )
 
 
@@ -99,7 +99,7 @@ def create_proposal(
         target_signal_id=target,
         target_signal_version=target_version,
         requested_interest_stage=(stage if kind == "interest" and operation in {"create", "reinforce"} else None),
-        statement=statement,
+        statement=effective_statement,
     )
 
 
