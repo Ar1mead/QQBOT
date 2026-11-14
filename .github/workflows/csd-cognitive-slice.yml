@@ -11,6 +11,8 @@ on:
       - "tests/test_csd_grounded_memory.py"
       - "tests/test_csd_grounded_proposal_pipeline.py"
       - "tests/test_csd_memory_retrieval.py"
+      - "tests/test_csd_semantic_review.py"
+      - "tests/test_csd_semantic_review_pipeline.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   pull_request:
     paths:
@@ -20,6 +22,8 @@ on:
       - "tests/test_csd_grounded_memory.py"
       - "tests/test_csd_grounded_proposal_pipeline.py"
       - "tests/test_csd_memory_retrieval.py"
+      - "tests/test_csd_semantic_review.py"
+      - "tests/test_csd_semantic_review_pipeline.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   workflow_dispatch:
 
@@ -48,5 +52,9 @@ jobs:
         run: python -m unittest discover -s tests -p "test_csd_grounded_proposal_pipeline.py" -v
       - name: Run accepted-memory retrieval tests
         run: python -m unittest discover -s tests -p "test_csd_memory_retrieval.py" -v
+      - name: Run semantic review event tests
+        run: python -m unittest discover -s tests -p "test_csd_semantic_review.py" -v
+      - name: Run semantic review provider pipeline tests
+        run: python -m unittest discover -s tests -p "test_csd_semantic_review_pipeline.py" -v
       - name: Run existing persistence baseline tests
         run: python -m unittest discover -s tests -p "test_csd_store.py" -v
