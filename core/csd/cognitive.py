@@ -194,10 +194,13 @@ class CognitiveMemoryStore:
         return self._Tx(self._db)
 
     @staticmethod
-    def _event_digest(event: CognitiveEvent, payload_ref: str) -> str:
+    def _event_digest(
+        event: CognitiveEvent, payload_ref: str, received_at: str
+    ) -> str:
         return _digest(_canonical({
             "event_id": event.event_id,
             "occurred_at": event.occurred_at,
+            "received_at": received_at,
             "correlation_id": event.correlation_id,
             "event_type": event.event_type,
             "source": event.source,
@@ -244,8 +247,8 @@ class CognitiveMemoryStore:
         if event.event_type == DECISION_EVENT and not internal:
             raise ValueError("reserved decision event")
         payload_ref = "sha256:" + _digest(payload_json)
-        event_digest = self._event_digest(event, payload_ref)
         received_at = datetime.now(timezone.utc).isoformat()
+        event_digest = self._event_digest(event, payload_ref, received_at)
 
         prior = db.execute(
             "SELECT sequence, occurred_at, correlation_id, event_type, source, "
@@ -600,7 +603,7 @@ class CognitiveMemoryStore:
             raise CognitiveIntegrityError("SQLite foreign_key_check failed")
 
         rows = self._db.execute(
-            "SELECT e.sequence,e.event_id,e.occurred_at,e.correlation_id,e.event_type,"
+            "SELECT e.sequence,e.event_id,e.occurred_at,e.received_at,e.correlation_id,e.event_type,"
             "e.source,e.payload_ref,e.event_digest,p.payload_json "
             "FROM events e LEFT JOIN payloads p ON p.payload_ref=e.payload_ref "
             "ORDER BY e.sequence"
@@ -629,7 +632,13 @@ class CognitiveMemoryStore:
                 source=row["source"],
                 payload=payload,
             )
-            if self._event_digest(event, row["payload_ref"]) != row["event_digest"]:
+            _nonempty(event.event_id, "event_id")
+            _nonempty(event.correlation_id, "correlation_id")
+            _nonempty(event.event_type, "event_type")
+            _nonempty(event.source, "source")
+            _timestamp(event.occurred_at, "occurred_at")
+            _timestamp(row["received_at"], "received_at")
+            if self._event_digest(event, row["payload_ref"], row["received_at"]) != row["event_digest"]:
                 raise CognitiveIntegrityError(f"event envelope digest failure: {event.event_id}")
             parsed.append((expected - 1, event))
 
