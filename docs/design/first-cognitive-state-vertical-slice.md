@@ -147,7 +147,7 @@ Synthetic payload:
       "operation": "create"
     }
 
-The wording is intentionally limited to what the observation supports. It must not be transformed into a claim that the system physically saw, visited, or experienced a real place.
+The synthetic fixture text is authored to stay within what the observation record says. The current deterministic evaluator does not check this semantic relationship; it only checks evidence existence/type and state-version freshness. The record must not be presented as proof that the system physically saw, visited, or experienced a real place.
 
 The proposal event is a persisted candidate, not an accepted memory. Its existence must not change the accepted-memory retrieval result.
 
@@ -168,7 +168,7 @@ For the acceptance fixture, its payload should include:
 
 This event is the durable record of CSD's decision. The accepted-memory projection changes only as a result of a valid accepted decision, never merely because a proposal event was submitted.
 
-Whether this decision should be a CSD-generated event in the same transaction as the state update, or a separately persisted internal command with an atomic outbox-like handoff, is an implementation question. The invariant is that a crash cannot leave an accepted memory projection without its durable decision record, or a durable accepted decision without the corresponding state transition.
+The prototype uses a CSD-generated decision event appended in the same SQLite transaction as its accepted-memory projection update. A failed transaction leaves neither durable decision nor accepted memory. This is a prototype implementation choice, not a frozen CSD normative clause.
 
 ## 5. Evaluation boundary
 
@@ -271,10 +271,10 @@ Passing this slice demonstrates a small authoritative cognitive-state transition
 
 ## 10. Decisions still required before implementation
 
-- Whether event, proposal, decision, and memory projection share one event table with typed reducers, or whether proposals/decisions have auxiliary tables while preserving Event Submit semantics.
-- How internal CSD authority is enforced in the initial single-process deployment.
-- Whether the decision event and projection update share one SQLite transaction or use a recoverable internal command protocol.
+- How internal CSD authority will be enforced before untrusted code can share the process; the current Python boundary only prevents accidental use through the public API.
+- Whether the prototype's separate SQLite database should later be merged with the generic persistence store, and how to migrate without losing provenance.
 - The minimal read shape and pagination/consistency behavior for Memory Retrieval.
+- Whether a future proposal may be reopened after a needs_more_evidence decision; the current slice treats that outcome as terminal and requires a new proposal ID when new evidence is available.
 - Whether candidate proposal records are retained indefinitely or governed by a later retention policy.
 - How schema migrations preserve historical event interpretation.
 - How this slice maps to the exact CSD v0.1 source text once verbatim clauses are restored.
