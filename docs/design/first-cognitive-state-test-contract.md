@@ -65,6 +65,8 @@ No LLM, network, platform adapter, external action, personal content, or user ac
 | COG-041 | Memory Retrieval contract §4 | Accepted memories and event history exist | Call get_memories/get_memory with filters | Read operations do not mutate CSD | Event count and authoritative state snapshot remain unchanged | Retrieval creates events, changes state, or triggers external actions |
 | COG-042 | Memory Retrieval contract §2.1 and §5 | Retrieval filter arguments are supplied | Pass an unsupported or non-string epistemic_type | Filter is rejected with ValueError | No query side effect or state mutation occurs | Invalid filter types are coerced or silently ignored |
 
+| COG-043 | CSD Recovery; implementation decision §6 | Multiple accepted decision events exist in one event log | Rebuild projections from the complete event stream | Each decision is checked against its preceding event-history prefix | State version and accepted-memory projection match after full replay | A decision is validated against future decisions that have not yet been replayed |
+
 ## Coverage and limits
 
 Covered by this proposed contract:
