@@ -158,7 +158,10 @@ class GroundedMemoryV2Tests(unittest.TestCase):
         self.assertNotIn("evidence", claims[1])
 
     def test_mismatched_quote_is_durably_rejected(self):
-        claim = self.source_claim(quote="A blue paper boat was a submarine.")
+        claim = self.source_claim(
+            quote="A blue paper boat was a submarine.",
+            start=self.source_text.index("A blue paper boat passed the bridge."),
+        )
         self.submit_pending(claims=[claim])
         result = self.store.evaluate_proposal("grounded-proposal-1")
         self.assertEqual(result["status"], "rejected")
@@ -235,11 +238,12 @@ class GroundedMemoryV2Tests(unittest.TestCase):
     def test_duplicate_claim_ids_are_rejected_at_submission(self):
         claim = self.source_claim()
         duplicate = dict(claim)
-        self.submit_pending(claims=[claim, duplicate])
-        # Duplicate claim IDs are a schema error, so no proposal event is committed.
-        self.assertEqual(
-            self.store.get_proposal("grounded-proposal-1")["status"], "pending"
-        )
+        before = self.store.get_state_snapshot()["event_count"]
+        with self.assertRaises(ValueError):
+            self.store.submit_event(self.proposal(claims=[claim, duplicate]))
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], before)
+        with self.assertRaises(KeyError):
+            self.store.get_proposal("grounded-proposal-1")
 
     def test_invalid_offset_types_are_rejected_at_submission(self):
         claim = self.source_claim()
