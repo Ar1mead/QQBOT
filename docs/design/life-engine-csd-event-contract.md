@@ -119,7 +119,7 @@ CSD (or a trusted capability broker) supplies:
 - side-effect classification;
 - resource envelope and stop conditions.
 
-The deliberator can select only a known option ID. It cannot add an option, claim a permission grant, alter prerequisites, or lower its side-effect level. Active activities also need a trusted current-state record: continuation is blocked when permission was revoked or the stop condition has been met; stopping remains possible, but an external side-effect stop/continue must be governed by ASM.
+The deliberator can select only a known option ID. It cannot add an option, claim a permission grant, alter prerequisites, or lower its side-effect level. A normal activity option may advance only an active goal. Active activities also need a trusted current-state record: continuation is blocked when permission was revoked or the stop condition has been met; missing active-state metadata fails closed. Stopping remains possible, but an external side-effect stop/continue must be governed by ASM.
 
 The local `validate_life_proposal` function is only a defensive input check. CSD must repeat authoritative validation when the proposal is submitted because the process may be stale, buggy, or compromised.
 
