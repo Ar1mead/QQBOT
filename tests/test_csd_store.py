@@ -3,6 +3,8 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -133,6 +135,78 @@ class CSDStoreTests(unittest.TestCase):
                     ) as reopened:
                         result = reopened.recover()
                         self.assertEqual(result.state, expected)
+
+    def test_process_exit_mid_transaction_rolls_back_event(self):
+        self.store.close()
+        repo_root = Path(__file__).resolve().parents[1]
+        script = r'''
+import os, sys
+from core.csd import CSDStore, Event
+store = CSDStore(sys.argv[1])
+store._reduce = lambda state, event, sequence: os._exit(23)
+store.submit_event(Event(
+    event_id="crash-mid-transaction",
+    occurred_at="2026-11-14T12:00:00+00:00",
+    correlation_id="crash-test",
+    event_type="test.crash.v1",
+    source="test.subprocess",
+    payload={"marker": "must-roll-back"},
+))
+'''
+        child = subprocess.run(
+            [sys.executable, "-c", script, str(self.db_path)],
+            cwd=repo_root,
+            check=False,
+        )
+        self.assertEqual(child.returncode, 23)
+        with CSDStore(self.db_path) as reopened:
+            recovered = reopened.recover()
+            self.assertEqual(recovered.state["accepted_event_count"], 0)
+            count = reopened._connection.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+            self.assertEqual(count, 0)
+
+    def test_process_exit_after_commit_is_safe_to_retry(self):
+        self.store.close()
+        repo_root = Path(__file__).resolve().parents[1]
+        script = r'''
+import os, sys
+from core.csd import CSDStore, Event
+store = CSDStore(sys.argv[1])
+original_transaction = store._transaction
+class ExitAfterCommit:
+    def __enter__(self):
+        self.inner = original_transaction()
+        return self.inner.__enter__()
+    def __exit__(self, exc_type, exc, traceback):
+        result = self.inner.__exit__(exc_type, exc, traceback)
+        os._exit(24)
+store._transaction = lambda: ExitAfterCommit()
+store.submit_event(Event(
+    event_id="crash-after-commit",
+    occurred_at="2026-11-14T12:00:00+00:00",
+    correlation_id="crash-test",
+    event_type="test.crash.v1",
+    source="test.subprocess",
+    payload={"marker": "already-committed"},
+))
+'''
+        child = subprocess.run(
+            [sys.executable, "-c", script, str(self.db_path)],
+            cwd=repo_root,
+            check=False,
+        )
+        self.assertEqual(child.returncode, 24)
+        with CSDStore(self.db_path) as reopened:
+            result = reopened.submit_event(Event(
+                event_id="crash-after-commit",
+                occurred_at="2026-11-14T12:00:00+00:00",
+                correlation_id="crash-test",
+                event_type="test.crash.v1",
+                source="test.subprocess",
+                payload={"marker": "already-committed"},
+            ))
+            self.assertEqual(result["status"], "duplicate")
+            self.assertEqual(reopened.get_state_snapshot()["state"]["accepted_event_count"], 1)
 
     def test_invalid_timezone_is_rejected(self):
         bad = Event(
