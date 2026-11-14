@@ -46,6 +46,20 @@ It does **not** determine whether the candidate wording is semantically faithful
 
 No model call or external tool runs inside evaluation or a database transaction.
 
+## 5. Grounded memory v2
+
+A separate event type `cognition.grounded_memory_candidate_proposed.v1` supports atomic claims:
+
+- `source_assertion` uses exactly one `unicode_codepoint` text span against one observation event; claim text must equal the quoted span.
+- `inference` references one or more source_assertion claim IDs in the same proposal; inference chains are rejected.
+- Unsupported epistemic types and unknown/authority-like fields are rejected.
+- The grounded decision policy is `csd.grounded-memory-text-evidence@0.1`.
+- Accepted-memory projections preserve claims, epistemic labels, evidence locators, provider provenance, and decision references.
+
+The `GroundedMemoryProposalPipeline` binds evidence event ID, provider identity/version, and state version itself. Providers return typed source assertion/inference candidates, not arbitrary event payloads. Provider calls execute outside CSD write transactions. The pipeline stores proposals as pending only; CSD separately evaluates them.
+
+This validates exact text provenance and schema boundaries, not source truth or inference entailment. No real model provider is connected.
+
 ## 5. Authority boundary and limitation
 
 The public method rejects reserved decision event types. The decision append method is internal by convention and is called by the store's evaluation method.
@@ -60,7 +74,7 @@ It never calls `evaluate_proposal`, a model, an adapter, or an external action. 
 
 ## 7. Test and verification status
 
-The cognitive-memory and provider-pipeline suites cover observation/proposal separation, accepted memory provenance, public decision-event and reserved-ID rejection, strict event schemas, event/proposal idempotency and conflicts, stale state, missing evidence, atomic rollback, projection inconsistency handling, recovery, tamper detection, repeated/concurrent evaluation, provider execution outside transactions, provider failure isolation, and pending-only proposal generation. The current cognitive and pipeline suites contain 22 and 9 tests respectively.
+The test suites cover v1 observation/proposal separation, legacy provider behavior, v2 exact-span and claim-reference validation, Unicode offsets, stale state, missing evidence, proposal identity/idempotency, atomic rollback, projection inconsistency, recovery, tamper detection, provider execution outside transactions, and pending-only behavior. The current suites contain 22 v1 cognitive-store tests, 11 v1 provider tests, 23 grounded-memory tests, 10 grounded-provider-pipeline tests, and 16 generic persistence tests.
 
 The GitHub Actions workflow runs the new suite and the unchanged baseline suite on Python 3.12. A green hosted run is not a substitute for testing on the user's Windows 11 / Python 3.12.14 environment. No local Windows, power-loss, or hostile-process isolation claim is made.
 
