@@ -234,7 +234,10 @@ def validate_motivation_update(
         prior_counter = _unique(signal.counter_evidence_event_ids, "signal.counter_evidence_event_ids")
         if prior_support & prior_counter:
             raise ValueError("stored signal support and counterevidence references overlap")
+        if signal.voluntary_encounters and signal.kind != "interest":
+            raise ValueError("only interest signals may carry voluntary-interest encounter summaries")
         seen_encounters: set[str] = set()
+        seen_voluntary_event_ids: set[str] = set()
         for entry in signal.voluntary_encounters:
             if not isinstance(entry, (tuple, list)) or len(entry) != 3:
                 raise ValueError("voluntary_encounters entries must contain encounter_id, timestamp, evidence_event_id")
@@ -246,7 +249,10 @@ def validate_motivation_update(
                 raise ValueError("voluntary_encounters must have unique encounter IDs")
             if event_id not in prior_support:
                 raise ValueError("voluntary encounter evidence must belong to signal supporting events")
+            if event_id in seen_voluntary_event_ids:
+                raise ValueError("one evidence event cannot represent multiple voluntary encounters")
             seen_encounters.add(encounter_id)
+            seen_voluntary_event_ids.add(event_id)
         signal_by_id[signal.signal_id] = signal
 
     supporting_ids = _unique(proposal.supporting_event_ids, "supporting_event_ids")
