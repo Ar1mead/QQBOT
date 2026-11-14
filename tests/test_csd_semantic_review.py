@@ -79,8 +79,12 @@ class SemanticReviewStoreTests(unittest.TestCase):
             "uncertainty": {"label": "tentative_inference", "confidence": 0.4},
         }
 
-    def submit_proposal(self, proposal_id="proposal-review-1", two_inferences=False):
-        claims = [self.source_claim()]
+    def submit_proposal(self, proposal_id="proposal-review-1", two_inferences=False,
+                        bad_source=False):
+        source = self.source_claim()
+        if bad_source:
+            source["text"] = "A paraphrase not present in the source."
+        claims = [source]
         claims.append(self.inference_claim())
         if two_inferences:
             claims.append(self.inference_claim("claim-inference-2"))
@@ -295,19 +299,29 @@ class SemanticReviewStoreTests(unittest.TestCase):
         )
 
     def test_invalid_deterministic_source_is_rejected_without_required_review(self):
-        self.submit_proposal()
-        proposal = self.store.get_proposal("proposal-review-1")["proposal"]
-        changed = dict(proposal)
-        claims = [dict(item) for item in changed["claims"]]
-        claims[0] = dict(claims[0])
-        claims[0]["text"] = "A different description."
-        changed["claims"] = claims
-        # A malformed proposal is rejected by deterministic grounding before a
-        # semantic review is required. The stored proposal itself is immutable,
-        # so this case uses an event payload with a valid digest but bad quote.
-        bad_event = self.make_review(outcome="unsupported")
-        self.assertEqual(bad_event.event_type, SEMANTIC_REVIEW_EVENT)
-        self.assertEqual(self.store.evaluate_proposal("proposal-review-1")["status"], "awaiting_review")
+        self.submit_proposal(bad_source=True)
+        result = self.store.evaluate_proposal("proposal-review-1")
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(self.store.get_semantic_reviews("proposal-review-1"), [])
+        self.assertEqual(self.store.get_memories(), [])
+
+    def test_stale_inference_proposal_still_waits_for_required_review(self):
+        self.submit_proposal("first-proposal", two_inferences=False)
+        self.add_review(proposal_id="first-proposal", review_id="first-review")
+        self.assertEqual(self.store.evaluate_proposal("first-proposal")["status"], "accepted")
+        self.submit_proposal("stale-proposal", two_inferences=False)
+        result = self.store.evaluate_proposal("stale-proposal")
+        self.assertEqual(result["status"], "awaiting_review")
+        self.assertEqual(self.store.get_proposal("stale-proposal")["status"], "pending")
+        self.add_review(
+            proposal_id="stale-proposal",
+            review_id="stale-review",
+        )
+        result = self.store.evaluate_proposal("stale-proposal")
+        self.assertEqual(result["status"], "deferred")
+        self.assertEqual(self.store.get_memories(), [
+            self.store.get_memory(self.store.get_memories()[0]["memory_id"])
+        ])
 
 
 if __name__ == "__main__":
