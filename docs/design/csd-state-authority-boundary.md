@@ -81,7 +81,7 @@ The CSD authority path evaluates whether a proposal is valid and eligible to bec
 - reason summary suitable for audit;
 - decision time and correlation context.
 
-The authority path may use typed validators, policy rules, and bounded cognitive evaluation services. It must not equate a high model confidence score with truth or acceptance.
+CSD may request bounded analysis from cognitive services, but the final evaluation and acceptance decision remains with CSD. A delegated service returns evidence/analysis, not an authoritative verdict. CSD must not equate a high model confidence score with truth or acceptance.
 
 A rejection or deferral is itself useful history when it affects future processing. It must not erase the original proposal or evidence.
 
@@ -117,32 +117,35 @@ Expected behavior:
 
 An event may be accepted without changing memory, personality, affect, or goals. Semantic interpretation happens outside the storage transaction.
 
-### 4.2 submit_proposal(proposal)
+### 4.2 Cognitive proposals within the existing event contract
 
-Purpose: submit a candidate cognitive update.
+CSD v0.1 already defines Event Submit as the write interface. This proposal does not establish a separate mandatory public proposal API.
 
-Expected behavior:
-- validate proposal schema and source references;
-- persist the proposal and its provenance;
-- prevent the proposal from changing authoritative state merely by being submitted;
-- make it available to the CSD state-transition authority for evaluation;
-- return a durable proposal reference and current processing status.
+A cognitive proposal can be represented as a typed event submitted through Event Submit, for example a versioned event whose payload contains:
+- stable proposal identity;
+- proposal type and schema version;
+- references to supporting evidence and prior state;
+- originating service/version;
+- uncertainty/confidence metadata;
+- proposed operation and any review/expiry condition.
 
-Repeated submission with the same proposal identity and same immutable content should be idempotent. Same identity with different immutable content should be a conflict, not an overwrite.
+Submitting the proposal persists a candidate; it does not accept the proposed state change. Repeated submission with the same identity and immutable content is idempotent. The same identity with different immutable content is a conflict.
 
-### 4.3 evaluate_proposal(proposal_id)
+A future convenience wrapper named submit_proposal may be added, but it must preserve the Event Submit semantics and must not become a second authority path.
 
-Purpose: evaluate a persisted proposal against the current authoritative state and applicable policies.
+### 4.3 CSD-owned proposal evaluation
 
-Expected behavior:
-- load current state and referenced evidence;
+Proposal evaluation belongs to CSD's authoritative state-evaluation path. A cognitive service or model may provide analysis when requested, but it cannot make the final acceptance decision or commit the state transition.
+
+CSD evaluates a persisted proposal against current authoritative state and applicable policies:
+- load the current state and referenced evidence;
 - detect stale assumptions or superseded state;
-- validate type-specific invariants and permissions;
+- apply type-specific invariants and permission constraints;
 - record accepted, rejected, deferred, or needs-more-evidence;
 - if accepted, commit the state transition and its decision record atomically;
 - never perform an external side effect.
 
-Evaluation must be safe to repeat. If state changed since proposal creation, the proposal may need reevaluation rather than applying stale assumptions.
+This may be implemented as an internal CSD operation rather than a separately exposed API. Evaluation must be safe to repeat. If relevant state changed since proposal creation, CSD must reevaluate, defer, or reject rather than apply stale assumptions.
 
 ### 4.4 Read interfaces
 
