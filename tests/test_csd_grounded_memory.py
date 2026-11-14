@@ -169,6 +169,15 @@ class GroundedMemoryV2Tests(unittest.TestCase):
         self.assertEqual(self.store.get_memories(), [])
         self.assertEqual(self.store.get_proposal("grounded-proposal-1")["status"], "rejected")
 
+    def test_source_assertion_text_must_equal_exact_quote(self):
+        claim = self.source_claim()
+        claim["text"] = "A paraphrase that has not been verified."
+        self.submit_pending(claims=[claim])
+        result = self.store.evaluate_proposal("grounded-proposal-1")
+        self.assertEqual(result["status"], "rejected")
+        self.assertIn("must equal", result["reason"])
+        self.assertEqual(self.store.get_memories(), [])
+
     def test_out_of_bounds_end_offset_is_rejected(self):
         quote = "A blue paper boat passed the bridge."
         claim = self.source_claim(
@@ -315,7 +324,11 @@ class GroundedMemoryV2Tests(unittest.TestCase):
 
     def test_recovery_keeps_rejected_proposal_without_memory(self):
         self.submit_pending(claims=[
-            self.source_claim(quote="text that does not exist in the source")
+            self.source_claim(
+                quote="text that does not exist in the source",
+                start=0,
+                end=5,
+            )
         ])
         self.store.evaluate_proposal("grounded-proposal-1")
         self.store.close()
