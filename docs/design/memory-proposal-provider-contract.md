@@ -5,7 +5,7 @@
 
 ## 1. Purpose
 
-The proposal provider is the replaceable semantic-analysis boundary between observed evidence and CSD's authoritative state path.
+The proposal provider is the replaceable candidate-generation boundary between observed evidence and CSD's authoritative state path. Its output is untrusted; it is not itself semantic validation.
 
 A provider may later call a model API, a local model, or a different cognitive service. Its output is always untrusted candidate data. It cannot accept memory, update personality, create goals, or trigger external actions.
 
@@ -62,7 +62,17 @@ The provider ID and version are provenance labels, not cryptographic authenticat
 
 Before a real model provider is connected, the next required design is [claim-to-evidence grounding](claim-to-evidence-grounding.md). It defines atomic claims, epistemic types, and source-specific locators.
 
-## 6. Current limits
+## 6. Grounded v2 path
+
+A text-first grounded pipeline is now available in `core/csd/grounded_proposals.py`, with typed `GroundedSourceAssertion`, `GroundedInference`, and `GroundedMemoryCandidate` values.
+
+Unlike the original v1 paragraph interface, the v2 pipeline binds the requested observation event ID, provider ID/version, and CSD state version itself. It supports one candidate per call, submits a separate `cognition.grounded_memory_candidate_proposed.v1` event, and leaves that proposal pending. CSD later validates exact text spans and claim references before accepting it.
+
+The v1 `MemoryProposalPipeline` is retained for compatibility and baseline tests. Do not connect a real provider to the v1 free-form paragraph acceptance path. A real provider should target v2 in pending/shadow mode first.
+
+See [Grounded Memory Proposal v2](grounded-memory-proposal-v2.md) for the exact claim rules and known limitations.
+
+## 7. Current limits
 
 - One observation per call.
 - Text-only observation fixture.
