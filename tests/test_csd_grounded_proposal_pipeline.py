@@ -179,6 +179,31 @@ class GroundedMemoryProposalPipelineTests(unittest.TestCase):
         self.assertEqual(result["status"], "rejected")
         self.assertEqual(self.store.get_memories(), [])
 
+    def test_non_text_observation_never_calls_provider(self):
+        image = CognitiveEvent(
+            event_id="evt-pipeline-image-observation",
+            occurred_at="2026-11-14T10:00:05+00:00",
+            correlation_id="corr-grounded-pipeline",
+            event_type=OBSERVATION_EVENT,
+            source="test.observation_fixture",
+            payload={
+                "observation_id": "obs-pipeline-image",
+                "observation_kind": "image_fixture",
+                "content": "A caption extracted from an image.",
+                "source_ref": "fixture://grounded-pipeline/image",
+                "observed_at": "2026-11-14T09:59:00+00:00",
+                "coverage": {"modality": "image", "complete_for_fixture": True},
+            },
+        )
+        self.store.submit_event(image)
+        provider = FakeGroundedProvider([self.candidate()])
+        with self.assertRaisesRegex(ValueError, "requires a text observation"):
+            self.pipeline(provider).propose_from_observation(
+                "evt-pipeline-image-observation"
+            )
+        self.assertIsNone(provider.called_in_transaction)
+        self.assertEqual(self.store.get_state_snapshot()["proposal_count"], 0)
+
     def test_non_observation_input_never_calls_provider(self):
         provider = FakeGroundedProvider([self.candidate()])
         proposal = CognitiveEvent(
