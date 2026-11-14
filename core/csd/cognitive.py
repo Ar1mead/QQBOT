@@ -576,6 +576,116 @@ class CognitiveMemoryStore:
             "resolve to source_assertion claims"
         )
 
+    def _semantic_review_summary(
+        self,
+        db: sqlite3.Connection,
+        proposal_id: str,
+        proposal: Mapping[str, Any],
+        *,
+        before_sequence: int | None = None,
+    ) -> dict[str, Any]:
+        """Summarize immutable review evidence; never makes a state decision."""
+        inference_claims = [
+            claim for claim in proposal.get("claims", [])
+            if claim.get("epistemic_type") == "inference"
+        ]
+        if not inference_claims:
+            return {
+                "status": "not_applicable",
+                "reason": "proposal contains no inference claims",
+                "review_event_ids": [],
+                "reviews_by_claim": {},
+            }
+
+        query = (
+            "SELECT e.sequence,e.event_id FROM events e "
+            "JOIN payloads p ON p.payload_ref=e.payload_ref "
+            "WHERE e.event_type=?"
+        )
+        params: list[Any] = [SEMANTIC_REVIEW_EVENT]
+        if before_sequence is not None:
+            query += " AND e.sequence<?"
+            params.append(before_sequence)
+        query += " ORDER BY e.sequence"
+        rows = db.execute(query, params).fetchall()
+
+        expected_claims = {claim["claim_id"]: claim for claim in inference_claims}
+        reviews_by_claim: dict[str, list[dict[str, Any]]] = {
+            claim_id: [] for claim_id in expected_claims
+        }
+        for row in rows:
+            review_event = self.get_event(row["event_id"])
+            review = review_event["payload"]
+            if review.get("proposal_id") != proposal_id:
+                continue
+            claim_id = review.get("claim_id")
+            if claim_id not in expected_claims:
+                raise CognitiveIntegrityError(
+                    "semantic review history references a non-inference claim"
+                )
+            claim = expected_claims[claim_id]
+            if review.get("proposal_digest") != _digest(_canonical(dict(proposal))):
+                raise CognitiveIntegrityError("semantic review proposal digest is stale")
+            if review.get("claim_digest") != _digest(_canonical(claim)):
+                raise CognitiveIntegrityError("semantic review claim digest is stale")
+            reviews_by_claim[claim_id].append({
+                "review_event_id": review_event["event_id"],
+                "sequence": review_event["sequence"],
+                "review_id": review["review_id"],
+                "outcome": review["outcome"],
+                "reviewer": review["reviewer"],
+                "reasoning_summary": review["reasoning_summary"],
+            })
+
+        all_review_ids: list[str] = []
+        missing_claims: list[str] = []
+        conflicting_claims: list[str] = []
+        uncertain_claims: list[str] = []
+        unsupported_claims: list[str] = []
+        insufficient_claims: list[str] = []
+
+        for claim_id, reviews in reviews_by_claim.items():
+            if not reviews:
+                missing_claims.append(claim_id)
+                continue
+            all_review_ids.extend(item["review_event_id"] for item in reviews)
+            outcomes = {item["outcome"] for item in reviews}
+            if len(outcomes) > 1:
+                conflicting_claims.append(claim_id)
+            elif "unsupported" in outcomes:
+                unsupported_claims.append(claim_id)
+            elif "insufficient_context" in outcomes:
+                insufficient_claims.append(claim_id)
+            elif "uncertain" in outcomes:
+                uncertain_claims.append(claim_id)
+
+        if unsupported_claims:
+            status = "unsupported"
+            reason = "one or more inference claims were reviewed as unsupported"
+        elif missing_claims:
+            status = "awaiting_review"
+            reason = "one or more inference claims have no semantic review"
+        elif insufficient_claims:
+            status = "insufficient_context"
+            reason = "one or more inference claims need additional context"
+        elif conflicting_claims:
+            status = "conflicting"
+            reason = "reviewers returned conflicting outcomes for one or more inference claims"
+        elif uncertain_claims:
+            status = "uncertain"
+            reason = "one or more inference claims remain uncertain"
+        else:
+            status = "supported"
+            reason = "all inference claims have non-conflicting supported reviews"
+
+        return {
+            "status": status,
+            "reason": reason,
+            "review_event_ids": all_review_ids,
+            "reviews_by_claim": reviews_by_claim,
+            "missing_claim_ids": missing_claims,
+        }
+
     def _apply_projection_event(
         self,
         db: sqlite3.Connection,
