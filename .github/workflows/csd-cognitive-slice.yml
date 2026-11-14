@@ -1,0 +1,36 @@
+name: CSD cognitive slice tests
+
+on:
+  push:
+    branches:
+      - feature/csd-cognitive-memory-slice
+    paths:
+      - "core/csd/**"
+      - "tests/test_csd_cognitive.py"
+      - ".github/workflows/csd-cognitive-slice.yml"
+  pull_request:
+    paths:
+      - "core/csd/**"
+      - "tests/test_csd_cognitive.py"
+      - ".github/workflows/csd-cognitive-slice.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cognitive-slice:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile CSD and tests
+        run: python -m compileall -q core tests
+      - name: Run cognitive-memory slice tests
+        run: python -m unittest discover -s tests -p "test_csd_cognitive.py" -v
+      - name: Run existing persistence baseline tests
+        run: python -m unittest discover -s tests -p "test_csd_store.py" -v
