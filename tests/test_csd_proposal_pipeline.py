@@ -175,6 +175,20 @@ class MemoryProposalPipelineTests(unittest.TestCase):
             self.pipeline(provider).propose_from_observation("evt-not-observation")
         self.assertIsNone(provider.called_in_transaction)
 
+    def test_provider_is_not_given_corrupted_observation_payload(self):
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute(
+            "UPDATE events SET event_digest='tampered' WHERE event_id=?",
+            ("evt-pipeline-observation",),
+        )
+        provider = FakeProvider(self.candidate())
+        with self.assertRaises(CognitiveIntegrityError):
+            self.pipeline(provider).propose_from_observation(
+                "evt-pipeline-observation"
+            )
+        self.assertIsNone(provider.called_in_transaction)
+        self.assertEqual(self.store.get_state_snapshot()["proposal_count"], 0)
+
     def test_pipeline_stops_if_projection_is_inconsistent(self):
         prior_provider = FakeProvider(self.candidate("prior-accepted-memory"))
         self.pipeline(prior_provider).propose_from_observation(
