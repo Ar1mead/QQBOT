@@ -45,6 +45,8 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 
 ## Documentation index
 
+- [Project progress ledger and session handoff](docs/PROJECT_PROGRESS.md)
+
 - [Architecture overview](docs/architecture/overview.md)
 - [Persistent individual runtime model](docs/architecture/individual-runtime-model.md)
 - [CSD state authority and cognitive proposal boundary](docs/design/csd-state-authority-boundary.md)
