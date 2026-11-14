@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import inspect
 from pathlib import Path
 import sqlite3
@@ -207,6 +208,65 @@ store.submit_event(Event(
             ))
             self.assertEqual(result["status"], "duplicate")
             self.assertEqual(reopened.get_state_snapshot()["state"]["accepted_event_count"], 1)
+
+    def test_multiple_connections_serialize_concurrent_writers(self):
+        self.store.close()
+
+        def submit(index):
+            with CSDStore(self.db_path, busy_timeout_ms=10000) as writer:
+                return writer.submit_event(Event(
+                    event_id=f"concurrent-{index}",
+                    occurred_at="2026-11-14T12:00:00+00:00",
+                    correlation_id="concurrent-test",
+                    event_type="test.concurrent.v1",
+                    source="test.worker",
+                    payload={"index": index},
+                ))
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            results = list(executor.map(submit, range(20)))
+        self.assertEqual(sum(result["status"] == "accepted" for result in results), 20)
+        with CSDStore(self.db_path) as reopened:
+            recovered = reopened.recover()
+            self.assertEqual(recovered.state["accepted_event_count"], 20)
+
+    def test_busy_timeout_fails_cleanly_then_retry_succeeds(self):
+        self.store.close()
+        candidate = CSDStore(self.db_path, busy_timeout_ms=50)
+        locker = sqlite3.connect(str(self.db_path), isolation_level=None)
+        try:
+            locker.execute("BEGIN IMMEDIATE")
+            with self.assertRaises(sqlite3.OperationalError):
+                candidate.submit_event(self.event())
+            locker.execute("ROLLBACK")
+            result = candidate.submit_event(self.event())
+            self.assertEqual(result["status"], "accepted")
+        finally:
+            if locker.in_transaction:
+                locker.execute("ROLLBACK")
+            locker.close()
+            candidate.close()
+
+    def test_sqlite_backup_restores_event_log_and_projection(self):
+        self.store.submit_event(self.event("backup-1"))
+        self.store.submit_event(self.event("backup-2", {"label": "two"}))
+        expected = self.store.get_state_snapshot()["state"]
+        backup_path = self.db_path.parent / "backup.sqlite3"
+        backup_connection = sqlite3.connect(str(backup_path))
+        try:
+            self.store._connection.backup(backup_connection)
+        finally:
+            backup_connection.close()
+        with CSDStore(backup_path) as restored:
+            result = restored.recover()
+            self.assertEqual(result.state, expected)
+
+    def test_event_envelope_tampering_causes_safe_stop(self):
+        self.store.submit_event(self.event())
+        self.store._connection.execute("DROP TRIGGER events_no_update")
+        self.store._connection.execute("UPDATE events SET source = 'tampered.source'")
+        with self.assertRaises(StorageIntegrityError):
+            self.store.recover()
 
     def test_invalid_timezone_is_rejected(self):
         bad = Event(
