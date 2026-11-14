@@ -135,6 +135,24 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
             self.store.submit_event(forged)
         self.assertEqual(self.store.get_memories(), [])
 
+    def test_proposal_payload_cannot_smuggle_extra_authority_fields(self):
+        self.store.submit_event(self.observation())
+        event = self.proposal()
+        payload = dict(event.payload)
+        payload["accepted"] = True
+        forged = CognitiveEvent(
+            event_id=event.event_id,
+            occurred_at=event.occurred_at,
+            correlation_id=event.correlation_id,
+            event_type=event.event_type,
+            source=event.source,
+            payload=payload,
+        )
+        with self.assertRaises(ValueError):
+            self.store.submit_event(forged)
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], 1)
+        self.assertEqual(self.store.get_memories(), [])
+
     def test_same_event_id_and_content_is_idempotent(self):
         event = self.observation()
         first = self.store.submit_event(event)
