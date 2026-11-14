@@ -14,6 +14,11 @@ from .grounded_proposals import (
     GroundedMemoryProposalProvider,
     GroundedSourceAssertion,
 )
+from .semantic_review import (
+    SemanticReviewCandidate,
+    SemanticReviewPipeline,
+    SemanticReviewProvider,
+)
 from .proposals import (
     MemoryCandidate,
     MemoryProposalPipeline,
@@ -32,6 +37,9 @@ __all__ = [
     "CognitiveIdempotencyConflict",
     "CognitiveIntegrityError",
     "CognitiveMemoryStore",
+    "SemanticReviewCandidate",
+    "SemanticReviewPipeline",
+    "SemanticReviewProvider",
     "GroundedInference",
     "GroundedMemoryCandidate",
     "GroundedMemoryProposalPipeline",
