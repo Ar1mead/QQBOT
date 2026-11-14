@@ -176,8 +176,14 @@ class MemoryProposalPipelineTests(unittest.TestCase):
         self.assertIsNone(provider.called_in_transaction)
 
     def test_pipeline_stops_if_projection_is_inconsistent(self):
+        prior_provider = FakeProvider(self.candidate("prior-accepted-memory"))
+        self.pipeline(prior_provider).propose_from_observation(
+            "evt-pipeline-observation"
+        )
+        self.store.evaluate_proposal("prior-accepted-memory")
         self.store._db.execute("DELETE FROM accepted_memories")
-        provider = FakeProvider(self.candidate())
+
+        provider = FakeProvider(self.candidate("blocked-by-recovery"))
         with self.assertRaises(CognitiveIntegrityError):
             self.pipeline(provider).propose_from_observation(
                 "evt-pipeline-observation"
