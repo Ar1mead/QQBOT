@@ -547,24 +547,17 @@ class CognitiveMemoryStore:
             reason = "proposal and evidence references passed deterministic provenance checks"
             outcome = "accepted"
             for evidence_id in proposal["evidence_event_ids"]:
-                evidence_record = self.get_event(evidence_id)
-                evidence = {
-                    "event_type": evidence_record["event_type"],
-                    "payload_ref": evidence_record["payload_ref"],
-                }
-                if evidence is None:
+                try:
+                    evidence_record = self.get_event(evidence_id)
+                except KeyError:
                     outcome = "needs_more_evidence"
                     reason = f"referenced evidence event is missing: {evidence_id}"
                     break
-                if evidence["event_type"] != OBSERVATION_EVENT:
+                if evidence_record["event_type"] != OBSERVATION_EVENT:
                     outcome = "rejected"
                     reason = f"evidence event is not an allowed observation: {evidence_id}"
                     break
-                evidence_payload = json.loads(db.execute(
-                    "SELECT payload_json FROM payloads WHERE payload_ref=?",
-                    (evidence["payload_ref"],),
-                ).fetchone()["payload_json"])
-                self._validate_observation(evidence_payload)
+                self._validate_observation(evidence_record["payload"])
 
             current_state_version = self._authoritative_state_version(db)
             projection_version = int(db.execute(
