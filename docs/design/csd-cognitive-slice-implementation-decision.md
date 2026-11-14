@@ -30,7 +30,7 @@ Proposal and accepted-memory tables are rebuildable projections, not independent
 
 Same event ID plus same immutable envelope/payload returns duplicate. Same event ID with changed content conflicts. Different event IDs with the same proposal ID and identical proposal payload remain distinct events but map to one proposal projection. Reusing a proposal ID with changed payload conflicts.
 
-For this slice, `state_version` is the count of accepted memory transitions, not the event sequence and not the count of all decisions. Rejected/deferred proposals do not increment it. A proposal based on an older accepted-state version is deferred rather than applied blindly.
+For this slice, `state_version` is derived from accepted decision events in the durable event history, not from the event sequence and not from the count of all decisions. The accepted-memory table is only a projection; before evaluation its count must agree with the event-derived version or evaluation stops and requires Recovery. Rejected/deferred proposals do not increment state_version. A proposal based on an older accepted-state version is deferred rather than applied blindly.
 
 `needs_more_evidence` is a durable terminal outcome for that proposal ID in this slice. If new evidence later becomes available, the producer must submit a new proposal ID that references the new evidence/state basis. This avoids mutating an immutable proposal.
 
@@ -60,7 +60,7 @@ It never calls `evaluate_proposal`, a model, an adapter, or an external action. 
 
 ## 7. Test and verification status
 
-The new suite covers observation/proposal separation, accepted memory provenance, public decision-event rejection, event/proposal idempotency and conflicts, stale state, missing evidence, atomic rollback, recovery, tamper detection, repeated evaluation, and concurrent evaluation.
+The new suite covers observation/proposal separation, accepted memory provenance, public decision-event and reserved-ID rejection, event/proposal idempotency and conflicts, stale state, missing evidence, atomic rollback, projection inconsistency handling, recovery, tamper detection, repeated evaluation, and concurrent evaluation. The current suite contains 21 tests.
 
 The GitHub Actions workflow runs the new suite and the unchanged baseline suite on Python 3.12. A green hosted run is not a substitute for testing on the user's Windows 11 / Python 3.12.14 environment. No local Windows, power-loss, or hostile-process isolation claim is made.
 
