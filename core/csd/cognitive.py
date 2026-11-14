@@ -890,6 +890,16 @@ class CognitiveMemoryStore:
             "payload": payload,
         }
 
+    def _assert_accepted_projection_consistent(self) -> None:
+        authoritative_count = self._authoritative_state_version(self._db)
+        projected_count = int(self._db.execute(
+            "SELECT COUNT(*) FROM accepted_memories"
+        ).fetchone()[0])
+        if projected_count != authoritative_count:
+            raise CognitiveIntegrityError(
+                "accepted-memory projection is out of sync; run Recovery before retrieval"
+            )
+
     def get_memories(
         self,
         *,
@@ -905,6 +915,7 @@ class CognitiveMemoryStore:
         query is a case-insensitive substring filter over stored memory/claim
         text. It is deliberately not described as semantic retrieval.
         """
+        self._assert_accepted_projection_consistent()
         if query is not None:
             _nonempty(query, "query")
         if memory_kind is not None:
@@ -968,6 +979,7 @@ class CognitiveMemoryStore:
 
     def get_memory(self, memory_id: str) -> dict[str, Any]:
         """Retrieve one accepted memory by stable ID, with full provenance."""
+        self._assert_accepted_projection_consistent()
         _nonempty(memory_id, "memory_id")
         row = self._db.execute(
             "SELECT memory_json FROM accepted_memories WHERE memory_id=?",
