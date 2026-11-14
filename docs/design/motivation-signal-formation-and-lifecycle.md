@@ -174,7 +174,7 @@ A provider-neutral motivation synthesizer may read an authorized snapshot and re
 - based-on state version;
 - component/model/policy provenance.
 
-CSD must:
+The evidence snapshot is a trusted projection. Its event kind, origin, meaningful-alternatives flag, timestamp, and subject reference must be derived by CSD/adapters from immutable event metadata and verified interaction context. They must never be accepted as free-form model labels. The local validator cannot authenticate those fields or prove that a source event actually represents voluntary choice.\n\nCSD must:
 - verify that referenced events exist and their source/origin classifications are authentic;
 - verify that user-requested and platform-triggered events are not presented as independent voluntary choices;
 - reject unknown signal types and unauthorized fields;
