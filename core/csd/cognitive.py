@@ -20,9 +20,11 @@ import uuid
 SCHEMA_VERSION = 1
 OBSERVATION_EVENT = "experience.observation_recorded.v1"
 PROPOSAL_EVENT = "cognition.memory_candidate_proposed.v1"
+GROUNDED_PROPOSAL_EVENT = "cognition.grounded_memory_candidate_proposed.v1"
 DECISION_EVENT = "cognition.memory_candidate_decided.v1"
 DECISION_SOURCE = "csd.authority.v1"
 POLICY_ID = "csd.memory-provenance-check"
+GROUNDED_POLICY_ID = "csd.grounded-memory-text-evidence"
 POLICY_VERSION = "0.1"
 
 
@@ -219,7 +221,7 @@ class CognitiveMemoryStore:
             raise ValueError("payload must be an object")
         if event.event_type == DECISION_EVENT and not internal:
             raise ValueError("CSD decision events are reserved for the internal authority path")
-        if event.event_type not in {OBSERVATION_EVENT, PROPOSAL_EVENT, DECISION_EVENT}:
+        if event.event_type not in {OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT, DECISION_EVENT}:
             raise ValueError(f"unsupported event type: {event.event_type}")
         if event.event_type == DECISION_EVENT and event.source != DECISION_SOURCE:
             raise ValueError("decision event source must identify CSD authority")
@@ -274,7 +276,7 @@ class CognitiveMemoryStore:
                 "received_at": prior["received_at"],
             }
 
-        if event.event_type == PROPOSAL_EVENT:
+        if event.event_type in {PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT}:
             proposal_id = _nonempty(event.payload.get("proposal_id"), "proposal_id")
             proposal_digest = _digest(payload_json)
             existing = db.execute(
@@ -370,6 +372,170 @@ class CognitiveMemoryStore:
         ):
             raise ValueError("uncertainty.confidence must be null or between 0 and 1")
 
+    @staticmethod
+    def _validate_grounded_proposal(payload: Mapping[str, Any]) -> None:
+        allowed = {"proposal_id", "memory_kind", "claims", "origin", "based_on", "operation"}
+        if set(payload) != allowed:
+            raise ValueError("grounded proposal contains missing or unsupported fields")
+        _nonempty(payload.get("proposal_id"), "proposal_id")
+        _nonempty(payload.get("memory_kind"), "memory_kind")
+        if payload.get("operation") != "create":
+            raise ValueError("grounded memory v2 only supports operation=create")
+
+        origin = payload.get("origin")
+        if not isinstance(origin, Mapping) or set(origin) != {"component", "version"}:
+            raise ValueError("origin must contain only component and version")
+        _nonempty(origin.get("component"), "origin.component")
+        _nonempty(origin.get("version"), "origin.version")
+
+        based_on = payload.get("based_on")
+        if not isinstance(based_on, Mapping) or set(based_on) != {"state_version"}:
+            raise ValueError("based_on must contain only state_version")
+        version = based_on.get("state_version")
+        if not isinstance(version, int) or isinstance(version, bool) or version < 0:
+            raise ValueError("based_on.state_version must be a non-negative integer")
+
+        claims = payload.get("claims")
+        if not isinstance(claims, list) or not claims:
+            raise ValueError("claims must be a non-empty list")
+        claim_ids: set[str] = set()
+        source_event_ids: set[str] = set()
+        for index, claim in enumerate(claims):
+            if not isinstance(claim, Mapping):
+                raise ValueError(f"claims[{index}] must be an object")
+            claim_id = _nonempty(claim.get("claim_id"), f"claims[{index}].claim_id")
+            if claim_id in claim_ids:
+                raise ValueError(f"duplicate claim_id: {claim_id}")
+            claim_ids.add(claim_id)
+            _nonempty(claim.get("text"), f"claims[{index}].text")
+            epistemic_type = claim.get("epistemic_type")
+
+            if epistemic_type == "source_assertion":
+                if set(claim) != {"claim_id", "text", "epistemic_type", "evidence", "uncertainty"}:
+                    raise ValueError("source_assertion contains missing or unsupported fields")
+                evidence_items = claim.get("evidence")
+                if not isinstance(evidence_items, list) or not evidence_items:
+                    raise ValueError("source_assertion evidence must be a non-empty list")
+                uncertainty = claim.get("uncertainty")
+                if not isinstance(uncertainty, Mapping) or set(uncertainty) != {"label", "confidence"}:
+                    raise ValueError("source_assertion uncertainty schema is invalid")
+                if uncertainty.get("label") != "directly_quoted" or uncertainty.get("confidence") is not None:
+                    raise ValueError("source_assertion must use directly_quoted with null confidence")
+                for evidence_index, evidence in enumerate(evidence_items):
+                    if not isinstance(evidence, Mapping) or set(evidence) != {"event_id", "locator", "quoted_text"}:
+                        raise ValueError(f"claims[{index}].evidence[{evidence_index}] schema is invalid")
+                    event_id = _nonempty(evidence.get("event_id"), "evidence.event_id")
+                    source_event_ids.add(event_id)
+                    _nonempty(evidence.get("quoted_text"), "evidence.quoted_text")
+                    locator = evidence.get("locator")
+                    if not isinstance(locator, Mapping) or set(locator) != {"kind", "unit", "start", "end"}:
+                        raise ValueError("text locator schema is invalid")
+                    if locator.get("kind") != "text_range" or locator.get("unit") != "unicode_codepoint":
+                        raise ValueError("v2 supports only unicode_codepoint text_range locators")
+                    start = locator.get("start")
+                    end = locator.get("end")
+                    if (not isinstance(start, int) or isinstance(start, bool)
+                            or not isinstance(end, int) or isinstance(end, bool)):
+                        raise ValueError("text locator offsets must be integers")
+                    if start < 0 or end < 0 or start >= end:
+                        raise ValueError("text locator offsets must satisfy 0 <= start < end")
+            elif epistemic_type == "inference":
+                if set(claim) != {
+                    "claim_id", "text", "epistemic_type", "derived_from_claim_ids",
+                    "reasoning_summary", "uncertainty",
+                }:
+                    raise ValueError("inference contains missing or unsupported fields")
+                refs = claim.get("derived_from_claim_ids")
+                if not isinstance(refs, list) or not refs or any(
+                    not isinstance(item, str) or not item.strip() for item in refs
+                ):
+                    raise ValueError("derived_from_claim_ids must be a non-empty string list")
+                if len(set(refs)) != len(refs):
+                    raise ValueError("derived_from_claim_ids must not contain duplicates")
+                _nonempty(claim.get("reasoning_summary"), "reasoning_summary")
+                uncertainty = claim.get("uncertainty")
+                if not isinstance(uncertainty, Mapping) or set(uncertainty) - {"label", "confidence"}:
+                    raise ValueError("inference uncertainty schema is invalid")
+                _nonempty(uncertainty.get("label"), "inference uncertainty.label")
+                confidence = uncertainty.get("confidence")
+                if confidence is not None and (
+                    not isinstance(confidence, (int, float))
+                    or isinstance(confidence, bool)
+                    or not 0.0 <= float(confidence) <= 1.0
+                ):
+                    raise ValueError("inference confidence must be null or between 0 and 1")
+            else:
+                raise ValueError(f"unsupported epistemic_type: {epistemic_type!r}")
+
+        if not source_event_ids:
+            raise ValueError("grounded proposal requires at least one source_assertion")
+        if len(source_event_ids) != 1:
+            raise ValueError("grounded memory v2 currently supports exactly one observation event")
+
+    @staticmethod
+    def _grounded_evidence_event_ids(payload: Mapping[str, Any]) -> list[str]:
+        result: list[str] = []
+        seen: set[str] = set()
+        for claim in payload["claims"]:
+            if claim["epistemic_type"] != "source_assertion":
+                continue
+            for evidence in claim["evidence"]:
+                event_id = evidence["event_id"]
+                if event_id not in seen:
+                    seen.add(event_id)
+                    result.append(event_id)
+        return result
+
+    def _evaluate_grounded_claims(
+        self, payload: Mapping[str, Any]
+    ) -> tuple[str, str]:
+        """Validate exact source spans and the restricted inference graph."""
+        self._validate_grounded_proposal(payload)
+        claim_by_id = {claim["claim_id"]: claim for claim in payload["claims"]}
+
+        for claim in payload["claims"]:
+            if claim["epistemic_type"] == "source_assertion":
+                for evidence in claim["evidence"]:
+                    try:
+                        source_event = self.get_event(evidence["event_id"])
+                    except KeyError:
+                        return "needs_more_evidence", (
+                            f"referenced observation is unavailable: {evidence['event_id']}"
+                        )
+                    if source_event["event_type"] != OBSERVATION_EVENT:
+                        return "rejected", (
+                            f"evidence is not an observation event: {evidence['event_id']}"
+                        )
+                    self._validate_observation(source_event["payload"])
+                    source_text = source_event["payload"]["content"]
+                    locator = evidence["locator"]
+                    start, end = locator["start"], locator["end"]
+                    if end > len(source_text):
+                        return "rejected", (
+                            f"text locator is out of bounds for claim {claim['claim_id']}"
+                        )
+                    if source_text[start:end] != evidence["quoted_text"]:
+                        return "rejected", (
+                            f"quoted text does not match source span for claim {claim['claim_id']}"
+                        )
+
+            elif claim["epistemic_type"] == "inference":
+                for source_claim_id in claim["derived_from_claim_ids"]:
+                    source_claim = claim_by_id.get(source_claim_id)
+                    if source_claim is None:
+                        return "rejected", (
+                            f"inference references missing claim: {source_claim_id}"
+                        )
+                    if source_claim["epistemic_type"] != "source_assertion":
+                        return "rejected", (
+                            f"inference may derive only from source_assertion claims: {source_claim_id}"
+                        )
+
+        return "accepted", (
+            "all source spans match persisted observation text and inference references "
+            "resolve to source_assertion claims"
+        )
+
     def _apply_projection_event(
         self,
         db: sqlite3.Connection,
@@ -381,8 +547,11 @@ class CognitiveMemoryStore:
         if event.event_type == OBSERVATION_EVENT:
             self._validate_observation(event.payload)
             return
-        if event.event_type == PROPOSAL_EVENT:
-            self._validate_proposal(event.payload)
+        if event.event_type in {PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT}:
+            if event.event_type == PROPOSAL_EVENT:
+                self._validate_proposal(event.payload)
+            else:
+                self._validate_grounded_proposal(event.payload)
             proposal_id = str(event.payload["proposal_id"])
             proposal_json = _canonical(dict(event.payload))
             proposal_digest = _digest(proposal_json)
