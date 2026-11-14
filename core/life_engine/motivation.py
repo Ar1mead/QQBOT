@@ -148,8 +148,12 @@ def validate_motivation_update(
         or snapshot.state_version < 0
     ):
         raise ValueError("snapshot state_version must be a non-negative integer")
-    if proposal.based_on_state_version != snapshot.state_version:
-        raise ValueError("motivation proposal is stale")
+    if (
+        not isinstance(proposal.based_on_state_version, int)
+        or isinstance(proposal.based_on_state_version, bool)
+        or proposal.based_on_state_version != snapshot.state_version
+    ):
+        raise ValueError("motivation proposal is stale or has an invalid state version")
 
     _nonempty(proposal.proposal_id, "proposal_id")
     _nonempty(proposal.subject_ref, "subject_ref")
@@ -192,11 +196,9 @@ def validate_motivation_update(
                 f"{item.evidence_kind} must use a source-derived origin from "
                 f"{sorted(allowed_forced_origins)}"
             )
-        if item.evidence_kind in {"voluntary_selection", "return_visit"} and item.origin in {
-            "user_request", "platform_recommendation", "external_opportunity"
-        }:
+        if item.evidence_kind in {"voluntary_selection", "return_visit"} and item.origin != "internal_state":
             raise ValueError(
-                f"{item.evidence_kind} cannot be classified as voluntary when externally requested or pushed"
+                f"{item.evidence_kind} requires internally initiated evidence; requests, recommendations, opportunities, and commitments are not independent interest choices"
             )
         if not isinstance(item.meaningful_alternatives, bool):
             raise ValueError("meaningful_alternatives must be boolean")
@@ -276,6 +278,8 @@ def validate_motivation_update(
             raise ValueError("update cannot change a signal's kind or subject identity")
         if target.status != "active":
             raise ValueError("only active signals can be updated by this operation")
+        if proposal.operation != "contextualize" and proposal.scope != target.scope:
+            raise ValueError("only contextualize may change a signal's scope")
         prior_evidence_ids = (
             set(target.supporting_event_ids) | set(target.counter_evidence_event_ids)
         )
@@ -310,7 +314,7 @@ def validate_motivation_update(
             voluntary = [
                 item for item in supporting
                 if item.evidence_kind in {"voluntary_selection", "return_visit"}
-                and item.origin in {"internal_state", "self_commitment"}
+                and item.origin == "internal_state"
                 and item.meaningful_alternatives
             ]
             distinct_encounters = {item.encounter_id for item in voluntary}
@@ -347,7 +351,7 @@ def validate_motivation_update(
     voluntary_evidence = [
         item for item in supporting
         if item.evidence_kind in {"voluntary_selection", "return_visit"}
-        and item.origin in {"internal_state", "self_commitment"}
+        and item.origin == "internal_state"
         and item.meaningful_alternatives
     ]
     voluntary_encounter_ids = tuple(sorted({
