@@ -92,10 +92,13 @@ class CSDStore:
         database_path: str | Path,
         *,
         busy_timeout_ms: int = 5000,
+        journal_mode: str = "WAL",
         synchronous: str = "FULL",
     ) -> None:
         if busy_timeout_ms < 0:
             raise ValueError("busy_timeout_ms must be non-negative")
+        if journal_mode not in {"WAL", "DELETE"}:
+            raise ValueError("journal_mode must be WAL or DELETE")
         if synchronous not in {"FULL", "NORMAL"}:
             raise ValueError("synchronous must be FULL or NORMAL")
 
@@ -110,7 +113,7 @@ class CSDStore:
         self._connection.execute("PRAGMA foreign_keys = ON")
         self._connection.execute(f"PRAGMA busy_timeout = {int(busy_timeout_ms)}")
         # Prototype candidate only; not a production durability guarantee.
-        self._connection.execute("PRAGMA journal_mode = WAL")
+        self._connection.execute(f"PRAGMA journal_mode = {journal_mode}")
         self._connection.execute(f"PRAGMA synchronous = {synchronous}")
         self._initialize_schema()
 
