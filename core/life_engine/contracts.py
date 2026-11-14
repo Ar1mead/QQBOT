@@ -184,6 +184,10 @@ def validate_life_proposal(
             raise ValueError(f"duplicate activity_id: {option.activity_id}")
         if option.side_effect_level not in {"none", "read_only", "external_side_effect"}:
             raise ValueError(f"unsupported side_effect_level: {option.side_effect_level}")
+        if not isinstance(option.permission_granted, bool):
+            raise ValueError("permission_granted must be boolean")
+        if not isinstance(option.prerequisites_satisfied, bool):
+            raise ValueError("prerequisites_satisfied must be boolean")
         if not option.required_capability or not option.required_capability.strip():
             raise ValueError("required_capability must be non-empty")
         _unique_nonempty(option.source_signal_ids, "activity.source_signal_ids")
@@ -276,6 +280,8 @@ def validate_life_proposal(
     if choice.disposition == "start_activity":
         if choice.activity_id is None:
             raise ValueError("start_activity requires activity_id")
+        if choice.activity_id not in considered_ids:
+            raise ValueError("selected activity must appear in considered_activity_ids")
         option = activity_by_id[choice.activity_id]
         if not option.permission_granted:
             raise PermissionError("activity option lacks the required capability permission")
