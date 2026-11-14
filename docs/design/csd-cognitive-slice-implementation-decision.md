@@ -60,6 +60,16 @@ The `GroundedMemoryProposalPipeline` binds evidence event ID, provider identity/
 
 This validates exact text provenance and schema boundaries, not source truth or inference entailment. No real model provider is connected.
 
+## 5. Accepted Memory Retrieval
+
+The prototype now exposes:
+- `get_memories(...)`: accepted-only list retrieval with optional case-insensitive substring, memory-kind, epistemic-type, evidence-event, limit, and offset filters;
+- `get_memory(memory_id)`: lookup of one accepted memory by stable ID.
+
+Filters combine with AND semantics. Results preserve full memory provenance and do not mutate CSD state. Legacy v1 free-form content and grounded v2 claim text are both searchable by substring; only v2 claims can be filtered by epistemic type.
+
+This is a deterministic lexical read API, not semantic retrieval. It has no embedding search, ranking, recency/salience policy, snapshot token for multi-page consistency, or retention/privacy scope.
+
 ## 5. Authority boundary and limitation
 
 The public method rejects reserved decision event types. The decision append method is internal by convention and is called by the store's evaluation method.
@@ -74,7 +84,7 @@ It never calls `evaluate_proposal`, a model, an adapter, or an external action. 
 
 ## 7. Test and verification status
 
-The test suites cover v1 observation/proposal separation, legacy provider behavior, v2 exact-span and claim-reference validation, Unicode offsets, stale state, missing evidence, proposal identity/idempotency, atomic rollback, projection inconsistency, recovery, tamper detection, provider execution outside transactions, and pending-only behavior. The current suites contain 22 v1 cognitive-store tests, 11 v1 provider tests, 23 grounded-memory tests, 10 grounded-provider-pipeline tests, and 16 generic persistence tests.
+The test suites cover v1 observation/proposal separation, legacy provider behavior, v2 exact-span and claim-reference validation, Unicode offsets, stale state, missing evidence, proposal identity/idempotency, atomic rollback, projection inconsistency, recovery, tamper detection, provider execution outside transactions, pending-only behavior, and accepted-memory retrieval filters. The current suites contain 22 v1 cognitive-store tests, 11 v1 provider tests, 24 grounded-memory tests, 11 grounded-provider-pipeline tests, 10 retrieval tests, and 16 generic persistence tests.
 
 The GitHub Actions workflow runs the new suite and the unchanged baseline suite on Python 3.12. A green hosted run is not a substitute for testing on the user's Windows 11 / Python 3.12.14 environment. No local Windows, power-loss, or hostile-process isolation claim is made.
 
