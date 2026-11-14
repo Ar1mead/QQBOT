@@ -1,7 +1,7 @@
 # Semantic Review Boundary for Grounded Memory
 
-> Status: **design proposal; not a frozen CSD specification**  
-> Depends on: [Grounded Memory Proposal v2](grounded-memory-proposal-v2.md), [Claim-to-evidence grounding](claim-to-evidence-grounding.md), [CSD state-authority boundary](csd-state-authority-boundary.md).
+> Status: **design boundary with an implemented reference prototype; not a frozen CSD specification**  
+> Depends on: [Grounded Memory Proposal v2](grounded-memory-proposal-v2.md), [Claim-to-evidence grounding](claim-to-evidence-grounding.md), [CSD state-authority boundary](csd-state-authority-boundary.md), [Semantic Review Event v1](semantic-review-event-v1.md).
 
 ## 1. Why structural grounding is not enough
 
@@ -11,13 +11,13 @@ It does **not** prove that the inference follows from those claims. A candidate 
 
 Therefore:
 - source-span validation and semantic review are separate checks;
-- a model's semantic review is itself untrusted input;
+- a reviewer's semantic opinion is untrusted input;
 - CSD remains the only component that records an authoritative memory decision;
-- no real provider should be connected to automatic inference acceptance until this boundary is implemented and tested.
+- no real provider should be connected to automatic inference acceptance until the prototype is independently tested and the provider boundary is authenticated.
 
 ## 2. Review scope
 
-The first semantic-review iteration should apply only to claims with `epistemic_type = inference`.
+The first semantic-review iteration applies only to claims with `epistemic_type = inference`.
 
 A review request includes:
 - the inference claim ID and exact text;
@@ -32,51 +32,31 @@ It must not include unrelated memories, private diary content, or platform crede
 
 The reviewer may return one of four labels:
 
-| Label | Meaning | CSD handling proposal |
+| Label | Meaning | CSD handling in the prototype |
 |---|---|---|
 | `supported` | The inference is reasonably supported by the cited claims, within stated limits | Eligible for CSD consideration; not automatically accepted |
-| `uncertain` | Several interpretations remain plausible | Retain as uncertain or defer |
-| `unsupported` | The cited claims do not support the inference or contradict it | Reject the inference candidate |
-| `insufficient_context` | The available evidence is too narrow or incomplete to assess | Request more evidence or defer |
+| `uncertain` | Several interpretations remain plausible | Defer the proposal |
+| `unsupported` | The cited claims do not support the inference or contradict it | Reject the proposal |
+| `insufficient_context` | The available evidence is too narrow or incomplete to assess | Record needs-more-evidence |
 
 The labels are review opinions, not facts. A `supported` result does not mean the inference is objectively true or calibrated to a probability.
 
-## 4. Required review record
+## 4. Review record and immutable binding
 
-Conceptual shape only; exact schema and field names remain open:
+The prototype uses a separate append-only event, `cognition.semantic_review_recorded.v1`. Each review binds to:
+- proposal ID, proposal event ID, and canonical proposal digest;
+- inference claim ID and canonical claim digest;
+- reviewer component/version labels;
+- review-contract version and outcome;
+- concise rationale, supporting direct-source claim IDs, alternatives, and limitations.
 
-    {
-      "review_id": "review-001",
-      "proposal_id": "grounded-proposal-001",
-      "claim_id": "claim-inference-001",
-      "reviewer": {
-        "component": "independent.semantic_reviewer",
-        "version": "0.1"
-      },
-      "contract_version": "semantic-review.v1",
-      "outcome": "uncertain",
-      "reasoning_summary": "The cited description is compatible with the interpretation but does not establish it.",
-      "supporting_claim_ids": ["claim-source-001"],
-      "alternative_explanations": [
-        "The scene may be quiet without implying a stable creator preference."
-      ],
-      "limitations": ["Only one short text observation was supplied."],
-      "created_at": "2026-11-14T10:05:00+00:00"
-    }
-
-The review must identify the exact proposal and claim it assessed. It must not be reusable against another proposal or a revised claim. A changed claim requires a new review.
+A changed proposal or claim requires a new review. The original proposal event is not rewritten.
 
 ## 5. Independence and provenance
 
-The generator and reviewer should be independently identifiable. Prefer different model instances or providers for the first experiments, but do not treat vendor separation as proof of independence.
+The generator and reviewer should be independently identifiable. Prefer different model instances or providers for experiments, but do not treat vendor separation as proof of independence.
 
-Record:
-- provider/model identity and version;
-- review contract and prompt-template version;
-- exact proposal and claim digest;
-- exact evidence claim IDs and event IDs;
-- timestamp;
-- whether the reviewer had any tools (the first implementation should have none).
+The prototype records provider/reviewer labels and version strings. **These are provenance labels, not authentication.** Any code able to submit events to the same in-process store can potentially claim those labels. The prototype therefore does not provide a trustworthy reviewer identity boundary, independent-review quorum, or production isolation.
 
 Do not log secrets or hidden chain-of-thought. A concise rationale and evidence references are sufficient.
 
@@ -91,50 +71,60 @@ The reviewer cannot:
 
 CSD validates review provenance and decides what to do.
 
-Recommended conservative first policy:
+The current prototype policy is conservative and all-or-nothing:
 - source assertions still require exact deterministic source-span validation;
-- an inference with no valid review must not be accepted as a durable memory;
-- `supported` makes an inference eligible for CSD consideration, not automatically accepted;
-- `uncertain` remains provisional or deferred;
-- `unsupported` is rejected;
-- `insufficient_context` requests more evidence or defers;
-- if any inference in an all-or-nothing proposal is rejected/deferred, do not silently accept the remaining claims as though the original proposal were intact.
+- every inference claim requires at least one valid review before acceptance;
+- all non-conflicting reviews for an inference must say `supported` for that inference to be eligible for acceptance;
+- `uncertain` or conflicting outcomes defer the proposal;
+- `unsupported` rejects the proposal;
+- `insufficient_context` requests more evidence;
+- the proposal is not partially accepted when one of its inference claims fails review.
 
-The first implementation should avoid partial acceptance. If partial acceptance is later required, each claim needs its own durable decision and transition identity.
+A `supported` review is eligibility evidence only. CSD still makes and records the decision. The prototype does not define an independent reviewer quorum or calibrated scoring policy.
 
 ## 7. Failure behavior
 
-- Reviewer timeout or provider outage: no review record is fabricated; leave the proposal pending or defer it through a CSD decision.
+- Reviewer timeout or provider outage: no review record is fabricated; leave the proposal pending.
 - Malformed review: reject the review input; do not reinterpret it as `supported`.
 - Review references a different proposal/claim digest: reject it.
-- Evidence changes or proposal revision: invalidate the old review for the new proposal version.
-- Conflicting reviewers: preserve both opinions and defer; do not average scores into false certainty.
+- Evidence changes or proposal revision: the old review cannot be reused for the changed proposal/claim digest.
+- Conflicting review outcomes: preserve all opinions and defer; do not average scores into false certainty.
 - Prompt injection in source text: treat it as quoted evidence, never as reviewer instructions or tool permissions.
 
-## 8. Storage shape
+## 8. Recovery and event order
 
-Two options need evaluation before implementation:
+- Review events are immutable and replayed as data only.
+- Recovery never reruns a model or recreates a review.
+- A review must occur after its proposal and before its terminal decision.
+- A proposal with missing reviews remains pending after recovery.
+- CSD evaluation reads the review set while holding its local write transaction; concurrent submissions are serialized before or after evaluation.
+- An evaluation that sees an incomplete review set returns `awaiting_review` without a decision, so a later review can be added and evaluated.
 
-1. A separate append-only review event linked to the proposal. This preserves the existing proposal event schema and gives reviews their own lifecycle.
-2. A new proposal event version embedding a review snapshot. This is simpler to read but couples proposal creation to reviewer availability and risks conflating generator and reviewer provenance.
+## 9. Test and integration gates
 
-The preferred direction is a separate review event because review may occur later, be repeated, conflict, or be invalidated without rewriting the original proposal. CSD must still validate event order, proposal identity, claim digest, and review provenance during recovery.
+Reference tests have been added for:
+- proposal/claim digest binding and mismatch rejection;
+- review target and supporting-claim validation;
+- duplicate review identity and conflicting review outcomes;
+- each of the four outcomes;
+- missing reviews and multiple inference claims;
+- review after terminal decision;
+- provider failure and malformed output;
+- provider calls outside CSD write transactions;
+- recovery without reviewer invocation.
 
-## 9. Test gates before a real reviewer is connected
+These tests were added after the historical 97-test hosted run. Their presence is confirmed, but a fresh hosted run against the current branch is still required before claiming they pass.
 
-- review is bound to one proposal ID and one immutable claim digest;
-- a review cannot be replayed against a changed claim;
-- reviewer output cannot set an authoritative decision field;
-- missing review cannot silently accept an inference;
-- `supported`, `uncertain`, `unsupported`, and `insufficient_context` have distinct outcomes;
-- timeout and malformed output leave the proposal unchanged;
-- conflicting reviews preserve both records and do not auto-accept;
-- recovery rebuilds review history without calling a model;
-- source prompt-injection text never reaches a tool executor;
-- source assertions remain distinguishable from inference claims after retrieval.
+Before connecting a real reviewer:
+- run the complete latest suite on GitHub-hosted CI and Windows;
+- isolate the reviewer adapter behind a narrow process/IPC boundary;
+- authenticate the adapter's identity to CSD;
+- do not give it tools or action credentials;
+- preserve exact invocation/model/contract provenance;
+- keep it unable to write decision events.
 
 ## 10. Explicit limits
 
-Semantic review reduces unsupported inference risk but does not prove truth, consciousness, calibrated uncertainty, or human-equivalent understanding. It is a review signal with provenance, not an oracle.
+Semantic review is an attributed opinion about an inference, not a truth oracle. It does not prove source truth, semantic entailment, calibrated confidence, consciousness, or human-equivalent understanding.
 
-No semantic reviewer is implemented or connected in the current prototype.
+A provider-neutral review interface and pending-only pipeline exist in the reference prototype. **No real semantic-review model/provider is connected.**
