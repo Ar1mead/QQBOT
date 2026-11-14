@@ -11,7 +11,7 @@ from typing import Literal, Sequence
 
 
 SignalKind = Literal["need", "interest", "curiosity", "affect", "commitment", "opportunity"]
-SignalOrigin = Literal["internal_state", "external_opportunity", "user_request", "commitment"]
+SignalOrigin = Literal["internal_state", "external_opportunity", "user_request", "self_commitment"]
 SideEffectLevel = Literal["none", "read_only", "external_side_effect"]
 Disposition = Literal[
     "start_activity",
@@ -152,7 +152,7 @@ def validate_life_proposal(
             raise ValueError(f"duplicate signal_id: {signal.signal_id}")
         if signal.kind not in {"need", "interest", "curiosity", "affect", "commitment", "opportunity"}:
             raise ValueError(f"unsupported signal kind: {signal.kind}")
-        if signal.origin not in {"internal_state", "external_opportunity", "user_request", "commitment"}:
+        if signal.origin not in {"internal_state", "external_opportunity", "user_request", "self_commitment"}:
             raise ValueError(f"unsupported signal origin: {signal.origin}")
         if not isinstance(signal.description, str) or not signal.description.strip():
             raise ValueError("signal description must be non-empty")
@@ -230,7 +230,7 @@ def validate_life_proposal(
         if any(not signal_by_id[item].active for item in origin_ids):
             raise ValueError("goal proposal cannot originate from an inactive signal")
         origins = {signal_by_id[item].origin for item in origin_ids}
-        if origins.issubset({"internal_state", "commitment"}):
+        if origins.issubset({"internal_state", "self_commitment"}):
             origin_class = "internally_initiated"
         elif origins == {"user_request"}:
             origin_class = "user_requested"
@@ -293,11 +293,15 @@ def validate_life_proposal(
     elif choice.disposition in {"continue_activity", "stop_activity"}:
         if choice.active_activity_id is None:
             raise ValueError(f"{choice.disposition} requires an active_activity_id")
-        if choice.disposition == "continue_activity" and choice.activity_id is not None:
-            raise ValueError("continue_activity must use active_activity_id, not a new activity_id")
+        if choice.activity_id is not None:
+            raise ValueError(f"{choice.disposition} must reference only the existing active activity")
+        if choice.goal_id is not None:
+            raise ValueError(f"{choice.disposition} cannot include a goal transition")
     elif choice.disposition in {"pause_goal", "abandon_goal", "revise_goal"}:
         if choice.goal_id is None:
             raise ValueError(f"{choice.disposition} requires goal_id")
+        if choice.activity_id is not None or choice.active_activity_id is not None:
+            raise ValueError(f"{choice.disposition} cannot also select an activity")
         current_goal = goal_by_id[choice.goal_id]
         if choice.disposition == "pause_goal" and current_goal.status != "active":
             raise ValueError("pause_goal requires an active goal")
