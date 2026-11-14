@@ -7,13 +7,15 @@
 
 Build a persistent AI individual with continuity of identity and experience, durable memory, evolving preferences and emotional state, self-generated goals, autonomous activity, and safe interaction with external platforms.
 
+The individual should be able to initiate activities from its own evolving interests and internal state, rather than requiring every activity to be assigned by the user or triggered by a fixed schedule. One explicit goal is **autonomous journaling**: it may independently develop the inclination to write, decide whether and when to write, choose what to record, and stop without being required to produce an entry. Journaling is an optional self-initiated activity, not a daily quota or user-imposed task.
+
 The runtime, model, and platform adapters are replaceable infrastructure. The long-lived cognitive state must remain independent of any one runtime or platform.
 
 ## Core areas
 
 - `core/csd/` — authoritative long-term cognitive state.
 - `core/asm/` — action safety, attempt lifecycle, verification, retry, and recovery.
-- `core/life_engine/` — drives, interests, goals, planning, and autonomous activity.
+- `core/life_engine/` — drives, interests, goals, planning, autonomous activity, and self-initiated activities such as journaling.
 - `core/memory/` — memory formation, retrieval, revision, and forgetting.
 - `core/personality/` — identity, stable traits, and evolving preferences.
 - `adapters/` — runtime and platform integrations such as DSH, SurfCore, Bilibili, and QQ.
@@ -31,6 +33,8 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 ## Engineering principles
 
 - Cognitive state is independent of the runtime and platform adapters.
+- Autonomous activities must be possible without user prompts or rigid recurring schedules; the system must also be able to choose not to act.
+- Journaling must not be reduced to scheduled report generation: the individual can self-initiate it, choose its content and timing, or choose not to write.
 - External side effects must be traceable and recoverable; recovery must not replay them.
 - Untrusted platform content must never gain local machine privileges.
 - Permissions are least-privilege and progressively granted.
