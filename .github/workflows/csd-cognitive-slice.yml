@@ -10,6 +10,7 @@ on:
       - "tests/test_life_engine.py"
       - "tests/test_motivation_synthesis.py"
       - "tests/test_csd_cognitive.py"
+      - "tests/test_csd_motivation.py"
       - "tests/test_csd_proposal_pipeline.py"
       - "tests/test_csd_grounded_memory.py"
       - "tests/test_csd_grounded_proposal_pipeline.py"
@@ -50,6 +51,8 @@ jobs:
         run: python -m compileall -q core tests
       - name: Run cognitive-memory slice tests
         run: python -m unittest discover -s tests -p "test_csd_cognitive.py" -v
+      - name: Run CSD motivation state tests
+        run: python -m unittest discover -s tests -p "test_csd_motivation.py" -v
       - name: Run provider-neutral proposal pipeline tests
         run: python -m unittest discover -s tests -p "test_csd_proposal_pipeline.py" -v
       - name: Run grounded-memory v2 tests
