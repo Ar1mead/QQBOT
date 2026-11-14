@@ -313,7 +313,7 @@ def validate_motivation_update(
     if proposal.kind == "interest":
         if proposal.requested_interest_stage not in {"tentative", "emerging", "contextual", None}:
             raise ValueError("established interest maturity is CSD-derived, not provider-assigned")
-        if proposal.operation in {"create", "reinforce", "contextualize"}:
+        if proposal.operation in {"create", "reinforce"}:
             allowed_support = {
                 "passive_exposure", "user_requested_action", "platform_autoplay",
                 "voluntary_selection", "return_visit", "affect_observation",
@@ -334,9 +334,17 @@ def validate_motivation_update(
                 raise ValueError(
                     "emerging interest requires voluntary evidence from distinct, time-separated encounters"
                 )
+        elif proposal.operation == "contextualize":
+            if proposal.requested_interest_stage is not None:
+                raise ValueError("contextualize cannot assign an interest maturity stage")
+            allowed_support = {
+                "passive_exposure", "user_requested_action", "platform_autoplay",
+                "voluntary_selection", "return_visit", "affect_observation",
+            }
+            if any(item.evidence_kind not in allowed_support for item in supporting):
+                raise ValueError("interest contextualization contains an incompatible evidence kind")
         elif proposal.requested_interest_stage is not None:
             raise ValueError("interest stage can only be proposed for create/reinforce")
-
     elif proposal.requested_interest_stage is not None:
         raise ValueError("requested_interest_stage applies only to interest signals")
 
