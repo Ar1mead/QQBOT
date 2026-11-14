@@ -445,6 +445,21 @@ class MotivationSignalOperationTests(unittest.TestCase):
         )
         self.assertEqual(result.effective_statement, "Interest in this topic during quiet evenings.")
 
+    def test_contextualize_cannot_assign_maturity(self):
+        from dataclasses import replace
+        old = signal(supporting=("ev-old",))
+        item = evidence("ev-new", "voluntary_selection", alternatives=True)
+        candidate = create_proposal(
+            operation="contextualize", target="interest-1", target_version=1,
+            supporting=("ev-new",),
+        )
+        candidate = replace(candidate, requested_interest_stage="emerging")
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,), signals=(old,)),
+                candidate,
+            )
+
     def test_signal_revision_cannot_reuse_old_evidence(self):
         old = signal(supporting=("ev-old",))
         item = evidence("ev-old", "voluntary_selection", alternatives=True)
