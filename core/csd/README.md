@@ -1,24 +1,19 @@
-# CSD persistence reference spike
+# CSD persistence reference prototypes
 
-This is a disposable Python 3.12 / SQLite reference implementation for the first CSD persistence vertical slice. It uses synthetic events only and has no DSH, SurfCore, model, network, platform, or external-action integration.
+This directory contains two isolated Python 3.12 / SQLite reference implementations:
 
-Run tests from this directory:
+- `store.py`: the original generic append-only persistence spike, with its original 16-test baseline preserved.
+- `cognitive.py`: the typed cognitive-memory slice, using a separate SQLite database and a separate event/projection schema.
 
-```powershell
-py -3.12 -m unittest discover -s tests -v
-```
+Neither implementation integrates with DSH, SurfCore, models, network services, platform clients, or external-action executors.
 
-The database file is created only at the path explicitly passed to CSDStore. WAL/DELETE journal modes and FULL/NORMAL synchronous modes are selectable for the initial matrix test; defaults are WAL + FULL. These are test candidates, not production durability guarantees. See the design proposal and ADR 0002.
-
-## Typed cognitive-memory slice
-
-The isolated cognitive-memory prototype is implemented in `cognitive.py` and exported as `CognitiveMemoryStore`. It uses a separate SQLite database from the original generic persistence spike.
-
-Run both suites from the repository root:
+Run tests from the repository root:
 
 ```powershell
 py -3.12 -m unittest discover -s tests -p "test_csd_cognitive.py" -v
 py -3.12 -m unittest discover -s tests -p "test_csd_store.py" -v
 ```
+
+The generic store's WAL/DELETE journal modes and FULL/NORMAL synchronous modes are test candidates, not production durability guarantees. The cognitive slice currently uses the same selectable SQLite settings but has not been validated for Windows power-loss behavior.
 
 The cognitive-memory implementation is an engineering prototype only. See [implementation decisions](../../docs/design/csd-cognitive-slice-implementation-decision.md) and the [vertical-slice design](../../docs/design/first-cognitive-state-vertical-slice.md).
