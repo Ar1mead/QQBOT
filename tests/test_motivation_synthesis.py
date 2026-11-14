@@ -55,7 +55,7 @@ def signal(
         origin_class=origin,
         supporting_event_ids=supporting,
         counter_evidence_event_ids=counter,
-        statement=statement,
+        statement=effective_statement,
     )
 
 
@@ -79,8 +79,12 @@ def create_proposal(
     target_version=None,
     version=7,
     subject="topic:blue-boat",
-    statement="The topic may be interesting to explore.",
+    statement=None,
 ):
+    effective_statement = (
+        statement if statement is not None
+        else ("The topic may be interesting to explore." if operation == "create" else None)
+    )
     return MotivationUpdateProposal(
         proposal_id="proposal-1",
         based_on_state_version=version,
@@ -252,7 +256,8 @@ class MotivationEvidenceIntegrityTests(unittest.TestCase):
             validate_motivation_update(snapshot(), create_proposal())
 
     def test_create_requires_a_signal_statement(self):
-        candidate = create_proposal(statement=None)
+        from dataclasses import replace
+        candidate = replace(create_proposal(), statement=None)
         with self.assertRaises(ValueError):
             validate_motivation_update(
                 snapshot(evidence_items=(evidence("ev-1", "passive_exposure"),)),
