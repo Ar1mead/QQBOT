@@ -409,6 +409,20 @@ class CognitiveMemoryStore:
         if not isinstance(payload.get("reason"), str) or not payload["reason"].strip():
             raise CognitiveIntegrityError("decision reason is missing")
 
+        # A decision is replayable only when its provenance is present in the
+        # preceding event history. Missing evidence is permitted solely for a
+        # needs_more_evidence outcome; it can never support acceptance.
+        for evidence_id in proposal_data["evidence_event_ids"]:
+            evidence = db.execute(
+                "SELECT event_type FROM events WHERE event_id=?", (evidence_id,)
+            ).fetchone()
+            if evidence is None:
+                if outcome != "needs_more_evidence":
+                    raise CognitiveIntegrityError("decision references missing evidence")
+                continue
+            if evidence["event_type"] != OBSERVATION_EVENT:
+                raise CognitiveIntegrityError("decision references disallowed evidence type")
+
         evaluated_version = payload.get("evaluated_state_version")
         current_version = int(db.execute(
             "SELECT COUNT(*) FROM accepted_memories"
