@@ -10,6 +10,7 @@ on:
       - "tests/test_csd_proposal_pipeline.py"
       - "tests/test_csd_grounded_memory.py"
       - "tests/test_csd_grounded_proposal_pipeline.py"
+      - "tests/test_csd_memory_retrieval.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   pull_request:
     paths:
@@ -18,6 +19,7 @@ on:
       - "tests/test_csd_proposal_pipeline.py"
       - "tests/test_csd_grounded_memory.py"
       - "tests/test_csd_grounded_proposal_pipeline.py"
+      - "tests/test_csd_memory_retrieval.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   workflow_dispatch:
 
@@ -44,5 +46,7 @@ jobs:
         run: python -m unittest discover -s tests -p "test_csd_grounded_memory.py" -v
       - name: Run grounded-memory provider pipeline tests
         run: python -m unittest discover -s tests -p "test_csd_grounded_proposal_pipeline.py" -v
+      - name: Run accepted-memory retrieval tests
+        run: python -m unittest discover -s tests -p "test_csd_memory_retrieval.py" -v
       - name: Run existing persistence baseline tests
         run: python -m unittest discover -s tests -p "test_csd_store.py" -v
