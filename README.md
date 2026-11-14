@@ -49,6 +49,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - [SurfCore v0.8.8 capability assessment and integration plan](docs/inventory/surfcore-capability-assessment.md)
 - [CSD minimal persistence vertical-slice proposal](docs/design/csd-minimal-persistence-proposal.md)
 - [Repository scope decision](docs/decisions/0001-repository-scope.md)
+- [CSD reference-prototype language decision](docs/decisions/0002-csd-reference-implementation-language.md)
 
 ## Specification status
 
