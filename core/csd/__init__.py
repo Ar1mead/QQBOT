@@ -7,6 +7,11 @@ from .cognitive import (
     CognitiveMemoryStore,
     ProposalIdentityConflict,
 )
+from .proposals import (
+    MemoryCandidate,
+    MemoryProposalPipeline,
+    MemoryProposalProvider,
+)
 from .store import (
     CSDStore,
     Event,
@@ -20,6 +25,9 @@ __all__ = [
     "CognitiveIdempotencyConflict",
     "CognitiveIntegrityError",
     "CognitiveMemoryStore",
+    "MemoryCandidate",
+    "MemoryProposalPipeline",
+    "MemoryProposalProvider",
     "ProposalIdentityConflict",
     "CSDStore",
     "Event",
