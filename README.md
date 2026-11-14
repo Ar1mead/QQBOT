@@ -54,6 +54,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - [Vertical-slice storage and authority decision analysis](docs/design/vertical-slice-storage-decision-analysis.md)
 - [CSD cognitive-slice implementation decisions](docs/design/csd-cognitive-slice-implementation-decision.md)
 - [CSD cognitive-memory hosted test report 001](docs/reports/csd-cognitive-memory-hosted-test-report-001.md)
+- [Memory proposal provider contract](docs/design/memory-proposal-provider-contract.md)
 - [Specification status register](docs/specifications/status.md)
 - [Software baseline](docs/inventory/software-baseline.md)
 - [SurfCore v0.8.8 capability assessment and integration plan](docs/inventory/surfcore-capability-assessment.md)
