@@ -1,7 +1,7 @@
 # Grounded Memory Proposal v2 — Text Evidence First
 
 > Status: **implementation design proposal; not a frozen CSD specification**  
-> Depends on: [Claim-to-evidence grounding](claim-to-evidence-grounding.md), [Memory proposal provider contract](memory-proposal-provider-contract.md), [CSD cognitive-slice implementation decision](csd-cognitive-slice-implementation-decision.md).
+> Depends on: [Claim-to-evidence grounding](claim-to-evidence-grounding.md), [Memory proposal provider contract](memory-proposal-provider-contract.md), [Semantic review boundary](semantic-review-boundary.md), [CSD cognitive-slice implementation decision](csd-cognitive-slice-implementation-decision.md).
 
 ## 1. Why v2 is needed
 
@@ -213,4 +213,4 @@ A real provider may be used first in shadow mode:
 5. inspect rejection/defer behavior and provenance;
 6. only then consider a narrowly scoped acceptance policy.
 
-Semantic entailment, multimodal perception quality, and calibrated uncertainty remain separate evaluations.
+Semantic entailment, multimodal perception quality, and calibrated uncertainty remain separate evaluations. See the [semantic review boundary](semantic-review-boundary.md); no reviewer is implemented or connected.
