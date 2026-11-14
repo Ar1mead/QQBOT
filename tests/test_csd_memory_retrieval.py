@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -86,6 +88,37 @@ class MemoryRetrievalTests(unittest.TestCase):
             },
         )
         self.store.submit_event(event)
+        if inference_text:
+            stored = self.store.get_proposal(proposal_id)
+            inference_claim = claims[1]
+            canonical = json.dumps(
+                inference_claim, ensure_ascii=False, sort_keys=True,
+                separators=(",", ":"), allow_nan=False,
+            )
+            claim_digest = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+            review = CognitiveEvent(
+                event_id=f"evt-review-{proposal_id}",
+                occurred_at="2026-11-14T10:01:30+00:00",
+                correlation_id="corr-retrieval",
+                event_type="cognition.semantic_review_recorded.v1",
+                source="semantic-review.pipeline:test.retrieval_reviewer",
+                payload={
+                    "review_id": f"review-{proposal_id}",
+                    "proposal_id": proposal_id,
+                    "proposal_event_id": stored["proposal_event_id"],
+                    "proposal_digest": stored["proposal_digest"],
+                    "claim_id": inference_claim["claim_id"],
+                    "claim_digest": claim_digest,
+                    "reviewer": {"component": "test.retrieval_reviewer", "version": "0.1"},
+                    "contract_version": "semantic-review.v1",
+                    "outcome": "supported",
+                    "reasoning_summary": "Synthetic test support; not a truth oracle.",
+                    "supporting_claim_ids": [f"{proposal_id}-source"],
+                    "alternative_explanations": [],
+                    "limitations": ["Synthetic retrieval fixture."],
+                },
+            )
+            self.store.submit_event(review)
         result = self.store.evaluate_proposal(proposal_id)
         self.assertEqual(result["status"], "accepted")
 
