@@ -16,8 +16,10 @@ This design introduces a new event type/version. It does not reinterpret or muta
 First implementation:
 - text observation records only;
 - one observation event per proposal;
-- source-assertion claims with exact text ranges;
-- inference claims explicitly linked to source-assertion claim IDs;
+- source-assertion claims with exactly one exact text span each;
+- exactly one distinct observation event per proposal in this first version;
+- source-assertion claim text equal to the exact quoted text (no unverified paraphrase);
+- inference claims explicitly linked only to source-assertion claim IDs;
 - deterministic validation of source spans and claim references;
 - accepted memories preserve epistemic type and evidence provenance.
 
@@ -97,14 +99,15 @@ There is deliberately no free-form memory narrative field in this first v2 schem
 
 Required:
 - non-empty claim_id and text;
-- one or more evidence references;
+- exactly one evidence reference;
 - each reference identifies an existing observation event;
 - locator kind is `text_range`;
 - unit is `unicode_codepoint`;
 - start/end are non-negative integers with start less than end;
 - quoted_text is non-empty;
-- the stored observation content slice `content[start:end]` exactly equals quoted_text;
-- uncertainty label is `directly_quoted` or another explicitly defined source-preserving label; confidence is null unless a later calibration policy defines it.
+- the source-assertion `text` exactly equals `quoted_text`;
+- the stored observation content slice `content[start:end]` exactly equals `quoted_text`;
+- uncertainty label is exactly `directly_quoted`; confidence is null.
 
 This verifies that the quote exists in the source record. It does not prove the source's statement is true.
 
@@ -119,7 +122,7 @@ Required:
 - uncertainty label is explicit;
 - confidence is optional and constrained to 0 through 1, but is not treated as calibrated truth probability.
 
-An inference must never be rendered or stored as a direct observation. It remains an interpretation even when accepted into memory.
+An inference must never be rendered or stored as a direct observation. It remains an interpretation even when accepted into memory. The first implementation rejects inference-to-inference chains; every inference must point directly to one or more source_assertion claims.
 
 ### 5.3 Disallowed in v2
 
@@ -142,6 +145,23 @@ The CSD-owned evaluator should produce a durable decision outcome:
 The decision means "this structured memory item may be stored with these epistemic labels." It does **not** mean every inference is objectively true.
 
 CSD must never silently rewrite a bad quote to make it pass. The original proposal remains in event history with a rejection reason.
+
+## 6A. Prototype implementation status
+
+The v2 event type `cognition.grounded_memory_candidate_proposed.v1` is implemented in the isolated `CognitiveMemoryStore` prototype.
+
+The CSD evaluator currently:
+- checks the strict claim schema;
+- binds each source assertion to exactly one text-range evidence item;
+- verifies the observation event and its payload/envelope integrity;
+- uses Python Unicode code-point offsets and checks the exact source substring;
+- requires claim text to equal the quoted span;
+- allows inference claims only when they reference existing source_assertion claims in the same proposal;
+- preserves accepted claims, inference labels, locators, provider provenance, and evidence IDs in the accepted-memory projection.
+
+The separate `GroundedMemoryProposalPipeline` accepts typed provider output, attaches the observation event ID, provider identity/version, and CSD state version, then submits a pending v2 proposal. It does not evaluate or accept the proposal. It currently accepts at most one candidate per call.
+
+This is structural grounding only. It cannot prove that the quoted source itself is true, or that an inference is semantically reasonable. A real model provider is not connected.
 
 ## 7. Accepted memory projection
 
