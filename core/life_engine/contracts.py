@@ -210,6 +210,8 @@ def validate_life_proposal(
             raise ValueError(f"activity {option.activity_id} references an inactive motivation signal")
         if not set(option.serves_goal_ids).issubset(goal_by_id):
             raise ValueError(f"activity {option.activity_id} references unknown goal")
+        if any(goal_by_id[item].status != "active" for item in option.serves_goal_ids):
+            raise ValueError(f"activity {option.activity_id} cannot target a paused or blocked goal")
         activity_by_id[option.activity_id] = option
 
     active_activity_ids = _unique_nonempty(
