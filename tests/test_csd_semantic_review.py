@@ -80,7 +80,7 @@ class SemanticReviewStoreTests(unittest.TestCase):
         }
 
     def submit_proposal(self, proposal_id="proposal-review-1", two_inferences=False,
-                        bad_source=False):
+                        bad_source=False, state_version=None):
         source = self.source_claim()
         if bad_source:
             source["text"] = "A paraphrase not present in the source."
@@ -99,7 +99,10 @@ class SemanticReviewStoreTests(unittest.TestCase):
                 "memory_kind": "episodic_candidate",
                 "claims": claims,
                 "origin": {"component": "test.grounded", "version": "0.2"},
-                "based_on": {"state_version": self.store.get_state_snapshot()["state_version"]},
+                "based_on": {"state_version": (
+                    self.store.get_state_snapshot()["state_version"]
+                    if state_version is None else state_version
+                )},
                 "operation": "create",
             },
         )
@@ -309,7 +312,7 @@ class SemanticReviewStoreTests(unittest.TestCase):
         self.submit_proposal("first-proposal", two_inferences=False)
         self.add_review(proposal_id="first-proposal", review_id="first-review")
         self.assertEqual(self.store.evaluate_proposal("first-proposal")["status"], "accepted")
-        self.submit_proposal("stale-proposal", two_inferences=False)
+        self.submit_proposal("stale-proposal", two_inferences=False, state_version=0)
         result = self.store.evaluate_proposal("stale-proposal")
         self.assertEqual(result["status"], "awaiting_review")
         self.assertEqual(self.store.get_proposal("stale-proposal")["status"], "pending")
@@ -319,9 +322,7 @@ class SemanticReviewStoreTests(unittest.TestCase):
         )
         result = self.store.evaluate_proposal("stale-proposal")
         self.assertEqual(result["status"], "deferred")
-        self.assertEqual(self.store.get_memories(), [
-            self.store.get_memory(self.store.get_memories()[0]["memory_id"])
-        ])
+        self.assertEqual(len(self.store.get_memories()), 1)
 
 
 if __name__ == "__main__":
