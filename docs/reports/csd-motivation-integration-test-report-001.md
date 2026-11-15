@@ -6,12 +6,12 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `f38a0f5e828f4f5eacc1739d51d366b418f7cba7`
-- Workflow run: [CSD cognitive slice tests #135](https://github.com/Ar1mead/QQBOT/actions/runs/43665724005)
+- Verified commit: `e5f36b389a168d96b5efaa074f9283da47a573ae`
+- Workflow run: [CSD cognitive slice tests #142](https://github.com/Ar1mead/QQBOT/actions/runs/43666163605)
 - Linux runner: GitHub-hosted Ubuntu 26.04.1 — Python 3.12.16 / SQLite 3.46.1
 - Windows runner: GitHub-hosted `windows-latest` — Python 3.12.10 / SQLite 3.49.1
 
-Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (248 tests each; Linux 1.661s, Windows 8.755s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
+Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (249 tests each; Linux 2.083s, Windows 15.623s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
 
 ## Exact commands
 
@@ -23,7 +23,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 248 tests in 1.661s on Linux; the Windows runner completed the same 248-test suite in 8.755s.
+Ran 249 tests in 2.083s on Linux; the Windows runner completed the same 249-test suite in 15.623s.
 OK
 ```
 
@@ -60,17 +60,17 @@ Lifecycle coverage now includes create, reinforce, weaken, contextualize, pause,
 
 ## Follow-up adversarial review after the verified run
 
-The verified commit above predates follow-up return-visit review. The durable rule retained is: a return visit is itself a current voluntary selection (internal origin, meaningful alternatives, selected item in the current choice set), and it must reference an earlier interaction for the same subject and selected item, with a distinct encounter and later occurrence time. The earlier interaction need not itself have been voluntary: an independently chosen return can follow passive platform exposure or a user-requested encounter.
+The verified code commit includes the follow-up return-visit rule. A return visit is itself a current voluntary selection (internal origin, meaningful alternatives, selected item in the current choice set), and it must reference an earlier interaction for the same subject and selected item, with a distinct encounter and later occurrence time. The earlier interaction need not itself have been voluntary: an independently chosen return can follow passive platform exposure or a user-requested encounter.
 
-An additional global uniqueness rule for `encounter_id` was attempted and then reverted. CI exposed that an encounter is a grouping/session concept and may legitimately contain multiple interaction events. The implementation must not confuse encounter identity with event identity; event IDs provide per-event identity. Runs #136–#141 exposed the over-broad rule and an over-restrictive return-visit test fixture; these are failed runs and are not counted as verification.
+Review runs #136–#141 exposed two incorrect assumptions and were intentionally not counted as passing verification: encounter IDs are not globally unique because an encounter may contain multiple events; and a return visit need not follow a prior voluntary selection. Both assumptions were removed. The final test grounds passive exposure in a platform-recommendation observation and verifies that a later voluntary return is accepted.
 
-The revised test now grounds passive exposure in a platform-recommendation observation and verifies that a later voluntary return is accepted. This final follow-up test is awaiting CI run #142; do not treat it as verified until that run completes.
+The corrected implementation and test pass in CI run #142 on both Linux and Windows, with 249 tests each.
 
 ## Scope and limitations
 
 This is hosted Linux and Windows verification. It does **not** establish that the code has been tested on the user's own Windows 11 / Python 3.12.14 environment.
 
-The tests verify deterministic prototype behavior, persistence, migration, projections, Recovery invariants, observation-origin matching, return-visit linkage, and stable origin classification. They do not prove:
+The tests verify deterministic prototype behavior, persistence, migration, projections, Recovery invariants, observation-origin matching, return-visit linkage (including return after passive exposure), and stable origin classification. They do not prove:
 - that caller-supplied adapter metadata authenticates an adapter;
 - that platform/user provenance claims are truthful;
 - that evidence semantically proves a real interest, need, feeling, or desire;
