@@ -193,10 +193,10 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 At the time of this update:
 - Latest code/test commit verified by hosted CI: `a8713a92a7af6e14ab36db15fdb4d67cb652f6f8`, workflow run #272 (326 tests passed on Ubuntu and Windows).
-- Branch head immediately before this ledger refresh: `d0b926a6df25952ab674da784c242f338d8ba9bb` (local Windows verification instructions).
+- Branch head immediately before this ledger refresh: `91c47132998e69d8e8a1c4d5754276fe15566aab` (Python 3.12 assertion added to the local Windows verification script).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
-- `python -m unittest discover -s tests -v` passed: 326 tests on both Linux and Windows (Linux 3.226s; Windows 23.264s).
+- `python -m unittest discover -s tests -v` passed: 326 tests on both Linux and Windows (Linux 3.226s; Windows 23.264s). The later documentation-only workflow run #274 also passed both matrix jobs; it does not replace the code/test baseline above.
 - Schema v5 includes durable candidate-goal, activation, and pause/resume proposal projections, goal-version history, and latest-goal state. Legacy v1→v5, v3→v5, and v4→v5 migrations are covered by tests; hosted CI run #270 passed 325 tests on Ubuntu and Windows.
 - Goal batch acceptance is atomic; accepted candidates increment shared state_version once regardless of batch size. Stale proposals defer without rebasing. Exact source signal versions are resolved at the decision event sequence.
 - The Life Engine snapshot reader includes versioned goals across candidate, active, and paused states. A narrow CSD sink can persist candidate-goal, activation, and pause/resume proposals; activity options remain empty pending a trusted capability-filtered source.
@@ -204,4 +204,4 @@ At the time of this update:
 - The user's local machine has not cloned this repository; Windows-local verification remains pending. `scripts/verify_windows.ps1` now runs environment reporting, compileall, and full unittest discovery in one step.
 - Hosted tests do not establish adapter authenticity, semantic truth, subjective desire, or autonomous cognition.
 
-**Resume from section 4: continue adversarial review of the pause/resume lifecycle slice and migration/recovery behavior.** The future-snapshot-version chronology guard and explicit pause/resume lifecycle slice are implemented and passed hosted CI (326 tests on Ubuntu and Windows). The user's own Windows 11 / Python 3.12.14 verification, process-interruption, backup/recovery, and durability checks remain open. Keep blocked/unblocked, satisfied, abandoned, superseded, and revise separate until their evidence and authority contracts are reviewed. Do not connect a real deliberator or implement external activity execution until local validation and ASM/OS-isolation boundaries are addressed.**
+**Resume from section 4: continue adversarial review of the shared event append/replay integrity boundary, with emphasis on event identity, duplicate delivery, projection rebuild atomicity, and malformed durable history.** The future-snapshot-version chronology guard and explicit pause/resume lifecycle slice are implemented and passed hosted CI (326 tests on Ubuntu and Windows). The user's own Windows 11 / Python 3.12.14 verification, process-interruption, backup/recovery, and durability checks remain open. Keep blocked/unblocked, satisfied, abandoned, superseded, and revise separate until their evidence and authority contracts are reviewed. Do not connect a real deliberator or implement external activity execution until local validation and ASM/OS-isolation boundaries are addressed.**
