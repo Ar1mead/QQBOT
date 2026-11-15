@@ -7,7 +7,7 @@ call models, execute activities, or grant capabilities.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal, Sequence
 
 
@@ -228,7 +228,7 @@ def validate_life_proposal(
                 raise ValueError("voluntary encounter evidence must be in supporting event IDs")
             seen_encounters.add(encounter_id)
             seen_events.add(event_id)
-            timestamps.add(parsed_timestamp.astimezone().astimezone(datetime.now().astimezone().tzinfo).astimezone(__import__('datetime').timezone.utc))
+            timestamps.add(parsed_timestamp.astimezone(timezone.utc))
         if signal.interest_stage == "emerging" and (
             len(seen_encounters) < 2 or len(timestamps) < 2
         ):
