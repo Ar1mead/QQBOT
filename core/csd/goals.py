@@ -52,7 +52,8 @@ class CognitiveGoalMixin:
     """Methods mixed into CognitiveMemoryStore; all writes share its transaction."""
 
     def _validate_goal_batch_proposal(self, event: Any) -> None:
-        payload = event.payload
+        payload = event["payload"] if isinstance(event, Mapping) else event.payload
+        event_source = event["source"] if isinstance(event, Mapping) else event.source
         allowed = {
             "proposal_id", "based_on", "goals", "choice", "origin",
             "contract_version",
@@ -74,7 +75,7 @@ class CognitiveGoalMixin:
             raise ValueError("goal proposal origin must contain component and version")
         component = _g_nonempty(origin.get("component"), "origin.component")
         _g_nonempty(origin.get("version"), "origin.version")
-        if event.source != f"life-goal-proposal:{component}":
+        if event_source != f"life-goal-proposal:{component}":
             raise ValueError("goal proposal source/origin mismatch")
 
         choice = payload.get("choice")
