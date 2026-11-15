@@ -176,7 +176,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         decision = self.store.evaluate_proposal("migration-memory-proposal")
         self.assertEqual(decision["status"], "accepted")
         before = self.store.get_state_snapshot()
-        before_memory = self.store.get_memory("migration-memory-proposal")
+        before_proposal = self.store.get_proposal("migration-memory-proposal")
 
         # Reconstruct the actual v1 table shape: legacy event/proposal/memory
         # tables remain, while v2-only motivation projection tables do not exist.
@@ -197,8 +197,8 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertEqual(after["state_version"], before["state_version"])
         self.assertEqual(after["accepted_memory_count"], before["accepted_memory_count"])
         self.assertEqual(
-            self.store.get_memory("migration-memory-proposal"),
-            before_memory,
+            self.store.get_proposal("migration-memory-proposal"),
+            before_proposal,
         )
         self.assertEqual(
             self.store.get_event("migration-observation")["event_type"],
