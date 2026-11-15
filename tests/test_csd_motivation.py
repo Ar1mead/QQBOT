@@ -444,12 +444,29 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
             self.add_interaction(out_of_order)
 
     def test_return_visit_can_follow_passive_exposure_when_current_choice_is_voluntary(self):
+        recommendation = envelope(
+            "source-passive-recommendation",
+            OBSERVATION_EVENT,
+            "test.platform-recommendation",
+            {
+                "observation_id": "obs-passive-recommendation",
+                "observation_kind": "platform_recommendation",
+                "content": "The platform recommended a blue-boat video.",
+                "source_ref": "fixture://passive-recommendation",
+                "observed_at": "2026-11-14T09:59:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+            at="2026-11-14T09:59:00+00:00",
+        )
+        self.store.submit_event(recommendation)
         prior = interaction(
             "interaction-passive-prior",
             kind="passive_exposure",
+            origin="platform_recommendation",
             meaningful=False,
             choice_set=[],
             selected="item:blue-boat",
+            origin_event_id="source-passive-recommendation",
             encounter="enc-passive-prior",
         )
         self.add_interaction(prior)
