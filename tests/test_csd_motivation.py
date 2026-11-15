@@ -198,6 +198,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         connection.execute("DROP TABLE goals")
         connection.execute("DROP TABLE goal_proposals")
         connection.execute("DROP TABLE goal_activation_proposals")
+        connection.execute("DROP TABLE goal_pause_resume_proposals")
         connection.execute("PRAGMA user_version = 1")
         connection.commit()
         connection.close()
@@ -252,10 +253,10 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertNotIn("motivation_proposals", tables)
         self.assertIn("motivation_signal_versions", tables)
 
-    def test_fresh_schema_is_v4(self):
+    def test_fresh_schema_is_v5(self):
         self.assertEqual(
             int(self.store._db.execute("PRAGMA user_version").fetchone()[0]),
-            4,
+            5,
         )
 
     def test_voluntary_choice_requires_internal_origin_and_real_choice_set(self):
