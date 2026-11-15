@@ -997,6 +997,49 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 2)
 
 
+
+    def test_life_engine_pause_resume_sink_persists_only_goal_transition(self):
+        goal_id, _ = self.create_candidate("pause-resume-sink")
+        snapshot = CognitiveStoreLifeSnapshotReader(self.store).get_life_snapshot()
+        activation = DeliberationProposal(
+            based_on_state_version=snapshot.state_version,
+            goal_proposals=(),
+            choice=ChoiceProposal(
+                disposition="activate_goal",
+                rationale="I choose to pursue this candidate.",
+                goal_id=goal_id,
+                expected_goal_version=1,
+            ),
+        )
+        sink = CognitiveStoreLifeProposalSink(self.store)
+        self.assertEqual(
+            sink.submit_life_proposal(
+                validate_life_proposal(snapshot, activation),
+                expected_state_version=snapshot.state_version,
+            )["status"],
+            "accepted",
+        )
+        snapshot = CognitiveStoreLifeSnapshotReader(self.store).get_life_snapshot()
+        pause = DeliberationProposal(
+            based_on_state_version=snapshot.state_version,
+            goal_proposals=(),
+            choice=ChoiceProposal(
+                disposition="pause_goal",
+                rationale="I choose to pause this goal for now.",
+                goal_id=goal_id,
+                expected_goal_version=2,
+            ),
+        )
+        result = sink.submit_life_proposal(
+            validate_life_proposal(snapshot, pause),
+            expected_state_version=snapshot.state_version,
+        )
+        self.assertEqual(result["status"], "accepted")
+        paused = self.store.get_goal(goal_id)
+        self.assertEqual(paused["status"], "paused")
+        self.assertEqual(paused["goal_version"], 3)
+        self.assertNotIn("activity_id", paused)
+
     def test_life_engine_activation_sink_commits_only_the_goal_transition(self):
         goal_id, _ = self.create_candidate("life-sink")
         snapshot = CognitiveStoreLifeSnapshotReader(self.store).get_life_snapshot()
