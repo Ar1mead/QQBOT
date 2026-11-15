@@ -6,12 +6,12 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `692107712775bdb568ebb969f25f00f049bb1748`
-- Workflow run: [CSD cognitive slice tests #156](https://github.com/Ar1mead/QQBOT/actions/runs/43667459440)
+- Verified commit: `a246e667b0f2386719544613825cd1adcb0aac22`
+- Workflow run: [CSD cognitive slice tests #161](https://github.com/Ar1mead/QQBOT/actions/runs/43667884402)
 - Linux runner: GitHub-hosted Ubuntu 26.04.1 — Python 3.12.16 / SQLite 3.46.1
 - Windows runner: GitHub-hosted `windows-latest` — Python 3.12.10 / SQLite 3.49.1
 
-Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (256 tests each; Linux 2.157s, Windows 14.407s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
+Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (258 tests each; Linux 2.269s, Windows 12.736s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
 
 ## Exact commands
 
@@ -23,7 +23,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 256 tests in 2.157s on Linux; the Windows runner completed the same 256-test suite in 14.407s.
+Ran 258 tests in 2.269s on Linux; the Windows runner completed the same 258-test suite in 12.736s.
 OK
 ```
 
@@ -72,7 +72,9 @@ The global state-version read path validates the event and payload digests of ev
 
 Pending motivation proposals are also checked before they are returned: each supporting/counterevidence reference must resolve to a prior interaction event for the same subject, with the correct evidence classification and intact payload/envelope digests. A test tampers with evidence while the proposal is still pending and verifies that proposal retrieval fails closed. This passed in CI run #148 with 252 tests on both operating systems.
 
-Cross-module consistency review found that Life Engine initially derived a signal's origin from counterevidence as well as supporting evidence. It now derives the immutable origin class from supporting evidence only, matching CSD. The Life Engine pre-validator also now rejects pause proposals with evidence and contextual-stage requests outside contextualize. CSD itself rejects requested maturity metadata on pause/weaken/resolve; the regression suite covers these constraints. The final helper-fixture correction and CSD rule passed in CI run #156 with 256 tests on both operating systems.
+Cross-module consistency review found that Life Engine initially derived a signal's origin from counterevidence as well as supporting evidence. It now derives the immutable origin class from supporting evidence only, matching CSD. The Life Engine pre-validator also rejects pause proposals with evidence and contextual-stage requests outside contextualize. CSD itself rejects requested maturity metadata on pause/weaken/resolve; the regression suite covers these constraints. This passed in CI run #156 with 256 tests on both operating systems.
+
+The Life Engine snapshot contract now consumes CSD-derived origin classes, interest maturity, scope, and voluntary-encounter lineage rather than re-deriving a raw origin from a single source token. When a user/external-origin interest later reaches an emerging voluntary pattern, a goal derived from it is marked mixed-origin; the signal's initial origin remains unchanged. The test suite verifies this and rejects encounter summaries that do not reference supporting evidence. This passed in CI run #161 with 258 tests on both operating systems.
 
 ## Scope and limitations
 
