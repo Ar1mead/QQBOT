@@ -92,11 +92,11 @@ The current work connects motivation signals to the same CSD event stream as cog
 - [x] Added `tests/test_csd_motivation.py` with migration, provenance, idempotency, origin preservation, signal lifecycle, global version, transaction rollback, and Recovery scenarios.
 - [x] Updated the workflow path filters and test step so `test_csd_motivation.py` is included for both pushes and pull requests.
 - [x] Run `python -m compileall -q core tests` against the exact branch checkout (GitHub Actions, Python 3.12.16).
-- [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (240 tests passed).
+- [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (242 tests passed).
 - [x] Fix the migration test fixture and update this ledger with the exact result; the earlier fixture represented an impossible v1 database state.
-- [x] Confirm a successful GitHub Actions run for the current branch: run #117, commit `13db2b4540c98ffb3114f64981841c7c8843ae1c`.
+- [x] Confirm a successful GitHub Actions run for the current branch: run #120, commit `b22b8e00c54d72aab6b96d18fceeacd14840be5c`.
 - [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
-- [~] Review all event payload schemas, replay determinism, projection consistency, and idempotency edge cases; initial review completed, broader adversarial coverage remains.
+- [~] Reconcile motivation proposal/signal projections against authoritative events; tampering tests and Recovery repair pass. Broader event-schema, replay, and idempotency adversarial coverage remains.
 - [ ] Only after the above: run the tests on the user's Windows environment.
 
 Important implementation boundary: the current CSD motivation decision path is deterministic scaffolding. It does not yet infer authentic human-like interests, feelings, needs, or desires; it does not authenticate adapter identity; and it does not establish that the evidence source is truthful. A caller-supplied adapter string is provenance metadata, not a security credential. Do not describe this slice as autonomous motivation or a complete cognitive system.
@@ -155,13 +155,13 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- The active branch head verified by hosted CI is `13db2b4540c98ffb3114f64981841c7c8843ae1c`.
+- The active branch head verified by hosted CI is `b22b8e00c54d72aab6b96d18fceeacd14840be5c`.
 - Hosted CI passed on Ubuntu 26.04.1 with Python 3.12.16 / SQLite 3.46.1.
 - `python -m compileall -q core tests` passed.
-- `python -m unittest discover -s tests -v` passed: 240 tests.
+- `python -m unittest discover -s tests -v` passed: 242 tests.
 - The v1→v2 migration test now uses a legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
 - Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
 
-**Resume from section 4, first remaining review item: adversarial review of event/projection/replay invariants, then Windows-local verification.**
+**Resume from section 4, first remaining review item: continue adversarial review of event payload/replay/idempotency invariants, then Windows-local verification.**
