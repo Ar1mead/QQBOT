@@ -11,7 +11,7 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any, Protocol
 
-from .contracts import LifeSnapshot, MotivationSignal
+from .contracts import GoalState, LifeSnapshot, MotivationSignal
 
 
 _ORIGIN_CLASSES = {
@@ -187,12 +187,40 @@ class CognitiveStoreLifeSnapshotReader:
         version = snapshot.get("state_version")
         if not isinstance(version, int) or isinstance(version, bool) or version < 0:
             raise ValueError("CSD life signal snapshot has invalid state_version")
-        if set(snapshot) != {"state_version", "signals"}:
-            raise ValueError("CSD life signal snapshot contains missing or unsupported fields")
+        if set(snapshot) != {"state_version", "signals", "goals"}:
+            raise ValueError("CSD life snapshot contains missing or unsupported fields")
+        raw_goals = snapshot["goals"]
+        if not isinstance(raw_goals, (list, tuple)):
+            raise ValueError("CSD goals must be a sequence")
+        goals: list[GoalState] = []
+        seen_goal_ids: set[str] = set()
+        for record in raw_goals:
+            if not isinstance(record, Mapping):
+                raise ValueError("CSD goal record must be a mapping")
+            goal_id = record.get("goal_id")
+            desired_condition = record.get("desired_condition")
+            status = record.get("status")
+            goal_version = record.get("goal_version")
+            if not isinstance(goal_id, str) or not goal_id.strip():
+                raise ValueError("CSD goal_id must be non-empty")
+            if goal_id in seen_goal_ids:
+                raise ValueError("CSD goal snapshot contains duplicate goal IDs")
+            seen_goal_ids.add(goal_id)
+            if not isinstance(desired_condition, str) or not desired_condition.strip():
+                raise ValueError("CSD goal desired_condition must be non-empty")
+            if status not in {"candidate", "active", "paused", "blocked", "satisfied", "abandoned", "superseded"}:
+                raise ValueError("CSD goal has unsupported lifecycle status")
+            if not isinstance(goal_version, int) or isinstance(goal_version, bool) or goal_version < 1:
+                raise ValueError("CSD goal_version must be positive")
+            goals.append(GoalState(
+                goal_id=goal_id,
+                desired_condition=desired_condition,
+                status=status,
+            ))
         return LifeSnapshot(
             state_version=version,
             signals=motivation_signals_from_csd(snapshot["signals"]),
-            goals=(),
+            goals=tuple(goals),
             activity_options=(),
         )
 
