@@ -253,6 +253,10 @@ Do not reuse one ID to mean all four things. Correlation IDs group related work 
 
 Retries of the same submission preserve the same event/proposal identity and immutable content. A genuinely new observation or a newly reasoned proposal receives a new identity, even if its text resembles an earlier one.
 
+## 8.1 Proposal snapshot chronology
+
+Every proposal family that carries `based_on.state_version` must prove that the claimed version existed immediately before the proposal event's authoritative sequence. CSD rejects a future version at append time; it may retain an older/stale version so evaluation can defer it without rebasing. Recovery enforces the same rule while replaying the event stream. This applies across memory, grounded memory, motivation, and goal proposals.
+
 ## 9. Failure behavior
 
 | Failure | Required behavior |
