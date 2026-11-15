@@ -92,11 +92,11 @@ The current work connects motivation signals to the same CSD event stream as cog
 - [x] Added `tests/test_csd_motivation.py` with migration, provenance, idempotency, origin preservation, signal lifecycle, global version, transaction rollback, and Recovery scenarios.
 - [x] Updated the workflow path filters and test step so `test_csd_motivation.py` is included for both pushes and pull requests.
 - [x] Run `python -m compileall -q core tests` against the exact branch checkout (GitHub Actions, Python 3.12.16).
-- [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (244 tests passed).
+- [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (246 tests passed).
 - [x] Fix the migration test fixture and update this ledger with the exact result; the earlier fixture represented an impossible v1 database state.
-- [x] Confirm a successful GitHub Actions run for the current branch: run #125, commit `5f2b0dcc3d2682ed128b506de46d328c5f9820a1`.
+- [x] Confirm a successful GitHub Actions run for the current branch: run #129, commit `7d326cf3c9e69471db4e42e8097454d86087fa86`.
 - [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
-- [~] Reconcile motivation proposal/signal projections against authoritative events; tampering tests and Recovery repair pass. Duplicate proposal source-validation bypass is closed; lifecycle tests cover weaken, contextualize, and resolve as well as create/reinforce/pause. Broader event-schema, replay, and idempotency adversarial coverage remains.
+- [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
 - [x] Run the full suite on a GitHub-hosted Windows runner (244 tests, Python 3.12.10 / SQLite 3.49.1); this is a cross-platform CI check, not the user's own Windows 11 environment.
 - [ ] Only after the above: run the tests on the user's Windows environment.
 
@@ -156,10 +156,10 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- The active branch head verified by hosted CI is `5f2b0dcc3d2682ed128b506de46d328c5f9820a1`.
+- The active branch head verified by hosted CI is `7d326cf3c9e69471db4e42e8097454d86087fa86`.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
-- `python -m unittest discover -s tests -v` passed: 244 tests on both Linux and Windows runners.
+- `python -m unittest discover -s tests -v` passed: 246 tests on both Linux and Windows runners.
 - The v1→v2 migration test now uses a legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
 - Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
