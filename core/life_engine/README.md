@@ -17,12 +17,12 @@ The prototype can represent:
 - needs, interests, curiosity, affect, commitments, and opportunities as distinct signals;
 - CSD-derived immutable origin classes (`internally_initiated`, `user_requested_encounter`, `externally_exposed`, `mixed_origin`);
 - CSD-derived interest maturity and voluntary-encounter lineage, without rewriting the signal's initial origin;
-- candidate goals with origin references, success conditions, stop conditions, and review conditions;
+- candidate goals with origin references, exact source signal-version lineage derived from the trusted snapshot, success conditions, stop conditions, and review conditions;
 - start, continue, wait, request-information, pause, abandon, revise, decline, stop, and no-op choices;
 - trusted activity options with explicit capability, prerequisite, and side-effect metadata;
 - a distinction between read-only activities and choices requiring ASM governance.
 
-Goal origin is derived from the referenced snapshot signals' CSD-owned origin classes. An initially user-requested or externally exposed interest that later develops an emerging pattern of voluntary encounters produces mixed goal lineage; its original origin is never rewritten as purely internal. The deliberator cannot declare its own goal to be internally initiated.
+Goal origin and exact source signal versions are derived from the referenced snapshot signals' CSD-owned state. The derived versions are proposal metadata only; CSD must independently resolve and verify them before persisting a goal. An initially user-requested or externally exposed interest that later develops an emerging pattern of voluntary encounters produces mixed goal lineage; its original origin is never rewritten as purely internal. The deliberator cannot declare its own goal to be internally initiated.
 
 A selected side-effecting activity is only marked as requiring ASM governance. No action is dispatched. The package has no browser, shell, network client, platform adapter, or action executor.
 
