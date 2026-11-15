@@ -695,6 +695,54 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertEqual(report["motivation_signals"], 1)
         self.assertEqual(self.store.get_motivation_signals(), before)
 
+    def test_recovery_detects_coordinated_signal_projection_tampering(self):
+        self.add_interaction(interaction("interaction-tamper-signal"))
+        self.add_proposal(motivation_proposal(
+            "proposal-tamper-signal",
+            support=("interaction-tamper-signal",),
+        ))
+        self.store.evaluate_motivation_proposal("proposal-tamper-signal")
+        expected = self.store.get_motivation_signals()
+
+        # Corrupt both projection tables identically. Cross-checking the tables
+        # against each other alone would incorrectly consider this consistent.
+        self.store._db.execute(
+            "UPDATE motivation_signal_versions SET signal_json='{}' "
+            "WHERE signal_id='signal-blue-boat'"
+        )
+        self.store._db.execute(
+            "UPDATE motivation_signals SET signal_json='{}' "
+            "WHERE signal_id='signal-blue-boat'"
+        )
+        self.assertFalse(self.store.get_state_snapshot()["projection_consistent"])
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_motivation_signals()
+
+        self.store.recover()
+        self.assertTrue(self.store.get_state_snapshot()["projection_consistent"])
+        self.assertEqual(self.store.get_motivation_signals(), expected)
+
+    def test_motivation_proposal_projection_is_checked_against_event_history(self):
+        self.add_interaction(interaction("interaction-tamper-proposal"))
+        self.add_proposal(motivation_proposal(
+            "proposal-tamper-status",
+            support=("interaction-tamper-proposal",),
+        ))
+        self.store.evaluate_motivation_proposal("proposal-tamper-status")
+        self.store._db.execute(
+            "UPDATE motivation_proposals SET status='rejected' "
+            "WHERE proposal_id='proposal-tamper-status'"
+        )
+        self.assertFalse(self.store.get_state_snapshot()["projection_consistent"])
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_motivation_proposal("proposal-tamper-status")
+
+        self.store.recover()
+        self.assertEqual(
+            self.store.get_motivation_proposal("proposal-tamper-status")["status"],
+            "accepted",
+        )
+
     def test_recovery_repairs_deleted_motivation_projection(self):
         self.add_interaction(interaction("interaction-1"))
         self.add_proposal(motivation_proposal("proposal-rebuild"))
