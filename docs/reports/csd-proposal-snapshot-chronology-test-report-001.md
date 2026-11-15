@@ -1,10 +1,10 @@
 # CSD Proposal Snapshot Chronology — Cross-Domain Test Report 001
 
 > Status: **hosted CI passed on Linux and Windows; user-local Windows verification pending**  
-> Tested code/test commit: `146c0b86e58e72af6cab7f419bba7236821b6be1`  
+> Tested code/test commit: `a8713a92a7af6e14ab36db15fdb4d67cb652f6f8`  
 > Branch: `feature/csd-cognitive-memory-slice`  
-> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43691014899)  
-> Workflow run: **#270** — success on both matrix jobs
+> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43691248378)  
+> Workflow run: **#272** — success on both matrix jobs
 
 ## 1. Finding
 
@@ -36,7 +36,8 @@ The goal projection retains an additional event-order consistency check as defen
 Three new tests verify that:
 1. an ordinary memory proposal cannot claim a future snapshot version;
 2. a grounded-memory proposal cannot claim a future snapshot version;
-3. a motivation proposal cannot claim a future snapshot version, while a valid proposal based on the actual current version can still be accepted.
+3. a motivation proposal cannot claim a future snapshot version, while a valid proposal based on the actual current version can still be accepted;
+4. Recovery rejects a durable proposal event with an impossible future snapshot version even when its payload and event digests are valid, and rolls back the attempted projection rebuild.
 
 Existing goal and pause/resume tests cover the same invariant for goal-related proposal families.
 
@@ -46,8 +47,8 @@ Both GitHub-hosted runners passed:
 
 | Runner | Python / SQLite | Full test discovery | Time |
 |---|---|---:|---:|
-| Ubuntu | Python 3.12.16 / SQLite 3.46.1 | 325 passed | 2.819s |
-| Windows | Python 3.12.10 / SQLite 3.49.1 | 325 passed | 22.161s |
+| Ubuntu | Python 3.12.16 / SQLite 3.46.1 | 326 passed | 3.226s |
+| Windows | Python 3.12.10 / SQLite 3.49.1 | 326 passed | 23.264s |
 
 The workflow also passed `python -m compileall -q core tests` and all focused test steps.
 
