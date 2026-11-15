@@ -818,34 +818,149 @@ class CognitiveMotivationMixin:
         return json.loads(row["signal_json"])
 
     def _assert_motivation_projection_consistent(self) -> None:
-        expected = self._accepted_transition_count(self._db, {MOTIVATION_DECISION_EVENT})
-        versions = int(self._db.execute(
-            "SELECT COUNT(*) FROM motivation_signal_versions"
-        ).fetchone()[0])
-        signals = int(self._db.execute(
-            "SELECT COUNT(*) FROM motivation_signals"
-        ).fetchone()[0])
-        distinct = int(self._db.execute(
-            "SELECT COUNT(DISTINCT signal_id) FROM motivation_signal_versions"
-        ).fetchone()[0])
-        if expected != versions or signals != distinct:
-            self._raise_cognitive_integrity("motivation signal projection is out of sync; run Recovery")
-        mismatches = int(self._db.execute(
-            "SELECT COUNT(*) FROM motivation_signals s "
-            "LEFT JOIN motivation_signal_versions v "
-            "ON v.signal_id=s.signal_id AND v.signal_version=s.signal_version "
-            "WHERE v.signal_id IS NULL OR v.signal_json<>s.signal_json "
-            "OR v.decision_event_id<>s.decision_event_id "
-            "OR v.transition_id<>s.transition_id"
-        ).fetchone()[0])
-        latest_mismatches = int(self._db.execute(
-            "SELECT COUNT(*) FROM motivation_signals s "
-            "JOIN (SELECT signal_id,MAX(signal_version) AS max_version "
-            "FROM motivation_signal_versions GROUP BY signal_id) v "
-            "ON v.signal_id=s.signal_id WHERE s.signal_version<>v.max_version"
-        ).fetchone()[0])
-        if mismatches or latest_mismatches:
-            self._raise_cognitive_integrity("latest motivation signal projection differs from version history; run Recovery")
+        # Reconcile every motivation projection against the immutable event log.
+        # Comparing only row counts or comparing the two projections to each
+        # other would miss coordinated corruption of both projection tables.
+        import hashlib
+
+        event_rows = self._db.execute(
+            "SELECT e.event_id,e.event_type,p.payload_json FROM events e "
+            "JOIN payloads p ON p.payload_ref=e.payload_ref "
+            "WHERE e.event_type IN (?,?) ORDER BY e.sequence",
+            (MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT),
+        ).fetchall()
+        expected_proposals: dict[str, dict[str, Any]] = {}
+        expected_decisions: dict[str, tuple[str, dict[str, Any]]] = {}
+        for row in event_rows:
+            try:
+                payload = json.loads(row["payload_json"])
+            except json.JSONDecodeError as exc:
+                self._raise_cognitive_integrity("invalid motivation event payload JSON")
+                raise exc
+            if not isinstance(payload, dict):
+                self._raise_cognitive_integrity("motivation event payload is not an object")
+            if row["event_type"] == MOTIVATION_PROPOSAL_EVENT:
+                proposal_id = payload.get("proposal_id")
+                if not isinstance(proposal_id, str) or not proposal_id:
+                    self._raise_cognitive_integrity("motivation proposal event has no proposal_id")
+                canonical = json.dumps(
+                    payload, ensure_ascii=False, sort_keys=True,
+                    separators=(",", ":"), allow_nan=False,
+                )
+                digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+                prior = expected_proposals.get(proposal_id)
+                if prior is None:
+                    expected_proposals[proposal_id] = {
+                        "proposal_digest": digest,
+                        "proposal_event_id": row["event_id"],
+                        "proposal_json": canonical,
+                    }
+                elif prior["proposal_digest"] != digest:
+                    self._raise_cognitive_integrity("motivation proposal identity conflict in event history")
+            else:
+                proposal_id = payload.get("proposal_id")
+                if not isinstance(proposal_id, str) or not proposal_id:
+                    self._raise_cognitive_integrity("motivation decision event has no proposal_id")
+                if proposal_id in expected_decisions:
+                    self._raise_cognitive_integrity("motivation proposal has multiple decision events")
+                expected_decisions[proposal_id] = (row["event_id"], payload)
+
+        projection_rows = self._db.execute(
+            "SELECT proposal_id,proposal_digest,proposal_event_id,proposal_json,status,decision_event_id "
+            "FROM motivation_proposals"
+        ).fetchall()
+        if len(projection_rows) != len(expected_proposals):
+            self._raise_cognitive_integrity("motivation proposal projection row count differs from event history")
+        for row in projection_rows:
+            expected = expected_proposals.get(row["proposal_id"])
+            if expected is None:
+                self._raise_cognitive_integrity("motivation proposal projection has no source event")
+            decision = expected_decisions.get(row["proposal_id"])
+            expected_status = decision[1].get("outcome") if decision else "pending"
+            expected_decision_id = decision[0] if decision else None
+            if (
+                row["proposal_digest"] != expected["proposal_digest"]
+                or row["proposal_event_id"] != expected["proposal_event_id"]
+                or row["proposal_json"] != expected["proposal_json"]
+                or row["status"] != expected_status
+                or row["decision_event_id"] != expected_decision_id
+            ):
+                self._raise_cognitive_integrity("motivation proposal projection differs from event history")
+        if set(expected_decisions) - set(expected_proposals):
+            self._raise_cognitive_integrity("motivation decision references a missing proposal event")
+
+        expected_versions: dict[tuple[str, int], dict[str, Any]] = {}
+        for proposal_id, (decision_event_id, payload) in expected_decisions.items():
+            if payload.get("outcome") != "accepted":
+                if payload.get("signal") is not None or payload.get("transition_id") is not None:
+                    self._raise_cognitive_integrity("non-accepted motivation decision contains a signal transition")
+                continue
+            signal = payload.get("signal")
+            if not isinstance(signal, dict):
+                self._raise_cognitive_integrity("accepted motivation decision has no signal object")
+            signal_id = signal.get("signal_id")
+            signal_version = signal.get("signal_version")
+            if (
+                not isinstance(signal_id, str) or not signal_id
+                or not isinstance(signal_version, int) or isinstance(signal_version, bool)
+                or signal_version < 1
+            ):
+                self._raise_cognitive_integrity("accepted motivation decision has invalid signal identity/version")
+            key = (signal_id, signal_version)
+            if key in expected_versions:
+                self._raise_cognitive_integrity("duplicate motivation signal version in event history")
+            signal_json = json.dumps(
+                signal, ensure_ascii=False, sort_keys=True,
+                separators=(",", ":"), allow_nan=False,
+            )
+            expected_versions[key] = {
+                "decision_event_id": decision_event_id,
+                "transition_id": payload.get("transition_id"),
+                "signal_json": signal_json,
+            }
+
+        version_rows = self._db.execute(
+            "SELECT signal_id,signal_version,decision_event_id,transition_id,signal_json "
+            "FROM motivation_signal_versions"
+        ).fetchall()
+        if len(version_rows) != len(expected_versions):
+            self._raise_cognitive_integrity("motivation signal version count differs from accepted decisions")
+        latest_by_signal: dict[str, tuple[int, dict[str, Any]]] = {}
+        for row in version_rows:
+            key = (row["signal_id"], int(row["signal_version"]))
+            expected = expected_versions.get(key)
+            if expected is None or (
+                row["decision_event_id"] != expected["decision_event_id"]
+                or row["transition_id"] != expected["transition_id"]
+                or row["signal_json"] != expected["signal_json"]
+            ):
+                self._raise_cognitive_integrity("motivation signal version differs from decision event")
+            prior = latest_by_signal.get(row["signal_id"])
+            if prior is None or key[1] > prior[0]:
+                latest_by_signal[row["signal_id"]] = (
+                    key[1],
+                    {
+                        "decision_event_id": expected["decision_event_id"],
+                        "transition_id": expected["transition_id"],
+                        "signal_json": expected["signal_json"],
+                    },
+                )
+
+        latest_rows = self._db.execute(
+            "SELECT signal_id,signal_version,decision_event_id,transition_id,signal_json "
+            "FROM motivation_signals"
+        ).fetchall()
+        if len(latest_rows) != len(latest_by_signal):
+            self._raise_cognitive_integrity("latest motivation signal count differs from version history")
+        for row in latest_rows:
+            latest = latest_by_signal.get(row["signal_id"])
+            if latest is None or (
+                int(row["signal_version"]) != latest[0]
+                or row["decision_event_id"] != latest[1]["decision_event_id"]
+                or row["transition_id"] != latest[1]["transition_id"]
+                or row["signal_json"] != latest[1]["signal_json"]
+            ):
+                self._raise_cognitive_integrity("latest motivation signal projection differs from event history")
 
     @staticmethod
     def _accepted_transition_count(
