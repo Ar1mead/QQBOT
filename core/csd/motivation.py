@@ -883,6 +883,7 @@ class CognitiveMotivationMixin:
                         "proposal_digest": digest,
                         "proposal_event_id": row["event_id"],
                         "proposal_json": canonical,
+                        "sequence": int(row["sequence"]),
                     }
                 elif prior["proposal_digest"] != digest:
                     self._raise_cognitive_integrity("motivation proposal identity conflict in event history")
@@ -919,6 +920,45 @@ class CognitiveMotivationMixin:
                 self._raise_cognitive_integrity("motivation proposal projection differs from event history")
         if set(expected_decisions) - set(expected_proposals):
             self._raise_cognitive_integrity("motivation decision references a missing proposal event")
+
+        # Pending proposals are still externally visible hypotheses. Verify
+        # their referenced evidence before returning them, not only after an
+        # accepted signal has been projected.
+        for proposal_id, proposal_source in expected_proposals.items():
+            proposal_payload = json.loads(proposal_source["proposal_json"])
+            supporting_ids = proposal_payload.get("supporting_event_ids")
+            counter_ids = proposal_payload.get("counter_evidence_event_ids")
+            if (
+                not isinstance(supporting_ids, list)
+                or not isinstance(counter_ids, list)
+                or any(not isinstance(item, str) or not item for item in supporting_ids + counter_ids)
+                or len(set(supporting_ids)) != len(supporting_ids)
+                or len(set(counter_ids)) != len(counter_ids)
+                or set(supporting_ids) & set(counter_ids)
+            ):
+                self._raise_cognitive_integrity("motivation proposal evidence references are invalid")
+            for evidence_id in supporting_ids + counter_ids:
+                try:
+                    evidence_record = self.get_event(evidence_id)
+                except KeyError as exc:
+                    self._raise_cognitive_integrity(
+                        f"motivation proposal references missing evidence: {evidence_id}"
+                    )
+                    raise exc
+                evidence_payload = evidence_record["payload"]
+                if (
+                    evidence_record["event_type"] != INTERACTION_EVENT
+                    or int(evidence_record["sequence"]) >= proposal_source["sequence"]
+                    or evidence_payload.get("subject_ref") != proposal_payload.get("subject_ref")
+                ):
+                    self._raise_cognitive_integrity(
+                        f"motivation proposal references invalid or non-prior evidence: {evidence_id}"
+                    )
+                is_counter = evidence_id in counter_ids
+                if (evidence_payload.get("evidence_kind") == "counter_evidence") != is_counter:
+                    self._raise_cognitive_integrity(
+                        f"motivation proposal evidence classification mismatch: {evidence_id}"
+                    )
 
         expected_versions: dict[tuple[str, int], dict[str, Any]] = {}
         for proposal_id, (decision_event_id, payload, decision_sequence) in expected_decisions.items():
