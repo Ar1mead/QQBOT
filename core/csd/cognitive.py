@@ -1854,7 +1854,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 "ORDER BY e.sequence"
             ).fetchall()
 
-            parsed: list[tuple[int, CognitiveEvent]] = []
+            parsed: list[tuple[int, CognitiveEvent, str]] = []
             expected = 1
             for row in rows:
                 if int(row["sequence"]) != expected:
@@ -1885,7 +1885,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 _timestamp(row["received_at"], "received_at")
                 if self._event_digest(event, row["payload_ref"], row["received_at"]) != row["event_digest"]:
                     raise CognitiveIntegrityError(f"event envelope digest failure: {event.event_id}")
-                parsed.append((expected - 1, event))
+                parsed.append((expected - 1, event, payload_json))
 
             db.execute("DELETE FROM accepted_memories")
             db.execute("DELETE FROM proposals")
@@ -1897,7 +1897,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             db.execute("DELETE FROM goal_proposals")
             db.execute("DELETE FROM goal_activation_proposals")
             db.execute("DELETE FROM goal_pause_resume_proposals")
-            for sequence, event in parsed:
+            for sequence, event, stored_payload_json in parsed:
                 decision_types = {
                     DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT,
                     GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT,
@@ -1913,7 +1913,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     raise CognitiveIntegrityError(
                         f"invalid durable event envelope: {event.event_id}"
                     ) from exc
-                if canonical_payload_json != payload_json:
+                if canonical_payload_json != stored_payload_json:
                     raise CognitiveIntegrityError(
                         f"non-canonical durable event payload: {event.event_id}"
                     )
