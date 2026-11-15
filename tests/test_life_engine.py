@@ -16,14 +16,25 @@ from core.life_engine import (
 )
 
 
-def signal(signal_id="sig-interest", origin="internal_state", *, active=True):
+def signal(
+    signal_id="sig-interest",
+    origin_class="internally_initiated",
+    *,
+    active=True,
+    kind="interest",
+    interest_stage=None,
+    voluntary_encounters=(),
+):
     return MotivationSignal(
         signal_id=signal_id,
-        kind="interest" if origin != "user_request" else "opportunity",
-        origin=origin,
+        kind=kind,
+        origin_class=origin_class,
         description="A synthetic motivation signal.",
         evidence_event_ids=("evt-source-1",),
         active=active,
+        scope="synthetic topic scope",
+        interest_stage=interest_stage,
+        voluntary_encounters=voluntary_encounters,
     )
 
 
@@ -219,7 +230,7 @@ class LifeProposalValidationTests(unittest.TestCase):
         self.assertEqual(result.goal_origin_classes, (("goal-new", "internally_initiated"),))
 
     def test_user_requested_goal_origin_remains_user_requested(self):
-        user_signal = signal("sig-user", "user_request")
+        user_signal = signal("sig-user", "user_requested_encounter", kind="opportunity")
         user_option = option(source_ids=("sig-user",))
         snap = snapshot(signals=(user_signal,), options=(user_option,))
         candidate = GoalProposal(
@@ -233,7 +244,7 @@ class LifeProposalValidationTests(unittest.TestCase):
         self.assertEqual(result.goal_origin_classes, (("goal-user", "user_requested"),))
 
     def test_external_opportunity_is_not_misclassified_as_internal(self):
-        external = signal("sig-opportunity", "external_opportunity")
+        external = signal("sig-opportunity", "externally_exposed", kind="opportunity")
         external_option = option(source_ids=("sig-opportunity",))
         snap = snapshot(signals=(external,), options=(external_option,))
         candidate = GoalProposal(
@@ -245,6 +256,49 @@ class LifeProposalValidationTests(unittest.TestCase):
         )
         result = validate_life_proposal(snap, proposal(snap, goals=(candidate,)))
         self.assertEqual(result.goal_origin_classes, (("goal-external", "externally_triggered"),))
+
+    def test_user_origin_is_not_rewritten_when_interest_later_emerges(self):
+        evolved_user_interest = signal(
+            "sig-user-evolved",
+            "user_requested_encounter",
+            kind="interest",
+            interest_stage="emerging",
+            voluntary_encounters=(
+                ("enc-1", "2026-11-14T10:00:00+00:00", "evt-source-1"),
+                ("enc-2", "2026-11-15T10:00:00+00:00", "evt-source-2"),
+            ),
+        )
+        snap = snapshot(
+            signals=(evolved_user_interest,),
+            options=(option(source_ids=("sig-user-evolved",)),),
+        )
+        candidate = GoalProposal(
+            "goal-evolved-user-interest", "Explore the topic independently",
+            ("sig-user-evolved",),
+            "The topic has developed repeated voluntary interest.",
+            "The bounded question is answered.",
+            "Stop if the interest fades.",
+            "Review after the next encounter.",
+        )
+        result = validate_life_proposal(snap, proposal(snap, goals=(candidate,)))
+        self.assertEqual(
+            result.goal_origin_classes,
+            (("goal-evolved-user-interest", "mixed_origin"),),
+        )
+
+    def test_interest_encounter_summary_must_reference_supporting_evidence(self):
+        invalid = signal(
+            interest_stage="emerging",
+            voluntary_encounters=(
+                ("enc-1", "2026-11-14T10:00:00+00:00", "evt-source-1"),
+                ("enc-2", "2026-11-15T10:00:00+00:00", "not-in-support"),
+            ),
+        )
+        with self.assertRaises(ValueError):
+            validate_life_proposal(
+                snapshot(signals=(invalid,), options=()),
+                proposal(snapshot(signals=(invalid,), options=())),
+            )
 
     def test_mixed_internal_and_user_origins_are_not_claimed_as_purely_internal(self):
         snap = snapshot(signals=(signal(), signal("sig-user", "user_request")))
@@ -378,7 +432,7 @@ class LifeProposalValidationTests(unittest.TestCase):
         commitment = MotivationSignal(
             "sig-commitment",
             "commitment",
-            "self_commitment",
+            "internally_initiated",
             "A self-accepted commitment.",
             ("evt-commitment",),
         )
