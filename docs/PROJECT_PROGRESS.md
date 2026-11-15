@@ -158,10 +158,10 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by CI: `5484fa66880767452b6a81cff617f5f42daf8679`, workflow run #186. The Life Engine snapshot contract preserves CSD origin, voluntary lineage, subject identity, and support/counterevidence polarity.
+- Latest code/test commit verified by CI: `9017f49a14ece312abc8e988fa3c5fa866f4d907`, workflow run #189. The Life Engine snapshot contract preserves CSD origin, voluntary lineage, subject identity, and support/counterevidence polarity.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
-- `python -m unittest discover -s tests -v` passed: 266 tests on both Linux and Windows runners (Linux 2.029s; Windows 11.539s).
+- `python -m unittest discover -s tests -v` passed: 266 tests on both Linux and Windows runners (Linux 1.627s; Windows 13.503s).
 - The v1→v2 migration test uses legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
 - Motivation and accepted-memory proposal/state projections are checked against authoritative events; corruption tests verify Recovery repair.
 - Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
