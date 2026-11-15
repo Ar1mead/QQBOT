@@ -678,5 +678,51 @@ class GoalActivationChoiceTests(unittest.TestCase):
             validate_life_proposal(snap, proposal(snap, selected))
 
 
+
+class GoalPauseResumeChoiceTests(unittest.TestCase):
+    def test_pause_goal_requires_active_goal_and_exact_version(self):
+        active = GoalState("goal-active", "Continue the subject", "active", goal_version=3)
+        snap = snapshot(goals=(active,), options=())
+        selected = choice("pause_goal", goal_id="goal-active", expected_goal_version=3)
+        validated = validate_life_proposal(snap, proposal(snap, selected))
+        self.assertEqual(validated.proposal.choice.disposition, "pause_goal")
+
+    def test_pause_goal_rejects_paused_goal_and_stale_version(self):
+        paused = GoalState("goal-paused", "Continue the subject", "paused", goal_version=3)
+        snap = snapshot(goals=(paused,), options=())
+        selected = choice("pause_goal", goal_id="goal-paused", expected_goal_version=3)
+        with self.assertRaises(ValueError):
+            validate_life_proposal(snap, proposal(snap, selected))
+        active = GoalState("goal-active", "Continue the subject", "active", goal_version=3)
+        snap = snapshot(goals=(active,), options=())
+        selected = choice("pause_goal", goal_id="goal-active", expected_goal_version=2)
+        with self.assertRaises(ValueError):
+            validate_life_proposal(snap, proposal(snap, selected))
+
+    def test_resume_goal_requires_paused_goal_and_exact_version(self):
+        paused = GoalState("goal-paused", "Continue the subject", "paused", goal_version=4)
+        snap = snapshot(goals=(paused,), options=())
+        selected = choice("resume_goal", goal_id="goal-paused", expected_goal_version=4)
+        validated = validate_life_proposal(snap, proposal(snap, selected))
+        self.assertEqual(validated.proposal.choice.disposition, "resume_goal")
+        active = GoalState("goal-active", "Continue the subject", "active", goal_version=4)
+        snap = snapshot(goals=(active,), options=())
+        selected = choice("resume_goal", goal_id="goal-active", expected_goal_version=4)
+        with self.assertRaises(ValueError):
+            validate_life_proposal(snap, proposal(snap, selected))
+
+    def test_pause_resume_cannot_be_combined_with_candidate_creation(self):
+        active = GoalState("goal-active", "Continue the subject", "active", goal_version=1)
+        snap = snapshot(goals=(active,), options=())
+        candidate = GoalProposal(
+            "goal-new", "Explore another subject", ("sig-interest",),
+            "A new hypothesis.", "A coherent account is recorded.",
+            "Stop when no value remains.", "Review after new evidence.",
+        )
+        selected = choice("pause_goal", goal_id="goal-active", expected_goal_version=1)
+        with self.assertRaises(ValueError):
+            validate_life_proposal(snap, proposal(snap, selected, goals=(candidate,)))
+
+
 if __name__ == "__main__":
     unittest.main()
