@@ -6,8 +6,8 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `b22b8e00c54d72aab6b96d18fceeacd14840be5c`
-- Workflow run: [CSD cognitive slice tests #120](https://github.com/Ar1mead/QQBOT/actions/runs/43664485381)
+- Verified commit: `84f35f04cb5c8d2266b9648cd5375597577919e3`
+- Workflow run: [CSD cognitive slice tests #121](https://github.com/Ar1mead/QQBOT/actions/runs/43664647115)
 - Runner: GitHub-hosted Ubuntu 26.04.1
 - Python: 3.12.16
 - SQLite: 3.46.1
@@ -22,7 +22,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 242 tests in 3.037s
+Ran 243 tests in 1.980s
 OK
 ```
 
@@ -48,6 +48,8 @@ The first consistency check compared the latest motivation projection with its v
 - each latest-signal projection against the highest event-backed signal version.
 
 Tests deliberately corrupt both signal projection tables identically and separately alter a proposal's projected status. Both cases are detected; Recovery rebuilds the correct projections from the event history.
+
+A further idempotency test submits a second event for an existing immutable motivation proposal with a forged source component. The duplicate is rejected and the attempted event is rolled back; valid duplicate submissions remain idempotent.
 
 ## Scope and limitations
 
