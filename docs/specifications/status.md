@@ -89,3 +89,5 @@ Do not present ASM-5.4 as finalized, and do not generate conformance tests from 
 - Label confirmed decisions, proposed patches, engineering assumptions, and unresolved questions separately.
 - Do not silently promote an unresolved issue into a normative rule.
 - Build conformance tests only against an explicitly selected and sufficiently stable source baseline.
+
+Snapshot consistency verification: both diagnostic and Life Engine snapshot readers execute within the shared explicit read-transaction helper. A deterministic two-connection test commits a new event after the diagnostic snapshot has established its read view and confirms the returned snapshot excludes that later event while the database contains it. The test uses two independent connections without crossing SQLite thread affinity. Hosted CI run #298 passed 332 tests on Ubuntu and Windows.
