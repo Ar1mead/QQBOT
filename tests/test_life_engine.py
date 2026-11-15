@@ -307,6 +307,21 @@ class LifeProposalValidationTests(unittest.TestCase):
                 proposal(snapshot(signals=(invalid,), options=())),
             )
 
+    def test_interest_encounters_with_different_offsets_but_same_instant_are_not_distinct(self):
+        invalid = signal(
+            interest_stage="emerging",
+            supporting_event_ids=("evt-1", "evt-2"),
+            voluntary_encounters=(
+                ("enc-1", "2026-11-14T10:00:00+00:00", "evt-1"),
+                ("enc-2", "2026-11-14T11:00:00+01:00", "evt-2"),
+            ),
+        )
+        with self.assertRaises(ValueError):
+            validate_life_proposal(
+                snapshot(signals=(invalid,), options=()),
+                proposal(snapshot(signals=(invalid,), options=())),
+            )
+
     def test_interest_encounter_summary_must_reference_supporting_evidence(self):
         invalid = signal(
             interest_stage="emerging",
