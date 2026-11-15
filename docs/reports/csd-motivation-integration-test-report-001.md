@@ -6,12 +6,12 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `5484fa66880767452b6a81cff617f5f42daf8679`
-- Workflow run: [CSD cognitive slice tests #186](https://github.com/Ar1mead/QQBOT/actions/runs/43669847907)
+- Verified commit: `9017f49a14ece312abc8e988fa3c5fa866f4d907`
+- Workflow run: [CSD cognitive slice tests #189](https://github.com/Ar1mead/QQBOT/actions/runs/43670159822)
 - Linux runner: GitHub-hosted Ubuntu 26.04.1 — Python 3.12.16 / SQLite 3.46.1
 - Windows runner: GitHub-hosted `windows-latest` — Python 3.12.10 / SQLite 3.49.1
 
-Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (266 tests each; Linux 2.029s, Windows 11.539s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
+Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (266 tests each; Linux 1.627s, Windows 13.503s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
 
 ## Exact commands
 
@@ -23,7 +23,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 266 tests in 2.029s on Linux; the Windows runner completed the same 266-test suite in 11.539s.
+Ran 266 tests in 1.627s on Linux; the Windows runner completed the same 266-test suite in 13.503s.
 OK
 ```
 
@@ -85,6 +85,8 @@ A further adversarial check found that both CSD maturity derivation and the Life
 A pure CSD projection mapper now converts accepted motivation-signal records into Life Engine inputs while preserving signal version, subject, origin class, active status, support/counterevidence polarity, interest maturity, and voluntary-encounter lineage. It rejects missing/invalid fields, duplicate signal identities, and encounter references not present in supporting evidence. This is deliberately only a mapping boundary: it does not open the database, perform the CSD integrity read, authenticate the caller, or submit goal/choice proposals. The mapper and its regression tests passed in run #178 with 265 tests on both operating systems. A cross-module test now feeds a real accepted CSD signal, including its accumulated voluntary encounters, through the mapper and asserts that the Life Engine receives the same version, subject, origin, maturity, and encounter lineage. This integration assertion passed in run #179 with 265 tests on both operating systems.
 
 CSD now exposes `get_life_signal_snapshot()`, which opens one SQLite read transaction, verifies the shared authoritative state version and both memory/motivation projections against event history, and returns the accepted motivation-signal records from that same read snapshot. `CognitiveStoreLifeSnapshotReader` maps that result into a Life Engine `LifeSnapshot`. Goals and activity options are deliberately empty because durable goal/commitment state and trusted capability-option sourcing are not implemented yet. A cross-module test verifies a real CSD lifecycle with two voluntary encounters flows through the atomic reader and into the Life Engine snapshot. This passed in run #186 with 266 tests on both operating systems.
+
+The validated Life Engine proposal now also carries deterministic, sorted `(goal_id, ((signal_id, signal_version), ...))` lineage resolved from the same CSD snapshot. This is explanatory proposal metadata, not authority: the future CSD goal sink must independently resolve and validate source versions at the evaluated state version. The version-lineage regression passed in run #189 with 266 tests on both operating systems.
 
 ## Scope and limitations
 
