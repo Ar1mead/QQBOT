@@ -443,6 +443,40 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.add_interaction(out_of_order)
 
+    def test_return_visit_requires_a_prior_voluntary_selection(self):
+        prior = interaction(
+            "interaction-passive-prior",
+            kind="passive_exposure",
+            meaningful=False,
+            choice_set=[],
+            selected="item:blue-boat",
+            encounter="enc-passive-prior",
+        )
+        self.add_interaction(prior)
+        returned = interaction(
+            "interaction-return-after-passive",
+            kind="return_visit",
+            encounter="enc-return-after-passive",
+            related_event_id="interaction-passive-prior",
+            at="2026-11-14T11:00:00+00:00",
+        )
+        with self.assertRaises(ValueError):
+            self.add_interaction(returned)
+
+    def test_interaction_encounter_id_must_be_unique(self):
+        self.add_interaction(interaction(
+            "interaction-encounter-first",
+            encounter="enc-unique",
+        ))
+        duplicate_encounter = interaction(
+            "interaction-encounter-second",
+            encounter="enc-unique",
+            at="2026-11-14T11:00:00+00:00",
+        )
+        with self.assertRaises(ValueError):
+            self.add_interaction(duplicate_encounter)
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], 1)
+
     def test_adapter_source_must_match_adapter_metadata(self):
         good = interaction("interaction-adapter-source")
         bad = envelope(
