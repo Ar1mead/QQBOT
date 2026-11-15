@@ -856,6 +856,18 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.store.recover()
         self.assertEqual(self.store.get_goal(goal_id)["status"], "paused")
         self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 3)
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "resume-after-recovery", goal_id,
+            state_version=version, expected_goal_version=3, operation="resume",
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_pause_resume_proposal("resume-after-recovery")["status"],
+            "accepted",
+        )
+        self.store.recover()
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "active")
+        self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 4)
 
     def test_public_path_cannot_append_goal_pause_resume_decision(self):
         with self.assertRaises(ValueError):
