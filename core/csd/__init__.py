@@ -10,6 +10,8 @@ from .goals import (
     GOAL_BATCH_PROPOSAL_EVENT,
     GOAL_ACTIVATION_DECISION_EVENT,
     GOAL_ACTIVATION_PROPOSAL_EVENT,
+    GOAL_PAUSE_RESUME_DECISION_EVENT,
+    GOAL_PAUSE_RESUME_PROPOSAL_EVENT,
 )
 from .cognitive import (
     CognitiveEvent,
@@ -51,6 +53,8 @@ __all__ = [
     "GOAL_BATCH_PROPOSAL_EVENT",
     "GOAL_ACTIVATION_DECISION_EVENT",
     "GOAL_ACTIVATION_PROPOSAL_EVENT",
+    "GOAL_PAUSE_RESUME_DECISION_EVENT",
+    "GOAL_PAUSE_RESUME_PROPOSAL_EVENT",
     "CognitiveEvent",
     "CognitiveIdempotencyConflict",
     "CognitiveIntegrityError",
