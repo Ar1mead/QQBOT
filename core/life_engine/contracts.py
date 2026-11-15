@@ -434,6 +434,8 @@ def validate_life_proposal(
                 raise ValueError("activity stop condition has already been met")
         requires_asm = active_state.side_effect_level == "external_side_effect"
     elif choice.disposition == "activate_goal":
+        if proposal.goal_proposals:
+            raise ValueError("goal activation must be separate from candidate goal creation")
         if choice.goal_id is None:
             raise ValueError("activate_goal requires goal_id")
         if choice.activity_id is not None or choice.active_activity_id is not None:
