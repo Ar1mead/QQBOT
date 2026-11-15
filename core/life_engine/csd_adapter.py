@@ -216,6 +216,7 @@ class CognitiveStoreLifeSnapshotReader:
                 goal_id=goal_id,
                 desired_condition=desired_condition,
                 status=status,
+                goal_version=goal_version,
             ))
         return LifeSnapshot(
             state_version=version,
