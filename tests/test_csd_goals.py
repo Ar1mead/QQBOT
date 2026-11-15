@@ -728,6 +728,66 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.assertEqual(self.store.evaluate_goal_activation_proposal("race-b")["status"], "deferred")
         self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 2)
 
+
+    def test_public_path_cannot_append_goal_activation_decision_event(self):
+        with self.assertRaises(ValueError):
+            self.store.submit_event(event(
+                "csd-goal-activation-decision:forged",
+                GOAL_ACTIVATION_DECISION_EVENT,
+                "csd.authority.v1",
+                {},
+            ))
+
+    def test_activation_event_and_goal_version_write_roll_back_atomically(self):
+        goal_id, _ = self.create_candidate("atomic-activation")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "atomic-activation", goal_id, state_version=version
+        ))
+        before = self.store.get_state_snapshot()
+        self.store._db.execute(
+            "CREATE TRIGGER fail_activation_version BEFORE INSERT ON goal_versions "
+            "WHEN NEW.goal_version=2 BEGIN SELECT RAISE(ABORT, 'injected activation failure'); END"
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.store.evaluate_goal_activation_proposal("atomic-activation")
+        after = self.store.get_state_snapshot()
+        self.assertEqual(after["event_count"], before["event_count"])
+        self.assertEqual(after["state_version"], before["state_version"])
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "candidate")
+        self.assertEqual(
+            self.store._db.execute(
+                "SELECT status FROM goal_activation_proposals WHERE proposal_id='atomic-activation'"
+            ).fetchone()["status"],
+            "pending",
+        )
+        self.store._db.execute("DROP TRIGGER fail_activation_version")
+        self.assertEqual(
+            self.store.evaluate_goal_activation_proposal("atomic-activation")["status"],
+            "accepted",
+        )
+
+    def test_coordinated_latest_and_version_projection_tampering_is_detected(self):
+        goal_id, _ = self.create_candidate("coordinated-activation")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "coordinated-activation", goal_id, state_version=version
+        ))
+        self.store.evaluate_goal_activation_proposal("coordinated-activation")
+        self.store._db.execute(
+            "UPDATE goal_versions SET goal_json='{}' WHERE goal_id=? AND goal_version=2",
+            (goal_id,),
+        )
+        self.store._db.execute(
+            "UPDATE goals SET goal_json='{}' WHERE goal_id=?",
+            (goal_id,),
+        )
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_goal(goal_id)
+        self.store.recover()
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "active")
+        self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 2)
+
     def test_activation_proposal_identity_conflict_rolls_back(self):
         goal_id, _ = self.create_candidate("identity")
         version = self.store.get_state_snapshot()["state_version"]
