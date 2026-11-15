@@ -100,7 +100,7 @@ Reference files:
 
 - [x] Drafted `docs/design/csd-goal-lifecycle-proposal.md` to distinguish pause from blocked, define terminal states, preserve goal/source lineage, and specify version/Recovery invariants.
 - [x] Selected pause/resume as the first low-risk follow-on slice in the proposal; blocked/unblocked remains dependent on trusted ASM/prerequisite evidence, while satisfied/superseded/revise require their own evidence and atomicity review.
-- [~] Implemented CSD-authoritative pause/resume proposal and decision events, exact state/goal version checks, atomic goal version updates, reconciliation, Recovery, and Life Engine sink support; migration, atomicity, and behavior tests are awaiting hosted CI.
+- [x] Implemented CSD-authoritative pause/resume proposal and decision events, exact state/goal version checks, atomic goal version updates, reconciliation, Recovery, and Life Engine sink support; hosted CI run #259 passed 319 tests on Ubuntu and Windows. See `docs/reports/csd-goal-pause-resume-hosted-test-report-001.md`.
 - [ ] Keep blocked, satisfied, abandoned, superseded, and revise unimplemented until their operation-specific evidence and authority contracts are reviewed.
 
 ## 4. Current work in progress — CSD motivation integration
@@ -192,16 +192,16 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by hosted CI: `fc266b92851f5278b353368e961226d3e3ba9d0c`, workflow run #238 (303 tests passed on Ubuntu and Windows).
+- Latest code/test commit verified by hosted CI: `8a853b40d6a416adf766143b9d56652cdd152e6e`, workflow run #259 (319 tests passed on Ubuntu and Windows).
 - Branch head immediately before this ledger commit: `5bd02ae22abb6999c00287be1d3a54f7612afce1` (goal lifecycle proposal and handoff-ledger update).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
-- `python -m unittest discover -s tests -v` passed: 303 tests on both Linux and Windows (Linux 1.807s; Windows 13.509s).
-- Schema v5 includes durable candidate-goal, activation, and pause/resume proposal projections, goal-version history, and latest-goal state. Legacy v1→v5, v3→v5, and v4→v5 migrations are covered by tests; pause/resume CI verification is pending.
+- `python -m unittest discover -s tests -v` passed: 319 tests on both Linux and Windows (Linux 2.687s; Windows 17.571s).
+- Schema v5 includes durable candidate-goal, activation, and pause/resume proposal projections, goal-version history, and latest-goal state. Legacy v1→v5, v3→v5, and v4→v5 migrations are covered by tests; hosted CI run #259 passed 319 tests on Ubuntu and Windows.
 - Goal batch acceptance is atomic; accepted candidates increment shared state_version once regardless of batch size. Stale proposals defer without rebasing. Exact source signal versions are resolved at the decision event sequence.
 - The Life Engine snapshot reader includes versioned candidate/active goals. A narrow CSD sink can persist candidate-goal and explicit activation proposals; activity options remain empty pending a trusted capability-filtered source.
-- Detailed goal-state results: `docs/reports/csd-goal-state-integration-test-report-001.md`; activation results: `docs/reports/csd-goal-activation-hosted-test-report-001.md`; proposal chronology guard: `docs/reports/csd-goal-proposal-chronology-test-report-001.md`. Motivation integration history: `docs/reports/csd-motivation-integration-test-report-001.md`.
+- Detailed goal-state results: `docs/reports/csd-goal-state-integration-test-report-001.md`; activation results: `docs/reports/csd-goal-activation-hosted-test-report-001.md`; proposal chronology guard: `docs/reports/csd-goal-proposal-chronology-test-report-001.md`; pause/resume lifecycle: `docs/reports/csd-goal-pause-resume-hosted-test-report-001.md`. Motivation integration history: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted tests do not establish adapter authenticity, semantic truth, subjective desire, or autonomous cognition.
 
-**Resume from section 4: complete hosted CI for the pause/resume lifecycle slice, then continue its adversarial review.** The future-snapshot-version chronology guard is implemented and passed hosted CI (303 tests on Ubuntu and Windows). The user's own Windows 11 / Python 3.12.14 verification, process-interruption, backup/recovery, and durability checks remain open. Keep blocked/unblocked, satisfied, abandoned, superseded, and revise separate until their evidence and authority contracts are reviewed. Do not connect a real deliberator or implement external activity execution until local validation and ASM/OS-isolation boundaries are addressed.**
+**Resume from section 4: continue adversarial review of the pause/resume lifecycle slice and migration/recovery behavior.** The future-snapshot-version chronology guard is implemented and passed hosted CI (303 tests on Ubuntu and Windows). The user's own Windows 11 / Python 3.12.14 verification, process-interruption, backup/recovery, and durability checks remain open. Keep blocked/unblocked, satisfied, abandoned, superseded, and revise separate until their evidence and authority contracts are reviewed. Do not connect a real deliberator or implement external activity execution until local validation and ASM/OS-isolation boundaries are addressed.**
