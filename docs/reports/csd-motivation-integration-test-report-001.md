@@ -6,12 +6,12 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `e5f36b389a168d96b5efaa074f9283da47a573ae`
-- Workflow run: [CSD cognitive slice tests #142](https://github.com/Ar1mead/QQBOT/actions/runs/43666163605)
+- Verified commit: `94240258b793c2dea66b22a05b2bcd8dfeef3656`
+- Workflow run: [CSD cognitive slice tests #144](https://github.com/Ar1mead/QQBOT/actions/runs/43666537689)
 - Linux runner: GitHub-hosted Ubuntu 26.04.1 — Python 3.12.16 / SQLite 3.46.1
 - Windows runner: GitHub-hosted `windows-latest` — Python 3.12.10 / SQLite 3.49.1
 
-Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (249 tests each; Linux 2.083s, Windows 15.623s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
+Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (250 tests each; Linux 0.889s, Windows 13.001s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
 
 ## Exact commands
 
@@ -23,7 +23,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 249 tests in 2.083s on Linux; the Windows runner completed the same 249-test suite in 15.623s.
+Ran 250 tests in 0.889s on Linux; the Windows runner completed the same 250-test suite in 13.001s.
 OK
 ```
 
@@ -66,11 +66,13 @@ Review runs #136–#141 exposed two incorrect assumptions and were intentionally
 
 The corrected implementation and test pass in CI run #142 on both Linux and Windows, with 249 tests each.
 
+A further read-integrity check now validates the payload and envelope digests for every motivation proposal/decision event and every interaction event referenced by an accepted signal. It also checks that accepted signal evidence belongs to the same subject, precedes the decision, and is correctly classified as supporting or counterevidence. A tampering test disables the immutable-payload trigger, alters an evidence payload without updating its content hash, and verifies that signal reads and Recovery fail closed. This follow-up passed in CI run #144 with 250 tests on both operating systems.
+
 ## Scope and limitations
 
 This is hosted Linux and Windows verification. It does **not** establish that the code has been tested on the user's own Windows 11 / Python 3.12.14 environment.
 
-The tests verify deterministic prototype behavior, persistence, migration, projections, Recovery invariants, observation-origin matching, return-visit linkage (including return after passive exposure), and stable origin classification. They do not prove:
+The tests verify deterministic prototype behavior, persistence, migration, projections, Recovery invariants, observation-origin matching, return-visit linkage (including return after passive exposure), stable origin classification, and integrity checks for referenced evidence payloads. They do not prove:
 - that caller-supplied adapter metadata authenticates an adapter;
 - that platform/user provenance claims are truthful;
 - that evidence semantically proves a real interest, need, feeling, or desire;
