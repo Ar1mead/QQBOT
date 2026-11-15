@@ -550,7 +550,12 @@ class CognitiveMotivationMixin:
                         "event_id": item["event_id"],
                     })
 
-        time_points = {item["occurred_at"] for item in voluntary.values()}
+        # Compare instants, not timestamp spellings: 10:00Z and 11:00+01:00
+        # are the same encounter time and must not mature an interest.
+        time_points = {
+            datetime.fromisoformat(item["occurred_at"].replace("Z", "+00:00")).astimezone(timezone.utc)
+            for item in voluntary.values()
+        }
         if proposal["operation"] == "contextualize" or (
             current_target is not None and current_target.get("interest_stage") == "contextual"
         ):
