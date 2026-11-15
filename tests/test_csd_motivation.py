@@ -421,6 +421,28 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.add_interaction(bad)
 
+        same_encounter = interaction(
+            "interaction-return-same-encounter",
+            kind="return_visit",
+            origin="internal_state",
+            encounter="enc-1",
+            related_event_id="interaction-prior",
+            at="2026-11-14T12:30:00+00:00",
+        )
+        with self.assertRaises(ValueError):
+            self.add_interaction(same_encounter)
+
+        out_of_order = interaction(
+            "interaction-return-out-of-order",
+            kind="return_visit",
+            origin="internal_state",
+            encounter="enc-4",
+            related_event_id="interaction-prior",
+            at="2026-11-14T09:30:00+00:00",
+        )
+        with self.assertRaises(ValueError):
+            self.add_interaction(out_of_order)
+
     def test_adapter_source_must_match_adapter_metadata(self):
         good = interaction("interaction-adapter-source")
         bad = envelope(
