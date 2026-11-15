@@ -700,6 +700,17 @@ class CognitiveMotivationMixin:
             if existing is not None:
                 if existing["proposal_digest"] != digest:
                     raise ValueError("motivation proposal identity conflict")
+                # Duplicate lifecycle submissions still need envelope/source
+                # validation; idempotency must not become a provenance bypass.
+                origin = event.payload.get("origin")
+                if (
+                    not isinstance(origin, Mapping)
+                    or set(origin) != {"component", "version"}
+                    or not isinstance(origin.get("component"), str)
+                    or not origin["component"].strip()
+                    or event.source != f"motivation-proposal:{origin['component']}"
+                ):
+                    raise ValueError("duplicate motivation proposal source/origin mismatch")
                 # Same immutable proposal under a second event ID is a duplicate
                 # lifecycle submission, even if its target has since changed.
                 return
