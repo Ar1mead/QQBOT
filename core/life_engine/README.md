@@ -4,7 +4,8 @@ This directory contains an isolated, provider-neutral proposal layer for the fir
 
 ## Files
 
-- `contracts.py` — typed motivation signals, goal state, trusted activity options, goal proposals, and deliberation choices.
+- `contracts.py` — typed motivation signals (including CSD signal version, subject, and evidence polarity), goal state, trusted activity options, goal proposals, and deliberation choices.
+- `csd_adapter.py` — pure mapping from event-verified CSD signal projections into Life Engine snapshot inputs; it does not read the database or authenticate its caller.
 - `motivation.py` — validates evidence-grounded motivation update proposals against a trusted snapshot, including signal statement/version, supporting/counterevidence, and source-origin restrictions; it does not accept or persist signal state.
 - `engine.py` — read snapshot -> ask deliberator -> validate references and hard admissibility -> submit a pending proposal to a CSD-facing sink.
 - Active activity snapshots carry current permission and stop-condition state; continuation is blocked after permission revocation or a met stop condition. Stopping/continuing an external side-effect activity is flagged for ASM governance. A new activity may be motivated by an active signal or by an accepted ongoing goal; it must not be source-free. Ordinary activity options cannot advance paused or blocked goals.
@@ -28,7 +29,7 @@ A selected side-effecting activity is only marked as requiring ASM governance. N
 ## Explicit limitations
 
 - No real model or deliberation provider is connected.
-- No CSD snapshot reader or proposal sink adapter is implemented.
+- No live CSD snapshot reader or proposal sink adapter is implemented. The pure `csd_adapter.py` projection mapper is available, but its caller must obtain records through CSD's event-integrity-checked read path.
 - `motivation.py` provides proposal validation for create/reinforce/weaken/contextualize/pause/resolve operations, checks origin/event-kind compatibility, prevents evidence reuse on revisions, and distinguishes voluntary interest evidence from exposure or user-requested behavior. It does not synthesize signals, learn their semantics, accept changes, or persist them.
 - No durable goal/commitment/activity event schema has been approved or implemented in CSD.
 - No goal conflict resolution, long-running activity monitor, or autonomous scheduler is implemented.
