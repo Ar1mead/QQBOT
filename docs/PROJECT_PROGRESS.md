@@ -96,7 +96,7 @@ The current work connects motivation signals to the same CSD event stream as cog
 - [x] Fix the migration test fixture and update this ledger with the exact result; the earlier fixture represented an impossible v1 database state.
 - [x] Confirm a successful GitHub Actions run for the current branch: run #146, commit `68a3eb46950d82d999a2b0bbedd698e308745e9e`.
 - [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
-- [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; return-visit semantics are covered by run #142; event/payload digest checks cover motivation proposals, decisions, referenced interaction evidence, and authoritative state-version reads (runs #144 and #146). Lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
+- [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; return-visit semantics are covered by run #142; event/payload digest checks cover motivation proposals, decisions, referenced interaction evidence, and authoritative state-version reads (runs #144 and #146). A further patch now validates referenced evidence for pending proposals before they are returned; its CI verification is pending. Lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
 - [x] Run the full suite on a GitHub-hosted Windows runner (251 tests, Python 3.12.10 / SQLite 3.49.1); this is a cross-platform CI check, not the user's own Windows 11 environment.
 - [ ] Only after the above: run the tests on the user's Windows environment.
 
@@ -154,7 +154,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by CI: `68a3eb46950d82d999a2b0bbedd698e308745e9e`, workflow run #146; subsequent commits in this branch update only the report and progress ledger.
+- Latest code/test commit verified by CI: `68a3eb46950d82d999a2b0bbedd698e308745e9e`, workflow run #146. Follow-up code commit `2cd8fdbd5642dddcd4b697daa1aa3bdbbee25d59` adds integrity validation for pending proposal evidence; its workflow is in progress.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
 - `python -m unittest discover -s tests -v` passed: 251 tests on both Linux and Windows runners (Linux 0.889s; Windows 13.001s).
@@ -164,4 +164,4 @@ At the time of this update:
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
 
-**Resume from section 4: continue event payload/replay/idempotency adversarial review; motivation read paths verify evidence payload digests and state-version reads verify decision digests, but broader integrity coverage remains, then arrange Windows-local verification.**
+**Resume from section 4: verify pending-proposal evidence integrity in CI, then continue event payload/replay/idempotency adversarial review and arrange Windows-local verification.**
