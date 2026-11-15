@@ -6,12 +6,12 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `53d56c1a88dca20161044d40400976727c37c647`
-- Workflow run: [CSD cognitive slice tests #131](https://github.com/Ar1mead/QQBOT/actions/runs/43665484649)
+- Verified commit: `f38a0f5e828f4f5eacc1739d51d366b418f7cba7`
+- Workflow run: [CSD cognitive slice tests #135](https://github.com/Ar1mead/QQBOT/actions/runs/43665724005)
 - Linux runner: GitHub-hosted Ubuntu 26.04.1 — Python 3.12.16 / SQLite 3.46.1
 - Windows runner: GitHub-hosted `windows-latest` — Python 3.12.10 / SQLite 3.49.1
 
-Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (247 tests each; Linux 1.968s, Windows 19.996s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
+Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (248 tests each; Linux 1.661s, Windows 8.755s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
 
 ## Exact commands
 
@@ -23,7 +23,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 246 tests in 1.493s on Linux; the Windows runner completed the same 246-test suite in 14.004s.
+Ran 248 tests in 1.661s on Linux; the Windows runner completed the same 248-test suite in 8.755s.
 OK
 ```
 
@@ -58,11 +58,19 @@ External motivation origins are now tied to the kind of earlier observation they
 
 Lifecycle coverage now includes create, reinforce, weaken, contextualize, pause, and resolve transitions. In this prototype, weakening is represented by appending counter-evidence; there is not yet a continuous strength/confidence or affect-dynamics model.
 
+## Follow-up adversarial review after the verified run
+
+The verified commit above predates the next review patch. Subsequent commits add two stricter invariants that are awaiting their own CI run:
+- interaction `encounter_id` values must be unique across the durable interaction stream;
+- a `return_visit` must link to a prior voluntary selection/return visit with meaningful alternatives, the same subject and selected item, a distinct encounter, and a later occurrence time.
+
+Do not treat these follow-up changes as verified until the newer workflow run completes.
+
 ## Scope and limitations
 
 This is hosted Linux and Windows verification. It does **not** establish that the code has been tested on the user's own Windows 11 / Python 3.12.14 environment.
 
-The tests verify deterministic prototype behavior, persistence, migration, projections, and Recovery invariants. They do not prove:
+The tests verify deterministic prototype behavior, persistence, migration, projections, Recovery invariants, observation-origin matching, return-visit linkage, and stable origin classification. They do not prove:
 - that caller-supplied adapter metadata authenticates an adapter;
 - that platform/user provenance claims are truthful;
 - that evidence semantically proves a real interest, need, feeling, or desire;
