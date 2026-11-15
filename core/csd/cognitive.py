@@ -28,10 +28,12 @@ from .goals import (
     GOAL_BATCH_DECISION_EVENT,
     GOAL_BATCH_PROPOSAL_EVENT,
     GOAL_DECISION_SOURCE,
+    GOAL_ACTIVATION_PROPOSAL_EVENT,
+    GOAL_ACTIVATION_DECISION_EVENT,
 )
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 OBSERVATION_EVENT = "experience.observation_recorded.v1"
 PROPOSAL_EVENT = "cognition.memory_candidate_proposed.v1"
 GROUNDED_PROPOSAL_EVENT = "cognition.grounded_memory_candidate_proposed.v1"
@@ -280,6 +282,29 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
                 raise
             version = 3
 
+        if version == 3:
+            try:
+                self._db.executescript(
+                    """
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE goal_activation_proposals (
+                        proposal_id TEXT PRIMARY KEY,
+                        proposal_digest TEXT NOT NULL,
+                        proposal_event_id TEXT NOT NULL,
+                        proposal_json TEXT NOT NULL,
+                        status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','deferred')),
+                        decision_event_id TEXT
+                    );
+                    PRAGMA user_version = 4;
+                    COMMIT;
+                    """
+                )
+            except Exception:
+                if self._db.in_transaction:
+                    self._db.rollback()
+                raise
+            version = 4
+
         if version != SCHEMA_VERSION:
             raise CognitiveIntegrityError(f"unsupported schema version: {version}")
 
@@ -318,6 +343,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
             event.event_id.startswith("csd-decision:")
             or event.event_id.startswith("csd-motivation-decision:")
             or event.event_id.startswith("csd-goal-decision:")
+            or event.event_id.startswith("csd-goal-activation-decision:")
         ):
             raise ValueError("event_id uses a namespace reserved for CSD decisions")
         _nonempty(event.correlation_id, "correlation_id")
@@ -326,20 +352,21 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
         _timestamp(event.occurred_at, "occurred_at")
         if not isinstance(event.payload, Mapping):
             raise ValueError("payload must be an object")
-        if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT} and not internal:
+        if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT} and not internal:
             raise ValueError("CSD decision events are reserved for the internal authority path")
         if event.event_type not in {
             OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
             SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
             INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
             GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
+            GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
         }:
             raise ValueError(f"unsupported event type: {event.event_type}")
         if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT} and event.source != DECISION_SOURCE:
             raise ValueError("decision event source must identify CSD authority")
         if event.event_type == MOTIVATION_DECISION_EVENT and event.source != MOTIVATION_DECISION_SOURCE:
             raise ValueError("motivation decision event source must identify CSD authority")
-        if event.event_type == GOAL_BATCH_DECISION_EVENT and event.source != GOAL_DECISION_SOURCE:
+        if event.event_type in {GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT} and event.source != GOAL_DECISION_SOURCE:
             raise ValueError("goal decision event source must identify CSD authority")
         if event.event_type == SEMANTIC_REVIEW_EVENT:
             reviewer = event.payload.get("reviewer")
@@ -867,9 +894,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
     ) -> int:
         query = (
             "SELECT e.event_id FROM events e "
-            "WHERE e.event_type IN (?,?,?)"
+            "WHERE e.event_type IN (?,?,?,?)"
         )
-        params: list[Any] = [DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT]
+        params: list[Any] = [DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT]
         if through_sequence is not None:
             if not isinstance(through_sequence, int) or isinstance(through_sequence, bool):
                 raise ValueError("through_sequence must be an integer or None")
@@ -1783,8 +1810,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
             db.execute("DELETE FROM goal_versions")
             db.execute("DELETE FROM goals")
             db.execute("DELETE FROM goal_proposals")
+            db.execute("DELETE FROM goal_activation_proposals")
             for sequence, event in parsed:
-                decision_types = {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT}
+                decision_types = {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT}
                 internal = event.event_type in decision_types and event.source == DECISION_SOURCE
                 if event.event_type in decision_types and not internal:
                     raise CognitiveIntegrityError("forged decision event in durable history")
@@ -1793,6 +1821,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
                     SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
                     INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
                     GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
+                    GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
                 }:
                     raise CognitiveIntegrityError(f"unknown event type: {event.event_type}")
                 self._apply_projection_event(db, event, sequence, internal=internal)
@@ -1815,4 +1844,5 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
             "goal_proposals": int(self._db.execute("SELECT COUNT(*) FROM goal_proposals").fetchone()[0]),
             "goals": int(self._db.execute("SELECT COUNT(*) FROM goals").fetchone()[0]),
             "goal_versions": int(self._db.execute("SELECT COUNT(*) FROM goal_versions").fetchone()[0]),
+            "goal_activation_proposals": int(self._db.execute("SELECT COUNT(*) FROM goal_activation_proposals").fetchone()[0]),
         }
