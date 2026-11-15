@@ -1555,6 +1555,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
 
     def get_proposal(self, proposal_id: str) -> dict[str, Any]:
         _nonempty(proposal_id, "proposal_id")
+        self._assert_accepted_projection_consistent()
         row = self._db.execute(
             "SELECT proposal_json,proposal_digest,proposal_event_id,status,decision_event_id "
             "FROM proposals WHERE proposal_id=?",
@@ -1608,9 +1609,11 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
         motivation_signal_version_count = int(self._db.execute(
             "SELECT COUNT(*) FROM motivation_signal_versions"
         ).fetchone()[0])
-        memory_consistent = (
-            accepted_memory_count == self._accepted_transition_count(self._db, {DECISION_EVENT})
-        )
+        memory_consistent = True
+        try:
+            self._assert_accepted_projection_consistent()
+        except CognitiveIntegrityError:
+            memory_consistent = False
         motivation_consistent = True
         try:
             self._assert_motivation_projection_consistent()
