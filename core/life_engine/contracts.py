@@ -7,6 +7,7 @@ call models, execute activities, or grant capabilities.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Literal, Sequence
 
 
@@ -184,8 +185,12 @@ def validate_life_proposal(
         if not isinstance(signal.active, bool):
             raise ValueError("signal.active must be boolean")
         support_ids = _unique_nonempty(signal.evidence_event_ids, "signal.evidence_event_ids")
+        if not isinstance(signal.voluntary_encounters, (tuple, list)):
+            raise ValueError("voluntary_encounters must be a sequence")
         if signal.kind == "interest":
-            if signal.interest_stage not in {None, "tentative", "emerging", "contextual"}:
+            if signal.interest_stage is not None and signal.interest_stage not in {
+                "tentative", "emerging", "contextual"
+            }:
                 raise ValueError("unsupported CSD-derived interest stage")
         elif signal.interest_stage is not None or signal.voluntary_encounters:
             raise ValueError("only interest signals may carry interest maturity/encounter summaries")
@@ -200,6 +205,12 @@ def validate_life_proposal(
                 raise ValueError("voluntary encounter_id must be non-empty")
             if not isinstance(timestamp, str) or not timestamp.strip():
                 raise ValueError("voluntary encounter timestamp must be non-empty")
+            try:
+                parsed_timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError("voluntary encounter timestamp must be ISO-8601") from exc
+            if parsed_timestamp.tzinfo is None or parsed_timestamp.utcoffset() is None:
+                raise ValueError("voluntary encounter timestamp must include a timezone")
             if not isinstance(event_id, str) or not event_id.strip():
                 raise ValueError("voluntary encounter event_id must be non-empty")
             if encounter_id in seen_encounters or event_id in seen_events:
