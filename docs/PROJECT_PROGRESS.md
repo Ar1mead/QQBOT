@@ -96,7 +96,7 @@ The current work connects motivation signals to the same CSD event stream as cog
 - [x] Fix the migration test fixture and update this ledger with the exact result; the earlier fixture represented an impossible v1 database state.
 - [x] Confirm a successful GitHub Actions run for the current branch: run #135, commit `f38a0f5e828f4f5eacc1739d51d366b418f7cba7`.
 - [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
-- [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; return visits now require prior voluntary-selection evidence (new check awaiting CI); lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
+- [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; return visits require a prior same-subject/same-item interaction, distinct encounter and later timestamp; the current return itself must be voluntary. A passive exposure may be the earlier encounter (test awaiting CI). lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
 - [x] Run the full suite on a GitHub-hosted Windows runner (248 tests, Python 3.12.10 / SQLite 3.49.1); this is a cross-platform CI check, not the user's own Windows 11 environment.
 - [ ] Only after the above: run the tests on the user's Windows environment.
 
@@ -123,7 +123,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 ## 7. Next work queue
 
-1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation and memory projections reconcile against event history. The stricter return-visit linkage check is awaiting CI. A global encounter-ID uniqueness rule was tested and reverted because one encounter may legitimately contain multiple interaction events.
+1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation and memory projections reconcile against event history. The return-visit rule was clarified: the current return is the voluntary choice; the prior linked interaction may be passive exposure or user-requested. A global encounter-ID uniqueness rule was tested and reverted because one encounter may legitimately contain multiple interaction events.
 2. **Run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** This is the remaining platform-specific verification step once the remote branch is stable.
 3. **Stabilize CSD read/write contracts.** Separate memory, motivation, goal, affect, commitment, and diary state families without creating competing authorities.
 4. **Connect Life Engine through explicit CSD interfaces.** The Life Engine may propose intentions; CSD accepts durable state transitions.
