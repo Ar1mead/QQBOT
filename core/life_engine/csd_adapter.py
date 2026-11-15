@@ -263,6 +263,31 @@ class CognitiveStoreLifeProposalSink:
         from core.csd.cognitive import CognitiveEvent
 
         choice = proposal.choice
+        if choice.disposition in {"pause_goal", "resume_goal"}:
+            if choice.goal_id is None or choice.expected_goal_version is None:
+                raise ValueError("validated pause/resume choice is missing goal identity/version")
+            proposal_id = uuid.uuid4().hex
+            operation = "pause" if choice.disposition == "pause_goal" else "resume"
+            event = CognitiveEvent(
+                event_id=f"life-goal-pause-resume-proposal-event:{proposal_id}",
+                occurred_at=datetime.now(timezone.utc).isoformat(),
+                correlation_id=f"goal-pause-resume-proposal:{proposal_id}",
+                event_type="life.goal_pause_resume_proposed.v1",
+                source=f"life-goal-pause-resume-proposal:{self._component}",
+                payload={
+                    "proposal_id": proposal_id,
+                    "based_on": {"state_version": expected_state_version},
+                    "goal_id": choice.goal_id,
+                    "expected_goal_version": choice.expected_goal_version,
+                    "operation": operation,
+                    "rationale": choice.rationale,
+                    "origin": {"component": self._component, "version": self._version},
+                    "contract_version": "life.goal_pause_resume_proposed.v1",
+                },
+            )
+            self._store.submit_event(event)
+            return self._store.evaluate_goal_pause_resume_proposal(proposal_id)
+
         if choice.disposition == "activate_goal":
             if proposal.goal_proposals:
                 raise ValueError("goal activation must be a separate transition from candidate creation")
