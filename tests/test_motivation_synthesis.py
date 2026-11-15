@@ -306,6 +306,29 @@ class MotivationEvidenceOriginTests(unittest.TestCase):
         )
         self.assertEqual(result.derived_origin_class, "internally_initiated")
 
+    def test_contextual_interest_stage_requires_contextualize_operation(self):
+        item = evidence("ev-1", "passive_exposure", origin="platform_recommendation")
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,)),
+                create_proposal(stage="contextual"),
+            )
+
+    def test_pause_does_not_accept_evidence(self):
+        prior = signal()
+        item = evidence("ev-new", "counter_evidence")
+        with self.assertRaises(ValueError):
+            validate_motivation_update(
+                snapshot(evidence_items=(item,), signals=(prior,)),
+                create_proposal(
+                    operation="pause",
+                    supporting=(),
+                    counter=("ev-new",),
+                    target="interest-1",
+                    target_version=1,
+                ),
+            )
+
     def test_established_interest_cannot_be_assigned_by_provider(self):
         item = evidence("ev-1", "passive_exposure", origin="platform_recommendation")
         with self.assertRaises(ValueError):
