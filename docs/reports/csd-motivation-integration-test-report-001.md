@@ -6,11 +6,12 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `7b064b7c08509875567cdec32f045ec0aacc74b0`
-- Workflow run: [CSD cognitive slice tests #122](https://github.com/Ar1mead/QQBOT/actions/runs/43664793266)
-- Runner: GitHub-hosted Ubuntu 26.04.1
-- Python: 3.12.16
-- SQLite: 3.46.1
+- Verified commit: `5f2b0dcc3d2682ed128b506de46d328c5f9820a1`
+- Workflow run: [CSD cognitive slice tests #125](https://github.com/Ar1mead/QQBOT/actions/runs/43664862182)
+- Linux runner: GitHub-hosted Ubuntu 26.04.1 — Python 3.12.16 / SQLite 3.46.1
+- Windows runner: GitHub-hosted `windows-latest` — Python 3.12.10 / SQLite 3.49.1
+
+Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (244 tests each). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
 
 ## Exact commands
 
