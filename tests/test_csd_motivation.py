@@ -112,7 +112,11 @@ def motivation_proposal(
             "new_signal_id": new_signal_id,
             "target_signal_id": target_signal_id,
             "target_signal_version": target_version,
-            "requested_interest_stage": requested_stage if kind == "interest" else None,
+            "requested_interest_stage": (
+                requested_stage
+                if kind == "interest" and operation in {"create", "reinforce"}
+                else None
+            ),
             "rationale": "Synthetic hypothesis; not a factual verdict.",
             "origin": {"component": source_component, "version": "0.1"},
             "based_on": {"state_version": based_on},
@@ -826,7 +830,13 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
             target_signal_id="signal-blue-boat",
             target_version=1,
             based_on=1,
-            requested_stage="tentative",
+            requested_stage=None,
+        )
+        invalid_payload = dict(pause.payload)
+        invalid_payload["requested_interest_stage"] = "tentative"
+        pause = envelope(
+            pause.event_id, pause.event_type, pause.source, invalid_payload,
+            at=pause.occurred_at,
         )
         with self.assertRaises(ValueError):
             self.add_proposal(pause)
