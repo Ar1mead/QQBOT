@@ -77,6 +77,21 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         self.store.submit_event(self.observation())
         self.store.submit_event(self.proposal())
 
+
+    def test_memory_proposal_cannot_claim_a_future_snapshot_version(self):
+        self.store.submit_event(self.observation())
+        with self.assertRaisesRegex(ValueError, "future state_version"):
+            self.store.submit_event(self.proposal(state_version=1))
+        self.assertEqual(
+            self.store._db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0],
+            0,
+        )
+        self.store.submit_event(self.proposal(state_version=0, proposal_id="valid-after-reject"))
+        self.assertEqual(
+            self.store.evaluate_proposal("valid-after-reject")["status"],
+            "accepted",
+        )
+
     def test_observation_is_not_automatically_a_memory(self):
         result = self.store.submit_event(self.observation())
         self.assertEqual(result["status"], "accepted")
