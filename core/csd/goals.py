@@ -1,7 +1,8 @@
-"""CSD-owned goal proposal and candidate-state projections.
+"""CSD-owned goal proposal, candidate-state, and activation projections.
 
-The first goal slice persists candidate hypotheses only. It does not activate,
-revise, abandon, prioritize, or execute goals.
+Candidate creation and explicit candidate→active activation are separate,
+event-backed transitions. Other lifecycle transitions and execution remain
+outside this slice.
 """
 from __future__ import annotations
 
