@@ -1,8 +1,8 @@
-"""CSD-owned goal proposal, candidate-state, and activation projections.
+"""CSD-owned goal proposal, activation, and pause/resume projections.
 
-Candidate creation and explicit candidate→active activation are separate,
-event-backed transitions. Other lifecycle transitions and execution remain
-outside this slice.
+Candidate creation, explicit candidate→active activation, and pause/resume
+are separate event-backed transitions. Other lifecycle transitions and
+activity execution remain outside this slice.
 """
 from __future__ import annotations
 
