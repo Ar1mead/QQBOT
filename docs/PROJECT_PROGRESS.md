@@ -154,11 +154,13 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- The active branch head verified by hosted CI is `7d326cf3c9e69471db4e42e8097454d86087fa86`.
+- Current branch head: `25f8e7961587d4c1fd8a89569eae9430d51c5da9` (documentation-only commits after the latest code verification).
+- Latest code/test commit verified by CI: `7d326cf3c9e69471db4e42e8097454d86087fa86`, workflow run #129.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
 - `python -m unittest discover -s tests -v` passed: 246 tests on both Linux and Windows runners.
-- The v1→v2 migration test now uses a legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
+- The v1→v2 migration test uses legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
+- Motivation and accepted-memory proposal/state projections are checked against authoritative events; corruption tests verify Recovery repair.
 - Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
