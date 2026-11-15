@@ -20,7 +20,7 @@ The prototype can represent:
 - CSD-derived interest maturity and voluntary-encounter lineage, without rewriting the signal's initial origin;
 - goal snapshots distinguish candidate, active, paused, blocked, satisfied, abandoned, and superseded states; only active goals may serve as current activity targets;
 - candidate goals carry CSD-derived origin references and exact source signal-version lineage, plus success, stop, and review conditions;
-- start, continue, wait, request-information, pause, abandon, revise, decline, stop, and no-op choices;
+- start, continue, wait, request-information, pause, resume, abandon, revise, decline, stop, and no-op choices;
 - trusted activity options with explicit capability, prerequisite, and side-effect metadata;
 - a distinction between read-only activities and choices requiring ASM governance.
 
@@ -33,7 +33,7 @@ A selected side-effecting activity is only marked as requiring ASM governance. N
 - No real model or deliberation provider is connected.
 - A live CSD snapshot reader is implemented for accepted signals and versioned goals. The CSD-facing sink can persist candidate-goal proposals and explicit candidate→active transitions. No real model provider is connected, so goal creation/activation still requires a supplied deliberation proposal.
 - `motivation.py` provides proposal validation for create/reinforce/weaken/contextualize/pause/resolve operations, checks origin/event-kind compatibility, prevents evidence reuse on revisions, and distinguishes voluntary interest evidence from exposure or user-requested behavior. It does not synthesize signals, learn their semantics, accept changes, or persist them.
-- CSD persists candidate and active goal states through separate event families. Pause/resume/blocked/satisfied/abandoned/superseded/revise transitions, commitments, and activity execution are not yet implemented.
+- CSD persists candidate and active goal states, and the current branch adds explicit pause/resume transitions through a separate proposal/decision event family (hosted CI pending). Blocked/satisfied/abandoned/superseded/revise transitions, commitments, and activity execution are not yet implemented.
 - No goal conflict resolution, long-running activity monitor, or autonomous scheduler is implemented.
 - Local validation is not a security boundary; CSD must independently validate event schema, state version, provenance, permissions, and lifecycle transitions.
 - The current activity permission fields are trusted snapshot inputs, not grants created by the deliberator.
