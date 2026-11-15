@@ -443,7 +443,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.add_interaction(out_of_order)
 
-    def test_return_visit_requires_a_prior_voluntary_selection(self):
+    def test_return_visit_can_follow_passive_exposure_when_current_choice_is_voluntary(self):
         prior = interaction(
             "interaction-passive-prior",
             kind="passive_exposure",
@@ -460,8 +460,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
             related_event_id="interaction-passive-prior",
             at="2026-11-14T11:00:00+00:00",
         )
-        with self.assertRaises(ValueError):
-            self.add_interaction(returned)
+        self.assertEqual(self.add_interaction(returned)["status"], "accepted")
 
     def test_adapter_source_must_match_adapter_metadata(self):
         good = interaction("interaction-adapter-source")
