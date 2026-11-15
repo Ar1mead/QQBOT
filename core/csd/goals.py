@@ -596,3 +596,556 @@ class CognitiveGoalMixin:
         if row is None:
             raise KeyError(goal_id)
         return json.loads(row["goal_json"])
+
+# Candidate-to-active activation is deliberately a separate event family from
+# candidate creation. It is an internal state transition, never an activity.
+GOAL_ACTIVATION_PROPOSAL_EVENT = "life.goal_activation_proposed.v1"
+GOAL_ACTIVATION_DECISION_EVENT = "life.goal_activation_decided.v1"
+GOAL_ACTIVATION_POLICY_ID = "csd.goal-candidate-activation"
+GOAL_ACTIVATION_POLICY_VERSION = "0.1"
+GOAL_ACTIVATION_CONTRACT_VERSION = "life.goal_activation_proposed.v1"
+
+
+def _validate_goal_activation_proposal(event: Any) -> None:
+    payload = event["payload"] if isinstance(event, Mapping) else event.payload
+    source = event["source"] if isinstance(event, Mapping) else event.source
+    allowed = {
+        "proposal_id", "based_on", "goal_id", "expected_goal_version",
+        "rationale", "origin", "contract_version",
+    }
+    if set(payload) != allowed:
+        raise ValueError("goal activation proposal contains missing or unsupported fields")
+    _g_nonempty(payload.get("proposal_id"), "proposal_id")
+    if payload.get("contract_version") != GOAL_ACTIVATION_CONTRACT_VERSION:
+        raise ValueError("unsupported goal activation contract_version")
+    based_on = payload.get("based_on")
+    if not isinstance(based_on, Mapping) or set(based_on) != {"state_version"}:
+        raise ValueError("goal activation based_on must contain state_version")
+    state_version = based_on.get("state_version")
+    if not isinstance(state_version, int) or isinstance(state_version, bool) or state_version < 0:
+        raise ValueError("based_on.state_version must be a non-negative integer")
+    _g_nonempty(payload.get("goal_id"), "goal_id")
+    goal_version = payload.get("expected_goal_version")
+    if not isinstance(goal_version, int) or isinstance(goal_version, bool) or goal_version < 1:
+        raise ValueError("expected_goal_version must be a positive integer")
+    _g_nonempty(payload.get("rationale"), "rationale")
+    origin = payload.get("origin")
+    if not isinstance(origin, Mapping) or set(origin) != {"component", "version"}:
+        raise ValueError("goal activation origin must contain component and version")
+    component = _g_nonempty(origin.get("component"), "origin.component")
+    _g_nonempty(origin.get("version"), "origin.version")
+    if source != f"life-goal-activation-proposal:{component}":
+        raise ValueError("goal activation source/origin mismatch")
+
+
+def _prepare_goal_activation_decision(
+    self: CognitiveGoalMixin,
+    db: Any,
+    proposal_id: str,
+    *,
+    evaluated_state_version: int,
+    decision_time: str,
+    known_goal_states: Mapping[str, Mapping[str, Any]] | None = None,
+    proposal_payload: Mapping[str, Any] | None = None,
+    proposal_event_id: str | None = None,
+) -> dict[str, Any]:
+    if proposal_payload is None:
+        row = db.execute(
+            "SELECT proposal_json,proposal_event_id FROM goal_activation_proposals "
+            "WHERE proposal_id=?", (proposal_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(proposal_id)
+        proposal = json.loads(row["proposal_json"])
+        proposal_event_id = row["proposal_event_id"]
+    else:
+        proposal = dict(proposal_payload)
+    based_on = proposal["based_on"]["state_version"]
+    goal_id = proposal["goal_id"]
+    if based_on != evaluated_state_version:
+        return {
+            "outcome": "deferred", "transition": None,
+            "reason": f"stale proposal state_version={based_on}; current state_version={evaluated_state_version}",
+        }
+    if known_goal_states is None:
+        row = db.execute("SELECT goal_json FROM goals WHERE goal_id=?", (goal_id,)).fetchone()
+        goal = json.loads(row["goal_json"]) if row is not None else None
+    else:
+        raw = known_goal_states.get(goal_id)
+        goal = dict(raw) if raw is not None else None
+    if goal is None:
+        return {"outcome": "rejected", "transition": None, "reason": "target goal does not exist"}
+    if goal.get("status") != "candidate":
+        return {
+            "outcome": "rejected", "transition": None,
+            "reason": f"target goal is not a candidate (status={goal.get('status')})",
+        }
+    current_goal_version = goal.get("goal_version")
+    if (
+        not isinstance(current_goal_version, int)
+        or isinstance(current_goal_version, bool)
+        or current_goal_version < 1
+    ):
+        self._raise_cognitive_integrity("target goal has an invalid current version")
+    if proposal["expected_goal_version"] != current_goal_version:
+        return {
+            "outcome": "deferred", "transition": None,
+            "reason": (
+                f"stale expected_goal_version={proposal['expected_goal_version']}; "
+                f"current goal_version={current_goal_version}"
+            ),
+        }
+    transition_id = f"csd-goal-activation-transition:{proposal_id}:{goal_id}"
+    transition = {
+        "goal_id": goal_id,
+        "from_goal_version": current_goal_version,
+        "goal_version": current_goal_version + 1,
+        "status": "active",
+        "transition_id": transition_id,
+        "origin_class": goal.get("origin_class"),
+        "origin_signal_refs": goal.get("origin_signal_refs"),
+        "created_at": goal.get("created_at"),
+        "activation_rationale": proposal["rationale"],
+        "activated_at": decision_time,
+    }
+    return {
+        "outcome": "accepted",
+        "transition": transition,
+        "reason": "candidate goal explicitly selected for pursuit; no activity or capability is created",
+    }
+
+
+def _apply_goal_activation_decision(self: CognitiveGoalMixin, db: Any, event: Any) -> None:
+    payload = event.payload
+    proposal_id = _g_nonempty(payload.get("proposal_id"), "decision.proposal_id")
+    proposal = db.execute(
+        "SELECT proposal_event_id,decision_event_id FROM goal_activation_proposals "
+        "WHERE proposal_id=?", (proposal_id,)
+    ).fetchone()
+    if proposal is None:
+        self._raise_cognitive_integrity("goal activation decision references a missing proposal")
+    if proposal["decision_event_id"] is not None:
+        self._raise_cognitive_integrity("goal activation proposal has more than one decision")
+    if payload.get("proposal_event_id") != proposal["proposal_event_id"]:
+        self._raise_cognitive_integrity("goal activation proposal-event mismatch")
+    event_row = db.execute("SELECT sequence FROM events WHERE event_id=?", (event.event_id,)).fetchone()
+    if event_row is None:
+        self._raise_cognitive_integrity("goal activation decision event is missing from history")
+    sequence = int(event_row["sequence"])
+    current_version = self._authoritative_state_version(db, through_sequence=sequence - 1)
+    if payload.get("evaluated_state_version") != current_version:
+        self._raise_cognitive_integrity("goal activation decision evaluated against stale state_version")
+    prepared = _prepare_goal_activation_decision(
+        self, db, proposal_id,
+        evaluated_state_version=current_version,
+        decision_time=event.occurred_at,
+    )
+    expected = {
+        "proposal_id": proposal_id,
+        "proposal_event_id": proposal["proposal_event_id"],
+        "outcome": prepared["outcome"],
+        "policy": {"id": GOAL_ACTIVATION_POLICY_ID, "version": GOAL_ACTIVATION_POLICY_VERSION},
+        "evaluated_state_version": current_version,
+        "goal_id": json.loads(db.execute(
+            "SELECT proposal_json FROM goal_activation_proposals WHERE proposal_id=?",
+            (proposal_id,),
+        ).fetchone()["proposal_json"])["goal_id"],
+        "expected_goal_version": json.loads(db.execute(
+            "SELECT proposal_json FROM goal_activation_proposals WHERE proposal_id=?",
+            (proposal_id,),
+        ).fetchone()["proposal_json"])["expected_goal_version"],
+        "transition": prepared["transition"],
+        "reason": prepared["reason"],
+    }
+    if set(payload) != set(expected) or dict(payload) != expected:
+        self._raise_cognitive_integrity("goal activation decision differs from deterministic CSD evaluation")
+    if event.event_id != f"csd-goal-activation-decision:{proposal_id}":
+        self._raise_cognitive_integrity("goal activation decision event ID is not proposal-scoped")
+    if event.correlation_id != f"goal-activation-proposal:{proposal_id}":
+        self._raise_cognitive_integrity("goal activation decision correlation_id mismatch")
+    if event.source != GOAL_DECISION_SOURCE:
+        self._raise_cognitive_integrity("goal activation decision source is not CSD authority")
+
+    transition = prepared["transition"]
+    if prepared["outcome"] == "accepted":
+        goal_id = transition["goal_id"]
+        current_row = db.execute("SELECT goal_json FROM goals WHERE goal_id=?", (goal_id,)).fetchone()
+        if current_row is None:
+            self._raise_cognitive_integrity("accepted activation target disappeared")
+        current_goal = json.loads(current_row["goal_json"])
+        if (
+            current_goal.get("goal_version") != transition["from_goal_version"]
+            or current_goal.get("status") != "candidate"
+            or current_goal.get("origin_class") != transition["origin_class"]
+            or current_goal.get("origin_signal_refs") != transition["origin_signal_refs"]
+        ):
+            self._raise_cognitive_integrity("goal changed during activation decision")
+        activated = {
+            **current_goal,
+            "goal_version": transition["goal_version"],
+            "status": "active",
+            "decision_event_id": event.event_id,
+            "transition_id": transition["transition_id"],
+            "activation_proposal_id": proposal_id,
+            "activation_proposal_event_id": proposal["proposal_event_id"],
+            "activation_decision_event_id": event.event_id,
+            "activation_rationale": transition["activation_rationale"],
+            "activated_at": transition["activated_at"],
+        }
+        goal_json = _g_canonical(activated)
+        db.execute(
+            "INSERT INTO goal_versions(goal_id,goal_version,decision_event_id,transition_id,goal_json) "
+            "VALUES (?,?,?,?,?)",
+            (goal_id, transition["goal_version"], event.event_id, transition["transition_id"], goal_json),
+        )
+        db.execute(
+            "UPDATE goals SET goal_version=?,decision_event_id=?,transition_id=?,goal_json=? "
+            "WHERE goal_id=?",
+            (transition["goal_version"], event.event_id, transition["transition_id"], goal_json, goal_id),
+        )
+    elif transition is not None:
+        self._raise_cognitive_integrity("non-accepted activation decision contains a transition")
+
+    db.execute(
+        "UPDATE goal_activation_proposals SET status=?,decision_event_id=? WHERE proposal_id=?",
+        (prepared["outcome"], event.event_id, proposal_id),
+    )
+
+
+def _apply_goal_projection_event_v2(
+    self: CognitiveGoalMixin, db: Any, event: Any, *, internal: bool
+) -> None:
+    if event.event_type in {GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT}:
+        if event.event_type == GOAL_BATCH_PROPOSAL_EVENT:
+            if internal:
+                raise ValueError("goal proposal events must use public Event Submit")
+            self._validate_goal_batch_proposal(event)
+            payload_json = _g_canonical(dict(event.payload))
+            digest = _g_digest(payload_json)
+            proposal_id = event.payload["proposal_id"]
+            existing = db.execute(
+                "SELECT proposal_digest FROM goal_proposals WHERE proposal_id=?", (proposal_id,)
+            ).fetchone()
+            if existing is not None:
+                if existing["proposal_digest"] != digest:
+                    raise ValueError(f"goal proposal identity conflict: {proposal_id}")
+                return
+            db.execute(
+                "INSERT INTO goal_proposals(proposal_id,proposal_digest,proposal_event_id,proposal_json,status,decision_event_id) "
+                "VALUES (?,?,?,?, 'pending',NULL)",
+                (proposal_id, digest, event.event_id, payload_json),
+            )
+            return
+        if not internal or event.source != GOAL_DECISION_SOURCE:
+            self._raise_cognitive_integrity("non-authoritative goal decision event")
+        self._apply_goal_batch_decision(db, event)
+        return
+
+    if event.event_type == GOAL_ACTIVATION_PROPOSAL_EVENT:
+        if internal:
+            raise ValueError("goal activation proposals must use public Event Submit")
+        _validate_goal_activation_proposal(event)
+        payload_json = _g_canonical(dict(event.payload))
+        digest = _g_digest(payload_json)
+        proposal_id = event.payload["proposal_id"]
+        existing = db.execute(
+            "SELECT proposal_digest FROM goal_activation_proposals WHERE proposal_id=?",
+            (proposal_id,),
+        ).fetchone()
+        if existing is not None:
+            if existing["proposal_digest"] != digest:
+                raise ValueError(f"goal activation proposal identity conflict: {proposal_id}")
+            return
+        db.execute(
+            "INSERT INTO goal_activation_proposals(proposal_id,proposal_digest,proposal_event_id,proposal_json,status,decision_event_id) "
+            "VALUES (?,?,?,?, 'pending',NULL)",
+            (proposal_id, digest, event.event_id, payload_json),
+        )
+        return
+
+    if event.event_type == GOAL_ACTIVATION_DECISION_EVENT:
+        if not internal or event.source != GOAL_DECISION_SOURCE:
+            self._raise_cognitive_integrity("non-authoritative goal activation decision event")
+        _apply_goal_activation_decision(self, db, event)
+        return
+    self._raise_cognitive_integrity("unhandled goal projection event")
+
+
+def _evaluate_goal_activation_proposal(
+    self: CognitiveGoalMixin, proposal_id: str
+) -> dict[str, Any]:
+    _g_nonempty(proposal_id, "proposal_id")
+    from .cognitive import CognitiveEvent
+    with self._tx() as db:
+        row = db.execute(
+            "SELECT proposal_event_id,decision_event_id,proposal_json "
+            "FROM goal_activation_proposals WHERE proposal_id=?", (proposal_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(proposal_id)
+        if row["decision_event_id"] is not None:
+            return {"status": "already_decided", "decision_event_id": row["decision_event_id"]}
+        self._assert_accepted_projection_consistent()
+        self._assert_motivation_projection_consistent()
+        self._assert_goal_projection_consistent()
+        current_version = self._authoritative_state_version(db)
+        prepared = _prepare_goal_activation_decision(
+            self, db, proposal_id,
+            evaluated_state_version=current_version,
+            decision_time=datetime.now(timezone.utc).isoformat(),
+        )
+        now = prepared["transition"]["activated_at"] if prepared["transition"] else datetime.now(timezone.utc).isoformat()
+        event = CognitiveEvent(
+            event_id=f"csd-goal-activation-decision:{proposal_id}",
+            occurred_at=now,
+            correlation_id=f"goal-activation-proposal:{proposal_id}",
+            event_type=GOAL_ACTIVATION_DECISION_EVENT,
+            source=GOAL_DECISION_SOURCE,
+            payload={
+                "proposal_id": proposal_id,
+                "proposal_event_id": row["proposal_event_id"],
+                "outcome": prepared["outcome"],
+                "policy": {"id": GOAL_ACTIVATION_POLICY_ID, "version": GOAL_ACTIVATION_POLICY_VERSION},
+                "evaluated_state_version": current_version,
+                "goal_id": json.loads(row["proposal_json"])["goal_id"],
+                "expected_goal_version": json.loads(row["proposal_json"])["expected_goal_version"],
+                "transition": prepared["transition"],
+                "reason": prepared["reason"],
+            },
+        )
+        payload_json = self._validate_event(event, internal=True)
+        appended = self._append_event_in_transaction(db, event, payload_json, internal=True)
+        return {
+            "status": prepared["outcome"],
+            "decision_event_id": event.event_id,
+            "sequence": appended["sequence"],
+            "reason": prepared["reason"],
+        }
+
+
+def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
+    """Reconcile candidate and activation histories, all goal versions, and latest goals."""
+    self._assert_motivation_projection_consistent()
+    event_types = (
+        GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
+        GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
+    )
+    placeholders = ",".join("?" for _ in event_types)
+    rows = self._db.execute(
+        f"SELECT sequence,event_id,event_type FROM events WHERE event_type IN ({placeholders}) ORDER BY sequence",
+        event_types,
+    ).fetchall()
+    batch_proposals: dict[str, dict[str, Any]] = {}
+    batch_decisions: dict[str, tuple[str, dict[str, Any]]] = {}
+    activation_proposals: dict[str, dict[str, Any]] = {}
+    activation_decisions: dict[str, tuple[str, dict[str, Any]]] = {}
+    expected_goals: dict[str, dict[str, Any]] = {}
+    expected_versions: dict[tuple[str, int], tuple[str, str, str]] = {}
+
+    for row in rows:
+        record = self.get_event(row["event_id"])
+        payload = record["payload"]
+        event_type = row["event_type"]
+        if event_type == GOAL_BATCH_PROPOSAL_EVENT:
+            proposal_id = _g_nonempty(payload.get("proposal_id"), "goal proposal_id")
+            _validate_goal_batch_proposal(record)
+            canonical = _g_canonical(payload)
+            digest = _g_digest(canonical)
+            prior = batch_proposals.get(proposal_id)
+            if prior is None:
+                batch_proposals[proposal_id] = {
+                    "digest": digest, "event_id": row["event_id"],
+                    "json": canonical, "payload": payload,
+                }
+            elif prior["digest"] != digest:
+                self._raise_cognitive_integrity("goal proposal identity conflict in event history")
+            continue
+
+        if event_type == GOAL_ACTIVATION_PROPOSAL_EVENT:
+            proposal_id = _g_nonempty(payload.get("proposal_id"), "activation proposal_id")
+            _validate_goal_activation_proposal(record)
+            canonical = _g_canonical(payload)
+            digest = _g_digest(canonical)
+            prior = activation_proposals.get(proposal_id)
+            if prior is None:
+                activation_proposals[proposal_id] = {
+                    "digest": digest, "event_id": row["event_id"],
+                    "json": canonical, "payload": payload,
+                }
+            elif prior["digest"] != digest:
+                self._raise_cognitive_integrity("goal activation proposal identity conflict in event history")
+            continue
+
+        if event_type == GOAL_BATCH_DECISION_EVENT:
+            proposal_id = _g_nonempty(payload.get("proposal_id"), "goal decision proposal_id")
+            if proposal_id in batch_decisions or proposal_id not in batch_proposals:
+                self._raise_cognitive_integrity("goal decision has duplicate or missing proposal")
+            proposal = batch_proposals[proposal_id]
+            current_version = self._authoritative_state_version(
+                self._db, through_sequence=int(row["sequence"]) - 1
+            )
+            prepared = self._prepare_goal_batch_decision(
+                self._db, proposal_id,
+                evaluated_state_version=current_version,
+                before_sequence=int(row["sequence"]),
+                known_goal_ids=set(expected_goals),
+                proposal_payload=proposal["payload"],
+            )
+            expected = {
+                "proposal_id": proposal_id,
+                "proposal_event_id": proposal["event_id"],
+                "outcome": prepared["outcome"],
+                "policy": {"id": GOAL_POLICY_ID, "version": GOAL_POLICY_VERSION},
+                "evaluated_state_version": current_version,
+                "transitions": prepared["transitions"],
+                "reason": prepared["reason"],
+            }
+            if (
+                record["source"] != GOAL_DECISION_SOURCE
+                or record["correlation_id"] != f"goal-proposal:{proposal_id}"
+                or record["event_id"] != f"csd-goal-decision:{proposal_id}"
+                or payload != expected
+            ):
+                self._raise_cognitive_integrity("goal batch decision differs from deterministic CSD evaluation")
+            batch_decisions[proposal_id] = (row["event_id"], payload)
+            if prepared["outcome"] == "accepted":
+                for transition in prepared["transitions"]:
+                    goal_id = transition["goal_id"]
+                    if goal_id in expected_goals:
+                        self._raise_cognitive_integrity("duplicate accepted goal identity")
+                    goal = next(item for item in proposal["payload"]["goals"] if item["goal_id"] == goal_id)
+                    transition_id = f"csd-goal-transition:{proposal_id}:{goal_id}"
+                    state = {
+                        **goal, "goal_version": 1, "status": "candidate",
+                        "origin_class": transition["origin_class"],
+                        "origin_signal_refs": transition["origin_signal_refs"],
+                        "proposal_id": proposal_id,
+                        "proposal_event_id": proposal["event_id"],
+                        "decision_event_id": row["event_id"],
+                        "transition_id": transition_id,
+                        "created_at": record["occurred_at"],
+                    }
+                    state_json = _g_canonical(state)
+                    expected_goals[goal_id] = state
+                    expected_versions[(goal_id, 1)] = (row["event_id"], transition_id, state_json)
+            continue
+
+        proposal_id = _g_nonempty(payload.get("proposal_id"), "activation decision proposal_id")
+        if proposal_id in activation_decisions or proposal_id not in activation_proposals:
+            self._raise_cognitive_integrity("goal activation decision has duplicate or missing proposal")
+        proposal = activation_proposals[proposal_id]
+        current_version = self._authoritative_state_version(
+            self._db, through_sequence=int(row["sequence"]) - 1
+        )
+        prepared = _prepare_goal_activation_decision(
+            self, self._db, proposal_id,
+            evaluated_state_version=current_version,
+            decision_time=record["occurred_at"],
+            known_goal_states=expected_goals,
+            proposal_payload=proposal["payload"],
+            proposal_event_id=proposal["event_id"],
+        )
+        expected = {
+            "proposal_id": proposal_id,
+            "proposal_event_id": proposal["event_id"],
+            "outcome": prepared["outcome"],
+            "policy": {"id": GOAL_ACTIVATION_POLICY_ID, "version": GOAL_ACTIVATION_POLICY_VERSION},
+            "evaluated_state_version": current_version,
+            "goal_id": proposal["payload"]["goal_id"],
+            "expected_goal_version": proposal["payload"]["expected_goal_version"],
+            "transition": prepared["transition"],
+            "reason": prepared["reason"],
+        }
+        if (
+            record["source"] != GOAL_DECISION_SOURCE
+            or record["correlation_id"] != f"goal-activation-proposal:{proposal_id}"
+            or record["event_id"] != f"csd-goal-activation-decision:{proposal_id}"
+            or payload != expected
+        ):
+            self._raise_cognitive_integrity("goal activation decision differs from deterministic CSD evaluation")
+        activation_decisions[proposal_id] = (row["event_id"], payload)
+        if prepared["outcome"] == "accepted":
+            transition = prepared["transition"]
+            goal_id = transition["goal_id"]
+            prior = expected_goals.get(goal_id)
+            if prior is None:
+                self._raise_cognitive_integrity("activation transition references missing goal")
+            state = {
+                **prior,
+                "goal_version": transition["goal_version"],
+                "status": "active",
+                "decision_event_id": row["event_id"],
+                "transition_id": transition["transition_id"],
+                "activation_proposal_id": proposal_id,
+                "activation_proposal_event_id": proposal["event_id"],
+                "activation_decision_event_id": row["event_id"],
+                "activation_rationale": transition["activation_rationale"],
+                "activated_at": transition["activated_at"],
+            }
+            state_json = _g_canonical(state)
+            expected_goals[goal_id] = state
+            expected_versions[(goal_id, transition["goal_version"])] = (
+                row["event_id"], transition["transition_id"], state_json
+            )
+
+    # Compare both proposal projections with their immutable event histories.
+    for table, expected_items, decision_items in (
+        ("goal_proposals", batch_proposals, batch_decisions),
+        ("goal_activation_proposals", activation_proposals, activation_decisions),
+    ):
+        rows = self._db.execute(
+            f"SELECT proposal_id,proposal_digest,proposal_event_id,proposal_json,status,decision_event_id FROM {table}"
+        ).fetchall()
+        if len(rows) != len(expected_items):
+            self._raise_cognitive_integrity(f"{table} count differs from event history")
+        for row in rows:
+            source = expected_items.get(row["proposal_id"])
+            decision = decision_items.get(row["proposal_id"])
+            status = decision[1]["outcome"] if decision else "pending"
+            decision_id = decision[0] if decision else None
+            if source is None or (
+                row["proposal_digest"] != source["digest"]
+                or row["proposal_event_id"] != source["event_id"]
+                or row["proposal_json"] != source["json"]
+                or row["status"] != status
+                or row["decision_event_id"] != decision_id
+            ):
+                self._raise_cognitive_integrity(f"{table} differs from event history")
+
+    version_rows = self._db.execute(
+        "SELECT goal_id,goal_version,decision_event_id,transition_id,goal_json FROM goal_versions"
+    ).fetchall()
+    if len(version_rows) != len(expected_versions):
+        self._raise_cognitive_integrity("goal version projection count differs from event history")
+    for row in version_rows:
+        expected = expected_versions.get((row["goal_id"], int(row["goal_version"])))
+        if expected is None or (
+            row["decision_event_id"], row["transition_id"], row["goal_json"]
+        ) != expected:
+            self._raise_cognitive_integrity("goal version projection differs from decision events")
+
+    goal_rows = self._db.execute(
+        "SELECT goal_id,goal_version,decision_event_id,transition_id,goal_json FROM goals"
+    ).fetchall()
+    if len(goal_rows) != len(expected_goals):
+        self._raise_cognitive_integrity("latest goal projection count differs from event history")
+    for row in goal_rows:
+        expected = expected_goals.get(row["goal_id"])
+        expected_json = _g_canonical(expected) if expected is not None else None
+        if expected is None or (
+            int(row["goal_version"]) != expected["goal_version"]
+            or row["decision_event_id"] != expected["decision_event_id"]
+            or row["transition_id"] != expected["transition_id"]
+            or row["goal_json"] != expected_json
+        ):
+            self._raise_cognitive_integrity("latest goal projection differs from event history")
+
+
+# Bind the reviewed activation path onto the shared CSD goal mixin.
+CognitiveGoalMixin._validate_goal_activation_proposal = staticmethod(_validate_goal_activation_proposal)
+CognitiveGoalMixin._prepare_goal_activation_decision = _prepare_goal_activation_decision
+CognitiveGoalMixin._apply_goal_activation_decision = _apply_goal_activation_decision
+CognitiveGoalMixin._apply_goal_projection_event = _apply_goal_projection_event_v2
+CognitiveGoalMixin.evaluate_goal_activation_proposal = _evaluate_goal_activation_proposal
+CognitiveGoalMixin._assert_goal_projection_consistent = _assert_goal_projection_consistent_v2
+
