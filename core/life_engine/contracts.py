@@ -136,6 +136,8 @@ class ValidatedLifeProposal:
 
     proposal: DeliberationProposal
     goal_origin_classes: tuple[tuple[str, str], ...]
+    # Exact signal versions resolved from the same trusted CSD snapshot.
+    goal_origin_signal_versions: tuple[tuple[str, tuple[tuple[str, int], ...]], ...]
     requires_asm_governance: bool
 
 
@@ -305,6 +307,7 @@ def validate_life_proposal(
         active_activity_by_id[active.activity_id] = active
     new_goal_ids: set[str] = set()
     goal_origin_classes: list[tuple[str, str]] = []
+    goal_origin_signal_versions: list[tuple[str, tuple[tuple[str, int], ...]]] = []
     for goal_proposal in proposal.goal_proposals:
         if not isinstance(goal_proposal, GoalProposal):
             raise TypeError("goal_proposals must contain GoalProposal values")
@@ -352,6 +355,10 @@ def validate_life_proposal(
         else:
             origin_class = "mixed_origin"
         goal_origin_classes.append((goal_proposal.goal_id, origin_class))
+        goal_origin_signal_versions.append((
+            goal_proposal.goal_id,
+            tuple(sorted((item, signal_by_id[item].signal_version) for item in origin_ids)),
+        ))
 
     choice = proposal.choice
     if not isinstance(choice, ChoiceProposal):
@@ -438,5 +445,6 @@ def validate_life_proposal(
     return ValidatedLifeProposal(
         proposal=proposal,
         goal_origin_classes=tuple(goal_origin_classes),
+        goal_origin_signal_versions=tuple(goal_origin_signal_versions),
         requires_asm_governance=requires_asm,
     )
