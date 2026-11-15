@@ -1905,6 +1905,18 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 internal = event.event_type in decision_types and event.source == DECISION_SOURCE
                 if event.event_type in decision_types and not internal:
                     raise CognitiveIntegrityError("forged decision event in durable history")
+                try:
+                    canonical_payload_json = self._validate_event(
+                        event, internal=internal
+                    )
+                except (TypeError, ValueError) as exc:
+                    raise CognitiveIntegrityError(
+                        f"invalid durable event envelope: {event.event_id}"
+                    ) from exc
+                if canonical_payload_json != payload_json:
+                    raise CognitiveIntegrityError(
+                        f"non-canonical durable event payload: {event.event_id}"
+                    )
                 if event.event_type not in {
                     OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
                     SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
