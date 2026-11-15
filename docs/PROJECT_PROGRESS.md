@@ -102,6 +102,10 @@ The current work connects motivation signals to the same CSD event stream as cog
 
 Important implementation boundary: the current CSD motivation decision path is deterministic scaffolding. It does not yet infer authentic human-like interests, feelings, needs, or desires; it does not authenticate adapter identity; and it does not establish that the evidence source is truthful. A caller-supplied adapter string is provenance metadata, not a security credential. Do not describe this slice as autonomous motivation or a complete cognitive system.
 
+### 3.5 CSD goal-state integration design
+
+- [~] Drafted `docs/design/csd-goal-state-integration-proposal.md` for durable goal proposals and candidate-state persistence. It separates candidate creation from activation, requires exact CSD signal ID/version references, derives goal origin in CSD, and defines event-backed projections/Recovery. This is a design proposal only; it is not frozen and has not been implemented.
+
 ## 5. Specification status and constraints
 
 - [x] ASM-5.3 semantic working baseline was previously confirmed in conversation; preserve its distinctions and do not silently broaden retry authority.
@@ -125,7 +129,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation and memory projections reconcile against event history. The return-visit rule is verified: the current return is the voluntary choice; the prior linked interaction may be passive exposure or user-requested. A global encounter-ID uniqueness rule was tested and reverted because one encounter may legitimately contain multiple interaction events.
 2. **Run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** This is the remaining platform-specific verification step once the remote branch is stable.
-3. **Stabilize CSD read/write contracts.** Separate memory, motivation, goal, affect, commitment, and diary state families without creating competing authorities.
+3. **Review and stabilize the CSD goal-state proposal.** Confirm candidate-versus-active semantics, event identity, exact signal-version references, and atomic batch acceptance before implementing the first durable goal family. Then continue separating memory, motivation, goal, affect, commitment, and diary state without creating competing authorities.
 4. **Connect Life Engine through explicit CSD interfaces.** The Life Engine may propose intentions; CSD accepts durable state transitions.
 5. **Develop self-initiated activity and diary behavior.** No daily quota, no forced wake-up task, no requirement to save every draft.
 6. **Define ASM handoff and permission model before any side-effecting platform action.**
