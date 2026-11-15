@@ -775,6 +775,23 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 3)
 
 
+
+    def test_pause_resume_proposal_and_decision_are_idempotent(self):
+        goal_id = self.activate_candidate("pause-idempotent")
+        version = self.store.get_state_snapshot()["state_version"]
+        proposal = goal_pause_resume_event(
+            "pause-idempotent-proposal", goal_id,
+            state_version=version, expected_goal_version=2, operation="pause",
+        )
+        self.assertEqual(self.store.submit_event(proposal)["status"], "accepted")
+        self.assertEqual(self.store.submit_event(proposal)["status"], "duplicate")
+        first = self.store.evaluate_goal_pause_resume_proposal("pause-idempotent-proposal")
+        second = self.store.evaluate_goal_pause_resume_proposal("pause-idempotent-proposal")
+        self.assertEqual(first["status"], "accepted")
+        self.assertEqual(second["status"], "already_decided")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], version + 1)
+        self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 3)
+
     def test_pause_resume_decision_and_goal_version_commit_atomically(self):
         goal_id = self.activate_candidate("pause-atomic")
         version = self.store.get_state_snapshot()["state_version"]
