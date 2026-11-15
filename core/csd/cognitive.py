@@ -258,7 +258,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
                     CREATE TABLE goal_versions (
                         goal_id TEXT NOT NULL,
                         goal_version INTEGER NOT NULL CHECK(goal_version > 0),
-                        decision_event_id TEXT NOT NULL UNIQUE,
+                        decision_event_id TEXT NOT NULL,
                         transition_id TEXT NOT NULL UNIQUE,
                         goal_json TEXT NOT NULL,
                         PRIMARY KEY(goal_id, goal_version)
