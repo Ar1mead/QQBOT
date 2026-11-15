@@ -202,15 +202,14 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         original_assert = self.store._assert_accepted_projection_consistent
 
         def append_during_snapshot():
-            def submit_from_separate_connection():
-                with CognitiveMemoryStore(self.db_path) as concurrent_store:
-                    return concurrent_store.submit_event(
-                        self.observation(event_id="evt-observation-concurrent-snapshot")
-                    )
-
-            with ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(submit_from_separate_connection)
-                future.result(timeout=5)
+            # A second SQLite connection is enough to interleave a committed
+            # writer between reads while the snapshot connection holds BEGIN.
+            # Keep connection creation and use on this same test thread because
+            # sqlite3 connections enforce thread affinity by default.
+            with CognitiveMemoryStore(self.db_path) as concurrent_store:
+                concurrent_store.submit_event(
+                    self.observation(event_id="evt-observation-concurrent-snapshot")
+                )
             return original_assert()
 
         self.store._assert_accepted_projection_consistent = append_during_snapshot
