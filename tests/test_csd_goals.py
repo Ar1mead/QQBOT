@@ -774,6 +774,38 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.assertEqual(self.store.get_goal(goal_id)["status"], "paused")
         self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 3)
 
+
+    def test_pause_resume_decision_and_goal_version_commit_atomically(self):
+        goal_id = self.activate_candidate("pause-atomic")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "pause-atomic-proposal", goal_id,
+            state_version=version, expected_goal_version=2, operation="pause",
+        ))
+        before = self.store.get_state_snapshot()
+        self.store._db.execute(
+            "CREATE TRIGGER fail_pause_resume_version BEFORE INSERT ON goal_versions "
+            "WHEN NEW.goal_version=3 BEGIN SELECT RAISE(ABORT, 'injected pause/resume failure'); END"
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.store.evaluate_goal_pause_resume_proposal("pause-atomic-proposal")
+        after = self.store.get_state_snapshot()
+        self.assertEqual(after["event_count"], before["event_count"])
+        self.assertEqual(after["state_version"], before["state_version"])
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "active")
+        self.assertEqual(
+            self.store._db.execute(
+                "SELECT status FROM goal_pause_resume_proposals WHERE proposal_id=?",
+                ("pause-atomic-proposal",),
+            ).fetchone()["status"],
+            "pending",
+        )
+        self.store._db.execute("DROP TRIGGER fail_pause_resume_version")
+        self.assertEqual(
+            self.store.evaluate_goal_pause_resume_proposal("pause-atomic-proposal")["status"],
+            "accepted",
+        )
+
     def test_pause_resume_projection_tampering_is_detected_and_recovered(self):
         goal_id = self.activate_candidate("pause-recovery")
         version = self.store.get_state_snapshot()["state_version"]
@@ -1111,6 +1143,32 @@ class CSDGoalActivationTests(unittest.TestCase):
         ]
         self.assertEqual(columns, ["collision_marker"])
 
+
+
+    def test_failed_v4_to_v5_migration_rolls_back_schema_version(self):
+        self.store.close()
+        db = sqlite3.connect(self.path)
+        db.execute("DROP TABLE goal_pause_resume_proposals")
+        db.execute("CREATE TABLE goal_pause_resume_proposals (collision_marker TEXT)")
+        db.execute("PRAGMA user_version = 4")
+        db.commit()
+        db.close()
+        candidate = CognitiveMemoryStore.__new__(CognitiveMemoryStore)
+        candidate._db = sqlite3.connect(str(self.path), isolation_level=None)
+        candidate._db.row_factory = sqlite3.Row
+        self.store = candidate
+        with self.assertRaises(sqlite3.OperationalError):
+            candidate._initialize()
+        self.assertFalse(candidate._db.in_transaction)
+        self.assertEqual(
+            int(candidate._db.execute("PRAGMA user_version").fetchone()[0]), 4
+        )
+        columns = [
+            row["name"] for row in candidate._db.execute(
+                "PRAGMA table_info(goal_pause_resume_proposals)"
+            ).fetchall()
+        ]
+        self.assertEqual(columns, ["collision_marker"])
 
     def test_v4_database_migrates_to_v5_pause_resume_projection(self):
         self.store.close()
