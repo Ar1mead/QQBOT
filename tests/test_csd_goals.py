@@ -693,6 +693,22 @@ class CSDGoalActivationTests(unittest.TestCase):
         )
         return goal_id
 
+
+    def test_pause_resume_proposal_cannot_claim_a_future_snapshot_version(self):
+        goal_id = self.activate_candidate("future-pause-resume")
+        current = self.store.get_state_snapshot()["state_version"]
+        with self.assertRaisesRegex(ValueError, "future state_version"):
+            self.store.submit_event(goal_pause_resume_event(
+                "future-pause-resume-proposal", goal_id,
+                state_version=current + 1, expected_goal_version=2, operation="pause",
+            ))
+        add_internal_signal(self.store, "advance-after-future-pause-resume")
+        self.assertIsNone(self.store._db.execute(
+            "SELECT 1 FROM goal_pause_resume_proposals WHERE proposal_id=?",
+            ("future-pause-resume-proposal",),
+        ).fetchone())
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "active")
+
     def test_pause_goal_creates_next_version_without_starting_activity(self):
         goal_id = self.activate_candidate("pause")
         before = self.store.get_state_snapshot()["state_version"]
