@@ -6,8 +6,8 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `84f35f04cb5c8d2266b9648cd5375597577919e3`
-- Workflow run: [CSD cognitive slice tests #121](https://github.com/Ar1mead/QQBOT/actions/runs/43664647115)
+- Verified commit: `7b064b7c08509875567cdec32f045ec0aacc74b0`
+- Workflow run: [CSD cognitive slice tests #122](https://github.com/Ar1mead/QQBOT/actions/runs/43664793266)
 - Runner: GitHub-hosted Ubuntu 26.04.1
 - Python: 3.12.16
 - SQLite: 3.46.1
@@ -22,7 +22,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 243 tests in 1.980s
+Ran 244 tests in 1.712s
 OK
 ```
 
@@ -51,6 +51,8 @@ Tests deliberately corrupt both signal projection tables identically and separat
 
 A further idempotency test submits a second event for an existing immutable motivation proposal with a forged source component. The duplicate is rejected and the attempted event is rolled back; valid duplicate submissions remain idempotent.
 
+Lifecycle coverage now includes create, reinforce, weaken, contextualize, pause, and resolve transitions. In this prototype, weakening is represented by appending counter-evidence; there is not yet a continuous strength/confidence or affect-dynamics model.
+
 ## Scope and limitations
 
 This is hosted Linux verification only. It does **not** establish that the code has been tested on the user's Windows 11 / Python 3.12.14 environment.
@@ -62,4 +64,4 @@ The tests verify deterministic prototype behavior, persistence, migration, proje
 - that this deterministic rules layer constitutes autonomous cognition;
 - Windows-specific locking, process termination, backup interruption, or power-loss behavior.
 
-The motivation decision path remains deterministic CSD scaffolding. No model/provider, platform adapter, or external action executor is connected by this slice.
+The motivation decision path remains deterministic CSD scaffolding. No model/provider, platform adapter, or external action executor is connected by this slice. The `weaken` operation records counter-evidence but does not yet calculate a numeric decrease in motivation strength.
