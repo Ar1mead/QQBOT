@@ -19,7 +19,8 @@ from core.csd.goals import (
     GOAL_ACTIVATION_DECISION_EVENT,
     GOAL_ACTIVATION_PROPOSAL_EVENT,
 )
-from core.life_engine import CognitiveStoreLifeSnapshotReader
+from core.life_engine import CognitiveStoreLifeSnapshotReader, CognitiveStoreLifeProposalSink
+from core.life_engine import ChoiceProposal, DeliberationProposal, validate_life_proposal
 
 
 def event(event_id, event_type, source, payload, *, at="2026-11-15T08:00:00+00:00"):
@@ -709,6 +710,31 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.assertEqual(recovered["goals"], 1)
         self.assertEqual(self.store.get_goal(goal_id)["status"], "active")
         self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 2)
+
+
+    def test_life_engine_activation_sink_commits_only_the_goal_transition(self):
+        goal_id, _ = self.create_candidate("life-sink")
+        snapshot = CognitiveStoreLifeSnapshotReader(self.store).get_life_snapshot()
+        goal = next(item for item in snapshot.goals if item.goal_id == goal_id)
+        proposal = DeliberationProposal(
+            based_on_state_version=snapshot.state_version,
+            goal_proposals=(),
+            choice=ChoiceProposal(
+                disposition="activate_goal",
+                rationale="I choose to pursue this candidate for now.",
+                goal_id=goal_id,
+                expected_goal_version=goal.goal_version,
+            ),
+        )
+        validated = validate_life_proposal(snapshot, proposal)
+        result = CognitiveStoreLifeProposalSink(self.store).submit_life_proposal(
+            validated, expected_state_version=snapshot.state_version
+        )
+        self.assertEqual(result["status"], "accepted")
+        active = self.store.get_goal(goal_id)
+        self.assertEqual(active["status"], "active")
+        self.assertEqual(active["goal_version"], 2)
+        self.assertNotIn("activity_id", active)
 
     def test_activation_projection_tampering_is_detected_and_recovered(self):
         goal_id, _ = self.create_candidate("activation-projection")
