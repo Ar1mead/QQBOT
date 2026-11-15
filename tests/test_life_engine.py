@@ -169,6 +169,37 @@ def csd_signal_record(**overrides):
     return record
 
 
+class GoalLifecycleContractTests(unittest.TestCase):
+    def test_candidate_goal_is_visible_but_cannot_be_used_for_activity(self):
+        candidate = GoalState("goal-candidate", "Explore one topic", "candidate")
+        snap = snapshot(
+            goals=(candidate,),
+            options=(option(serves_goal_ids=("goal-candidate",)),),
+        )
+        attempted = choice(
+            "start_activity",
+            considered_activity_ids=("activity-read",),
+            activity_id="activity-read",
+            goal_id="goal-candidate",
+        )
+        with self.assertRaisesRegex(ValueError, "inactive goal"):
+            validate_life_proposal(snap, proposal(snap, attempted))
+
+    def test_terminal_goal_cannot_be_revised_or_abandoned(self):
+        satisfied = GoalState("goal-satisfied", "Understand one topic", "satisfied")
+        snap = snapshot(goals=(satisfied,), options=())
+        with self.assertRaisesRegex(ValueError, "non-terminal goal"):
+            validate_life_proposal(
+                snap,
+                proposal(snap, choice("revise_goal", goal_id="goal-satisfied")),
+            )
+        with self.assertRaisesRegex(ValueError, "non-terminal goal"):
+            validate_life_proposal(
+                snap,
+                proposal(snap, choice("abandon_goal", goal_id="goal-satisfied")),
+            )
+
+
 class CsdSnapshotAdapterTests(unittest.TestCase):
     def test_maps_csd_signal_without_losing_version_subject_or_evidence_polarity(self):
         mapped = motivation_signal_from_csd(csd_signal_record())
