@@ -258,7 +258,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         connection.close()
 
         candidate = CognitiveMemoryStore.__new__(CognitiveMemoryStore)
-        candidate._db = sqlite3.connect(str(self.db_path), isolation_level=None)
+        candidate._db = sqlite3.connect(str(fresh_db_path), isolation_level=None)
         candidate._db.row_factory = sqlite3.Row
         self.store = candidate
         with self.assertRaises(sqlite3.OperationalError):
@@ -279,7 +279,8 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
 
     def test_failed_fresh_schema_initialization_rolls_back_partial_ddl(self):
         self.store.close()
-        connection = sqlite3.connect(self.db_path)
+        fresh_db_path = Path(self.temp_dir.name) / "fresh-schema-collision.sqlite3"
+        connection = sqlite3.connect(fresh_db_path)
         # Force the second CREATE TABLE in the v0 -> v1 bootstrap to fail,
         # after payloads has been created inside the migration transaction.
         connection.execute("CREATE TABLE events (collision_marker TEXT)")
