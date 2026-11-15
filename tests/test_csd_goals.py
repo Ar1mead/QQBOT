@@ -621,6 +621,52 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.assertNotIn("activity_id", active)
         self.assertNotIn("capability", active)
 
+
+    def test_activation_preserves_origin_lineage_after_source_signal_is_paused(self):
+        goal_id, signal_id = self.create_candidate("paused-source")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(event(
+            "pause-source-signal-proposal-event",
+            MOTIVATION_PROPOSAL_EVENT,
+            "motivation-proposal:test",
+            {
+                "proposal_id": "pause-source-signal",
+                "operation": "pause",
+                "kind": "interest",
+                "subject_ref": "topic:paused-source",
+                "scope": "general",
+                "statement": None,
+                "supporting_event_ids": [],
+                "counter_evidence_event_ids": [],
+                "new_signal_id": None,
+                "target_signal_id": signal_id,
+                "target_signal_version": 1,
+                "requested_interest_stage": None,
+                "rationale": "The source interest is paused independently of the goal.",
+                "origin": {"component": "test", "version": "0.1"},
+                "based_on": {"state_version": version},
+            },
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("pause-source-signal")["status"],
+            "accepted",
+        )
+        self.assertEqual(self.store.get_motivation_signal(signal_id)["status"], "paused")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "activate-after-source-pause", goal_id, state_version=version
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_activation_proposal("activate-after-source-pause")["status"],
+            "accepted",
+        )
+        active = self.store.get_goal(goal_id)
+        self.assertEqual(active["status"], "active")
+        self.assertEqual(
+            active["origin_signal_refs"],
+            [{"signal_id": signal_id, "signal_version": 1}],
+        )
+
     def test_stale_shared_state_version_is_deferred_without_rebasing(self):
         goal_id, signal_id = self.create_candidate("stale-state")
         old_version = self.store.get_state_snapshot()["state_version"]
