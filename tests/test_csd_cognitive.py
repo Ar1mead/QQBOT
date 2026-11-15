@@ -425,7 +425,15 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
 
     def test_recovery_rejects_reserved_decision_namespace_on_observation_event(self):
         self.store.submit_event(self.observation())
-        event = self.observation(event_id="csd-decision:forged-observation:1")
+        base_event = self.observation(event_id="csd-decision:forged-observation:1")
+        event = CognitiveEvent(
+            event_id=base_event.event_id,
+            occurred_at=base_event.occurred_at,
+            correlation_id=base_event.correlation_id,
+            event_type=base_event.event_type,
+            source=base_event.source,
+            payload={**dict(base_event.payload), "observation_id": "obs-reserved-durable"},
+        )
         payload_json = json.dumps(
             dict(event.payload), ensure_ascii=False, sort_keys=True,
             separators=(",", ":"), allow_nan=False,
