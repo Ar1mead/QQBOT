@@ -758,6 +758,19 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertEqual(len(signal["voluntary_encounters"]), 2)
         self.assertEqual(signal["interest_stage"], "tentative")
 
+    def test_life_signal_snapshot_returns_consistent_version_and_accepted_signals(self):
+        self.add_interaction(interaction("interaction-life-snapshot"))
+        self.add_proposal(motivation_proposal("proposal-life-snapshot"))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("proposal-life-snapshot")["status"],
+            "accepted",
+        )
+        snapshot = self.store.get_life_signal_snapshot()
+        self.assertEqual(snapshot["state_version"], 1)
+        self.assertEqual(len(snapshot["signals"]), 1)
+        self.assertEqual(snapshot["signals"][0]["signal_id"], "signal-blue-boat")
+        self.assertEqual(snapshot["signals"][0]["signal_version"], 1)
+
     def test_update_cannot_reuse_prior_evidence(self):
         self.add_interaction(interaction("interaction-1"))
         self.add_proposal(motivation_proposal("proposal-create"))
