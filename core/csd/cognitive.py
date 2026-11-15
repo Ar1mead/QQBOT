@@ -811,13 +811,11 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
             return
         raise CognitiveIntegrityError(f"unhandled event type at sequence {sequence}")
 
-    @staticmethod
     def _authoritative_state_version(
-        db: sqlite3.Connection, *, through_sequence: int | None = None
+        self, db: sqlite3.Connection, *, through_sequence: int | None = None
     ) -> int:
         query = (
-            "SELECT e.event_type,p.payload_json FROM events e "
-            "JOIN payloads p ON p.payload_ref=e.payload_ref "
+            "SELECT e.event_id FROM events e "
             "WHERE e.event_type IN (?,?)"
         )
         params: list[Any] = [DECISION_EVENT, MOTIVATION_DECISION_EVENT]
@@ -829,11 +827,11 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
         query += " ORDER BY e.sequence"
         version = 0
         for row in db.execute(query, params).fetchall():
-            try:
-                decision = json.loads(row["payload_json"])
-            except json.JSONDecodeError as exc:
-                raise CognitiveIntegrityError("invalid durable decision payload") from exc
-            outcome = decision.get("outcome") if isinstance(decision, dict) else None
+            # State-version reads must not trust raw decision payload JSON:
+            # verify its content and envelope digests before counting it.
+            decision_event = self.get_event(row["event_id"])
+            decision = decision_event["payload"]
+            outcome = decision.get("outcome")
             if outcome not in {"accepted", "rejected", "deferred", "needs_more_evidence"}:
                 raise CognitiveIntegrityError("invalid durable decision outcome")
             if outcome == "accepted":
