@@ -171,11 +171,11 @@ class CsdSignalSnapshotStore(Protocol):
 
 
 class CognitiveStoreLifeSnapshotReader:
-    """Build the current partial LifeSnapshot from CSD's authoritative signal read.
+    """Build the current partial LifeSnapshot from CSD's authoritative signal and goal read.
 
-    CSD does not yet persist goals or active activities, so those collections
-    are intentionally empty. Capability-filtered activity options must be
-    supplied by a future trusted runtime boundary, not invented here.
+    CSD persists versioned candidate/active goals, which are included. Active
+    activities and capability-filtered options remain empty until a trusted
+    runtime boundary supplies them; they are never invented by this adapter.
     """
 
     def __init__(self, store: CsdSignalSnapshotStore) -> None:
