@@ -164,4 +164,4 @@ At the time of this update:
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
 
-**Resume from section 4: continue adversarial review of evidence semantics, event replay, and idempotency. UTC-normalized voluntary-encounter maturity passed CI run #171 (261 tests on Linux and Windows). Windows-local verification remains pending.**
+**Resume from section 4: continue adversarial review of evidence semantics, event replay, and idempotency. UTC-normalized voluntary-encounter maturity passed CI run #171 (261 tests on Linux and Windows). Added a pure CSD projection-to-Life-Engine adapter that preserves signal version, subject, evidence polarity, status, maturity, and encounter lineage; mapping tests are being verified. This is not yet a live CSD database reader or proposal sink. Windows-local verification remains pending.**
