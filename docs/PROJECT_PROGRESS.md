@@ -94,7 +94,7 @@ The current work connects motivation signals to the same CSD event stream as cog
 - [x] Run `python -m compileall -q core tests` against the exact branch checkout (GitHub Actions, Linux and Windows runners).
 - [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (258 tests passed).
 - [x] Fix the migration test fixture and update this ledger with the exact result; the earlier fixture represented an impossible v1 database state.
-- [x] Confirm a successful GitHub Actions run for the current branch: run #156, commit `692107712775bdb568ebb969f25f00f049bb1748`.
+- [x] Confirm a successful GitHub Actions run for the current branch: run #161, commit `a246e667b0f2386719544613825cd1adcb0aac22`.
 - [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
 - [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; return-visit semantics are covered by run #142; event/payload digest checks cover motivation proposals, decisions, referenced interaction evidence, and authoritative state-version reads (runs #144 and #146). Pending proposal evidence is validated before retrieval; run #148 passed. Life Engine origin derivation now uses supporting evidence only, matching CSD; pause evidence and contextual-stage restrictions also align; run #152 passed. CSD now rejects maturity requests on pause/weaken/resolve proposals. Runs #153–#155 exposed two test-fixture defects; both were corrected and run #156 passed. Life Engine/CSD origin derivation and pause/contextual-stage validation are aligned. Lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains. A new Life Engine snapshot-contract change now carries CSD origin_class, interest_stage, and voluntary-encounter lineage so evolved user-origin interests are not misrepresented as purely internal; regression tests passed in run #161. Runs #157–#160 exposed remaining legacy test constructors that still used raw origin strings; these have been converted to CSD origin classes.
 - [x] Run the full suite on a GitHub-hosted Windows runner (258 tests, Python 3.12.10 / SQLite 3.49.1); this is a cross-platform CI check, not the user's own Windows 11 environment.
@@ -154,10 +154,10 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by CI: `a246e667b0f2386719544613825cd1adcb0aac22`, workflow run #161. Follow-up Life Engine snapshot-contract commits `2247802308400f3e1960cfdf2dad2dba4d8e1449`, `3008ff836e0f0146b10f6b506224273541ff994d`, `6bd26ce13c4da63af6783d665aecd13dc4c6928e`, and `a246e667b0f2386719544613825cd1adcb0aac22` preserve CSD origin and voluntary lineage; CI run #161 is pending.
+- Latest code/test commit verified by CI: `a246e667b0f2386719544613825cd1adcb0aac22`, workflow run #161. The Life Engine snapshot contract preserves CSD origin and voluntary lineage; CI run #161 passed.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
-- `python -m unittest discover -s tests -v` passed: 258 tests on both Linux and Windows runners (Linux 1.702s; Windows 13.906s).
+- `python -m unittest discover -s tests -v` passed: 258 tests on both Linux and Windows runners (Linux 2.269s; Windows 12.736s).
 - The v1→v2 migration test uses legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
 - Motivation and accepted-memory proposal/state projections are checked against authoritative events; corruption tests verify Recovery repair.
 - Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
