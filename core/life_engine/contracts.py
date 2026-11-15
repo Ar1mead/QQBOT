@@ -39,8 +39,10 @@ class MotivationSignal:
     signal_id: str
     kind: SignalKind
     origin_class: SignalOriginClass
+    subject_ref: str
     description: str
-    evidence_event_ids: tuple[str, ...]
+    supporting_event_ids: tuple[str, ...]
+    counter_evidence_event_ids: tuple[str, ...] = ()
     active: bool = True
     scope: str = "general"
     interest_stage: InterestStage | None = None
@@ -178,13 +180,20 @@ def validate_life_proposal(
             "externally_exposed", "mixed_origin",
         }:
             raise ValueError(f"unsupported signal origin_class: {signal.origin_class}")
+        if not isinstance(signal.subject_ref, str) or not signal.subject_ref.strip():
+            raise ValueError("signal subject_ref must be non-empty")
         if not isinstance(signal.description, str) or not signal.description.strip():
             raise ValueError("signal description must be non-empty")
         if not isinstance(signal.scope, str) or not signal.scope.strip():
             raise ValueError("signal scope must be non-empty")
         if not isinstance(signal.active, bool):
             raise ValueError("signal.active must be boolean")
-        support_ids = _unique_nonempty(signal.evidence_event_ids, "signal.evidence_event_ids")
+        support_ids = _unique_nonempty(signal.supporting_event_ids, "signal.supporting_event_ids")
+        counter_ids = _unique_nonempty(
+            signal.counter_evidence_event_ids, "signal.counter_evidence_event_ids"
+        )
+        if support_ids & counter_ids:
+            raise ValueError("signal support and counterevidence references must be disjoint")
         if not isinstance(signal.voluntary_encounters, (tuple, list)):
             raise ValueError("voluntary_encounters must be a sequence")
         if signal.kind == "interest":
@@ -361,7 +370,9 @@ def validate_life_proposal(
     valid_evidence_ids = {
         event_id
         for signal in signal_by_id.values()
-        for event_id in signal.evidence_event_ids
+        for event_id in (
+            tuple(signal.supporting_event_ids) + tuple(signal.counter_evidence_event_ids)
+        )
     } | {
         event_id
         for goal in goal_by_id.values()
