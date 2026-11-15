@@ -1846,8 +1846,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             db.execute("DELETE FROM goals")
             db.execute("DELETE FROM goal_proposals")
             db.execute("DELETE FROM goal_activation_proposals")
+            db.execute("DELETE FROM goal_pause_resume_proposals")
             for sequence, event in parsed:
-                decision_types = {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT}
+                decision_types = {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT}
                 internal = event.event_type in decision_types and event.source == DECISION_SOURCE
                 if event.event_type in decision_types and not internal:
                     raise CognitiveIntegrityError("forged decision event in durable history")
@@ -1857,6 +1858,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
                     GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
                     GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
+                    GOAL_PAUSE_RESUME_PROPOSAL_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT,
                 }:
                     raise CognitiveIntegrityError(f"unknown event type: {event.event_type}")
                 self._apply_projection_event(db, event, sequence, internal=internal)
