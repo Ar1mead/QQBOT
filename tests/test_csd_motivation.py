@@ -149,7 +149,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
     def add_proposal(self, event):
         return self.store.submit_event(event)
 
-    def test_migration_creates_schema_v4_and_preserves_v1_memory_data(self):
+    def test_migration_creates_schema_v5_and_preserves_v1_memory_data(self):
         observation = envelope(
             "migration-observation",
             OBSERVATION_EVENT,
@@ -205,7 +205,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.store = CognitiveMemoryStore(self.db_path)
         after = self.store.get_state_snapshot()
         version = int(self.store._db.execute("PRAGMA user_version").fetchone()[0])
-        self.assertEqual(version, 4)
+        self.assertEqual(version, 5)
         self.assertEqual(after["event_count"], before["event_count"])
         self.assertEqual(after["state_version"], before["state_version"])
         self.assertEqual(after["accepted_memory_count"], before["accepted_memory_count"])
