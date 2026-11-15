@@ -39,7 +39,9 @@ A selected side-effecting activity is only marked as requiring ASM governance. N
 - The current activity permission fields are trusted snapshot inputs, not grants created by the deliberator. CSD also rejects proposal snapshot versions that did not exist at proposal append time across memory, grounded-memory, motivation, and goal proposal families.
 - A no-op is a valid proposed choice, not a failed task.
 
-Run the isolated tests from the repository root:
+Run the full hosted-equivalent Windows verification from the repository root with `./scripts/verify_windows.ps1`. It reports Python/SQLite versions, runs compileall, and executes the complete unittest suite.
+
+For isolated checks, run:
 
 ```powershell
 py -3.12 -m unittest discover -s tests -p "test_motivation_synthesis.py" -v
