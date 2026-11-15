@@ -13,6 +13,8 @@ from core.life_engine import (
     LifeSnapshot,
     MotivationSignal,
     validate_life_proposal,
+    motivation_signal_from_csd,
+    motivation_signals_from_csd,
 )
 
 
@@ -135,6 +137,73 @@ class FakeSink:
     def submit_life_proposal(self, value, *, expected_state_version):
         self.calls.append((value, expected_state_version))
         return {"status": "pending", "expected_state_version": expected_state_version}
+
+
+def csd_signal_record(**overrides):
+    record = {
+        "signal_id": "sig-csd-1",
+        "signal_version": 3,
+        "kind": "interest",
+        "subject_ref": "topic:blue-boat",
+        "scope": "Bilibili topic",
+        "statement": "A tentative interest in blue-boat videos.",
+        "status": "active",
+        "origin_class": "user_requested_encounter",
+        "supporting_event_ids": ["evt-support-1", "evt-support-2"],
+        "counter_evidence_event_ids": ["evt-counter-1"],
+        "voluntary_encounters": [
+            {
+                "encounter_id": "enc-1",
+                "occurred_at": "2026-11-14T10:00:00+00:00",
+                "event_id": "evt-support-2",
+            }
+        ],
+        "interest_stage": "tentative",
+        "created_at": "2026-11-13T10:00:00+00:00",
+        "updated_at": "2026-11-14T10:00:00+00:00",
+        "proposal_id": "proposal-3",
+        "proposal_event_id": "event-proposal-3",
+        "previous_signal_version": 2,
+    }
+    record.update(overrides)
+    return record
+
+
+class CsdSnapshotAdapterTests(unittest.TestCase):
+    def test_maps_csd_signal_without_losing_version_subject_or_evidence_polarity(self):
+        mapped = motivation_signal_from_csd(csd_signal_record())
+        self.assertEqual(mapped.signal_id, "sig-csd-1")
+        self.assertEqual(mapped.signal_version, 3)
+        self.assertEqual(mapped.subject_ref, "topic:blue-boat")
+        self.assertEqual(mapped.description, "A tentative interest in blue-boat videos.")
+        self.assertEqual(mapped.origin_class, "user_requested_encounter")
+        self.assertEqual(mapped.supporting_event_ids, ("evt-support-1", "evt-support-2"))
+        self.assertEqual(mapped.counter_evidence_event_ids, ("evt-counter-1",))
+        self.assertEqual(
+            mapped.voluntary_encounters,
+            (("enc-1", "2026-11-14T10:00:00+00:00", "evt-support-2"),),
+        )
+        self.assertTrue(mapped.active)
+
+    def test_maps_non_active_csd_signal_as_inactive(self):
+        mapped = motivation_signal_from_csd(csd_signal_record(status="paused"))
+        self.assertFalse(mapped.active)
+
+    def test_rejects_voluntary_encounter_not_in_supporting_evidence(self):
+        invalid = csd_signal_record(
+            voluntary_encounters=[{
+                "encounter_id": "enc-1",
+                "occurred_at": "2026-11-14T10:00:00+00:00",
+                "event_id": "evt-counter-1",
+            }]
+        )
+        with self.assertRaises(ValueError):
+            motivation_signal_from_csd(invalid)
+
+    def test_collection_rejects_duplicate_signal_identity(self):
+        record = csd_signal_record()
+        with self.assertRaises(ValueError):
+            motivation_signals_from_csd((record, dict(record)))
 
 
 class LifeProposalValidationTests(unittest.TestCase):
