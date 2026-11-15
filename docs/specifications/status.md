@@ -91,3 +91,5 @@ Do not present ASM-5.4 as finalized, and do not generate conformance tests from 
 - Build conformance tests only against an explicitly selected and sufficiently stable source baseline.
 
 Snapshot consistency verification: both diagnostic and Life Engine snapshot readers execute within the shared explicit read-transaction helper. A deterministic two-connection test commits a new event after the diagnostic snapshot has established its read view and confirms the returned snapshot excludes that later event while the database contains it. The test uses two independent connections without crossing SQLite thread affinity. Hosted CI run #298 passed 332 tests on Ubuntu and Windows.
+
+Semantic-review idempotency verification: a repeated `review_id` now validates the original event through `get_event` before returning `duplicate_review`. A regression corrupts the original review event's envelope digest and confirms that a retry with a new event ID cannot mask the damaged event. Hosted CI run #302 passed 333 tests on Ubuntu and Windows; see [semantic-review duplicate integrity report](../reports/csd-semantic-review-duplicate-integrity-test-report-001.md).
