@@ -777,6 +777,7 @@ class CognitiveMotivationMixin:
 
     def get_motivation_proposal(self, proposal_id: str) -> dict[str, Any]:
         _m_nonempty(proposal_id, "proposal_id")
+        self._assert_motivation_projection_consistent()
         row = self._db.execute(
             "SELECT proposal_json,proposal_digest,proposal_event_id,status,decision_event_id "
             "FROM motivation_proposals WHERE proposal_id=?",
