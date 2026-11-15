@@ -35,7 +35,7 @@ The active `feature/csd-cognitive-memory-slice` branch has since extended this r
 
 The Life Engine is now connected to an integrity-checked CSD snapshot reader and a narrow CSD proposal sink for candidate-goal creation, activation, and pause/resume. The sink persists internal goal-state transitions only. No real deliberator/model provider is connected, no external activity is executed, and blocked/unblocked, satisfied, abandoned, superseded, and revision transitions remain unimplemented pending separate evidence/authority contracts.
 
-The latest verified hosted workflow on this branch is run #270: 325 tests passed on GitHub-hosted Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1), including compileall and the full test discovery. This is not the user's own Windows 11 / Python 3.12.14 environment; local verification, process-interruption, and durability testing remain pending.
+The latest verified hosted workflow on this branch is run #272: 326 tests passed on GitHub-hosted Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1), including compileall and the full test discovery. This is not the user's own Windows 11 / Python 3.12.14 environment; local verification, process-interruption, and durability testing remain pending.
 
 
 ### Memory lifecycle
