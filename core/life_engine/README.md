@@ -6,7 +6,7 @@ This directory contains an isolated, provider-neutral proposal layer for the fir
 
 - `contracts.py` — typed motivation signals (including CSD signal version, subject, and evidence polarity), goal state, trusted activity options, goal proposals, and deliberation choices.
 - `csd_adapter.py` — maps event-verified CSD signal and goal projections (including goal versions) into Life Engine inputs, provides an atomic snapshot reader, and persists candidate/activation proposals through a narrow CSD sink; it does not authenticate the caller.
-- `core/csd/goals.py` — CSD-owned goal-batch proposal/decision path, candidate projections, source-version lineage, and Recovery.
+- `core/csd/goals.py` — CSD-owned candidate-goal creation, explicit activation, pause/resume proposal/decision paths, versioned projections, source lineage, and Recovery.
 - `motivation.py` — validates evidence-grounded motivation update proposals against a trusted snapshot, including signal statement/version, supporting/counterevidence, and source-origin restrictions; it does not accept or persist signal state.
 - `engine.py` — read snapshot -> ask deliberator -> validate references and hard admissibility -> submit a proposal to the CSD-facing sink. The sink persists candidate-goal and explicit activation transitions; it does not execute activities.
 - Active activity snapshots carry current permission and stop-condition state; continuation is blocked after permission revocation or a met stop condition. Stopping/continuing an external side-effect activity is flagged for ASM governance. A new activity may be motivated by an active signal or by an accepted ongoing goal; it must not be source-free. Ordinary activity options cannot advance paused or blocked goals.
@@ -33,7 +33,7 @@ A selected side-effecting activity is only marked as requiring ASM governance. N
 - No real model or deliberation provider is connected.
 - A live CSD snapshot reader is implemented for accepted signals and versioned goals. The CSD-facing sink can persist candidate-goal proposals and explicit candidate→active transitions. No real model provider is connected, so goal creation/activation still requires a supplied deliberation proposal.
 - `motivation.py` provides proposal validation for create/reinforce/weaken/contextualize/pause/resolve operations, checks origin/event-kind compatibility, prevents evidence reuse on revisions, and distinguishes voluntary interest evidence from exposure or user-requested behavior. It does not synthesize signals, learn their semantics, accept changes, or persist them.
-- CSD persists candidate and active goal states, and the branch implements explicit pause/resume transitions through a separate proposal/decision event family (hosted CI run #259 passed). Blocked/satisfied/abandoned/superseded/revise transitions, commitments, and activity execution are not yet implemented.
+- CSD persists candidate and active goal states, and the branch implements explicit pause/resume transitions through a separate proposal/decision event family (hosted CI run #263 passed). Blocked/satisfied/abandoned/superseded/revise transitions, commitments, and activity execution are not yet implemented.
 - No goal conflict resolution, long-running activity monitor, or autonomous scheduler is implemented.
 - Local validation is not a security boundary; CSD must independently validate event schema, state version, provenance, permissions, and lifecycle transitions.
 - The current activity permission fields are trusted snapshot inputs, not grants created by the deliberator.
