@@ -417,6 +417,45 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 db, event, payload_json, internal=internal
             )
 
+    def _validate_proposal_snapshot_chronology(
+        self,
+        db: sqlite3.Connection,
+        event: CognitiveEvent,
+        sequence: int,
+        *,
+        replay: bool = False,
+    ) -> None:
+        proposal_types = {
+            PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT, MOTIVATION_PROPOSAL_EVENT,
+            GOAL_BATCH_PROPOSAL_EVENT, GOAL_ACTIVATION_PROPOSAL_EVENT,
+            GOAL_PAUSE_RESUME_PROPOSAL_EVENT,
+        }
+        if event.event_type not in proposal_types:
+            return
+        based_on = event.payload.get("based_on")
+        if not isinstance(based_on, Mapping) or set(based_on) != {"state_version"}:
+            message = "proposal based_on must contain exactly state_version"
+            if replay:
+                raise CognitiveIntegrityError(message)
+            raise ValueError(message)
+        claimed = based_on.get("state_version")
+        if not isinstance(claimed, int) or isinstance(claimed, bool) or claimed < 0:
+            message = "proposal based_on.state_version must be a non-negative integer"
+            if replay:
+                raise CognitiveIntegrityError(message)
+            raise ValueError(message)
+        state_at_append = self._authoritative_state_version(
+            db, through_sequence=sequence - 1
+        )
+        if claimed > state_at_append:
+            message = (
+                f"proposal claims future state_version={claimed}; "
+                f"only {state_at_append} existed when its event was appended"
+            )
+            if replay:
+                raise CognitiveIntegrityError(message)
+            raise ValueError(message)
+
     def _append_event_in_transaction(
         self,
         db: sqlite3.Connection,
@@ -513,6 +552,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
              event.event_type, event.source, payload_ref, event_digest),
         )
         sequence = int(cursor.lastrowid)
+        self._validate_proposal_snapshot_chronology(db, event, sequence)
         self._apply_projection_event(db, event, sequence, internal=internal)
         return {
             "status": "accepted",
@@ -1861,6 +1901,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     GOAL_PAUSE_RESUME_PROPOSAL_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT,
                 }:
                     raise CognitiveIntegrityError(f"unknown event type: {event.event_type}")
+                self._validate_proposal_snapshot_chronology(
+                    db, event, sequence, replay=True
+                )
                 self._apply_projection_event(db, event, sequence, internal=internal)
 
         return {
