@@ -540,6 +540,54 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertEqual(self.store.get_state_snapshot()["state_version"], 1)
         self.assertTrue(self.store.get_state_snapshot()["projection_consistent"])
 
+    def test_counter_evidence_does_not_change_signal_origin_class(self):
+        positive = interaction(
+            "interaction-positive-origin",
+            kind="voluntary_selection",
+            origin="internal_state",
+            encounter="enc-positive-origin",
+        )
+        self.add_interaction(positive)
+        user_request = envelope(
+            "source-user-counter",
+            OBSERVATION_EVENT,
+            "test.user-request",
+            {
+                "observation_id": "obs-user-counter",
+                "observation_kind": "user_message",
+                "content": "Please look at this related item.",
+                "source_ref": "fixture://user-counter",
+                "observed_at": "2026-11-14T09:59:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+            at="2026-11-14T09:59:00+00:00",
+        )
+        self.store.submit_event(user_request)
+        counter = interaction(
+            "interaction-user-counter",
+            kind="counter_evidence",
+            origin="user_request",
+            meaningful=False,
+            choice_set=[],
+            selected=None,
+            origin_event_id="source-user-counter",
+            at="2026-11-14T10:00:00+00:00",
+        )
+        self.add_interaction(counter)
+        self.add_proposal(motivation_proposal(
+            "proposal-positive-origin",
+            support=("interaction-positive-origin",),
+            counter=("interaction-user-counter",),
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("proposal-positive-origin")["status"],
+            "accepted",
+        )
+        self.assertEqual(
+            self.store.get_motivation_signal("signal-blue-boat")["origin_class"],
+            "internally_initiated",
+        )
+
     def test_user_request_origin_is_preserved_when_later_independent_choices_accumulate(self):
         source = envelope(
             "source-user-request",
