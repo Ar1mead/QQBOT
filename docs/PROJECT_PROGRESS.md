@@ -95,6 +95,14 @@ Reference files:
 - [ ] Real deliberator/model provider is not connected. Goal activation is a persisted choice transition, not proof of subjective desire or autonomous motivation.
 - [ ] Remaining goal lifecycle transitions and activity execution remain out of scope.
 
+
+### 3.7 Remaining goal lifecycle design
+
+- [x] Drafted `docs/design/csd-goal-lifecycle-proposal.md` to distinguish pause from blocked, define terminal states, preserve goal/source lineage, and specify version/Recovery invariants.
+- [x] Selected pause/resume as the first low-risk follow-on slice in the proposal; blocked/unblocked remains dependent on trusted ASM/prerequisite evidence, while satisfied/superseded/revise require their own evidence and atomicity review.
+- [ ] Implement CSD-authoritative pause/resume proposal and decision events, exact state/goal version checks, atomic goal version updates, reconciliation, Recovery, and Life Engine sink support.
+- [ ] Keep blocked, satisfied, abandoned, superseded, and revise unimplemented until their operation-specific evidence and authority contracts are reviewed.
+
 ## 4. Current work in progress — CSD motivation integration
 
 Branch: `feature/csd-cognitive-memory-slice`
@@ -155,7 +163,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation, memory, and goal projections now reconcile against authoritative events. Continue looking for coordinated projection corruption, invalid event order, and migration/recovery edge cases.
 2. **Run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** This remains pending until the repository is ready and cloned.
-3. **Design and implement the remaining goal lifecycle transitions.** Candidate→active activation is complete. Define separate semantics, evidence requirements, version rules, event contracts, and Recovery tests for pause/resume, blocked/unblocked, satisfied, abandoned, superseded, and revise. Do not implement these as a generic status setter.
+3. **Implement pause/resume as the next goal lifecycle slice**, following `docs/design/csd-goal-lifecycle-proposal.md`. Keep blocked/unblocked, satisfied, abandoned, superseded, and revise separate until their evidence and authority contracts are reviewed.
 4. **Connect a real deliberator/provider in pending or shadow mode only after local Windows verification.** The Life Engine now has a CSD sink for candidate creation and activation; no real model provider is connected. Keep empty `no_op` deliberations cheap and avoid manufacturing goals to satisfy a scheduler.
 5. **Develop self-initiated activity and diary behavior.** No daily quota, no forced wake-up task, no requirement to save every draft.
 6. **Define ASM handoff and permission model before any side-effecting platform action.**
