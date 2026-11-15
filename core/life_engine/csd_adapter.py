@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import datetime
-from typing import Any
+from typing import Any, Protocol
 
-from .contracts import MotivationSignal
+from .contracts import LifeSnapshot, MotivationSignal
 
 
 _ORIGIN_CLASSES = {
@@ -163,3 +163,36 @@ def motivation_signals_from_csd(
     if len(set(ids)) != len(ids):
         raise ValueError("CSD signal collection contains duplicate signal IDs")
     return result
+
+class CsdSignalSnapshotStore(Protocol):
+    def get_life_signal_snapshot(self) -> Mapping[str, Any]:
+        """Return an integrity-checked, transactionally consistent CSD snapshot."""
+
+
+class CognitiveStoreLifeSnapshotReader:
+    """Build the current partial LifeSnapshot from CSD's authoritative signal read.
+
+    CSD does not yet persist goals or active activities, so those collections
+    are intentionally empty. Capability-filtered activity options must be
+    supplied by a future trusted runtime boundary, not invented here.
+    """
+
+    def __init__(self, store: CsdSignalSnapshotStore) -> None:
+        self._store = store
+
+    def get_life_snapshot(self) -> LifeSnapshot:
+        snapshot = self._store.get_life_signal_snapshot()
+        if not isinstance(snapshot, Mapping):
+            raise TypeError("CSD life signal snapshot must be a mapping")
+        version = snapshot.get("state_version")
+        if not isinstance(version, int) or isinstance(version, bool) or version < 0:
+            raise ValueError("CSD life signal snapshot has invalid state_version")
+        if set(snapshot) != {"state_version", "signals"}:
+            raise ValueError("CSD life signal snapshot contains missing or unsupported fields")
+        return LifeSnapshot(
+            state_version=version,
+            signals=motivation_signals_from_csd(snapshot["signals"]),
+            goals=(),
+            activity_options=(),
+        )
+
