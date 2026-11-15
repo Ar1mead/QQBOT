@@ -1606,6 +1606,33 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
             })
         return reviews
 
+    def get_life_signal_snapshot(self) -> dict[str, Any]:
+        """Return one integrity-checked, transactionally consistent Life Engine read.
+
+        The snapshot currently contains accepted motivation signals and the
+        shared authoritative state_version. Goals and activity options are not
+        included because their durable CSD state families are not implemented.
+        """
+        self._db.execute("BEGIN")
+        try:
+            state_version = self._authoritative_state_version(self._db)
+            self._assert_accepted_projection_consistent()
+            self._assert_motivation_projection_consistent()
+            rows = self._db.execute(
+                "SELECT signal_json FROM motivation_signals ORDER BY rowid"
+            ).fetchall()
+            signals = [json.loads(row["signal_json"]) for row in rows]
+            result = {
+                "state_version": state_version,
+                "signals": signals,
+            }
+        except Exception:
+            self._db.execute("ROLLBACK")
+            raise
+        else:
+            self._db.execute("COMMIT")
+        return result
+
     def get_state_snapshot(self) -> dict[str, Any]:
         state_version = self._authoritative_state_version(self._db)
         accepted_memory_count = int(self._db.execute(
