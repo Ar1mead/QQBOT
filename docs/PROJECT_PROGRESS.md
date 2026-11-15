@@ -187,7 +187,7 @@ At the time of this update:
 - Latest branch head before this progress-ledger update: `8b8c599ffd1560f875d0e2b24b7f9dd7c0bfc772` (goal activation hosted-test report documentation commit).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
-- `python -m unittest discover -s tests -v` passed: 281 tests on both Linux and Windows (Linux 2.064s; Windows 14.982s).
+- `python -m unittest discover -s tests -v` passed: 297 tests on both Linux and Windows (Linux 2.122s; Windows 19.005s).
 - Schema v4 includes durable candidate-goal and activation proposal projections, goal-version history, and latest-goal state. Legacy v1→v4 migration and v3→v4 activation migration are covered.
 - Goal batch acceptance is atomic; accepted candidates increment shared state_version once regardless of batch size. Stale proposals defer without rebasing. Exact source signal versions are resolved at the decision event sequence.
 - The Life Engine snapshot reader includes versioned candidate/active goals. A narrow CSD sink can persist candidate-goal and explicit activation proposals; activity options remain empty pending a trusted capability-filtered source.
