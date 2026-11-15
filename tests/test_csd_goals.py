@@ -863,6 +863,31 @@ class CSDGoalActivationTests(unittest.TestCase):
         )
         self.assertEqual(self.store.get_goal(goal_id)["status"], "active")
 
+
+    def test_failed_v3_to_v4_migration_rolls_back_schema_version(self):
+        self.store.close()
+        db = sqlite3.connect(self.path)
+        db.execute("CREATE TABLE goal_activation_proposals (collision_marker TEXT)")
+        db.execute("PRAGMA user_version = 3")
+        db.commit()
+        db.close()
+        candidate = CognitiveMemoryStore.__new__(CognitiveMemoryStore)
+        candidate._db = sqlite3.connect(str(self.path), isolation_level=None)
+        candidate._db.row_factory = sqlite3.Row
+        self.store = candidate
+        with self.assertRaises(sqlite3.OperationalError):
+            candidate._initialize()
+        self.assertFalse(candidate._db.in_transaction)
+        self.assertEqual(
+            int(candidate._db.execute("PRAGMA user_version").fetchone()[0]), 3
+        )
+        columns = [
+            row["name"] for row in candidate._db.execute(
+                "PRAGMA table_info(goal_activation_proposals)"
+            ).fetchall()
+        ]
+        self.assertEqual(columns, ["collision_marker"])
+
     def test_v3_database_migrates_to_v4_activation_projection(self):
         self.store.close()
         db = sqlite3.connect(self.path)
