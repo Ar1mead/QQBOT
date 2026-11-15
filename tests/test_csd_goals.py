@@ -867,6 +867,7 @@ class CSDGoalActivationTests(unittest.TestCase):
     def test_failed_v3_to_v4_migration_rolls_back_schema_version(self):
         self.store.close()
         db = sqlite3.connect(self.path)
+        db.execute("DROP TABLE goal_activation_proposals")
         db.execute("CREATE TABLE goal_activation_proposals (collision_marker TEXT)")
         db.execute("PRAGMA user_version = 3")
         db.commit()
