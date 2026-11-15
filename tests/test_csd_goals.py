@@ -216,6 +216,21 @@ class CSDGoalStateTests(unittest.TestCase):
         self.assertEqual(result["status"], "accepted")
         self.assertEqual(self.store.get_goals()[0]["status"], "candidate")
 
+
+    def test_goal_proposal_cannot_claim_a_future_state_version(self):
+        proposal = goal_event(
+            "future-version-goal",
+            ["signal-future-goal"],
+            state_version=1,
+        )
+        with self.assertRaisesRegex(ValueError, "future state_version"):
+            self.store.submit_event(proposal)
+        signal_id = add_internal_signal(self.store, "future-goal")
+        self.assertEqual(signal_id, "signal-future-goal")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], 1)
+        with self.assertRaises(KeyError):
+            self.store.get_goal_proposal("future-version-goal")
+
     def test_stale_goal_proposal_is_deferred_without_rebasing(self):
         signal_id = add_internal_signal(self.store, "stale")
         based_on = self.store.get_state_snapshot()["state_version"]
@@ -590,6 +605,22 @@ class CSDGoalActivationTests(unittest.TestCase):
         result = self.store.evaluate_goal_batch_proposal(proposal_id)
         self.assertEqual(result["status"], "accepted")
         return f"goal-{proposal_id}", signal_id
+
+
+    def test_activation_proposal_cannot_become_valid_after_future_state_catches_up(self):
+        proposal = goal_activation_event(
+            "future-version-activation",
+            "goal-candidate-future-activation",
+            state_version=2,
+            expected_goal_version=1,
+        )
+        with self.assertRaisesRegex(ValueError, "future state_version"):
+            self.store.submit_event(proposal)
+        goal_id, _ = self.create_candidate("future-activation")
+        self.assertEqual(goal_id, "goal-candidate-future-activation")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], 2)
+        with self.assertRaises(KeyError):
+            self.store.get_goal_activation_proposal("future-version-activation")
 
     def test_explicit_activation_creates_version_two_and_increments_state_once(self):
         goal_id, signal_id = self.create_candidate()
