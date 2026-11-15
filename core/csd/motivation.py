@@ -109,7 +109,21 @@ class CognitiveMotivationMixin:
         if set(payload) != allowed:
             raise ValueError("interaction payload contains missing or unsupported fields")
 
-        _m_nonempty(payload.get("encounter_id"), "interaction.encounter_id")
+        encounter_id = _m_nonempty(payload.get("encounter_id"), "interaction.encounter_id")
+        prior_encounters = db.execute(
+            "SELECT p.payload_json FROM events e "
+            "JOIN payloads p ON p.payload_ref=e.payload_ref "
+            "WHERE e.event_type=?",
+            (INTERACTION_EVENT,),
+        ).fetchall()
+        for prior_row in prior_encounters:
+            try:
+                prior_payload = json.loads(prior_row["payload_json"])
+            except json.JSONDecodeError as exc:
+                self._raise_cognitive_integrity("invalid prior interaction payload JSON")
+                raise exc
+            if prior_payload.get("encounter_id") == encounter_id:
+                raise ValueError("encounter_id must be unique across interaction events")
         _m_nonempty(payload.get("subject_ref"), "interaction.subject_ref")
         _m_nonempty(payload.get("context"), "interaction.context")
         _m_nonempty(payload.get("session_scope"), "interaction.session_scope")
@@ -216,10 +230,16 @@ class CognitiveMotivationMixin:
                 raise ValueError("related_event_id must reference an earlier interaction event")
             prior_record = self.get_event(related_event_id)
             prior = prior_record["payload"]
+            if prior.get("evidence_kind") not in {"voluntary_selection", "return_visit"}:
+                raise ValueError("return_visit must relate to a prior voluntary selection")
+            if not prior.get("meaningful_alternatives"):
+                raise ValueError("return_visit prior interaction must contain meaningful alternatives")
             if prior.get("subject_ref") != payload["subject_ref"]:
                 raise ValueError("return_visit must relate to the same subject")
             if prior.get("selected_ref") != selected:
                 raise ValueError("return_visit must relate to the same selected item")
+            if selected not in prior.get("choice_set_refs", []):
+                raise ValueError("return_visit selected item was not in the prior choice set")
             if payload["encounter_id"] == prior.get("encounter_id"):
                 raise ValueError("return_visit must represent a distinct encounter")
             if datetime.fromisoformat(event.occurred_at) <= datetime.fromisoformat(
