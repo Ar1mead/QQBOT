@@ -20,6 +20,7 @@ def signal(
     signal_id="sig-interest",
     origin_class="internally_initiated",
     *,
+    signal_version=1,
     active=True,
     kind="interest",
     subject_ref="topic:blue-boat",
@@ -30,6 +31,7 @@ def signal(
 ):
     return MotivationSignal(
         signal_id=signal_id,
+        signal_version=signal_version,
         kind=kind,
         origin_class=origin_class,
         subject_ref=subject_ref,
