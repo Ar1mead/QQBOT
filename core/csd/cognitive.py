@@ -1836,54 +1836,57 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         }
 
     def recover(self) -> dict[str, int]:
-        """Validate the event log and rebuild projections; never evaluate proposals."""
-        integrity = self._db.execute("PRAGMA integrity_check").fetchone()[0]
-        if integrity != "ok":
-            raise CognitiveIntegrityError(f"SQLite integrity_check failed: {integrity}")
-        if self._db.execute("PRAGMA foreign_key_check").fetchall():
-            raise CognitiveIntegrityError("SQLite foreign_key_check failed")
-
-        rows = self._db.execute(
-            "SELECT e.sequence,e.event_id,e.occurred_at,e.received_at,e.correlation_id,e.event_type,"
-            "e.source,e.payload_ref,e.event_digest,p.payload_json "
-            "FROM events e LEFT JOIN payloads p ON p.payload_ref=e.payload_ref "
-            "ORDER BY e.sequence"
-        ).fetchall()
-
-        parsed: list[tuple[int, CognitiveEvent]] = []
-        expected = 1
-        for row in rows:
-            if int(row["sequence"]) != expected:
-                raise CognitiveIntegrityError("event sequence gap")
-            expected += 1
-            payload_json = row["payload_json"]
-            if payload_json is None or "sha256:" + _digest(payload_json) != row["payload_ref"]:
-                raise CognitiveIntegrityError(f"payload integrity failure: {row['event_id']}")
-            try:
-                payload = json.loads(payload_json)
-            except json.JSONDecodeError as exc:
-                raise CognitiveIntegrityError("invalid payload JSON") from exc
-            if not isinstance(payload, dict):
-                raise CognitiveIntegrityError("event payload must be an object")
-            event = CognitiveEvent(
-                event_id=row["event_id"],
-                occurred_at=row["occurred_at"],
-                correlation_id=row["correlation_id"],
-                event_type=row["event_type"],
-                source=row["source"],
-                payload=payload,
-            )
-            _nonempty(event.event_id, "event_id")
-            _nonempty(event.correlation_id, "correlation_id")
-            _nonempty(event.event_type, "event_type")
-            _nonempty(event.source, "source")
-            _timestamp(event.occurred_at, "occurred_at")
-            _timestamp(row["received_at"], "received_at")
-            if self._event_digest(event, row["payload_ref"], row["received_at"]) != row["event_digest"]:
-                raise CognitiveIntegrityError(f"event envelope digest failure: {event.event_id}")
-            parsed.append((expected - 1, event))
-
+        """Validate and rebuild one stable event-log snapshot; never evaluate proposals."""
+        # Acquire the writer reservation before reading the event stream. Otherwise a
+        # concurrent append between SELECT and BEGIN IMMEDIATE could be omitted from
+        # the parsed replay while remaining in the authoritative event table.
         with self._tx() as db:
+            integrity = db.execute("PRAGMA integrity_check").fetchone()[0]
+            if integrity != "ok":
+                raise CognitiveIntegrityError(f"SQLite integrity_check failed: {integrity}")
+            if db.execute("PRAGMA foreign_key_check").fetchall():
+                raise CognitiveIntegrityError("SQLite foreign_key_check failed")
+
+            rows = db.execute(
+                "SELECT e.sequence,e.event_id,e.occurred_at,e.received_at,e.correlation_id,e.event_type,"
+                "e.source,e.payload_ref,e.event_digest,p.payload_json "
+                "FROM events e LEFT JOIN payloads p ON p.payload_ref=e.payload_ref "
+                "ORDER BY e.sequence"
+            ).fetchall()
+
+            parsed: list[tuple[int, CognitiveEvent]] = []
+            expected = 1
+            for row in rows:
+                if int(row["sequence"]) != expected:
+                    raise CognitiveIntegrityError("event sequence gap")
+                expected += 1
+                payload_json = row["payload_json"]
+                if payload_json is None or "sha256:" + _digest(payload_json) != row["payload_ref"]:
+                    raise CognitiveIntegrityError(f"payload integrity failure: {row['event_id']}")
+                try:
+                    payload = json.loads(payload_json)
+                except json.JSONDecodeError as exc:
+                    raise CognitiveIntegrityError("invalid payload JSON") from exc
+                if not isinstance(payload, dict):
+                    raise CognitiveIntegrityError("event payload must be an object")
+                event = CognitiveEvent(
+                    event_id=row["event_id"],
+                    occurred_at=row["occurred_at"],
+                    correlation_id=row["correlation_id"],
+                    event_type=row["event_type"],
+                    source=row["source"],
+                    payload=payload,
+                )
+                _nonempty(event.event_id, "event_id")
+                _nonempty(event.correlation_id, "correlation_id")
+                _nonempty(event.event_type, "event_type")
+                _nonempty(event.source, "source")
+                _timestamp(event.occurred_at, "occurred_at")
+                _timestamp(row["received_at"], "received_at")
+                if self._event_digest(event, row["payload_ref"], row["received_at"]) != row["event_digest"]:
+                    raise CognitiveIntegrityError(f"event envelope digest failure: {event.event_id}")
+                parsed.append((expected - 1, event))
+
             db.execute("DELETE FROM accepted_memories")
             db.execute("DELETE FROM proposals")
             db.execute("DELETE FROM motivation_signal_versions")
@@ -1895,7 +1898,10 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             db.execute("DELETE FROM goal_activation_proposals")
             db.execute("DELETE FROM goal_pause_resume_proposals")
             for sequence, event in parsed:
-                decision_types = {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT}
+                decision_types = {
+                    DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT,
+                    GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT,
+                }
                 internal = event.event_type in decision_types and event.source == DECISION_SOURCE
                 if event.event_type in decision_types and not internal:
                     raise CognitiveIntegrityError("forged decision event in durable history")
@@ -1913,23 +1919,24 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 )
                 self._apply_projection_event(db, event, sequence, internal=internal)
 
-        return {
-            "events": len(parsed),
-            "proposals": int(self._db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0]),
-            "accepted_memories": int(self._db.execute(
-                "SELECT COUNT(*) FROM accepted_memories"
-            ).fetchone()[0]),
-            "motivation_proposals": int(self._db.execute(
-                "SELECT COUNT(*) FROM motivation_proposals"
-            ).fetchone()[0]),
-            "motivation_signals": int(self._db.execute(
-                "SELECT COUNT(*) FROM motivation_signals"
-            ).fetchone()[0]),
-            "motivation_signal_versions": int(self._db.execute(
-                "SELECT COUNT(*) FROM motivation_signal_versions"
-            ).fetchone()[0]),
-            "goal_proposals": int(self._db.execute("SELECT COUNT(*) FROM goal_proposals").fetchone()[0]),
-            "goals": int(self._db.execute("SELECT COUNT(*) FROM goals").fetchone()[0]),
-            "goal_versions": int(self._db.execute("SELECT COUNT(*) FROM goal_versions").fetchone()[0]),
-            "goal_activation_proposals": int(self._db.execute("SELECT COUNT(*) FROM goal_activation_proposals").fetchone()[0]),
-        }
+            # Report counts from the same locked snapshot used for replay.
+            return {
+                "events": len(parsed),
+                "proposals": int(db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0]),
+                "accepted_memories": int(db.execute(
+                    "SELECT COUNT(*) FROM accepted_memories"
+                ).fetchone()[0]),
+                "motivation_proposals": int(db.execute(
+                    "SELECT COUNT(*) FROM motivation_proposals"
+                ).fetchone()[0]),
+                "motivation_signals": int(db.execute(
+                    "SELECT COUNT(*) FROM motivation_signals"
+                ).fetchone()[0]),
+                "motivation_signal_versions": int(db.execute(
+                    "SELECT COUNT(*) FROM motivation_signal_versions"
+                ).fetchone()[0]),
+                "goal_proposals": int(db.execute("SELECT COUNT(*) FROM goal_proposals").fetchone()[0]),
+                "goals": int(db.execute("SELECT COUNT(*) FROM goals").fetchone()[0]),
+                "goal_versions": int(db.execute("SELECT COUNT(*) FROM goal_versions").fetchone()[0]),
+                "goal_activation_proposals": int(db.execute("SELECT COUNT(*) FROM goal_activation_proposals").fetchone()[0]),
+            }
