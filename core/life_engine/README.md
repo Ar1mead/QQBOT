@@ -17,7 +17,8 @@ The prototype can represent:
 - needs, interests, curiosity, affect, commitments, and opportunities as distinct signals;
 - CSD-derived immutable origin classes (`internally_initiated`, `user_requested_encounter`, `externally_exposed`, `mixed_origin`);
 - CSD-derived interest maturity and voluntary-encounter lineage, without rewriting the signal's initial origin;
-- candidate goals with origin references, exact source signal-version lineage derived from the trusted snapshot, success conditions, stop conditions, and review conditions;
+- goal snapshots distinguish candidate, active, paused, blocked, satisfied, abandoned, and superseded states; only active goals may serve as current activity targets;
+- candidate goals carry origin references and exact source signal-version lineage derived from the trusted snapshot, plus success, stop, and review conditions;
 - start, continue, wait, request-information, pause, abandon, revise, decline, stop, and no-op choices;
 - trusted activity options with explicit capability, prerequisite, and side-effect metadata;
 - a distinction between read-only activities and choices requiring ASM governance.
