@@ -100,7 +100,7 @@ Reference files:
 
 - [x] Drafted `docs/design/csd-goal-lifecycle-proposal.md` to distinguish pause from blocked, define terminal states, preserve goal/source lineage, and specify version/Recovery invariants.
 - [x] Selected pause/resume as the first low-risk follow-on slice in the proposal; blocked/unblocked remains dependent on trusted ASM/prerequisite evidence, while satisfied/superseded/revise require their own evidence and atomicity review.
-- [x] Implemented CSD-authoritative pause/resume proposal and decision events, exact state/goal version checks, atomic goal version updates, reconciliation, Recovery, and Life Engine sink support; hosted CI run #263 passed 320 tests on Ubuntu and Windows. See `docs/reports/csd-goal-pause-resume-hosted-test-report-001.md`.
+- [x] Implemented CSD-authoritative pause/resume proposal and decision events, exact state/goal version checks, atomic goal version updates, reconciliation, Recovery, and Life Engine sink support; hosted CI run #264 passed 322 tests on Ubuntu and Windows. See `docs/reports/csd-goal-pause-resume-hosted-test-report-001.md`.
 - [ ] Keep blocked, satisfied, abandoned, superseded, and revise unimplemented until their operation-specific evidence and authority contracts are reviewed.
 
 ## 4. Current work in progress — CSD motivation integration
@@ -192,11 +192,11 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by hosted CI: `4dfd0fd133fadf3b13085d2ca4d5472d8e40f79c`, workflow run #263 (320 tests passed on Ubuntu and Windows).
-- Branch head immediately before this ledger refresh: `4dfd0fd133fadf3b13085d2ca4d5472d8e40f79c` (pause/resume chronology and recovery regression tests).
+- Latest code/test commit verified by hosted CI: `66ac0b157ba7c735726499fa60b2b38d21265c87`, workflow run #264 (322 tests passed on Ubuntu and Windows).
+- Branch head immediately before this ledger refresh: `e5caabe9475c2980e8c065eced31c0da21de7731` (pause/resume competing-proposal and identity-conflict tests).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
-- `python -m unittest discover -s tests -v` passed: 320 tests on both Linux and Windows (Linux 1.934s; Windows 31.315s).
+- `python -m unittest discover -s tests -v` passed: 322 tests on both Linux and Windows (Linux 2.205s; Windows 25.171s).
 - Schema v5 includes durable candidate-goal, activation, and pause/resume proposal projections, goal-version history, and latest-goal state. Legacy v1→v5, v3→v5, and v4→v5 migrations are covered by tests; hosted CI run #263 passed 320 tests on Ubuntu and Windows.
 - Goal batch acceptance is atomic; accepted candidates increment shared state_version once regardless of batch size. Stale proposals defer without rebasing. Exact source signal versions are resolved at the decision event sequence.
 - The Life Engine snapshot reader includes versioned goals across candidate, active, and paused states. A narrow CSD sink can persist candidate-goal, activation, and pause/resume proposals; activity options remain empty pending a trusted capability-filtered source.
