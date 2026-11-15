@@ -264,6 +264,116 @@ class CSDGoalStateTests(unittest.TestCase):
                 {},
             ))
 
+
+    def test_user_requested_origin_is_derived_by_csd(self):
+        signal_id = add_user_requested_signal(self.store)
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_event("user-origin", [signal_id], state_version=version))
+        result = self.store.evaluate_goal_batch_proposal("user-origin")
+        self.assertEqual(result["status"], "accepted")
+        self.assertEqual(self.store.get_goal("goal-user-origin")["origin_class"], "user_requested")
+
+    def test_user_origin_with_emerging_voluntary_pattern_becomes_mixed_origin(self):
+        signal_id = add_user_requested_signal(self.store)
+        self.store.submit_event(event(
+            "user-topic-voluntary-1", INTERACTION_EVENT, "interaction-adapter:test",
+            {
+                "encounter_id": "user-topic-encounter-1",
+                "subject_ref": "topic:user-topic",
+                "evidence_kind": "voluntary_selection",
+                "origin": "internal_state",
+                "context": "A later independent choice.",
+                "meaningful_alternatives": True,
+                "choice_set_refs": ["item:user-topic", "item:other"],
+                "selected_ref": "item:user-topic",
+                "origin_event_id": None,
+                "related_event_id": None,
+                "adapter": {"component": "test", "version": "0.1"},
+                "session_scope": "test",
+            },
+            at="2026-11-15T08:02:00+00:00",
+        ))
+        self.store.submit_event(event(
+            "user-topic-voluntary-2", INTERACTION_EVENT, "interaction-adapter:test",
+            {
+                "encounter_id": "user-topic-encounter-2",
+                "subject_ref": "topic:user-topic",
+                "evidence_kind": "return_visit",
+                "origin": "internal_state",
+                "context": "A second independent return.",
+                "meaningful_alternatives": True,
+                "choice_set_refs": ["item:user-topic", "item:other"],
+                "selected_ref": "item:user-topic",
+                "origin_event_id": None,
+                "related_event_id": "user-topic-voluntary-1",
+                "adapter": {"component": "test", "version": "0.1"},
+                "session_scope": "test",
+            },
+            at="2026-11-15T08:04:00+00:00",
+        ))
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(event(
+            "user-interest-reinforce-event", MOTIVATION_PROPOSAL_EVENT,
+            "motivation-proposal:test",
+            {
+                "proposal_id": "user-interest-reinforce",
+                "operation": "reinforce",
+                "kind": "interest",
+                "subject_ref": "topic:user-topic",
+                "scope": "general",
+                "statement": None,
+                "supporting_event_ids": ["user-topic-voluntary-1", "user-topic-voluntary-2"],
+                "counter_evidence_event_ids": [],
+                "new_signal_id": None,
+                "target_signal_id": signal_id,
+                "target_signal_version": 1,
+                "requested_interest_stage": "emerging",
+                "rationale": "Two independent voluntary encounters.",
+                "origin": {"component": "test", "version": "0.1"},
+                "based_on": {"state_version": version},
+            },
+            at="2026-11-15T08:05:00+00:00",
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("user-interest-reinforce")["status"],
+            "accepted",
+        )
+        signal = self.store.get_motivation_signal(signal_id)
+        self.assertEqual(signal["origin_class"], "user_requested_encounter")
+        self.assertEqual(signal["interest_stage"], "emerging")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_event("mixed-origin", [signal_id], state_version=version))
+        self.assertEqual(
+            self.store.evaluate_goal_batch_proposal("mixed-origin")["status"],
+            "accepted",
+        )
+        self.assertEqual(self.store.get_goal("goal-mixed-origin")["origin_class"], "mixed_origin")
+
+    def test_multi_goal_batch_increments_shared_version_once(self):
+        signal_id = add_internal_signal(self.store, "multi")
+        version = self.store.get_state_snapshot()["state_version"]
+        goals = []
+        for suffix in ("a", "b"):
+            goals.append({
+                "goal_id": f"goal-multi-{suffix}",
+                "desired_condition": f"Understand aspect {suffix}.",
+                "origin_signal_ids": [signal_id],
+                "rationale": "A related candidate.",
+                "success_condition": "A useful result is recorded.",
+                "stop_condition": "Further work has low value.",
+                "review_condition": "Review after new evidence.",
+            })
+        self.store.submit_event(goal_event(
+            "multi", [signal_id], state_version=version, goals=goals
+        ))
+        result = self.store.evaluate_goal_batch_proposal("multi")
+        self.assertEqual(result["status"], "accepted")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], version + 1)
+        self.assertEqual(
+            [item["goal_id"] for item in self.store.get_goals()],
+            ["goal-multi-a", "goal-multi-b"],
+        )
+
     def test_recovery_rebuilds_candidate_goal_without_activation(self):
         signal_id = add_internal_signal(self.store, "recovery")
         version = self.store.get_state_snapshot()["state_version"]
