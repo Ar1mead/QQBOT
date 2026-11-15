@@ -214,11 +214,18 @@ class CognitiveMotivationMixin:
                 or int(row["sequence"]) >= current_sequence
             ):
                 raise ValueError("related_event_id must reference an earlier interaction event")
-            prior = self.get_event(related_event_id)["payload"]
+            prior_record = self.get_event(related_event_id)
+            prior = prior_record["payload"]
             if prior.get("subject_ref") != payload["subject_ref"]:
                 raise ValueError("return_visit must relate to the same subject")
             if prior.get("selected_ref") != selected:
                 raise ValueError("return_visit must relate to the same selected item")
+            if payload["encounter_id"] == prior.get("encounter_id"):
+                raise ValueError("return_visit must represent a distinct encounter")
+            if datetime.fromisoformat(event.occurred_at) <= datetime.fromisoformat(
+                prior_record["occurred_at"]
+            ):
+                raise ValueError("return_visit must occur after the related interaction")
 
         if kind == "autonomous_question":
             if origin != "internal_state" or selected is not None or choice_set:
