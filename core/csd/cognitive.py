@@ -25,16 +25,18 @@ from .motivation import (
 )
 from .goals import (
     CognitiveGoalMixin,
-    CognitiveGoalActivationMixin,
+    CognitiveGoalLifecycleMixin,
     GOAL_BATCH_DECISION_EVENT,
     GOAL_BATCH_PROPOSAL_EVENT,
     GOAL_DECISION_SOURCE,
     GOAL_ACTIVATION_PROPOSAL_EVENT,
     GOAL_ACTIVATION_DECISION_EVENT,
+    GOAL_PAUSE_RESUME_PROPOSAL_EVENT,
+    GOAL_PAUSE_RESUME_DECISION_EVENT,
 )
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 OBSERVATION_EVENT = "experience.observation_recorded.v1"
 PROPOSAL_EVENT = "cognition.memory_candidate_proposed.v1"
 GROUNDED_PROPOSAL_EVENT = "cognition.grounded_memory_candidate_proposed.v1"
@@ -104,7 +106,7 @@ def _nonempty(value: Any, name: str) -> str:
     return value
 
 
-class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalActivationMixin, CognitiveGoalMixin):
+class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin, CognitiveGoalMixin):
     """Single event stream with rebuildable proposal and accepted-memory views."""
 
     def _raise_cognitive_integrity(self, message: str) -> None:
@@ -306,6 +308,29 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalActivationMixi
                 raise
             version = 4
 
+        if version == 4:
+            try:
+                self._db.executescript(
+                    """
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE goal_pause_resume_proposals (
+                        proposal_id TEXT PRIMARY KEY,
+                        proposal_digest TEXT NOT NULL,
+                        proposal_event_id TEXT NOT NULL,
+                        proposal_json TEXT NOT NULL,
+                        status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','deferred')),
+                        decision_event_id TEXT
+                    );
+                    PRAGMA user_version = 5;
+                    COMMIT;
+                    """
+                )
+            except Exception:
+                if self._db.in_transaction:
+                    self._db.rollback()
+                raise
+            version = 5
+
         if version != SCHEMA_VERSION:
             raise CognitiveIntegrityError(f"unsupported schema version: {version}")
 
@@ -345,6 +370,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalActivationMixi
             or event.event_id.startswith("csd-motivation-decision:")
             or event.event_id.startswith("csd-goal-decision:")
             or event.event_id.startswith("csd-goal-activation-decision:")
+            or event.event_id.startswith("csd-goal-pause-resume-decision:")
         ):
             raise ValueError("event_id uses a namespace reserved for CSD decisions")
         _nonempty(event.correlation_id, "correlation_id")
@@ -353,7 +379,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalActivationMixi
         _timestamp(event.occurred_at, "occurred_at")
         if not isinstance(event.payload, Mapping):
             raise ValueError("payload must be an object")
-        if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT} and not internal:
+        if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT} and not internal:
             raise ValueError("CSD decision events are reserved for the internal authority path")
         if event.event_type not in {
             OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
@@ -361,13 +387,14 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalActivationMixi
             INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
             GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
             GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
+            GOAL_PAUSE_RESUME_PROPOSAL_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT,
         }:
             raise ValueError(f"unsupported event type: {event.event_type}")
         if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT} and event.source != DECISION_SOURCE:
             raise ValueError("decision event source must identify CSD authority")
         if event.event_type == MOTIVATION_DECISION_EVENT and event.source != MOTIVATION_DECISION_SOURCE:
             raise ValueError("motivation decision event source must identify CSD authority")
-        if event.event_type in {GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT} and event.source != GOAL_DECISION_SOURCE:
+        if event.event_type in {GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT} and event.source != GOAL_DECISION_SOURCE:
             raise ValueError("goal decision event source must identify CSD authority")
         if event.event_type == SEMANTIC_REVIEW_EVENT:
             reviewer = event.payload.get("reviewer")
@@ -888,6 +915,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalActivationMixi
         if event.event_type in {
             GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
             GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
+            GOAL_PAUSE_RESUME_PROPOSAL_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT,
         }:
             self._apply_goal_projection_event(db, event, internal=internal)
             return
@@ -898,9 +926,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalActivationMixi
     ) -> int:
         query = (
             "SELECT e.event_id FROM events e "
-            "WHERE e.event_type IN (?,?,?,?)"
+            "WHERE e.event_type IN (?,?,?,?,?)"
         )
-        params: list[Any] = [DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT]
+        params: list[Any] = [DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT]
         if through_sequence is not None:
             if not isinstance(through_sequence, int) or isinstance(through_sequence, bool):
                 raise ValueError("through_sequence must be an integer or None")
