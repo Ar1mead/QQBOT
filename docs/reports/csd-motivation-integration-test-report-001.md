@@ -23,7 +23,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 244 tests in 1.712s
+Ran 246 tests in 1.493s on Linux; the Windows runner completed the same 246-test suite in 14.004s.
 OK
 ```
 
@@ -58,7 +58,7 @@ Lifecycle coverage now includes create, reinforce, weaken, contextualize, pause,
 
 ## Scope and limitations
 
-This is hosted Linux verification only. It does **not** establish that the code has been tested on the user's Windows 11 / Python 3.12.14 environment.
+This is hosted Linux and Windows verification. It does **not** establish that the code has been tested on the user's own Windows 11 / Python 3.12.14 environment.
 
 The tests verify deterministic prototype behavior, persistence, migration, projections, and Recovery invariants. They do not prove:
 - that caller-supplied adapter metadata authenticates an adapter;
