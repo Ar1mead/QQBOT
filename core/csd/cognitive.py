@@ -562,22 +562,24 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         if event.event_type == SEMANTIC_REVIEW_EVENT:
             review_id = _nonempty(event.payload.get("review_id"), "review_id")
             prior_reviews = db.execute(
-                "SELECT e.event_id,e.sequence,e.received_at,p.payload_json "
-                "FROM events e JOIN payloads p ON p.payload_ref=e.payload_ref "
-                "WHERE e.event_type=? ORDER BY e.sequence",
+                "SELECT event_id FROM events "
+                "WHERE event_type=? ORDER BY sequence",
                 (SEMANTIC_REVIEW_EVENT,),
             ).fetchall()
             for prior_review in prior_reviews:
-                stored_payload = json.loads(prior_review["payload_json"])
+                # Do not acknowledge a duplicate review from raw projection data:
+                # validate the authoritative event payload and envelope first.
+                stored_event = self.get_event(prior_review["event_id"])
+                stored_payload = stored_event["payload"]
                 if stored_payload.get("review_id") == review_id:
                     if stored_payload != dict(event.payload):
                         raise SemanticReviewIdentityConflict(review_id)
                     return {
                         "status": "duplicate_review",
                         "review_id": review_id,
-                        "event_id": prior_review["event_id"],
-                        "sequence": int(prior_review["sequence"]),
-                        "received_at": prior_review["received_at"],
+                        "event_id": stored_event["event_id"],
+                        "sequence": int(stored_event["sequence"]),
+                        "received_at": stored_event["received_at"],
                     }
 
         db.execute(
