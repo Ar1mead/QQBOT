@@ -672,6 +672,104 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertEqual(state["signal_version"], 2)
         self.assertEqual(self.store.get_state_snapshot()["state_version"], 2)
 
+    def test_signal_lifecycle_weaken_contextualize_and_resolve(self):
+        self.add_interaction(interaction("interaction-lifecycle-create"))
+        self.add_proposal(motivation_proposal(
+            "proposal-lifecycle-create",
+            support=("interaction-lifecycle-create",),
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("proposal-lifecycle-create")["status"],
+            "accepted",
+        )
+
+        counter = interaction(
+            "interaction-lifecycle-counter",
+            kind="counter_evidence",
+            meaningful=False,
+            choice_set=[],
+            selected=None,
+            at="2026-11-14T10:30:00+00:00",
+        )
+        self.add_interaction(counter)
+        self.add_proposal(motivation_proposal(
+            "proposal-lifecycle-weaken",
+            operation="weaken",
+            support=(),
+            counter=("interaction-lifecycle-counter",),
+            new_signal_id=None,
+            target_signal_id="signal-blue-boat",
+            target_version=1,
+            based_on=1,
+            at="2026-11-14T10:31:00+00:00",
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("proposal-lifecycle-weaken")["status"],
+            "accepted",
+        )
+        weakened = self.store.get_motivation_signal("signal-blue-boat")
+        self.assertEqual(weakened["signal_version"], 2)
+        self.assertEqual(
+            weakened["counter_evidence_event_ids"],
+            ["interaction-lifecycle-counter"],
+        )
+
+        contextual_choice = interaction(
+            "interaction-lifecycle-context",
+            encounter="enc-lifecycle-context",
+            at="2026-11-14T11:00:00+00:00",
+        )
+        self.add_interaction(contextual_choice)
+        self.add_proposal(motivation_proposal(
+            "proposal-lifecycle-contextualize",
+            operation="contextualize",
+            support=("interaction-lifecycle-context",),
+            new_signal_id=None,
+            target_signal_id="signal-blue-boat",
+            target_version=2,
+            based_on=2,
+            statement="An interest limited to a particular kind of blue-boat video.",
+            scope="video:blue-boat",
+            requested_stage=None,
+            at="2026-11-14T11:01:00+00:00",
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("proposal-lifecycle-contextualize")["status"],
+            "accepted",
+        )
+        contextualized = self.store.get_motivation_signal("signal-blue-boat")
+        self.assertEqual(contextualized["signal_version"], 3)
+        self.assertEqual(contextualized["interest_stage"], "contextual")
+        self.assertEqual(contextualized["scope"], "video:blue-boat")
+
+        resolution = interaction(
+            "interaction-lifecycle-resolution",
+            kind="resolution",
+            meaningful=False,
+            choice_set=[],
+            selected=None,
+            at="2026-11-14T12:00:00+00:00",
+        )
+        self.add_interaction(resolution)
+        self.add_proposal(motivation_proposal(
+            "proposal-lifecycle-resolve",
+            operation="resolve",
+            support=("interaction-lifecycle-resolution",),
+            new_signal_id=None,
+            target_signal_id="signal-blue-boat",
+            target_version=3,
+            based_on=3,
+            at="2026-11-14T12:01:00+00:00",
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("proposal-lifecycle-resolve")["status"],
+            "accepted",
+        )
+        resolved = self.store.get_motivation_signal("signal-blue-boat")
+        self.assertEqual(resolved["signal_version"], 4)
+        self.assertEqual(resolved["status"], "resolved")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], 4)
+
     def test_csd_decision_event_cannot_be_forged_through_public_submit(self):
         forged = envelope(
             "forged-motivation-decision",
