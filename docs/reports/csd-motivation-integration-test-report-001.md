@@ -6,12 +6,12 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `3db230734b7192444478fa3943222e6e3bb38cc5`
-- Workflow run: [CSD cognitive slice tests #163](https://github.com/Ar1mead/QQBOT/actions/runs/43668050904)
+- Verified commit: `7c4c637e87a1be69192d7ee4fdcd3a971bfd427c`
+- Workflow run: [CSD cognitive slice tests #166](https://github.com/Ar1mead/QQBOT/actions/runs/43668286605)
 - Linux runner: GitHub-hosted Ubuntu 26.04.1 — Python 3.12.16 / SQLite 3.46.1
 - Windows runner: GitHub-hosted `windows-latest` — Python 3.12.10 / SQLite 3.49.1
 
-Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (259 tests each; Linux 1.323s, Windows 16.347s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
+Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (259 tests each; Linux 1.322s, Windows 10.460s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
 
 ## Exact commands
 
@@ -23,7 +23,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 259 tests in 1.323s on Linux; the Windows runner completed the same 259-test suite in 16.347s.
+Ran 259 tests in 1.322s on Linux; the Windows runner completed the same 259-test suite in 10.460s.
 OK
 ```
 
@@ -76,7 +76,9 @@ Cross-module consistency review found that Life Engine initially derived a signa
 
 The Life Engine snapshot contract now consumes CSD-derived origin classes, interest maturity, scope, and voluntary-encounter lineage rather than re-deriving a raw origin from a single source token. When a user/external-origin interest later reaches an emerging voluntary pattern, a goal derived from it is marked mixed-origin; the signal's initial origin remains unchanged. The test suite verifies this and rejects encounter summaries that do not reference supporting evidence. This passed in CI run #161 with 258 tests on both operating systems.
 
-The Life Engine snapshot validator now also requires voluntary-encounter timestamps to be valid timezone-aware ISO-8601 values. This passed in CI run #163 with 259 tests on both operating systems.
+The Life Engine snapshot validator also requires voluntary-encounter timestamps to be valid timezone-aware ISO-8601 values. This passed in CI run #163 with 259 tests on both operating systems.
+
+The Life Engine signal snapshot now carries the CSD subject reference and separates supporting evidence from counterevidence instead of flattening them into one list. This preserves the evidence polarity and subject identity needed for future goal proposals and activity choices. The updated contract and tests passed in CI run #166 with 259 tests on both operating systems.
 
 ## Scope and limitations
 
