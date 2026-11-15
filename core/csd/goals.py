@@ -1141,11 +1141,15 @@ def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
             self._raise_cognitive_integrity("latest goal projection differs from event history")
 
 
-# Bind the reviewed activation path onto the shared CSD goal mixin.
-CognitiveGoalMixin._validate_goal_activation_proposal = staticmethod(_validate_goal_activation_proposal)
-CognitiveGoalMixin._prepare_goal_activation_decision = _prepare_goal_activation_decision
-CognitiveGoalMixin._apply_goal_activation_decision = _apply_goal_activation_decision
-CognitiveGoalMixin._apply_goal_projection_event = _apply_goal_projection_event_v2
-CognitiveGoalMixin.evaluate_goal_activation_proposal = _evaluate_goal_activation_proposal
-CognitiveGoalMixin._assert_goal_projection_consistent = _assert_goal_projection_consistent_v2
+class CognitiveGoalActivationMixin:
+    """Separate CSD goal activation event path layered over candidate-goal storage."""
+
+    def _apply_goal_projection_event(self, db: Any, event: Any, *, internal: bool) -> None:
+        _apply_goal_projection_event_v2(self, db, event, internal=internal)
+
+    def evaluate_goal_activation_proposal(self, proposal_id: str) -> dict[str, Any]:
+        return _evaluate_goal_activation_proposal(self, proposal_id)
+
+    def _assert_goal_projection_consistent(self) -> None:
+        _assert_goal_projection_consistent_v2(self)
 
