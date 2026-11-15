@@ -369,7 +369,7 @@ def validate_life_proposal(
     if not isinstance(choice, ChoiceProposal):
         raise TypeError("proposal.choice must be ChoiceProposal")
     if choice.disposition not in {
-        "start_activity", "continue_activity", "wait", "request_information",
+        "start_activity", "continue_activity", "activate_goal", "wait", "request_information",
         "pause_goal", "abandon_goal", "revise_goal", "decline", "stop_activity", "no_op",
     }:
         raise ValueError(f"unsupported disposition: {choice.disposition}")
