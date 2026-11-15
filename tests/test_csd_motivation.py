@@ -973,6 +973,28 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertEqual(report["motivation_signals"], 1)
         self.assertEqual(self.store.get_motivation_signals(), before)
 
+    def test_pending_motivation_proposal_read_detects_tampered_evidence(self):
+        self.add_interaction(interaction("interaction-pending-evidence"))
+        self.add_proposal(motivation_proposal(
+            "proposal-pending-evidence",
+            support=("interaction-pending-evidence",),
+        ))
+        row = self.store._db.execute(
+            "SELECT payload_ref,payload_json FROM payloads "
+            "WHERE payload_ref=(SELECT payload_ref FROM events WHERE event_id=?)",
+            ("interaction-pending-evidence",),
+        ).fetchone()
+        tampered = json.loads(row["payload_json"])
+        tampered["context"] = "tampered before proposal evaluation"
+        self.store._db.execute("DROP TRIGGER payloads_no_update")
+        self.store._db.execute(
+            "UPDATE payloads SET payload_json=? WHERE payload_ref=?",
+            (json.dumps(tampered, ensure_ascii=False, sort_keys=True, separators=(",", ":")), row["payload_ref"]),
+        )
+
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_motivation_proposal("proposal-pending-evidence")
+
     def test_state_version_read_detects_tampered_decision_payload(self):
         self.add_interaction(interaction("interaction-decision-digest"))
         self.add_proposal(motivation_proposal(
