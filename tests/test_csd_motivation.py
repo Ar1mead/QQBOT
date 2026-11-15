@@ -276,6 +276,43 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertNotIn("motivation_proposals", tables)
         self.assertIn("motivation_signal_versions", tables)
 
+
+    def test_failed_fresh_schema_initialization_rolls_back_partial_ddl(self):
+        self.store.close()
+        connection = sqlite3.connect(self.db_path)
+        # Force the second CREATE TABLE in the v0 -> v1 bootstrap to fail,
+        # after payloads has been created inside the migration transaction.
+        connection.execute("CREATE TABLE events (collision_marker TEXT)")
+        connection.commit()
+        connection.close()
+
+        candidate = CognitiveMemoryStore.__new__(CognitiveMemoryStore)
+        candidate._db = sqlite3.connect(str(self.db_path), isolation_level=None)
+        candidate._db.row_factory = sqlite3.Row
+        self.store = candidate
+        with self.assertRaises(sqlite3.OperationalError):
+            candidate._initialize()
+
+        self.assertFalse(candidate._db.in_transaction)
+        self.assertEqual(
+            int(candidate._db.execute("PRAGMA user_version").fetchone()[0]),
+            0,
+        )
+        tables = {
+            row["name"]
+            for row in candidate._db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        self.assertNotIn("payloads", tables)
+        self.assertIn("events", tables)
+        self.assertEqual(
+            [row["name"] for row in candidate._db.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger'"
+            ).fetchall()],
+            [],
+        )
+
     def test_fresh_schema_is_v5(self):
         self.assertEqual(
             int(self.store._db.execute("PRAGMA user_version").fetchone()[0]),
