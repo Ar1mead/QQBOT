@@ -364,8 +364,32 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 raise
             return False
 
+    class _ReadTx:
+        def __init__(self, db: sqlite3.Connection) -> None:
+            self.db = db
+
+        def __enter__(self) -> sqlite3.Connection:
+            self.db.execute("BEGIN")
+            return self.db
+
+        def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> bool:
+            if exc_type is not None:
+                if self.db.in_transaction:
+                    self.db.rollback()
+                return False
+            try:
+                self.db.commit()
+            except Exception:
+                if self.db.in_transaction:
+                    self.db.rollback()
+                raise
+            return False
+
     def _tx(self) -> "CognitiveMemoryStore._Tx":
         return self._Tx(self._db)
+
+    def _read_tx(self) -> "CognitiveMemoryStore._ReadTx":
+        return self._ReadTx(self._db)
 
     @staticmethod
     def _event_digest(
@@ -1784,70 +1808,65 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         projections, and the shared authoritative state_version. Activity
         options are omitted until a trusted capability-filtered source exists.
         """
-        self._db.execute("BEGIN")
-        try:
-            state_version = self._authoritative_state_version(self._db)
+        with self._read_tx() as db:
+            state_version = self._authoritative_state_version(db)
             self._assert_accepted_projection_consistent()
             self._assert_motivation_projection_consistent()
             self._assert_goal_projection_consistent()
-            rows = self._db.execute(
+            rows = db.execute(
                 "SELECT signal_json FROM motivation_signals ORDER BY rowid"
             ).fetchall()
             signals = [json.loads(row["signal_json"]) for row in rows]
             goals = self.get_goals()
-            result = {
+            return {
                 "state_version": state_version,
                 "signals": signals,
                 "goals": goals,
             }
-        except Exception:
-            self._db.execute("ROLLBACK")
-            raise
-        else:
-            self._db.execute("COMMIT")
-        return result
 
     def get_state_snapshot(self) -> dict[str, Any]:
-        state_version = self._authoritative_state_version(self._db)
-        accepted_memory_count = int(self._db.execute(
-            "SELECT COUNT(*) FROM accepted_memories"
-        ).fetchone()[0])
-        motivation_signal_count = int(self._db.execute(
-            "SELECT COUNT(*) FROM motivation_signals"
-        ).fetchone()[0])
-        motivation_signal_version_count = int(self._db.execute(
-            "SELECT COUNT(*) FROM motivation_signal_versions"
-        ).fetchone()[0])
-        goal_count = int(self._db.execute("SELECT COUNT(*) FROM goals").fetchone()[0])
-        goal_version_count = int(self._db.execute("SELECT COUNT(*) FROM goal_versions").fetchone()[0])
-        memory_consistent = True
-        try:
-            self._assert_accepted_projection_consistent()
-        except CognitiveIntegrityError:
-            memory_consistent = False
-        motivation_consistent = True
-        try:
-            self._assert_motivation_projection_consistent()
-        except CognitiveIntegrityError:
-            motivation_consistent = False
-        goal_consistent = True
-        try:
-            self._assert_goal_projection_consistent()
-        except CognitiveIntegrityError:
-            goal_consistent = False
-        return {
-            "event_count": int(self._db.execute("SELECT COUNT(*) FROM events").fetchone()[0]),
-            "state_version": state_version,
-            "proposal_count": int(self._db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0]),
-            "accepted_memory_count": accepted_memory_count,
-            "motivation_signal_count": motivation_signal_count,
-            "motivation_signal_version_count": motivation_signal_version_count,
-            "motivation_proposal_count": int(self._db.execute("SELECT COUNT(*) FROM motivation_proposals").fetchone()[0]),
-            "goal_activation_proposal_count": int(self._db.execute("SELECT COUNT(*) FROM goal_activation_proposals").fetchone()[0]),
-            "goal_pause_resume_proposal_count": int(self._db.execute("SELECT COUNT(*) FROM goal_pause_resume_proposals").fetchone()[0]),
-            "goal_projection_consistent": goal_consistent,
-            "projection_consistent": memory_consistent and motivation_consistent and goal_consistent,
-        }
+        """Return diagnostics and projection counts from one SQLite read snapshot."""
+        with self._read_tx() as db:
+            state_version = self._authoritative_state_version(db)
+            accepted_memory_count = int(db.execute(
+                "SELECT COUNT(*) FROM accepted_memories"
+            ).fetchone()[0])
+            motivation_signal_count = int(db.execute(
+                "SELECT COUNT(*) FROM motivation_signals"
+            ).fetchone()[0])
+            motivation_signal_version_count = int(db.execute(
+                "SELECT COUNT(*) FROM motivation_signal_versions"
+            ).fetchone()[0])
+            goal_count = int(db.execute("SELECT COUNT(*) FROM goals").fetchone()[0])
+            goal_version_count = int(db.execute("SELECT COUNT(*) FROM goal_versions").fetchone()[0])
+            memory_consistent = True
+            try:
+                self._assert_accepted_projection_consistent()
+            except CognitiveIntegrityError:
+                memory_consistent = False
+            motivation_consistent = True
+            try:
+                self._assert_motivation_projection_consistent()
+            except CognitiveIntegrityError:
+                motivation_consistent = False
+            goal_consistent = True
+            try:
+                self._assert_goal_projection_consistent()
+            except CognitiveIntegrityError:
+                goal_consistent = False
+            return {
+                "event_count": int(db.execute("SELECT COUNT(*) FROM events").fetchone()[0]),
+                "state_version": state_version,
+                "proposal_count": int(db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0]),
+                "accepted_memory_count": accepted_memory_count,
+                "motivation_signal_count": motivation_signal_count,
+                "motivation_signal_version_count": motivation_signal_version_count,
+                "motivation_proposal_count": int(db.execute("SELECT COUNT(*) FROM motivation_proposals").fetchone()[0]),
+                "goal_activation_proposal_count": int(db.execute("SELECT COUNT(*) FROM goal_activation_proposals").fetchone()[0]),
+                "goal_pause_resume_proposal_count": int(db.execute("SELECT COUNT(*) FROM goal_pause_resume_proposals").fetchone()[0]),
+                "goal_projection_consistent": goal_consistent,
+                "projection_consistent": memory_consistent and motivation_consistent and goal_consistent,
+            }
 
     def recover(self) -> dict[str, int]:
         """Validate and rebuild one stable event-log snapshot; never evaluate proposals."""
