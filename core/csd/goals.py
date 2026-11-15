@@ -155,15 +155,19 @@ class CognitiveGoalMixin:
         evaluated_state_version: int,
         before_sequence: int | None,
         known_goal_ids: set[str] | None = None,
+        proposal_payload: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        row = db.execute(
-            "SELECT proposal_json,proposal_event_id,decision_event_id "
-            "FROM goal_proposals WHERE proposal_id=?",
-            (proposal_id,),
-        ).fetchone()
-        if row is None:
-            raise KeyError(proposal_id)
-        proposal = json.loads(row["proposal_json"])
+        if proposal_payload is None:
+            row = db.execute(
+                "SELECT proposal_json,proposal_event_id,decision_event_id "
+                "FROM goal_proposals WHERE proposal_id=?",
+                (proposal_id,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(proposal_id)
+            proposal = json.loads(row["proposal_json"])
+        else:
+            proposal = dict(proposal_payload)
         if proposal["based_on"]["state_version"] != evaluated_state_version:
             return {
                 "outcome": "deferred", "transitions": [],
@@ -462,6 +466,7 @@ class CognitiveGoalMixin:
                     evaluated_state_version=current_version,
                     before_sequence=int(row["sequence"]),
                     known_goal_ids=set(expected_goals),
+                    proposal_payload=proposal["payload"],
                 )
                 expected = {
                     "proposal_id": proposal_id,
