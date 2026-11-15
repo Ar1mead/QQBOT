@@ -205,6 +205,40 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
             OBSERVATION_EVENT,
         )
 
+    def test_failed_v1_to_v2_migration_rolls_back_partial_ddl(self):
+        self.store.close()
+        connection = sqlite3.connect(self.db_path)
+        connection.execute("DROP TABLE motivation_signal_versions")
+        connection.execute("DROP TABLE motivation_signals")
+        connection.execute("DROP TABLE motivation_proposals")
+        # Force the second CREATE TABLE in the migration to fail, after the
+        # first table has been created inside the migration transaction.
+        connection.execute(
+            "CREATE TABLE motivation_signal_versions (collision_marker TEXT)"
+        )
+        connection.execute("PRAGMA user_version = 1")
+        connection.commit()
+        connection.close()
+
+        candidate = CognitiveMemoryStore.__new__(CognitiveMemoryStore)
+        candidate._db = sqlite3.connect(str(self.db_path), isolation_level=None)
+        candidate._db.row_factory = sqlite3.Row
+        self.store = candidate
+        with self.assertRaises(sqlite3.OperationalError):
+            candidate._initialize()
+
+        self.assertFalse(candidate._db.in_transaction)
+        version = int(candidate._db.execute("PRAGMA user_version").fetchone()[0])
+        self.assertEqual(version, 1)
+        tables = {
+            row["name"]
+            for row in candidate._db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        self.assertNotIn("motivation_proposals", tables)
+        self.assertIn("motivation_signal_versions", tables)
+
     def test_fresh_schema_is_v2(self):
         self.assertEqual(
             int(self.store._db.execute("PRAGMA user_version").fetchone()[0]),
