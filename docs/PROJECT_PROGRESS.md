@@ -192,8 +192,8 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by hosted CI: `b4bddf5e4836d3262d621b2ec29432bce7277719`, workflow run #297 (332 tests passed on Ubuntu and Windows).
-- Branch head immediately before this ledger refresh: `592f855618028374094506457a45e9f59f5c2102` (transactional read snapshot regression test).
+- Latest code/test commit verified by hosted CI: `eec2935ade07562963c344c44f1f81930a4865f3`, workflow run #298 (332 tests passed on Ubuntu and Windows).
+- Branch head immediately before this ledger refresh: `b595445bfb99f23d48768c9c202196707fa3fe81` (snapshot concurrency test harness correction).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
 - `python -m unittest discover -s tests -v` passed: 332 tests on both Linux and Windows (Linux 3.138s; Windows 64.750s).
