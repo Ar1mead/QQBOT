@@ -24,7 +24,11 @@ from .motivation import (
     ValidatedMotivationUpdate,
     validate_motivation_update,
 )
-from .csd_adapter import motivation_signal_from_csd, motivation_signals_from_csd
+from .csd_adapter import (
+    CognitiveStoreLifeSnapshotReader,
+    motivation_signal_from_csd,
+    motivation_signals_from_csd,
+)
 from .engine import LifeEngine
 
 __all__ = [
@@ -35,6 +39,7 @@ __all__ = [
     "GoalProposal",
     "GoalState",
     "LifeEngine",
+    "CognitiveStoreLifeSnapshotReader",
     "motivation_signal_from_csd",
     "motivation_signals_from_csd",
     "MotivationEvidence",
