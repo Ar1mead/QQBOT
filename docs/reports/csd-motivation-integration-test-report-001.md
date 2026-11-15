@@ -6,12 +6,12 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `9017f49a14ece312abc8e988fa3c5fa866f4d907`
-- Workflow run: [CSD cognitive slice tests #189](https://github.com/Ar1mead/QQBOT/actions/runs/43670159822)
+- Verified commit: `8bda3235f49825668b7091f72b6c232164dd3fe6`
+- Workflow run: [CSD cognitive slice tests #192](https://github.com/Ar1mead/QQBOT/actions/runs/43670305597)
 - Linux runner: GitHub-hosted Ubuntu 26.04.1 — Python 3.12.16 / SQLite 3.46.1
 - Windows runner: GitHub-hosted `windows-latest` — Python 3.12.10 / SQLite 3.49.1
 
-Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (266 tests each; Linux 1.627s, Windows 13.503s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
+Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (268 tests each; Linux 1.365s, Windows 18.371s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
 
 ## Exact commands
 
@@ -23,7 +23,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 266 tests in 1.627s on Linux; the Windows runner completed the same 266-test suite in 13.503s.
+Ran 268 tests in 1.365s on Linux; the Windows runner completed the same 268-test suite in 18.371s.
 OK
 ```
 
@@ -87,6 +87,8 @@ A pure CSD projection mapper now converts accepted motivation-signal records int
 CSD now exposes `get_life_signal_snapshot()`, which opens one SQLite read transaction, verifies the shared authoritative state version and both memory/motivation projections against event history, and returns the accepted motivation-signal records from that same read snapshot. `CognitiveStoreLifeSnapshotReader` maps that result into a Life Engine `LifeSnapshot`. Goals and activity options are deliberately empty because durable goal/commitment state and trusted capability-option sourcing are not implemented yet. A cross-module test verifies a real CSD lifecycle with two voluntary encounters flows through the atomic reader and into the Life Engine snapshot. This passed in run #186 with 266 tests on both operating systems.
 
 The validated Life Engine proposal now also carries deterministic, sorted `(goal_id, ((signal_id, signal_version), ...))` lineage resolved from the same CSD snapshot. This is explanatory proposal metadata, not authority: the future CSD goal sink must independently resolve and validate source versions at the evaluated state version. The version-lineage regression passed in run #189 with 266 tests on both operating systems.
+
+The Life Engine goal snapshot contract now recognizes the proposed lifecycle set (`candidate`, `active`, `paused`, `blocked`, `satisfied`, `abandoned`, `superseded`). Candidate goals may be retained but cannot serve as activity targets; terminal goals cannot be revised or abandoned. This preserves the distinction between a stored hypothesis and a decision to pursue it. The regression suite passed in run #192 with 268 tests on both operating systems.
 
 ## Scope and limitations
 
