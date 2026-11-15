@@ -149,7 +149,7 @@ The CSD Life Engine snapshot should eventually contain:
 - active activities and their current stop/permission state, from trusted state sources;
 - capability-filtered activity options from a trusted runtime/permission boundary.
 
-The current `CognitiveStoreLifeSnapshotReader` intentionally supplies only accepted motivation signals. Goals and activity options remain empty until their state families and trusted capability source exist. Do not fill these fields with model-generated guesses.
+The current `CognitiveStoreLifeSnapshotReader` supplies accepted motivation signals and versioned candidate/active goals. Active activities and capability-filtered activity options remain empty until trusted state sources exist. Do not fill these fields with model-generated guesses.
 
 ## 8. Security and privacy boundaries
 
@@ -199,4 +199,4 @@ The first implementation review compared this proposal with the existing CSD eve
 7. **Identity conflicts abort the whole transaction.** Duplicate goal IDs within a batch, or IDs already used by accepted goals, reject the batch without partially creating goals. Reusing a proposal ID with different immutable content is an identity conflict. Identical proposal retries are idempotent.
 8. **Recovery remains deterministic.** It rebuilds goal proposal/status, goal-version, and latest-goal projections from the event stream. It must not call a deliberator, reinterpret goals with a model, activate candidates, or execute activities.
 
-These clarifications refine the implementation boundary; they do not freeze the broader CSD/ASM specifications. This slice does not implement goal activation, revisions, abandonment, priorities, or action execution. The separate candidate-to-active transition is being designed in `docs/design/csd-goal-activation-proposal.md`; it must not be folded into candidate creation.
+These clarifications refine the implementation boundary; they do not freeze the broader CSD/ASM specifications. Candidate creation and explicit candidate→active activation are implemented as separate event families. Pause/resume, blocked/unblocked, satisfied, abandoned, superseded, revision, priorities, commitments, and activity execution remain separate future work.
