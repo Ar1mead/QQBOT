@@ -193,7 +193,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 At the time of this update:
 - Latest code/test commit verified by hosted CI: `fc266b92851f5278b353368e961226d3e3ba9d0c`, workflow run #238 (303 tests passed on Ubuntu and Windows).
-- Current branch head at this ledger revision: `5bd02ae22abb6999c00287be1d3a54f7612afce1` (goal lifecycle proposal and handoff-ledger update).
+- Branch head immediately before this ledger commit: `5bd02ae22abb6999c00287be1d3a54f7612afce1` (goal lifecycle proposal and handoff-ledger update).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
 - `python -m unittest discover -s tests -v` passed: 303 tests on both Linux and Windows (Linux 1.807s; Windows 13.509s).
@@ -204,4 +204,4 @@ At the time of this update:
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted tests do not establish adapter authenticity, semantic truth, subjective desire, or autonomous cognition.
 
-**Resume from section 4: continue adversarial event/replay and migration review.** The future-snapshot-version chronology guard is implemented and passed hosted CI (303 tests on Ubuntu and Windows). Next, specify the remaining goal lifecycle transitions as separate evidence-bearing events; do not connect a real deliberator or external action execution until local Windows verification and ASM/OS-isolation boundaries are addressed. Candidate creation and explicit activation are implemented; the next design task is to specify the remaining goal lifecycle transitions without collapsing them into a generic status setter. The user's own Windows 11 / Python 3.12.14 verification, process-interruption, backup/recovery, and durability checks remain open. Do not connect a real deliberator or implement external activity execution until these validation gates and ASM/OS-isolation boundaries are addressed.**
+**Resume from section 4: implement pause/resume as the next goal lifecycle slice, following `docs/design/csd-goal-lifecycle-proposal.md`.** The future-snapshot-version chronology guard is implemented and passed hosted CI (303 tests on Ubuntu and Windows). The user's own Windows 11 / Python 3.12.14 verification, process-interruption, backup/recovery, and durability checks remain open. Keep blocked/unblocked, satisfied, abandoned, superseded, and revise separate until their evidence and authority contracts are reviewed. Do not connect a real deliberator or implement external activity execution until local validation and ASM/OS-isolation boundaries are addressed.**
