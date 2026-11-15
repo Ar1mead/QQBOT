@@ -158,54 +158,61 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             )
 
         if version == 0:
-            self._db.executescript(
-                """
-                BEGIN IMMEDIATE;
-                CREATE TABLE payloads (
-                    payload_ref TEXT PRIMARY KEY,
-                    payload_json TEXT NOT NULL
-                );
-                CREATE TABLE events (
-                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-                    event_id TEXT NOT NULL UNIQUE,
-                    occurred_at TEXT NOT NULL,
-                    received_at TEXT NOT NULL,
-                    correlation_id TEXT NOT NULL,
-                    event_type TEXT NOT NULL,
-                    source TEXT NOT NULL,
-                    payload_ref TEXT NOT NULL,
-                    event_digest TEXT NOT NULL,
-                    FOREIGN KEY(payload_ref) REFERENCES payloads(payload_ref)
-                );
-                CREATE TRIGGER events_no_update BEFORE UPDATE ON events
-                BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
-                CREATE TRIGGER events_no_delete BEFORE DELETE ON events
-                BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
-                CREATE TRIGGER payloads_no_update BEFORE UPDATE ON payloads
-                BEGIN SELECT RAISE(ABORT, 'payloads are immutable'); END;
-                CREATE TRIGGER payloads_no_delete BEFORE DELETE ON payloads
-                BEGIN SELECT RAISE(ABORT, 'payloads are immutable'); END;
-
-                CREATE TABLE proposals (
-                    proposal_id TEXT PRIMARY KEY,
-                    proposal_digest TEXT NOT NULL,
-                    proposal_event_id TEXT NOT NULL,
-                    proposal_json TEXT NOT NULL,
-                    status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','deferred','needs_more_evidence')),
-                    decision_event_id TEXT
-                );
-                CREATE TABLE accepted_memories (
-                    memory_id TEXT PRIMARY KEY,
-                    proposal_id TEXT NOT NULL UNIQUE,
-                    transition_id TEXT NOT NULL UNIQUE,
-                    memory_json TEXT NOT NULL,
-                    FOREIGN KEY(proposal_id) REFERENCES proposals(proposal_id)
-                );
-                PRAGMA user_version = 1;
-                COMMIT;
-                """
-            )
-            version = 1
+            try:
+                self._db.executescript(
+                    """
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE payloads (
+                        payload_ref TEXT PRIMARY KEY,
+                        payload_json TEXT NOT NULL
+                    );
+                    CREATE TABLE events (
+                        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                        event_id TEXT NOT NULL UNIQUE,
+                        occurred_at TEXT NOT NULL,
+                        received_at TEXT NOT NULL,
+                        correlation_id TEXT NOT NULL,
+                        event_type TEXT NOT NULL,
+                        source TEXT NOT NULL,
+                        payload_ref TEXT NOT NULL,
+                        event_digest TEXT NOT NULL,
+                        FOREIGN KEY(payload_ref) REFERENCES payloads(payload_ref)
+                    );
+                    CREATE TRIGGER events_no_update BEFORE UPDATE ON events
+                    BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
+                    CREATE TRIGGER events_no_delete BEFORE DELETE ON events
+                    BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
+                    CREATE TRIGGER payloads_no_update BEFORE UPDATE ON payloads
+                    BEGIN SELECT RAISE(ABORT, 'payloads are immutable'); END;
+                    CREATE TRIGGER payloads_no_delete BEFORE DELETE ON payloads
+                    BEGIN SELECT RAISE(ABORT, 'payloads are immutable'); END;
+    
+                    CREATE TABLE proposals (
+                        proposal_id TEXT PRIMARY KEY,
+                        proposal_digest TEXT NOT NULL,
+                        proposal_event_id TEXT NOT NULL,
+                        proposal_json TEXT NOT NULL,
+                        status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','deferred','needs_more_evidence')),
+                        decision_event_id TEXT
+                    );
+                    CREATE TABLE accepted_memories (
+                        memory_id TEXT PRIMARY KEY,
+                        proposal_id TEXT NOT NULL UNIQUE,
+                        transition_id TEXT NOT NULL UNIQUE,
+                        memory_json TEXT NOT NULL,
+                        FOREIGN KEY(proposal_id) REFERENCES proposals(proposal_id)
+                    );
+                    PRAGMA user_version = 1;
+                    COMMIT;
+                    """
+                )
+    
+            except Exception:
+                # Match later migrations: never leave partial initial DDL open.
+                if self._db.in_transaction:
+                    self._db.rollback()
+                raise
+            version = 1            version = 1
 
         if version == 1:
             try:
