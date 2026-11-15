@@ -262,11 +262,13 @@ def validate_motivation_update(
     referenced_ids = supporting_ids | counter_ids
     if not referenced_ids.issubset(evidence_by_id):
         raise ValueError("motivation proposal references unknown evidence")
-    selected_evidence = [evidence_by_id[item] for item in sorted(referenced_ids)]
-    if any(item.subject_ref != proposal.subject_ref for item in selected_evidence):
-        raise ValueError("motivation evidence subject does not match proposal subject")
     supporting = [evidence_by_id[item] for item in sorted(supporting_ids)]
     counter = [evidence_by_id[item] for item in sorted(counter_ids)]
+    if any(
+        item.subject_ref != proposal.subject_ref
+        for item in supporting + counter
+    ):
+        raise ValueError("motivation evidence subject does not match proposal subject")
     if any(item.evidence_kind == "counter_evidence" for item in supporting):
         raise ValueError("counter_evidence must be referenced through counter_evidence_event_ids")
     if any(item.evidence_kind != "counter_evidence" for item in counter):
@@ -382,9 +384,12 @@ def validate_motivation_update(
     if proposal.operation == "pause" and target is None:
         raise ValueError("pause requires an existing active signal")
 
+    # Initial origin is derived from positive supporting evidence only.
+    # Counterevidence can weaken or contextualize a hypothesis, but must not
+    # rewrite the causal origin of the signal.
     origin_class = (
         target.origin_class if target is not None
-        else _derive_origin(selected_evidence)
+        else _derive_origin(supporting)
     )
     effective_statement = (
         proposal.statement if proposal.operation == "create"
