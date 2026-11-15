@@ -1690,9 +1690,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
     def get_life_signal_snapshot(self) -> dict[str, Any]:
         """Return one integrity-checked, transactionally consistent Life Engine read.
 
-        The snapshot currently contains accepted motivation signals and the
-        shared authoritative state_version. Goals and activity options are not
-        included because their durable CSD state families are not implemented.
+        The snapshot contains accepted motivation signals, versioned goal
+        projections, and the shared authoritative state_version. Activity
+        options are omitted until a trusted capability-filtered source exists.
         """
         self._db.execute("BEGIN")
         try:
