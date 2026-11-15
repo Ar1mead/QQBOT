@@ -422,6 +422,36 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         self.assertEqual(recovered["events"], 2)
         self.assertEqual(self.store.get_state_snapshot()["event_count"], 2)
 
+
+    def test_recovery_rejects_reserved_decision_namespace_on_observation_event(self):
+        self.store.submit_event(self.observation())
+        event = self.observation(event_id="csd-decision:forged-observation:1")
+        payload_json = json.dumps(
+            dict(event.payload), ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False,
+        )
+        payload_ref = "sha256:" + hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+        received_at = "2026-11-15T10:02:00+00:00"
+        event_digest = self.store._event_digest(event, payload_ref, received_at)
+        self.store._db.execute(
+            "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (payload_ref, payload_json),
+        )
+        self.store._db.execute(
+            "INSERT INTO events(event_id,occurred_at,received_at,correlation_id,event_type,source,payload_ref,event_digest) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (
+                event.event_id, event.occurred_at, received_at, event.correlation_id,
+                event.event_type, event.source, payload_ref, event_digest,
+            ),
+        )
+        with self.assertRaisesRegex(CognitiveIntegrityError, "invalid durable event envelope"):
+            self.store.recover()
+        self.assertEqual(
+            self.store._db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0],
+            0,
+        )
+
     def test_recovery_rejects_future_snapshot_proposal_in_durable_history(self):
         self.store.submit_event(self.observation())
         event = self.proposal(state_version=1)
