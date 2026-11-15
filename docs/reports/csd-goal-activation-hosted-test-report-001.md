@@ -1,9 +1,9 @@
 # CSD Goal Activation — Hosted Test Report 001
 
 > Status: **hosted CI passed on Linux and Windows; user-local Windows verification pending**  
-> Tested commit: `a04137532bee50b036a409209b9e66bdc884f866`  
+> Tested commit: `d167794c7ae52d9c9dcdcc13d5d98abf438a3fba`  
 > Branch: `feature/csd-cognitive-memory-slice`  
-> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43688651256)  
+> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43688976461)  
 > Workflow run: **#230** — success on both matrix jobs
 
 ## 1. Environments
@@ -13,7 +13,7 @@
 | GitHub-hosted Ubuntu | CPython 3.12.16 | 3.46.1 |
 | GitHub-hosted Windows | CPython 3.12.10 | 3.49.1 |
 
-The workflow checked out the exact tested commit from the private repository. No third-party Python dependencies were required.
+The workflow checked out the exact tested commit from the private repository. No third-party Python dependencies were required. Complete discovery took 2.416s on Ubuntu and 29.157s on Windows.
 
 ## 2. Results
 
@@ -21,9 +21,9 @@ Both runners passed:
 
 - `python -m compileall -q core tests`
 - All focused CSD, Life Engine, motivation, memory, and persistence suites
-- Complete unittest discovery: **297 tests passed**
+- Complete unittest discovery: **301 tests passed**
 
-The focused CSD goal-state suite contains 25 tests, including the candidate-goal tests and the new activation coverage.
+The focused CSD goal-state suite contains 29 tests, including candidate-goal and adversarial activation coverage.
 
 ## 3. Implemented activation path
 
@@ -52,8 +52,11 @@ Coverage includes:
 6. Conflicting proposal identity rolls back; identical event/proposal identities remain idempotent.
 7. Original goal origin and signal-version lineage remain unchanged even after the source motivation signal is paused.
 8. Goal and activation-proposal projection tampering is detected; Recovery rebuilds the active goal.
-9. A schema-v3 database migrates to v4.
-10. The Life Engine activation sink persists only the goal transition; it does not create an activity or capability.
+9. A schema-v3 database migrates to v4; an injected v3→v4 DDL collision rolls back the schema version and partial migration.
+10. The public Event Submit path cannot forge a CSD activation decision.
+11. An injected failure while writing the new goal version rolls back the decision event and all projections atomically.
+12. Coordinated tampering of both latest-goal and goal-version projections is detected and repaired from events.
+13. The Life Engine activation sink persists only the goal transition; it does not create an activity or capability.
 
 ## 5. Explicit limitations
 
