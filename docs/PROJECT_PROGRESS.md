@@ -91,12 +91,12 @@ The current work connects motivation signals to the same CSD event stream as cog
 - [x] Added Recovery rebuilding for motivation proposals and signal projections from the shared event history; Recovery does not call a model/provider or execute external actions.
 - [x] Added `tests/test_csd_motivation.py` with migration, provenance, idempotency, origin preservation, signal lifecycle, global version, transaction rollback, and Recovery scenarios.
 - [x] Updated the workflow path filters and test step so `test_csd_motivation.py` is included for both pushes and pull requests.
-- [ ] Run `python -m compileall -q core tests` against the exact branch checkout.
-- [ ] Run `python -m unittest discover -s tests -v` against the exact branch checkout.
-- [ ] Fix every failing test and update this ledger with the exact result.
-- [ ] Confirm a successful GitHub Actions run for the current branch; a workflow file containing a test step is not evidence that the run passed.
-- [ ] Review migration behavior against a real schema-v1 database fixture, including rollback on failed migration.
-- [ ] Review all event payload schemas, replay determinism, projection consistency, and idempotency edge cases.
+- [x] Run `python -m compileall -q core tests` against the exact branch checkout (GitHub Actions, Python 3.12.16).
+- [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (240 tests passed).
+- [x] Fix the migration test fixture and update this ledger with the exact result; the earlier fixture represented an impossible v1 database state.
+- [x] Confirm a successful GitHub Actions run for the current branch: run #117, commit `13db2b4540c98ffb3114f64981841c7c8843ae1c`.
+- [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
+- [~] Review all event payload schemas, replay determinism, projection consistency, and idempotency edge cases; initial review completed, broader adversarial coverage remains.
 - [ ] Only after the above: run the tests on the user's Windows environment.
 
 Important implementation boundary: the current CSD motivation decision path is deterministic scaffolding. It does not yet infer authentic human-like interests, feelings, needs, or desires; it does not authenticate adapter identity; and it does not establish that the evidence source is truthful. A caller-supplied adapter string is provenance metadata, not a security credential. Do not describe this slice as autonomous motivation or a complete cognitive system.
@@ -155,10 +155,13 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- The active branch exists and contains the CSD cognitive-memory and motivation integration work.
-- The latest workflow file has been updated to run the motivation integration test on both push and pull-request path filters.
-- No successful hosted run for this latest integration has yet been verified.
-- The new integration test file has not yet been run against the exact remote checkout.
-- The user's local machine has not cloned this repository yet; Windows-local verification remains pending.
+- The active branch head verified by hosted CI is `13db2b4540c98ffb3114f64981841c7c8843ae1c`.
+- Hosted CI passed on Ubuntu 26.04.1 with Python 3.12.16 / SQLite 3.46.1.
+- `python -m compileall -q core tests` passed.
+- `python -m unittest discover -s tests -v` passed: 240 tests.
+- The v1→v2 migration test now uses a legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
+- Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
+- The user's local machine has not cloned this repository; Windows-local verification remains pending.
+- Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
 
-**Resume from section 4, first unchecked verification item.**
+**Resume from section 4, first remaining review item: adversarial review of event/projection/replay invariants, then Windows-local verification.**
