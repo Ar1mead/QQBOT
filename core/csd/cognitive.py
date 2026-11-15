@@ -1312,9 +1312,12 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
             "payload": payload,
         }
 
-    def _assert_accepted_projection_consistent(self) -> None:
-        # Validate proposal and accepted-memory projections against the durable
-        # event stream, not merely against row counts.
+    def _memory_projection_sources(
+        self,
+    ) -> tuple[
+        dict[str, dict[str, Any]],
+        dict[str, tuple[dict[str, Any], dict[str, Any]]],
+    ]:
         proposal_rows = self._db.execute(
             "SELECT event_id FROM events WHERE event_type IN (?,?) ORDER BY sequence",
             (PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT),
@@ -1374,7 +1377,14 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
                 raise CognitiveIntegrityError("memory proposal projection differs from event history")
         if set(expected_decisions) - set(expected_proposals):
             raise CognitiveIntegrityError("memory decision references a missing proposal event")
+        return expected_proposals, expected_decisions
 
+    def _assert_proposal_projection_consistent(self) -> None:
+        self._memory_projection_sources()
+
+    def _assert_accepted_projection_consistent(self) -> None:
+        # Validate accepted-memory content against the durable decision history.
+        expected_proposals, expected_decisions = self._memory_projection_sources()
         expected_memories: dict[str, dict[str, Any]] = {}
         for proposal_id, (event, payload) in expected_decisions.items():
             outcome = payload.get("outcome")
@@ -1555,7 +1565,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
 
     def get_proposal(self, proposal_id: str) -> dict[str, Any]:
         _nonempty(proposal_id, "proposal_id")
-        self._assert_accepted_projection_consistent()
+        self._assert_proposal_projection_consistent()
         row = self._db.execute(
             "SELECT proposal_json,proposal_digest,proposal_event_id,status,decision_event_id "
             "FROM proposals WHERE proposal_id=?",
