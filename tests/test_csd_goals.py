@@ -792,6 +792,9 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.store._db.execute(
             "UPDATE goal_activation_proposals SET status='pending' WHERE proposal_id='projection-activation'"
         )
+        snapshot = self.store.get_state_snapshot()
+        self.assertFalse(snapshot["goal_projection_consistent"])
+        self.assertFalse(snapshot["projection_consistent"])
         with self.assertRaises(CognitiveIntegrityError):
             self.store.get_goals()
         self.store.recover()
