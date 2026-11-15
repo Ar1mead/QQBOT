@@ -591,9 +591,10 @@ def goal_pause_resume_event(
     state_version: int,
     expected_goal_version: int,
     operation: str,
+    event_id: str | None = None,
 ):
     return event(
-        event_id=f"goal-pause-resume-proposal-event-{proposal_id}",
+        event_id=event_id or f"goal-pause-resume-proposal-event-{proposal_id}",
         event_type="life.goal_pause_resume_proposed.v1",
         source="life-goal-pause-resume-proposal:test.deliberator",
         payload={
@@ -791,6 +792,47 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 3)
 
 
+
+
+    def test_competing_pause_proposals_cannot_both_transition_the_goal(self):
+        goal_id = self.activate_candidate("competing-pause")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "competing-pause-one", goal_id,
+            state_version=version, expected_goal_version=2, operation="pause",
+        ))
+        self.store.submit_event(goal_pause_resume_event(
+            "competing-pause-two", goal_id,
+            state_version=version, expected_goal_version=2, operation="pause",
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_pause_resume_proposal("competing-pause-one")["status"],
+            "accepted",
+        )
+        self.assertEqual(
+            self.store.evaluate_goal_pause_resume_proposal("competing-pause-two")["status"],
+            "deferred",
+        )
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "paused")
+        self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 3)
+
+    def test_pause_resume_proposal_identity_conflict_is_rejected(self):
+        goal_id = self.activate_candidate("pause-identity")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "pause-identity-conflict", goal_id,
+            state_version=version, expected_goal_version=2, operation="pause",
+        ))
+        with self.assertRaises(ValueError):
+            self.store.submit_event(goal_pause_resume_event(
+                "pause-identity-conflict", goal_id,
+                state_version=version, expected_goal_version=2, operation="resume",
+                event_id="different-event-for-same-pause-resume-proposal",
+            ))
+        self.assertEqual(
+            self.store.get_goal(goal_id)["status"],
+            "active",
+        )
 
     def test_pause_resume_proposal_and_decision_are_idempotent(self):
         goal_id = self.activate_candidate("pause-idempotent")
