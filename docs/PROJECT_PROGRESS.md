@@ -157,7 +157,7 @@ At the time of this update:
 - Latest code/test commit verified by CI: `00438c4c460989361719a8b30faa3e884ed6dc50`, workflow run #178. The Life Engine snapshot contract preserves CSD origin, voluntary lineage, subject identity, and support/counterevidence polarity.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
-- `python -m unittest discover -s tests -v` passed: 265 tests on both Linux and Windows runners (Linux 1.709s; Windows 12.651s).
+- `python -m unittest discover -s tests -v` passed: 265 tests on both Linux and Windows runners (Linux 1.243s; Windows 13.837s).
 - The v1→v2 migration test uses legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
 - Motivation and accepted-memory proposal/state projections are checked against authoritative events; corruption tests verify Recovery repair.
 - Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
