@@ -8,10 +8,11 @@ CSD remains the authority and its event-backed checks must run before use.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Protocol
+import uuid
 
-from .contracts import GoalState, LifeSnapshot, MotivationSignal
+from .contracts import GoalState, LifeSnapshot, MotivationSignal, ValidatedLifeProposal
 
 
 _ORIGIN_CLASSES = {
@@ -224,4 +225,109 @@ class CognitiveStoreLifeSnapshotReader:
             goals=tuple(goals),
             activity_options=(),
         )
+
+
+class CognitiveStoreLifeProposalSink:
+    """Persist candidate-goal or explicit activation proposals through CSD.
+
+    This sink never executes activities. Choices that require an activity or
+    another not-yet-implemented goal transition are returned as not executed.
+    """
+
+    def __init__(
+        self,
+        store: Any,
+        *,
+        component: str = "life-engine",
+        version: str = "0.1",
+    ) -> None:
+        if not isinstance(component, str) or not component.strip():
+            raise ValueError("component must be non-empty")
+        if not isinstance(version, str) or not version.strip():
+            raise ValueError("version must be non-empty")
+        self._store = store
+        self._component = component
+        self._version = version
+
+    def submit_life_proposal(
+        self,
+        validated: ValidatedLifeProposal,
+        *,
+        expected_state_version: int,
+    ) -> Any:
+        if not isinstance(validated, ValidatedLifeProposal):
+            raise TypeError("validated must be ValidatedLifeProposal")
+        proposal = validated.proposal
+        if expected_state_version != proposal.based_on_state_version:
+            raise ValueError("expected_state_version differs from validated proposal")
+        from core.csd.cognitive import CognitiveEvent
+
+        choice = proposal.choice
+        if choice.disposition == "activate_goal":
+            if proposal.goal_proposals:
+                raise ValueError("goal activation must be a separate transition from candidate creation")
+            if choice.goal_id is None or choice.expected_goal_version is None:
+                raise ValueError("validated activation choice is missing goal identity/version")
+            proposal_id = uuid.uuid4().hex
+            event = CognitiveEvent(
+                event_id=f"life-goal-activation-proposal-event:{proposal_id}",
+                occurred_at=datetime.now(timezone.utc).isoformat(),
+                correlation_id=f"goal-activation-proposal:{proposal_id}",
+                event_type="life.goal_activation_proposed.v1",
+                source=f"life-goal-activation-proposal:{self._component}",
+                payload={
+                    "proposal_id": proposal_id,
+                    "based_on": {"state_version": expected_state_version},
+                    "goal_id": choice.goal_id,
+                    "expected_goal_version": choice.expected_goal_version,
+                    "rationale": choice.rationale,
+                    "origin": {"component": self._component, "version": self._version},
+                    "contract_version": "life.goal_activation_proposed.v1",
+                },
+            )
+            self._store.submit_event(event)
+            return self._store.evaluate_goal_activation_proposal(proposal_id)
+
+        if proposal.goal_proposals:
+            proposal_id = uuid.uuid4().hex
+            event = CognitiveEvent(
+                event_id=f"life-goal-proposal-event:{proposal_id}",
+                occurred_at=datetime.now(timezone.utc).isoformat(),
+                correlation_id=f"goal-proposal:{proposal_id}",
+                event_type="life.goal_batch_proposed.v1",
+                source=f"life-goal-proposal:{self._component}",
+                payload={
+                    "proposal_id": proposal_id,
+                    "based_on": {"state_version": expected_state_version},
+                    "goals": [
+                        {
+                            "goal_id": goal.goal_id,
+                            "desired_condition": goal.desired_condition,
+                            "origin_signal_ids": list(goal.origin_signal_ids),
+                            "rationale": goal.rationale,
+                            "success_condition": goal.success_condition,
+                            "stop_condition": goal.stop_condition,
+                            "review_condition": goal.review_condition,
+                        }
+                        for goal in proposal.goal_proposals
+                    ],
+                    "choice": {
+                        "disposition": choice.disposition,
+                        "rationale": choice.rationale,
+                    },
+                    "origin": {"component": self._component, "version": self._version},
+                    "contract_version": "life.goal_batch_proposed.v1",
+                },
+            )
+            self._store.submit_event(event)
+            return self._store.evaluate_goal_batch_proposal(proposal_id)
+
+        if choice.disposition in {"wait", "request_information", "decline", "no_op"}:
+            return {"status": "no_state_transition", "disposition": choice.disposition}
+        return {
+            "status": "not_executed",
+            "disposition": choice.disposition,
+            "requires_asm_governance": validated.requires_asm_governance,
+            "reason": "this CSD sink persists goal state only and never executes activities",
+        }
 
