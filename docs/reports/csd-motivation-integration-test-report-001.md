@@ -6,12 +6,12 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `5f2b0dcc3d2682ed128b506de46d328c5f9820a1`
-- Workflow run: [CSD cognitive slice tests #125](https://github.com/Ar1mead/QQBOT/actions/runs/43664862182)
+- Verified commit: `7d326cf3c9e69471db4e42e8097454d86087fa86`
+- Workflow run: [CSD cognitive slice tests #129](https://github.com/Ar1mead/QQBOT/actions/runs/43665176432)
 - Linux runner: GitHub-hosted Ubuntu 26.04.1 — Python 3.12.16 / SQLite 3.46.1
 - Windows runner: GitHub-hosted `windows-latest` — Python 3.12.10 / SQLite 3.49.1
 
-Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (244 tests each). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
+Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (246 tests each; Linux 1.493s, Windows 14.004s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
 
 ## Exact commands
 
@@ -49,6 +49,8 @@ The first consistency check compared the latest motivation projection with its v
 - each latest-signal projection against the highest event-backed signal version.
 
 Tests deliberately corrupt both signal projection tables identically and separately alter a proposal's projected status. Both cases are detected; Recovery rebuilds the correct projections from the event history.
+
+The accepted-memory side received the same event-backed integrity treatment. Proposal rows are checked against proposal/decision events, and accepted-memory JSON plus its relational identity fields are reconstructed and compared with the authoritative decision and proposal events. Tests corrupt memory content and proposal status; reads detect the inconsistency and Recovery restores the event-derived state.
 
 A further idempotency test submits a second event for an existing immutable motivation proposal with a forged source component. The duplicate is rejected and the attempted event is rolled back; valid duplicate submissions remain idempotent.
 
