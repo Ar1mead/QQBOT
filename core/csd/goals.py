@@ -948,7 +948,7 @@ def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
         event_type = row["event_type"]
         if event_type == GOAL_BATCH_PROPOSAL_EVENT:
             proposal_id = _g_nonempty(payload.get("proposal_id"), "goal proposal_id")
-            _validate_goal_batch_proposal(record)
+            self._validate_goal_batch_proposal(record)
             canonical = _g_canonical(payload)
             digest = _g_digest(canonical)
             prior = batch_proposals.get(proposal_id)
