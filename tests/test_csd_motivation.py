@@ -817,7 +817,10 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
 
     def test_non_creation_interest_update_cannot_request_maturity_stage(self):
         self.add_interaction(interaction("interaction-stage-request"))
-        self.add_proposal(motivation_proposal("proposal-stage-create"))
+        self.add_proposal(motivation_proposal(
+            "proposal-stage-create",
+            support=("interaction-stage-request",),
+        ))
         self.assertEqual(
             self.store.evaluate_motivation_proposal("proposal-stage-create")["status"],
             "accepted",
