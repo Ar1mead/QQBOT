@@ -178,6 +178,22 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         self.assertEqual(second["status"], "duplicate")
         self.assertEqual(self.store.get_state_snapshot()["event_count"], 1)
 
+
+    def test_duplicate_delivery_rejects_corrupted_prior_event_envelope(self):
+        event = self.observation()
+        self.store.submit_event(event)
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute(
+            "UPDATE events SET event_digest='tampered' WHERE event_id=?",
+            (event.event_id,),
+        )
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.submit_event(event)
+        self.assertEqual(
+            self.store._db.execute("SELECT COUNT(*) FROM events").fetchone()[0],
+            1,
+        )
+
     def test_same_event_id_with_changed_content_conflicts(self):
         self.store.submit_event(self.observation())
         changed = self.observation()
