@@ -538,6 +538,7 @@ class LifeProposalValidationTests(unittest.TestCase):
     def test_self_accepted_commitment_is_classified_as_internal_origin(self):
         commitment = MotivationSignal(
             signal_id="sig-commitment",
+            signal_version=1,
             kind="commitment",
             origin_class="internally_initiated",
             subject_ref="commitment:self-accepted",
