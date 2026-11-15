@@ -147,6 +147,15 @@ class GroundedMemoryV2Tests(unittest.TestCase):
         )
         return self.store.submit_event(event)
 
+
+    def test_grounded_memory_proposal_cannot_claim_a_future_snapshot_version(self):
+        with self.assertRaisesRegex(ValueError, "future state_version"):
+            self.store.submit_event(self.proposal(state_version=1))
+        self.assertEqual(
+            self.store._db.execute("SELECT COUNT(*) FROM proposals").fetchone()[0],
+            0,
+        )
+
     def test_grounded_proposal_is_pending_and_not_yet_memory(self):
         self.submit_pending()
         proposal = self.store.get_proposal("grounded-proposal-1")
