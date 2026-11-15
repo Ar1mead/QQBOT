@@ -82,7 +82,7 @@ Reference files:
 
 Branch: `feature/csd-cognitive-memory-slice`
 
-The current work connects motivation signals to the same CSD event stream as cognitive memories. It is a prototype implementation and is **not yet verified as passing**.
+The current work connects motivation signals to the same CSD event stream as cognitive memories. The latest hosted Linux and Windows runs passed; broader adversarial review and the user's own Windows verification remain open.
 
 - [x] Added `core/csd/motivation.py` with interaction provenance validation, motivation proposal validation, CSD-side deterministic decision preparation, signal lifecycle projection, retrieval, and projection consistency checks.
 - [x] Added interaction events, motivation proposal events, and CSD-authoritative motivation decision events to the CSD event model.
@@ -91,13 +91,13 @@ The current work connects motivation signals to the same CSD event stream as cog
 - [x] Added Recovery rebuilding for motivation proposals and signal projections from the shared event history; Recovery does not call a model/provider or execute external actions.
 - [x] Added `tests/test_csd_motivation.py` with migration, provenance, idempotency, origin preservation, signal lifecycle, global version, transaction rollback, and Recovery scenarios.
 - [x] Updated the workflow path filters and test step so `test_csd_motivation.py` is included for both pushes and pull requests.
-- [x] Run `python -m compileall -q core tests` against the exact branch checkout (GitHub Actions, Python 3.12.16).
+- [x] Run `python -m compileall -q core tests` against the exact branch checkout (GitHub Actions, Linux and Windows runners).
 - [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (246 tests passed).
 - [x] Fix the migration test fixture and update this ledger with the exact result; the earlier fixture represented an impossible v1 database state.
 - [x] Confirm a successful GitHub Actions run for the current branch: run #129, commit `7d326cf3c9e69471db4e42e8097454d86087fa86`.
 - [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
 - [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
-- [x] Run the full suite on a GitHub-hosted Windows runner (244 tests, Python 3.12.10 / SQLite 3.49.1); this is a cross-platform CI check, not the user's own Windows 11 environment.
+- [x] Run the full suite on a GitHub-hosted Windows runner (246 tests, Python 3.12.10 / SQLite 3.49.1); this is a cross-platform CI check, not the user's own Windows 11 environment.
 - [ ] Only after the above: run the tests on the user's Windows environment.
 
 Important implementation boundary: the current CSD motivation decision path is deterministic scaffolding. It does not yet infer authentic human-like interests, feelings, needs, or desires; it does not authenticate adapter identity; and it does not establish that the evidence source is truthful. A caller-supplied adapter string is provenance metadata, not a security credential. Do not describe this slice as autonomous motivation or a complete cognitive system.
@@ -123,15 +123,13 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 ## 7. Next work queue
 
-1. **Finish and verify current CSD motivation integration.** Exact branch test run first; do not add more features before fixing failures.
-2. **Review event and migration correctness.** Especially v1→v2 migration, duplicate proposal identity behavior, stale state handling, and projection rebuild.
-3. **Write a concise CSD motivation integration test report.** Include exact commit, environment, command, pass/fail counts, and limits.
-4. **Stabilize CSD read/write contracts.** Separate memory, motivation, goal, affect, commitment, and diary state families without creating competing authorities.
-5. **Connect Life Engine through explicit CSD interfaces.** The Life Engine may propose intentions; CSD accepts durable state transitions.
-6. **Develop self-initiated activity and diary behavior.** No daily quota, no forced wake-up task, no requirement to save every draft.
-7. **Define ASM handoff and permission model before any side-effecting platform action.**
-8. **Only then build the first read-only Bilibili adapter and evaluate actual video/audio comprehension.**
-9. **Run exact tests on the user's Windows machine after the remote branch is stable.**
+1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation and memory projections now reconcile against event history; broader failure-path coverage remains.
+2. **Run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** This is the remaining platform-specific verification step once the remote branch is stable.
+3. **Stabilize CSD read/write contracts.** Separate memory, motivation, goal, affect, commitment, and diary state families without creating competing authorities.
+4. **Connect Life Engine through explicit CSD interfaces.** The Life Engine may propose intentions; CSD accepts durable state transitions.
+5. **Develop self-initiated activity and diary behavior.** No daily quota, no forced wake-up task, no requirement to save every draft.
+6. **Define ASM handoff and permission model before any side-effecting platform action.**
+7. **Only then build the first read-only Bilibili adapter and evaluate actual video/audio comprehension.**
 
 ## 8. Handoff rules for future sessions
 
