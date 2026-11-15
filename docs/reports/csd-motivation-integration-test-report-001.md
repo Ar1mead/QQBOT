@@ -60,11 +60,11 @@ Lifecycle coverage now includes create, reinforce, weaken, contextualize, pause,
 
 ## Follow-up adversarial review after the verified run
 
-The verified commit above predates the next review patch. Subsequent commits add two stricter invariants that are awaiting their own CI run:
-- interaction `encounter_id` values must be unique across the durable interaction stream;
-- a `return_visit` must link to a prior voluntary selection/return visit with meaningful alternatives, the same subject and selected item, a distinct encounter, and a later occurrence time.
+The verified commit above predates a stricter return-visit linkage check. A return visit must now link to a prior voluntary selection or return visit with meaningful alternatives, the same subject and selected item, a distinct encounter, and a later occurrence time. The check that the prior interaction was genuinely voluntary is awaiting a successful CI run.
 
-Do not treat these follow-up changes as verified until the newer workflow run completes.
+An additional global uniqueness rule for `encounter_id` was attempted and then reverted. CI exposed that an encounter is a grouping/session concept and may legitimately contain multiple interaction events. The implementation must not confuse encounter identity with event identity; event IDs already provide per-event identity. The failed CI runs #136 and #137 are retained as evidence of this review finding, not counted as successful verification.
+
+Do not treat the stricter return-visit linkage change as verified until the newer workflow run completes.
 
 ## Scope and limitations
 
