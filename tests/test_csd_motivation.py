@@ -149,7 +149,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
     def add_proposal(self, event):
         return self.store.submit_event(event)
 
-    def test_migration_creates_schema_v2_and_preserves_v1_memory_data(self):
+    def test_migration_creates_schema_v3_and_preserves_v1_memory_data(self):
         observation = envelope(
             "migration-observation",
             OBSERVATION_EVENT,
@@ -194,6 +194,9 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         connection.execute("DROP TABLE motivation_signal_versions")
         connection.execute("DROP TABLE motivation_signals")
         connection.execute("DROP TABLE motivation_proposals")
+        connection.execute("DROP TABLE goal_versions")
+        connection.execute("DROP TABLE goals")
+        connection.execute("DROP TABLE goal_proposals")
         connection.execute("PRAGMA user_version = 1")
         connection.commit()
         connection.close()
@@ -201,7 +204,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.store = CognitiveMemoryStore(self.db_path)
         after = self.store.get_state_snapshot()
         version = int(self.store._db.execute("PRAGMA user_version").fetchone()[0])
-        self.assertEqual(version, 2)
+        self.assertEqual(version, 3)
         self.assertEqual(after["event_count"], before["event_count"])
         self.assertEqual(after["state_version"], before["state_version"])
         self.assertEqual(after["accepted_memory_count"], before["accepted_memory_count"])
@@ -248,10 +251,10 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertNotIn("motivation_proposals", tables)
         self.assertIn("motivation_signal_versions", tables)
 
-    def test_fresh_schema_is_v2(self):
+    def test_fresh_schema_is_v3(self):
         self.assertEqual(
             int(self.store._db.execute("PRAGMA user_version").fetchone()[0]),
-            2,
+            3,
         )
 
     def test_voluntary_choice_requires_internal_origin_and_real_choice_set(self):
