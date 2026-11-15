@@ -1,10 +1,10 @@
 # CSD Goal Pause/Resume — Hosted Test Report 001
 
 > Status: **hosted CI passed on Linux and Windows; user-local Windows verification pending**  
-> Tested code/test commit: `4dfd0fd133fadf3b13085d2ca4d5472d8e40f79c`  
+> Tested code/test commit: `66ac0b157ba7c735726499fa60b2b38d21265c87`  
 > Branch: `feature/csd-cognitive-memory-slice`  
-> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43690569670)  
-> Workflow run: **#263** — success on both matrix jobs
+> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43690735564)  
+> Workflow run: **#264** — success on both matrix jobs
 
 ## 1. Implemented scope
 
@@ -42,6 +42,8 @@ Each proposal carries the exact shared `based_on.state_version`, target `goal_id
 - Tampering with the pause/resume proposal projection is detected and repaired by Recovery.
 - Recovery is tested across both `active → paused` and `paused → active` transitions.
 - A pause/resume proposal that claims a future `based_on.state_version` is rejected at append time and cannot become valid after later state transitions catch up.
+- Competing pause proposals against the same goal/version cannot both succeed: the first is accepted and the second is deferred.
+- Reusing a pause/resume proposal ID with conflicting immutable content is rejected.
 - An injected goal-version insert failure proves the decision event, proposal status, goal version, and shared state version roll back atomically.
 
 ## 4. Life Engine integration
@@ -57,8 +59,8 @@ Both GitHub-hosted runners passed:
 
 | Runner | Python / SQLite | Full test discovery | Time |
 |---|---|---:|---:|
-| Ubuntu | Python 3.12.16 / SQLite 3.46.1 | 320 passed | 1.934s |
-| Windows | Python 3.12.10 / SQLite 3.49.1 | 320 passed | 31.315s |
+| Ubuntu | Python 3.12.16 / SQLite 3.46.1 | 322 passed | 2.205s |
+| Windows | Python 3.12.10 / SQLite 3.49.1 | 322 passed | 25.171s |
 
 The workflow also passed `python -m compileall -q core tests` and every focused test step.
 
