@@ -77,6 +77,64 @@ def add_internal_signal(store: CognitiveMemoryStore, suffix: str = "one") -> str
     return f"signal-{suffix}"
 
 
+def add_user_requested_signal(store: CognitiveMemoryStore) -> str:
+    store.submit_event(event(
+        "user-request-observation", OBSERVATION_EVENT, "test.observation",
+        {
+            "observation_id": "obs-user-request",
+            "observation_kind": "user_message",
+            "content": "Please look into this subject.",
+            "source_ref": "fixture://user-request",
+            "observed_at": "2026-11-15T08:00:00+00:00",
+            "coverage": {"modality": "text", "complete_for_fixture": True},
+        },
+    ))
+    store.submit_event(event(
+        "user-request-interaction", INTERACTION_EVENT,
+        "interaction-adapter:test",
+        {
+            "encounter_id": "encounter-user-request",
+            "subject_ref": "topic:user-topic",
+            "evidence_kind": "user_requested_action",
+            "origin": "user_request",
+            "context": "The user explicitly requested this subject.",
+            "meaningful_alternatives": False,
+            "choice_set_refs": [],
+            "selected_ref": "item:user-topic",
+            "origin_event_id": "user-request-observation",
+            "related_event_id": None,
+            "adapter": {"component": "test", "version": "0.1"},
+            "session_scope": "test",
+        },
+    ))
+    store.submit_event(event(
+        "user-motivation-event", MOTIVATION_PROPOSAL_EVENT,
+        "motivation-proposal:test",
+        {
+            "proposal_id": "user-motivation",
+            "operation": "create",
+            "kind": "interest",
+            "subject_ref": "topic:user-topic",
+            "scope": "general",
+            "statement": "An interest connected to a user request.",
+            "supporting_event_ids": ["user-request-interaction"],
+            "counter_evidence_event_ids": [],
+            "new_signal_id": "user-signal",
+            "target_signal_id": None,
+            "target_signal_version": None,
+            "requested_interest_stage": "tentative",
+            "rationale": "Synthetic test hypothesis.",
+            "origin": {"component": "test", "version": "0.1"},
+            "based_on": {"state_version": store.get_state_snapshot()["state_version"]},
+        },
+        at="2026-11-15T08:01:00+00:00",
+    ))
+    result = store.evaluate_motivation_proposal("user-motivation")
+    if result["status"] != "accepted":
+        raise AssertionError(result)
+    return "user-signal"
+
+
 def goal_event(
     proposal_id: str,
     signal_ids: list[str],
