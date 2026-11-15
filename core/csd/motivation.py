@@ -498,7 +498,7 @@ class CognitiveMotivationMixin:
         origin_class = (
             current_target["origin_class"]
             if current_target is not None
-            else self._motivation_origin_class(evidence)
+            else self._motivation_origin_class(support)
         )
         signal_id = (
             current_target["signal_id"]
