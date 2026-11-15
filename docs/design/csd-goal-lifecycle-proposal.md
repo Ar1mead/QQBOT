@@ -56,6 +56,8 @@ Initial implementation slice:
 - rejected/deferred proposals create no goal version and do not increment state version;
 - stale state/goal versions are deferred, never rebased.
 
+Implementation note for the first slice (hosted-tested): the event family is `life.goal_pause_resume_proposed.v1` / `life.goal_pause_resume_decided.v1`, with the rebuildable `goal_pause_resume_proposals` projection in schema v5. Its operation field is restricted to `pause` or `resume`; CSD does not accept a generic requested target status. Proposal chronology rejects a future claimed state version, and stale proposals are deferred without rebasing.
+
 ### 3.2 Blocked and unblocked
 
 Blocked is not a synonym for pause. It records that a specific prerequisite or external constraint currently prevents progress.
