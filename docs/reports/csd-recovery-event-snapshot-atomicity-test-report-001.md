@@ -35,6 +35,8 @@ The test asserts that Recovery includes both events and that the event count in 
 
 ## 4. Hosted verification
 
+Follow-on Recovery envelope hardening is covered separately in [durable event-envelope validation report](csd-durable-event-envelope-validation-test-report-001.md).
+
 Both GitHub-hosted runners passed:
 
 | Runner | Python / SQLite | Full test discovery | Time |
