@@ -621,6 +621,274 @@ class CognitiveGoalMixin:
             raise KeyError(goal_id)
         return json.loads(row["goal_json"])
 
+# Pause/resume are explicit internal goal lifecycle choices. They do not
+# create, schedule, or execute activities.
+GOAL_PAUSE_RESUME_PROPOSAL_EVENT = "life.goal_pause_resume_proposed.v1"
+GOAL_PAUSE_RESUME_DECISION_EVENT = "life.goal_pause_resume_decided.v1"
+GOAL_PAUSE_RESUME_POLICY_ID = "csd.goal-pause-resume"
+GOAL_PAUSE_RESUME_POLICY_VERSION = "0.1"
+GOAL_PAUSE_RESUME_CONTRACT_VERSION = "life.goal_pause_resume_proposed.v1"
+
+
+def _validate_goal_pause_resume_proposal(event: Any) -> None:
+    payload = event["payload"] if isinstance(event, Mapping) else event.payload
+    source = event["source"] if isinstance(event, Mapping) else event.source
+    allowed = {
+        "proposal_id", "based_on", "goal_id", "expected_goal_version",
+        "operation", "rationale", "origin", "contract_version",
+    }
+    if set(payload) != allowed:
+        raise ValueError("goal pause/resume proposal contains missing or unsupported fields")
+    _g_nonempty(payload.get("proposal_id"), "proposal_id")
+    if payload.get("contract_version") != GOAL_PAUSE_RESUME_CONTRACT_VERSION:
+        raise ValueError("unsupported goal pause/resume contract_version")
+    based_on = payload.get("based_on")
+    if not isinstance(based_on, Mapping) or set(based_on) != {"state_version"}:
+        raise ValueError("goal pause/resume based_on must contain state_version")
+    state_version = based_on.get("state_version")
+    if not isinstance(state_version, int) or isinstance(state_version, bool) or state_version < 0:
+        raise ValueError("based_on.state_version must be a non-negative integer")
+    _g_nonempty(payload.get("goal_id"), "goal_id")
+    goal_version = payload.get("expected_goal_version")
+    if not isinstance(goal_version, int) or isinstance(goal_version, bool) or goal_version < 1:
+        raise ValueError("expected_goal_version must be a positive integer")
+    operation = _g_nonempty(payload.get("operation"), "operation")
+    if operation not in {"pause", "resume"}:
+        raise ValueError("goal lifecycle operation must be pause or resume")
+    _g_nonempty(payload.get("rationale"), "rationale")
+    origin = payload.get("origin")
+    if not isinstance(origin, Mapping) or set(origin) != {"component", "version"}:
+        raise ValueError("goal pause/resume origin must contain component and version")
+    component = _g_nonempty(origin.get("component"), "origin.component")
+    _g_nonempty(origin.get("version"), "origin.version")
+    if source != f"life-goal-pause-resume-proposal:{component}":
+        raise ValueError("goal pause/resume source/origin mismatch")
+
+
+def _prepare_goal_pause_resume_decision(
+    self: CognitiveGoalMixin,
+    db: Any,
+    proposal_id: str,
+    *,
+    evaluated_state_version: int,
+    decision_time: str,
+    known_goal_states: Mapping[str, Mapping[str, Any]] | None = None,
+    proposal_payload: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    if proposal_payload is None:
+        row = db.execute(
+            "SELECT proposal_json FROM goal_pause_resume_proposals WHERE proposal_id=?",
+            (proposal_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(proposal_id)
+        proposal = json.loads(row["proposal_json"])
+    else:
+        proposal = dict(proposal_payload)
+    if proposal["based_on"]["state_version"] != evaluated_state_version:
+        return {
+            "outcome": "deferred", "transition": None,
+            "reason": (
+                f"stale proposal state_version={proposal['based_on']['state_version']}; "
+                f"current state_version={evaluated_state_version}"
+            ),
+        }
+    goal_id = proposal["goal_id"]
+    if known_goal_states is None:
+        row = db.execute("SELECT goal_json FROM goals WHERE goal_id=?", (goal_id,)).fetchone()
+        goal = json.loads(row["goal_json"]) if row is not None else None
+    else:
+        raw = known_goal_states.get(goal_id)
+        goal = dict(raw) if raw is not None else None
+    if goal is None:
+        return {"outcome": "rejected", "transition": None, "reason": "target goal does not exist"}
+    current_version = goal.get("goal_version")
+    if not isinstance(current_version, int) or isinstance(current_version, bool) or current_version < 1:
+        self._raise_cognitive_integrity("target goal has an invalid current version")
+    if proposal["expected_goal_version"] != current_version:
+        return {
+            "outcome": "deferred", "transition": None,
+            "reason": (
+                f"stale expected_goal_version={proposal['expected_goal_version']}; "
+                f"current goal_version={current_version}"
+            ),
+        }
+    operation = proposal["operation"]
+    expected_status = "active" if operation == "pause" else "paused"
+    new_status = "paused" if operation == "pause" else "active"
+    if goal.get("status") != expected_status:
+        return {
+            "outcome": "rejected", "transition": None,
+            "reason": f"{operation} requires goal status {expected_status}",
+        }
+    transition = {
+        "goal_id": goal_id,
+        "operation": operation,
+        "from_goal_version": current_version,
+        "from_status": expected_status,
+        "goal_version": current_version + 1,
+        "status": new_status,
+        "transition_id": f"csd-goal-pause-resume-transition:{proposal_id}:{goal_id}",
+        "rationale": proposal["rationale"],
+        "transitioned_at": decision_time,
+    }
+    return {
+        "outcome": "accepted",
+        "transition": transition,
+        "reason": f"goal explicitly {new_status}; no activity or capability is changed",
+    }
+
+
+def _apply_goal_pause_resume_decision(self: CognitiveGoalMixin, db: Any, event: Any) -> None:
+    payload = event.payload
+    proposal_id = _g_nonempty(payload.get("proposal_id"), "decision.proposal_id")
+    proposal = db.execute(
+        "SELECT proposal_event_id,decision_event_id,proposal_json "
+        "FROM goal_pause_resume_proposals WHERE proposal_id=?", (proposal_id,)
+    ).fetchone()
+    if proposal is None:
+        self._raise_cognitive_integrity("goal pause/resume decision references a missing proposal")
+    if proposal["decision_event_id"] is not None:
+        self._raise_cognitive_integrity("goal pause/resume proposal has more than one decision")
+    if payload.get("proposal_event_id") != proposal["proposal_event_id"]:
+        self._raise_cognitive_integrity("goal pause/resume proposal-event mismatch")
+    event_row = db.execute("SELECT sequence FROM events WHERE event_id=?", (event.event_id,)).fetchone()
+    if event_row is None:
+        self._raise_cognitive_integrity("goal pause/resume decision event is missing from history")
+    sequence = int(event_row["sequence"])
+    current_version = self._authoritative_state_version(db, through_sequence=sequence - 1)
+    if payload.get("evaluated_state_version") != current_version:
+        self._raise_cognitive_integrity("goal pause/resume decision evaluated against stale state_version")
+    proposal_payload = json.loads(proposal["proposal_json"])
+    prepared = _prepare_goal_pause_resume_decision(
+        self, db, proposal_id,
+        evaluated_state_version=current_version,
+        decision_time=event.occurred_at,
+        proposal_payload=proposal_payload,
+    )
+    expected = {
+        "proposal_id": proposal_id,
+        "proposal_event_id": proposal["proposal_event_id"],
+        "outcome": prepared["outcome"],
+        "policy": {"id": GOAL_PAUSE_RESUME_POLICY_ID, "version": GOAL_PAUSE_RESUME_POLICY_VERSION},
+        "evaluated_state_version": current_version,
+        "goal_id": proposal_payload["goal_id"],
+        "expected_goal_version": proposal_payload["expected_goal_version"],
+        "operation": proposal_payload["operation"],
+        "transition": prepared["transition"],
+        "reason": prepared["reason"],
+    }
+    if set(payload) != set(expected) or dict(payload) != expected:
+        self._raise_cognitive_integrity("goal pause/resume decision differs from deterministic CSD evaluation")
+    if event.event_id != f"csd-goal-pause-resume-decision:{proposal_id}":
+        self._raise_cognitive_integrity("goal pause/resume decision event ID is not proposal-scoped")
+    if event.correlation_id != f"goal-pause-resume-proposal:{proposal_id}":
+        self._raise_cognitive_integrity("goal pause/resume decision correlation_id mismatch")
+    if event.source != GOAL_DECISION_SOURCE:
+        self._raise_cognitive_integrity("goal pause/resume decision source is not CSD authority")
+
+    transition = prepared["transition"]
+    if prepared["outcome"] == "accepted":
+        goal_id = transition["goal_id"]
+        row = db.execute("SELECT goal_json FROM goals WHERE goal_id=?", (goal_id,)).fetchone()
+        if row is None:
+            self._raise_cognitive_integrity("accepted pause/resume target disappeared")
+        current_goal = json.loads(row["goal_json"])
+        if (
+            current_goal.get("goal_version") != transition["from_goal_version"]
+            or current_goal.get("status") != transition["from_status"]
+        ):
+            self._raise_cognitive_integrity("goal changed during pause/resume decision")
+        updated = {
+            **current_goal,
+            "goal_version": transition["goal_version"],
+            "status": transition["status"],
+            "decision_event_id": event.event_id,
+            "transition_id": transition["transition_id"],
+            "lifecycle_proposal_id": proposal_id,
+            "lifecycle_proposal_event_id": proposal["proposal_event_id"],
+            "lifecycle_decision_event_id": event.event_id,
+            "lifecycle_operation": transition["operation"],
+            "lifecycle_rationale": transition["rationale"],
+            "lifecycle_transitioned_at": transition["transitioned_at"],
+        }
+        goal_json = _g_canonical(updated)
+        db.execute(
+            "INSERT INTO goal_versions(goal_id,goal_version,decision_event_id,transition_id,goal_json) "
+            "VALUES (?,?,?,?,?)",
+            (goal_id, transition["goal_version"], event.event_id, transition["transition_id"], goal_json),
+        )
+        db.execute(
+            "UPDATE goals SET goal_version=?,decision_event_id=?,transition_id=?,goal_json=? WHERE goal_id=?",
+            (transition["goal_version"], event.event_id, transition["transition_id"], goal_json, goal_id),
+        )
+    elif transition is not None:
+        self._raise_cognitive_integrity("non-accepted pause/resume decision contains a transition")
+    db.execute(
+        "UPDATE goal_pause_resume_proposals SET status=?,decision_event_id=? WHERE proposal_id=?",
+        (prepared["outcome"], event.event_id, proposal_id),
+    )
+
+
+def _evaluate_goal_pause_resume_proposal(
+    self: CognitiveGoalMixin, proposal_id: str
+) -> dict[str, Any]:
+    _g_nonempty(proposal_id, "proposal_id")
+    from .cognitive import CognitiveEvent
+    with self._tx() as db:
+        row = db.execute(
+            "SELECT proposal_event_id,decision_event_id,proposal_json "
+            "FROM goal_pause_resume_proposals WHERE proposal_id=?", (proposal_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(proposal_id)
+        if row["decision_event_id"] is not None:
+            return {"status": "already_decided", "decision_event_id": row["decision_event_id"]}
+        self._assert_accepted_projection_consistent()
+        self._assert_motivation_projection_consistent()
+        self._assert_goal_projection_consistent()
+        current_version = self._authoritative_state_version(db)
+        proposal_payload = json.loads(row["proposal_json"])
+        prepared = _prepare_goal_pause_resume_decision(
+            self, db, proposal_id,
+            evaluated_state_version=current_version,
+            decision_time=datetime.now(timezone.utc).isoformat(),
+            proposal_payload=proposal_payload,
+        )
+        decision_time = (
+            prepared["transition"]["transitioned_at"]
+            if prepared["transition"] is not None
+            else datetime.now(timezone.utc).isoformat()
+        )
+        event = CognitiveEvent(
+            event_id=f"csd-goal-pause-resume-decision:{proposal_id}",
+            occurred_at=decision_time,
+            correlation_id=f"goal-pause-resume-proposal:{proposal_id}",
+            event_type=GOAL_PAUSE_RESUME_DECISION_EVENT,
+            source=GOAL_DECISION_SOURCE,
+            payload={
+                "proposal_id": proposal_id,
+                "proposal_event_id": row["proposal_event_id"],
+                "outcome": prepared["outcome"],
+                "policy": {"id": GOAL_PAUSE_RESUME_POLICY_ID, "version": GOAL_PAUSE_RESUME_POLICY_VERSION},
+                "evaluated_state_version": current_version,
+                "goal_id": proposal_payload["goal_id"],
+                "expected_goal_version": proposal_payload["expected_goal_version"],
+                "operation": proposal_payload["operation"],
+                "transition": prepared["transition"],
+                "reason": prepared["reason"],
+            },
+        )
+        payload_json = self._validate_event(event, internal=True)
+        appended = self._append_event_in_transaction(db, event, payload_json, internal=True)
+        return {
+            "status": prepared["outcome"],
+            "decision_event_id": event.event_id,
+            "sequence": appended["sequence"],
+            "reason": prepared["reason"],
+        }
+
+
 # Candidate-to-active activation is deliberately a separate event family from
 # candidate creation. It is an internal state transition, never an activity.
 GOAL_ACTIVATION_PROPOSAL_EVENT = "life.goal_activation_proposed.v1"
