@@ -170,6 +170,32 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         self.assertEqual(self.store.get_state_snapshot()["event_count"], 1)
         self.assertEqual(self.store.get_memories(), [])
 
+
+    def test_failed_commit_rolls_back_and_releases_transaction(self):
+        with self.assertRaises(sqlite3.IntegrityError):
+            with self.store._tx() as db:
+                db.execute("PRAGMA defer_foreign_keys = ON")
+                db.execute(
+                    "INSERT INTO events(event_id,occurred_at,received_at,correlation_id,event_type,source,payload_ref,event_digest) "
+                    "VALUES (?,?,?,?,?,?,?,?)",
+                    (
+                        "event-with-missing-payload",
+                        "2026-11-15T10:00:00+00:00",
+                        "2026-11-15T10:00:01+00:00",
+                        "corr-commit-failure",
+                        OBSERVATION_EVENT,
+                        "test.fixture",
+                        "sha256:missing-payload",
+                        "digest-placeholder",
+                    ),
+                )
+        self.assertFalse(self.store._db.in_transaction)
+        self.assertEqual(
+            self.store._db.execute("SELECT COUNT(*) FROM events").fetchone()[0],
+            0,
+        )
+        self.assertEqual(self.store.submit_event(self.observation())["status"], "accepted")
+
     def test_same_event_id_and_content_is_idempotent(self):
         event = self.observation()
         first = self.store.submit_event(event)
