@@ -258,7 +258,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         connection.close()
 
         candidate = CognitiveMemoryStore.__new__(CognitiveMemoryStore)
-        candidate._db = sqlite3.connect(str(fresh_db_path), isolation_level=None)
+        candidate._db = sqlite3.connect(str(self.db_path), isolation_level=None)
         candidate._db.row_factory = sqlite3.Row
         self.store = candidate
         with self.assertRaises(sqlite3.OperationalError):
@@ -288,7 +288,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         connection.close()
 
         candidate = CognitiveMemoryStore.__new__(CognitiveMemoryStore)
-        candidate._db = sqlite3.connect(str(self.db_path), isolation_level=None)
+        candidate._db = sqlite3.connect(str(fresh_db_path), isolation_level=None)
         candidate._db.row_factory = sqlite3.Row
         self.store = candidate
         with self.assertRaises(sqlite3.OperationalError):
