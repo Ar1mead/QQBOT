@@ -205,7 +205,7 @@ def validate_life_proposal(
             raise ValueError("only interest signals may carry interest maturity/encounter summaries")
         seen_encounters: set[str] = set()
         seen_events: set[str] = set()
-        timestamps: set[str] = set()
+        timestamps: set[datetime] = set()
         for entry in signal.voluntary_encounters:
             if not isinstance(entry, (tuple, list)) or len(entry) != 3:
                 raise ValueError("voluntary_encounters entries must contain encounter_id, timestamp, event_id")
@@ -228,7 +228,7 @@ def validate_life_proposal(
                 raise ValueError("voluntary encounter evidence must be in supporting event IDs")
             seen_encounters.add(encounter_id)
             seen_events.add(event_id)
-            timestamps.add(timestamp)
+            timestamps.add(parsed_timestamp.astimezone().astimezone(datetime.now().astimezone().tzinfo).astimezone(__import__('datetime').timezone.utc))
         if signal.interest_stage == "emerging" and (
             len(seen_encounters) < 2 or len(timestamps) < 2
         ):
