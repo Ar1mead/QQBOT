@@ -37,6 +37,7 @@ Disposition = Literal[
 @dataclass(frozen=True)
 class MotivationSignal:
     signal_id: str
+    signal_version: int
     kind: SignalKind
     origin_class: SignalOriginClass
     subject_ref: str
@@ -171,6 +172,8 @@ def validate_life_proposal(
             raise TypeError("snapshot signals must be MotivationSignal values")
         if not signal.signal_id or not signal.signal_id.strip():
             raise ValueError("signal_id must be non-empty")
+        if not isinstance(signal.signal_version, int) or isinstance(signal.signal_version, bool) or signal.signal_version < 1:
+            raise ValueError("signal_version must be a positive integer")
         if signal.signal_id in signal_by_id:
             raise ValueError(f"duplicate signal_id: {signal.signal_id}")
         if signal.kind not in {"need", "interest", "curiosity", "affect", "commitment", "opportunity"}:
