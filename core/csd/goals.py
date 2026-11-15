@@ -1252,6 +1252,7 @@ def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
     event_types = (
         GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
         GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
+        GOAL_PAUSE_RESUME_PROPOSAL_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT,
     )
     placeholders = ",".join("?" for _ in event_types)
     rows = self._db.execute(
@@ -1262,6 +1263,8 @@ def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
     batch_decisions: dict[str, tuple[str, dict[str, Any]]] = {}
     activation_proposals: dict[str, dict[str, Any]] = {}
     activation_decisions: dict[str, tuple[str, dict[str, Any]]] = {}
+    pause_resume_proposals: dict[str, dict[str, Any]] = {}
+    pause_resume_decisions: dict[str, tuple[str, dict[str, Any]]] = {}
     expected_goals: dict[str, dict[str, Any]] = {}
     expected_versions: dict[tuple[str, int], tuple[str, str, str]] = {}
 
@@ -1299,6 +1302,22 @@ def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
                 }
             elif prior["digest"] != digest:
                 self._raise_cognitive_integrity("goal activation proposal identity conflict in event history")
+            continue
+
+        if event_type == GOAL_PAUSE_RESUME_PROPOSAL_EVENT:
+            proposal_id = _g_nonempty(payload.get("proposal_id"), "pause/resume proposal_id")
+            self._validate_goal_proposal_snapshot_version(self._db, record, internal=True)
+            _validate_goal_pause_resume_proposal(record)
+            canonical = _g_canonical(payload)
+            digest = _g_digest(canonical)
+            prior = pause_resume_proposals.get(proposal_id)
+            if prior is None:
+                pause_resume_proposals[proposal_id] = {
+                    "digest": digest, "event_id": row["event_id"],
+                    "json": canonical, "payload": payload,
+                }
+            elif prior["digest"] != digest:
+                self._raise_cognitive_integrity("goal pause/resume proposal identity conflict in event history")
             continue
 
         if event_type == GOAL_BATCH_DECISION_EVENT:
@@ -1353,6 +1372,67 @@ def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
                     state_json = _g_canonical(state)
                     expected_goals[goal_id] = state
                     expected_versions[(goal_id, 1)] = (row["event_id"], transition_id, state_json)
+            continue
+
+        if event_type == GOAL_PAUSE_RESUME_DECISION_EVENT:
+            proposal_id = _g_nonempty(payload.get("proposal_id"), "pause/resume decision proposal_id")
+            if proposal_id in pause_resume_decisions or proposal_id not in pause_resume_proposals:
+                self._raise_cognitive_integrity("goal pause/resume decision has duplicate or missing proposal")
+            proposal = pause_resume_proposals[proposal_id]
+            current_version = self._authoritative_state_version(
+                self._db, through_sequence=int(row["sequence"]) - 1
+            )
+            prepared = _prepare_goal_pause_resume_decision(
+                self, self._db, proposal_id,
+                evaluated_state_version=current_version,
+                decision_time=record["occurred_at"],
+                known_goal_states=expected_goals,
+                proposal_payload=proposal["payload"],
+            )
+            expected = {
+                "proposal_id": proposal_id,
+                "proposal_event_id": proposal["event_id"],
+                "outcome": prepared["outcome"],
+                "policy": {"id": GOAL_PAUSE_RESUME_POLICY_ID, "version": GOAL_PAUSE_RESUME_POLICY_VERSION},
+                "evaluated_state_version": current_version,
+                "goal_id": proposal["payload"]["goal_id"],
+                "expected_goal_version": proposal["payload"]["expected_goal_version"],
+                "operation": proposal["payload"]["operation"],
+                "transition": prepared["transition"],
+                "reason": prepared["reason"],
+            }
+            if (
+                record["source"] != GOAL_DECISION_SOURCE
+                or record["correlation_id"] != f"goal-pause-resume-proposal:{proposal_id}"
+                or record["event_id"] != f"csd-goal-pause-resume-decision:{proposal_id}"
+                or payload != expected
+            ):
+                self._raise_cognitive_integrity("goal pause/resume decision differs from deterministic CSD evaluation")
+            pause_resume_decisions[proposal_id] = (row["event_id"], payload)
+            if prepared["outcome"] == "accepted":
+                transition = prepared["transition"]
+                goal_id = transition["goal_id"]
+                prior = expected_goals.get(goal_id)
+                if prior is None:
+                    self._raise_cognitive_integrity("pause/resume transition references missing goal")
+                state = {
+                    **prior,
+                    "goal_version": transition["goal_version"],
+                    "status": transition["status"],
+                    "decision_event_id": row["event_id"],
+                    "transition_id": transition["transition_id"],
+                    "lifecycle_proposal_id": proposal_id,
+                    "lifecycle_proposal_event_id": proposal["event_id"],
+                    "lifecycle_decision_event_id": row["event_id"],
+                    "lifecycle_operation": transition["operation"],
+                    "lifecycle_rationale": transition["rationale"],
+                    "lifecycle_transitioned_at": transition["transitioned_at"],
+                }
+                state_json = _g_canonical(state)
+                expected_goals[goal_id] = state
+                expected_versions[(goal_id, transition["goal_version"])] = (
+                    row["event_id"], transition["transition_id"], state_json
+                )
             continue
 
         proposal_id = _g_nonempty(payload.get("proposal_id"), "activation decision proposal_id")
@@ -1417,6 +1497,7 @@ def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
     for table, expected_items, decision_items in (
         ("goal_proposals", batch_proposals, batch_decisions),
         ("goal_activation_proposals", activation_proposals, activation_decisions),
+        ("goal_pause_resume_proposals", pause_resume_proposals, pause_resume_decisions),
     ):
         rows = self._db.execute(
             f"SELECT proposal_id,proposal_digest,proposal_event_id,proposal_json,status,decision_event_id FROM {table}"
