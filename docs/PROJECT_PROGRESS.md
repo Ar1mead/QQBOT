@@ -64,7 +64,7 @@ Reference files:
 - [x] Added semantic-review events and a provider-neutral review pipeline. Review opinions are attributed inputs, not authority to mutate CSD state.
 - [x] Added deterministic accepted-memory retrieval filters and pagination.
 - [x] Recorded known semantic limits: deterministic checks do not prove source truth or semantic entailment; no real proposal/reviewer model provider is connected.
-- [ ] Verify the complete current cognitive-memory test suite in hosted CI and on Windows.
+- [x] Verify the complete cognitive-memory test suite in hosted Linux and Windows CI (249 tests); [ ] verify on the user's own Windows 11 environment.
 
 ### 3.4 Life Engine and motivation proposal layer
 
@@ -96,7 +96,7 @@ The current work connects motivation signals to the same CSD event stream as cog
 - [x] Fix the migration test fixture and update this ledger with the exact result; the earlier fixture represented an impossible v1 database state.
 - [x] Confirm a successful GitHub Actions run for the current branch: run #142, commit `e5f36b389a168d96b5efaa074f9283da47a573ae`.
 - [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
-- [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; return visits require a prior same-subject/same-item interaction, distinct encounter and later timestamp; the current return itself must be voluntary. The earlier interaction may be passive exposure or user-requested; run #142 passed. lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
+- [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; return-visit semantics are covered by run #142. Lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
 - [x] Run the full suite on a GitHub-hosted Windows runner (249 tests, Python 3.12.10 / SQLite 3.49.1); this is a cross-platform CI check, not the user's own Windows 11 environment.
 - [ ] Only after the above: run the tests on the user's Windows environment.
 
@@ -154,14 +154,14 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by CI: `f38a0f5e828f4f5eacc1739d51d366b418f7cba7`, workflow run #129; subsequent commits in this branch update only the report and progress ledger.
+- Latest code/test commit verified by CI: `e5f36b389a168d96b5efaa074f9283da47a573ae`, workflow run #142; subsequent commits in this branch update only the report and progress ledger.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
-- `python -m unittest discover -s tests -v` passed: 249 tests on both Linux and Windows runners.
+- `python -m unittest discover -s tests -v` passed: 249 tests on both Linux and Windows runners (Linux 2.083s; Windows 15.623s).
 - The v1→v2 migration test uses legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
 - Motivation and accepted-memory proposal/state projections are checked against authoritative events; corruption tests verify Recovery repair.
 - Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
 
-**Resume from section 4: finish CI verification of return-visit hardening, continue event payload/replay/idempotency review, then arrange Windows-local verification.**
+**Resume from section 4: continue event payload/replay/idempotency adversarial review, then arrange Windows-local verification.**
