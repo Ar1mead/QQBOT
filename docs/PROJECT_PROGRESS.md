@@ -154,14 +154,14 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by CI: `7c4c637e87a1be69192d7ee4fdcd3a971bfd427c`, workflow run #166. The Life Engine snapshot contract preserves CSD origin and voluntary lineage; CI run #161 passed.
+- Latest code/test commit verified by CI: `7c4c637e87a1be69192d7ee4fdcd3a971bfd427c`, workflow run #166. The Life Engine snapshot contract preserves CSD origin, voluntary lineage, subject identity, and support/counterevidence polarity.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
-- `python -m unittest discover -s tests -v` passed: 259 tests on both Linux and Windows runners (Linux 2.269s; Windows 12.736s).
+- `python -m unittest discover -s tests -v` passed: 259 tests on both Linux and Windows runners (Linux 1.322s; Windows 10.460s).
 - The v1→v2 migration test uses legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
 - Motivation and accepted-memory proposal/state projections are checked against authoritative events; corruption tests verify Recovery repair.
 - Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
 
-**Resume from section 4: continue event replay/idempotency review, then arrange Windows-local verification; the Life Engine snapshot-origin/voluntary-lineage contract passed run #161, timestamp validation passed run #163, and subject/evidence-polarity separation passed run #166. The snapshot contract now separates subject, supporting evidence, and counterevidence; its CI run is pending after test-fixture updates.**
+**Resume from section 4: continue adversarial review of Life Engine snapshot evidence semantics and CSD event replay/idempotency. Run #166 passed on Linux and Windows with 259 tests after the snapshot contract began carrying CSD subject identity and separate supporting/counterevidence references. Next inspect whether the summary's voluntary-encounter timestamps prove two genuinely distinct chronological encounters, and whether proposal evidence is sufficiently grounded before any CSD sink is implemented. Windows-local verification remains pending.**
