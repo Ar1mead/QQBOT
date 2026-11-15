@@ -161,3 +161,8 @@ The proposal was reviewed against the current CSD schema-v3 event, projection, s
 
 These clarifications are an implementation review, not a frozen CSD/ASM specification. The goal lifecycle beyond candidate→active remains out of scope.
 
+
+
+## 12. Additional implementation review constraint — proposal snapshot chronology
+
+A proposal's `based_on.state_version` must not claim a state version that did not yet exist when the proposal event was appended. CSD rejects a future version at append time and verifies the same invariant during projection reconciliation/Recovery. A proposal may legitimately be stale because state changed between deliberation and append; it may be recorded, but evaluation must defer it rather than silently rebasing it. This prevents a proposal submitted before a goal or source signal existed from becoming valid retroactively merely because the global state version later catches up.
