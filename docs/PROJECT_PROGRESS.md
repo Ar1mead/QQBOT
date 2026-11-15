@@ -89,7 +89,7 @@ Reference files:
 - [x] Extended event-order goal reconciliation, projection consistency reporting, and deterministic Recovery to include activation history.
 - [x] Added Life Engine `activate_goal` validation with expected goal version and a narrow CSD proposal sink for candidate/activation proposals. The sink does not execute activities.
 - [x] Added migration, idempotency, identity-conflict, stale-version, duplicate-activation, source-signal-paused lineage, projection-tampering, Recovery, and Life Engine sink tests.
-- [x] Hosted CI run #230 passed on Ubuntu and Windows: 297 total tests on each runner, including compileall. See `docs/reports/csd-goal-activation-hosted-test-report-001.md`.
+- [x] Hosted CI run #230 passed on Ubuntu and Windows: 301 total tests on each runner, including compileall. See `docs/reports/csd-goal-activation-hosted-test-report-001.md`.
 - [ ] Run the exact suite on the user's own Windows 11 / Python 3.12.14 environment; hosted Windows CI is not a substitute.
 - [ ] Real deliberator/model provider is not connected. Goal activation is a persisted choice transition, not proof of subjective desire or autonomous motivation.
 - [ ] Remaining goal lifecycle transitions and activity execution remain out of scope.
@@ -183,11 +183,11 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by hosted CI: `a04137532bee50b036a409209b9e66bdc884f866`, workflow run #230 (297 tests passed on Ubuntu and Windows).
-- Latest branch head before this progress-ledger update: `b66a414ade1b34d9d84490b1fbff57490464e953` (goal activation progress-ledger update).
+- Latest code/test commit verified by hosted CI: `d167794c7ae52d9c9dcdcc13d5d98abf438a3fba`, workflow run #235 (301 tests passed on Ubuntu and Windows).
+- Latest branch head before this progress-ledger update: `382e7f4500e47263a4af3e320b9e906881b8a5bb` (goal activation hosted-test report update).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
-- `python -m unittest discover -s tests -v` passed: 297 tests on both Linux and Windows (Linux 2.122s; Windows 19.005s).
+- `python -m unittest discover -s tests -v` passed: 301 tests on both Linux and Windows (Linux 2.416s; Windows 29.157s).
 - Schema v4 includes durable candidate-goal and activation proposal projections, goal-version history, and latest-goal state. Legacy v1→v4 migration and v3→v4 activation migration are covered.
 - Goal batch acceptance is atomic; accepted candidates increment shared state_version once regardless of batch size. Stale proposals defer without rebasing. Exact source signal versions are resolved at the decision event sequence.
 - The Life Engine snapshot reader includes versioned candidate/active goals. A narrow CSD sink can persist candidate-goal and explicit activation proposals; activity options remain empty pending a trusted capability-filtered source.
