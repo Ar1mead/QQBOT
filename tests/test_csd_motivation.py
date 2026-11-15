@@ -770,7 +770,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
 
     def test_life_signal_snapshot_returns_consistent_version_and_accepted_signals(self):
         self.add_interaction(interaction("interaction-life-snapshot"))
-        self.add_proposal(motivation_proposal("proposal-life-snapshot"))
+        self.add_proposal(motivation_proposal("proposal-life-snapshot", support=("interaction-life-snapshot",)))
         self.assertEqual(
             self.store.evaluate_motivation_proposal("proposal-life-snapshot")["status"],
             "accepted",
