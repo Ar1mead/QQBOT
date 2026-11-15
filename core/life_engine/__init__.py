@@ -1,7 +1,6 @@
 """Autonomous motivation and life-engine reference interfaces.
 
-These modules define provider-neutral proposals only. CSD persistence and
-ASM-governed execution adapters are intentionally separate and not yet wired.
+These modules define provider-neutral proposals. CSD goal-state persistence is connected through a narrow proposal sink; ASM-governed external execution remains separate and unwired.
 """
 
 from .contracts import (
@@ -26,6 +25,7 @@ from .motivation import (
 )
 from .csd_adapter import (
     CognitiveStoreLifeSnapshotReader,
+    CognitiveStoreLifeProposalSink,
     motivation_signal_from_csd,
     motivation_signals_from_csd,
 )
@@ -40,6 +40,7 @@ __all__ = [
     "GoalState",
     "LifeEngine",
     "CognitiveStoreLifeSnapshotReader",
+    "CognitiveStoreLifeProposalSink",
     "motivation_signal_from_csd",
     "motivation_signals_from_csd",
     "MotivationEvidence",
