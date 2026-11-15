@@ -260,6 +260,35 @@ class SemanticReviewStoreTests(unittest.TestCase):
         self.assertEqual(self.store.get_state_snapshot()["event_count"], before)
         self.assertEqual(self.store.get_semantic_reviews("proposal-review-1")[0]["event_id"], first["event_id"])
 
+
+    def test_duplicate_review_rejects_corrupted_prior_event_envelope(self):
+        self.submit_proposal()
+        original = self.make_review(review_id="review-corrupt-retry")
+        self.store.submit_event(original)
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute(
+            "UPDATE events SET event_digest='tampered' WHERE event_id=?",
+            (original.event_id,),
+        )
+        retry = CognitiveEvent(
+            event_id="evt-review-corrupt-retry-delivery",
+            occurred_at="2026-11-14T10:03:00+00:00",
+            correlation_id=original.correlation_id,
+            event_type=original.event_type,
+            source=original.source,
+            payload=dict(original.payload),
+        )
+        from core.csd.cognitive import CognitiveIntegrityError
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.submit_event(retry)
+        self.assertEqual(
+            self.store._db.execute(
+                "SELECT COUNT(*) FROM events WHERE event_type=?",
+                (SEMANTIC_REVIEW_EVENT,),
+            ).fetchone()[0],
+            1,
+        )
+
     def test_same_review_id_with_changed_content_conflicts(self):
         self.submit_proposal()
         first = self.make_review(review_id="review-conflict")
