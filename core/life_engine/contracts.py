@@ -23,6 +23,7 @@ SideEffectLevel = Literal["none", "read_only", "external_side_effect"]
 Disposition = Literal[
     "start_activity",
     "continue_activity",
+    "activate_goal",
     "wait",
     "request_information",
     "pause_goal",
@@ -57,6 +58,7 @@ class GoalState:
     desired_condition: str
     status: Literal["candidate", "active", "paused", "blocked", "satisfied", "abandoned", "superseded"]
     evidence_event_ids: tuple[str, ...] = ()
+    goal_version: int = 1
 
 
 @dataclass(frozen=True)
@@ -117,6 +119,7 @@ class ChoiceProposal:
     goal_id: str | None = None
     active_activity_id: str | None = None
     evidence_event_ids: tuple[str, ...] = ()
+    expected_goal_version: int | None = None
 
 
 @dataclass(frozen=True)
@@ -250,6 +253,8 @@ def validate_life_proposal(
             raise ValueError(f"duplicate goal_id: {goal.goal_id}")
         if goal.status not in {"candidate", "active", "paused", "blocked", "satisfied", "abandoned", "superseded"}:
             raise ValueError(f"unsupported current goal status: {goal.status}")
+        if not isinstance(goal.goal_version, int) or isinstance(goal.goal_version, bool) or goal.goal_version < 1:
+            raise ValueError("goal.goal_version must be a positive integer")
         _unique_nonempty(goal.evidence_event_ids, "goal.evidence_event_ids")
         goal_by_id[goal.goal_id] = goal
 
@@ -428,6 +433,22 @@ def validate_life_proposal(
             if active_state.stop_condition_met:
                 raise ValueError("activity stop condition has already been met")
         requires_asm = active_state.side_effect_level == "external_side_effect"
+    elif choice.disposition == "activate_goal":
+        if choice.goal_id is None:
+            raise ValueError("activate_goal requires goal_id")
+        if choice.activity_id is not None or choice.active_activity_id is not None:
+            raise ValueError("activate_goal cannot also select or continue an activity")
+        current_goal = goal_by_id[choice.goal_id]
+        if current_goal.status != "candidate":
+            raise ValueError("activate_goal requires a candidate goal")
+        if (
+            not isinstance(choice.expected_goal_version, int)
+            or isinstance(choice.expected_goal_version, bool)
+            or choice.expected_goal_version < 1
+        ):
+            raise ValueError("activate_goal requires a positive expected_goal_version")
+        if choice.expected_goal_version != current_goal.goal_version:
+            raise ValueError("activate_goal expected_goal_version is stale")
     elif choice.disposition in {"pause_goal", "abandon_goal", "revise_goal"}:
         if choice.goal_id is None:
             raise ValueError(f"{choice.disposition} requires goal_id")
