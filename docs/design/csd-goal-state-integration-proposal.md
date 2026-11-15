@@ -56,13 +56,13 @@ Each goal entry contains:
 
 - `goal_id` — unique proposed identity;
 - `desired_condition` — what condition the individual may want to bring about;
-- `origin_signal_refs[]` — exact `signal_id` and `signal_version` pairs from the CSD snapshot;
+- `origin_signal_ids[]` — one or more signal IDs visible in the CSD snapshot on which the deliberation was based;
 - `rationale` — concise reason summary, not hidden chain-of-thought;
 - `success_condition` — observable evidence that would satisfy the goal;
 - `stop_condition` — when to stop pursuing it;
 - `review_condition` — when/how to reconsider it.
 
-The proposal must not assign authoritative goal origin, accepted status, goal version, decision ID, CSD state version, capability grants, or external action payloads.
+The proposal must not assign authoritative goal origin, accepted status, goal version, decision ID, CSD state version, resolved signal-version lineage, capability grants, or external action payloads.
 
 ### 3.2 CSD decision event
 
@@ -75,6 +75,7 @@ Only CSD's internal authority path may append this event. It binds:
 - policy ID/version;
 - outcome (`accepted`, `rejected`, or `deferred`);
 - per-goal CSD-derived origin class;
+- per-goal `origin_signal_refs[]` resolved by CSD to exact `signal_id`/`signal_version` pairs at the evaluated state version;
 - accepted goal identity/version and initial lifecycle status;
 - reason code/summary.
 
@@ -86,11 +87,12 @@ CSD derives goal origin from the referenced accepted signal versions. The Life E
 
 For each `origin_signal_ref`, CSD verifies:
 
-1. the signal exists and the referenced version exists in event-backed history;
+1. every referenced signal ID exists in the accepted CSD snapshot;
 2. the signal is active at the proposal's evaluated state version;
-3. the signal version belongs to the same CSD state snapshot;
+3. the proposal's shared state version is still current;
 4. the goal references at least one source signal;
-5. the signal's immutable initial origin and accumulated voluntary-encounter summary are preserved.
+5. CSD resolves and stores the exact signal version for each reference in its decision event;
+6. the signal's immutable initial origin and accumulated voluntary-encounter summary are preserved.
 
 Derived goal origin:
 
