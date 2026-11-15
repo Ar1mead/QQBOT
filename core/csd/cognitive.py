@@ -1313,14 +1313,156 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
         }
 
     def _assert_accepted_projection_consistent(self) -> None:
-        authoritative_count = self._accepted_transition_count(self._db, {DECISION_EVENT})
-        projected_count = int(self._db.execute(
-            "SELECT COUNT(*) FROM accepted_memories"
-        ).fetchone()[0])
-        if projected_count != authoritative_count:
-            raise CognitiveIntegrityError(
-                "accepted-memory projection is out of sync; run Recovery before retrieval"
+        # Validate proposal and accepted-memory projections against the durable
+        # event stream, not merely against row counts.
+        proposal_rows = self._db.execute(
+            "SELECT event_id FROM events WHERE event_type IN (?,?) ORDER BY sequence",
+            (PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT),
+        ).fetchall()
+        expected_proposals: dict[str, dict[str, Any]] = {}
+        for row in proposal_rows:
+            event = self.get_event(row["event_id"])
+            payload = event["payload"]
+            proposal_id = _nonempty(payload.get("proposal_id"), "proposal_id")
+            proposal_json = _canonical(dict(payload))
+            proposal_digest = _digest(proposal_json)
+            prior = expected_proposals.get(proposal_id)
+            if prior is None:
+                expected_proposals[proposal_id] = {
+                    "proposal_digest": proposal_digest,
+                    "proposal_event_id": event["event_id"],
+                    "proposal_json": proposal_json,
+                    "proposal": payload,
+                    "event_type": event["event_type"],
+                }
+            elif prior["proposal_digest"] != proposal_digest:
+                raise CognitiveIntegrityError("memory proposal identity conflict in event history")
+
+        decision_rows = self._db.execute(
+            "SELECT event_id FROM events WHERE event_type=? ORDER BY sequence",
+            (DECISION_EVENT,),
+        ).fetchall()
+        expected_decisions: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
+        for row in decision_rows:
+            event = self.get_event(row["event_id"])
+            payload = event["payload"]
+            proposal_id = _nonempty(payload.get("proposal_id"), "decision.proposal_id")
+            if proposal_id in expected_decisions:
+                raise CognitiveIntegrityError("memory proposal has multiple decision events")
+            expected_decisions[proposal_id] = (event, payload)
+
+        proposal_projection_rows = self._db.execute(
+            "SELECT proposal_id,proposal_digest,proposal_event_id,proposal_json,status,decision_event_id "
+            "FROM proposals"
+        ).fetchall()
+        if len(proposal_projection_rows) != len(expected_proposals):
+            raise CognitiveIntegrityError("memory proposal projection row count differs from event history")
+        for row in proposal_projection_rows:
+            expected = expected_proposals.get(row["proposal_id"])
+            if expected is None:
+                raise CognitiveIntegrityError("memory proposal projection has no source event")
+            decision = expected_decisions.get(row["proposal_id"])
+            expected_status = decision[1].get("outcome") if decision else "pending"
+            expected_decision_id = decision[0]["event_id"] if decision else None
+            if (
+                row["proposal_digest"] != expected["proposal_digest"]
+                or row["proposal_event_id"] != expected["proposal_event_id"]
+                or row["proposal_json"] != expected["proposal_json"]
+                or row["status"] != expected_status
+                or row["decision_event_id"] != expected_decision_id
+            ):
+                raise CognitiveIntegrityError("memory proposal projection differs from event history")
+        if set(expected_decisions) - set(expected_proposals):
+            raise CognitiveIntegrityError("memory decision references a missing proposal event")
+
+        expected_memories: dict[str, dict[str, Any]] = {}
+        for proposal_id, (event, payload) in expected_decisions.items():
+            outcome = payload.get("outcome")
+            if outcome not in {"accepted", "rejected", "deferred", "needs_more_evidence"}:
+                raise CognitiveIntegrityError("invalid memory decision outcome in event history")
+            if outcome != "accepted":
+                if payload.get("transition_id") is not None or payload.get("memory_id") is not None:
+                    raise CognitiveIntegrityError("non-accepted memory decision contains a transition")
+                continue
+
+            proposal_record = expected_proposals[proposal_id]
+            proposal_data = proposal_record["proposal"]
+            proposal_event_id = proposal_record["proposal_event_id"]
+            if payload.get("proposal_event_id") != proposal_event_id:
+                raise CognitiveIntegrityError("memory decision proposal-event reference mismatch")
+            memory_id = _nonempty(payload.get("memory_id"), "decision.memory_id")
+            transition_id = _nonempty(payload.get("transition_id"), "decision.transition_id")
+            grounded = proposal_record["event_type"] == GROUNDED_PROPOSAL_EVENT
+            evidence_ids = (
+                self._grounded_evidence_event_ids(proposal_data)
+                if grounded else proposal_data["evidence_event_ids"]
             )
+            if payload.get("evidence_event_ids") != evidence_ids:
+                raise CognitiveIntegrityError("memory decision evidence references mismatch")
+
+            if grounded:
+                grounding_outcome, grounding_reason = self._evaluate_grounded_claims(proposal_data)
+                if grounding_outcome != "accepted":
+                    raise CognitiveIntegrityError(
+                        "accepted grounded projection no longer passes evidence validation: "
+                        + grounding_reason
+                    )
+                memory = {
+                    "memory_id": memory_id,
+                    "memory_kind": proposal_data["memory_kind"],
+                    "claims": proposal_data["claims"],
+                    "evidence_event_ids": evidence_ids,
+                    "proposal_id": proposal_id,
+                    "proposal_event_id": proposal_event_id,
+                    "decision_event_id": event["event_id"],
+                    "transition_id": transition_id,
+                    "created_at": event["occurred_at"],
+                    "status": "accepted",
+                    "origin": proposal_data["origin"],
+                    "claim_schema": "grounded-memory-claims.v2",
+                    "policy": payload["policy"],
+                    "semantic_review_event_ids": payload["semantic_review_event_ids"],
+                    "semantic_review_status": payload["semantic_review_status"],
+                }
+            else:
+                memory = {
+                    "memory_id": memory_id,
+                    "memory_kind": proposal_data["memory_kind"],
+                    "content": proposal_data["candidate_content"],
+                    "evidence_event_ids": evidence_ids,
+                    "proposal_id": proposal_id,
+                    "proposal_event_id": proposal_event_id,
+                    "decision_event_id": event["event_id"],
+                    "transition_id": transition_id,
+                    "created_at": event["occurred_at"],
+                    "status": "accepted",
+                    "policy": payload["policy"],
+                }
+            if memory_id in expected_memories:
+                raise CognitiveIntegrityError("duplicate accepted memory identity in event history")
+            expected_memories[memory_id] = {
+                "proposal_id": proposal_id,
+                "transition_id": transition_id,
+                "memory_json": _canonical(memory),
+            }
+
+        memory_projection_rows = self._db.execute(
+            "SELECT memory_id,proposal_id,transition_id,memory_json FROM accepted_memories"
+        ).fetchall()
+        if len(memory_projection_rows) != len(expected_memories):
+            raise CognitiveIntegrityError(
+                "accepted-memory projection row count differs from accepted decisions; run Recovery"
+            )
+        for row in memory_projection_rows:
+            expected = expected_memories.get(row["memory_id"])
+            if expected is None or (
+                row["proposal_id"] != expected["proposal_id"]
+                or row["transition_id"] != expected["transition_id"]
+                or row["memory_json"] != expected["memory_json"]
+            ):
+                raise CognitiveIntegrityError(
+                    "accepted-memory projection differs from authoritative decision events; run Recovery"
+                )
 
     def get_memories(
         self,
