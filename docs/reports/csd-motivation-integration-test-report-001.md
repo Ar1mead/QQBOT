@@ -60,11 +60,11 @@ Lifecycle coverage now includes create, reinforce, weaken, contextualize, pause,
 
 ## Follow-up adversarial review after the verified run
 
-The verified commit above predates a stricter return-visit linkage check. A return visit must now link to a prior voluntary selection or return visit with meaningful alternatives, the same subject and selected item, a distinct encounter, and a later occurrence time. The check that the prior interaction was genuinely voluntary is awaiting a successful CI run.
+The verified commit above predates follow-up return-visit review. The durable rule retained is: a return visit is itself a current voluntary selection (internal origin, meaningful alternatives, selected item in the current choice set), and it must reference an earlier interaction for the same subject and selected item, with a distinct encounter and later occurrence time. The earlier interaction need not itself have been voluntary: an independently chosen return can follow passive platform exposure or a user-requested encounter.
 
-An additional global uniqueness rule for `encounter_id` was attempted and then reverted. CI exposed that an encounter is a grouping/session concept and may legitimately contain multiple interaction events. The implementation must not confuse encounter identity with event identity; event IDs already provide per-event identity. The failed CI runs #136 and #137 are retained as evidence of this review finding, not counted as successful verification.
+An additional global uniqueness rule for `encounter_id` was attempted and then reverted. CI exposed that an encounter is a grouping/session concept and may legitimately contain multiple interaction events. The implementation must not confuse encounter identity with event identity; event IDs provide per-event identity. Runs #136–#141 exposed the over-broad rule and an over-restrictive return-visit test fixture; these are failed runs and are not counted as verification.
 
-Do not treat the stricter return-visit linkage change as verified until the newer workflow run completes.
+The revised test now grounds passive exposure in a platform-recommendation observation and verifies that a later voluntary return is accepted. This final follow-up test is awaiting CI run #142; do not treat it as verified until that run completes.
 
 ## Scope and limitations
 
