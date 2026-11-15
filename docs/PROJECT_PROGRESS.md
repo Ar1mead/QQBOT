@@ -154,14 +154,14 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by CI: `00438c4c460989361719a8b30faa3e884ed6dc50`, workflow run #178. The Life Engine snapshot contract preserves CSD origin, voluntary lineage, subject identity, and support/counterevidence polarity.
+- Latest code/test commit verified by CI: `8b908b9000bce7428a41eb65bd87c2c2dd9fc880`, workflow run #179. The Life Engine snapshot contract preserves CSD origin, voluntary lineage, subject identity, and support/counterevidence polarity.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
-- `python -m unittest discover -s tests -v` passed: 265 tests on both Linux and Windows runners (Linux 1.243s; Windows 13.837s).
+- `python -m unittest discover -s tests -v` passed: 265 tests on both Linux and Windows runners (Linux 1.530s; Windows 14.387s).
 - The v1→v2 migration test uses legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
 - Motivation and accepted-memory proposal/state projections are checked against authoritative events; corruption tests verify Recovery repair.
 - Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
 
-**Resume from section 4: continue adversarial review of evidence semantics, event replay, and idempotency. UTC-normalized voluntary-encounter maturity passed CI run #171 (261 tests on Linux and Windows). Added a pure CSD projection-to-Life-Engine adapter that preserves signal version, subject, evidence polarity, status, maturity, and encounter lineage; mapping tests passed in run #178 (265 tests on Linux and Windows). A cross-module test now maps a real accepted CSD signal (including its two voluntary encounters) into the Life Engine contract; this test is awaiting CI. This is not yet a live CSD database reader or proposal sink. Windows-local verification remains pending.**
+**Resume from section 4: continue adversarial review of evidence semantics, event replay, and idempotency. UTC-normalized voluntary-encounter maturity passed CI run #171 (261 tests on Linux and Windows). Added a pure CSD projection-to-Life-Engine adapter that preserves signal version, subject, evidence polarity, status, maturity, and encounter lineage; mapping tests passed in run #178 (265 tests on Linux and Windows). A cross-module test maps a real accepted CSD signal (including its two voluntary encounters) into the Life Engine contract; this passed in run #179. This is not yet a live CSD database reader or proposal sink. Windows-local verification remains pending.**
