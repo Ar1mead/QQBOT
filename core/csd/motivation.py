@@ -329,14 +329,15 @@ class CognitiveMotivationMixin:
 
         requested_stage = payload.get("requested_interest_stage")
         if kind == "interest":
-            if requested_stage not in {"tentative", "emerging", "contextual", None}:
-                raise ValueError("interest maturity must be CSD-derived")
-            if operation == "contextualize" and requested_stage is not None:
-                raise ValueError("contextualize cannot assign an interest maturity stage")
-            if operation != "contextualize" and requested_stage == "contextual":
-                raise ValueError("contextual interest scope is only produced by contextualize")
+            if operation in {"create", "reinforce"}:
+                if requested_stage not in {"tentative", "emerging", None}:
+                    raise ValueError("interest maturity must be CSD-derived")
+            elif requested_stage is not None:
+                raise ValueError(
+                    "requested_interest_stage is only valid for interest create/reinforce proposals"
+                )
         elif requested_stage is not None:
-            raise ValueError("requested_interest_stage applies only to interest")
+            raise ValueError("requested_interest_stage applies only to interest");
 
         if operation in {"create", "reinforce"} and not supporting_ids:
             raise ValueError(f"{operation} requires supporting evidence")
