@@ -6,12 +6,12 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `94240258b793c2dea66b22a05b2bcd8dfeef3656`
-- Workflow run: [CSD cognitive slice tests #144](https://github.com/Ar1mead/QQBOT/actions/runs/43666537689)
+- Verified commit: `68a3eb46950d82d999a2b0bbedd698e308745e9e`
+- Workflow run: [CSD cognitive slice tests #146](https://github.com/Ar1mead/QQBOT/actions/runs/43666692879)
 - Linux runner: GitHub-hosted Ubuntu 26.04.1 — Python 3.12.16 / SQLite 3.46.1
 - Windows runner: GitHub-hosted `windows-latest` — Python 3.12.10 / SQLite 3.49.1
 
-Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (250 tests each; Linux 0.889s, Windows 13.001s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
+Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (251 tests each; Linux 2.888s, Windows 12.872s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
 
 ## Exact commands
 
@@ -23,7 +23,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 250 tests in 0.889s on Linux; the Windows runner completed the same 250-test suite in 13.001s.
+Ran 251 tests in 2.888s on Linux; the Windows runner completed the same 251-test suite in 12.872s.
 OK
 ```
 
@@ -66,7 +66,9 @@ Review runs #136–#141 exposed two incorrect assumptions and were intentionally
 
 The corrected implementation and test pass in CI run #142 on both Linux and Windows, with 249 tests each.
 
-A further read-integrity check now validates the payload and envelope digests for every motivation proposal/decision event and every interaction event referenced by an accepted signal. It also checks that accepted signal evidence belongs to the same subject, precedes the decision, and is correctly classified as supporting or counterevidence. A tampering test disables the immutable-payload trigger, alters an evidence payload without updating its content hash, and verifies that signal reads and Recovery fail closed. This follow-up passed in CI run #144 with 250 tests on both operating systems.
+A read-integrity check validates the payload and envelope digests for every motivation proposal/decision event and every interaction event referenced by an accepted signal. It also checks that accepted signal evidence belongs to the same subject, precedes the decision, and is correctly classified as supporting or counterevidence. A tampering test disables the immutable-payload trigger, alters an evidence payload without updating its content hash, and verifies that signal reads and Recovery fail closed. This passed in CI run #144 with 250 tests on both operating systems.
+
+The global state-version read path now validates the event and payload digests of every memory/motivation decision before counting accepted transitions. A second tampering test changes a persisted decision payload without updating its hash and verifies that `get_state_snapshot()` fails closed rather than returning a misleading state version. This passed in CI run #146 with 251 tests on both operating systems.
 
 ## Scope and limitations
 
