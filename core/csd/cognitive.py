@@ -884,7 +884,10 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
                 db, event, sequence, internal=internal
             )
             return
-        if event.event_type in {GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT}:
+        if event.event_type in {
+            GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
+            GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
+        }:
             self._apply_goal_projection_event(db, event, internal=internal)
             return
         raise CognitiveIntegrityError(f"unhandled event type at sequence {sequence}")
