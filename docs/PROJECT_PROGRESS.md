@@ -157,7 +157,7 @@ At the time of this update:
 - Latest code/test commit verified by CI: `94240258b793c2dea66b22a05b2bcd8dfeef3656`, workflow run #144; subsequent commits in this branch update only the report and progress ledger.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
-- `python -m unittest discover -s tests -v` passed: 250 tests on both Linux and Windows runners (Linux 2.083s; Windows 15.623s).
+- `python -m unittest discover -s tests -v` passed: 250 tests on both Linux and Windows runners (Linux 0.889s; Windows 13.001s).
 - The v1→v2 migration test uses legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
 - Motivation and accepted-memory proposal/state projections are checked against authoritative events; corruption tests verify Recovery repair.
 - Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
