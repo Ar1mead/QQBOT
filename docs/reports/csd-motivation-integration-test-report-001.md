@@ -2,7 +2,7 @@
 
 ## Result
 
-<badge>Hosted CI passed</badge>
+**Result: PASS — hosted CI completed successfully.**
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
