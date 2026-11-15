@@ -1783,6 +1783,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             "motivation_signal_version_count": motivation_signal_version_count,
             "motivation_proposal_count": int(self._db.execute("SELECT COUNT(*) FROM motivation_proposals").fetchone()[0]),
             "goal_activation_proposal_count": int(self._db.execute("SELECT COUNT(*) FROM goal_activation_proposals").fetchone()[0]),
+            "goal_pause_resume_proposal_count": int(self._db.execute("SELECT COUNT(*) FROM goal_pause_resume_proposals").fetchone()[0]),
             "goal_projection_consistent": goal_consistent,
             "projection_consistent": memory_consistent and motivation_consistent and goal_consistent,
         }
