@@ -212,7 +212,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 if self._db.in_transaction:
                     self._db.rollback()
                 raise
-            version = 1            version = 1
+            version = 1
 
         if version == 1:
             try:
