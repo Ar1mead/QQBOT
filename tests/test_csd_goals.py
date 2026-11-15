@@ -1130,6 +1130,7 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.store.close()
         db = sqlite3.connect(self.path)
         db.execute("DROP TABLE goal_activation_proposals")
+        db.execute("DROP TABLE goal_pause_resume_proposals")
         db.execute("PRAGMA user_version = 3")
         db.commit()
         db.close()
