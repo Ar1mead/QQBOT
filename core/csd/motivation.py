@@ -857,21 +857,17 @@ class CognitiveMotivationMixin:
         import hashlib
 
         event_rows = self._db.execute(
-            "SELECT e.event_id,e.event_type,p.payload_json FROM events e "
-            "JOIN payloads p ON p.payload_ref=e.payload_ref "
+            "SELECT e.event_id,e.event_type,e.sequence FROM events e "
             "WHERE e.event_type IN (?,?) ORDER BY e.sequence",
             (MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT),
         ).fetchall()
         expected_proposals: dict[str, dict[str, Any]] = {}
         expected_decisions: dict[str, tuple[str, dict[str, Any]]] = {}
         for row in event_rows:
-            try:
-                payload = json.loads(row["payload_json"])
-            except json.JSONDecodeError as exc:
-                self._raise_cognitive_integrity("invalid motivation event payload JSON")
-                raise exc
-            if not isinstance(payload, dict):
-                self._raise_cognitive_integrity("motivation event payload is not an object")
+            # get_event verifies both the content-addressed payload and the
+            # envelope digest before the event can support a projection.
+            event_record = self.get_event(row["event_id"])
+            payload = event_record["payload"]
             if row["event_type"] == MOTIVATION_PROPOSAL_EVENT:
                 proposal_id = payload.get("proposal_id")
                 if not isinstance(proposal_id, str) or not proposal_id:
@@ -896,7 +892,9 @@ class CognitiveMotivationMixin:
                     self._raise_cognitive_integrity("motivation decision event has no proposal_id")
                 if proposal_id in expected_decisions:
                     self._raise_cognitive_integrity("motivation proposal has multiple decision events")
-                expected_decisions[proposal_id] = (row["event_id"], payload)
+                expected_decisions[proposal_id] = (
+                    row["event_id"], payload, int(row["sequence"])
+                )
 
         projection_rows = self._db.execute(
             "SELECT proposal_id,proposal_digest,proposal_event_id,proposal_json,status,decision_event_id "
@@ -923,7 +921,7 @@ class CognitiveMotivationMixin:
             self._raise_cognitive_integrity("motivation decision references a missing proposal event")
 
         expected_versions: dict[tuple[str, int], dict[str, Any]] = {}
-        for proposal_id, (decision_event_id, payload) in expected_decisions.items():
+        for proposal_id, (decision_event_id, payload, decision_sequence) in expected_decisions.items():
             if payload.get("outcome") != "accepted":
                 if payload.get("signal") is not None or payload.get("transition_id") is not None:
                     self._raise_cognitive_integrity("non-accepted motivation decision contains a signal transition")
@@ -931,6 +929,46 @@ class CognitiveMotivationMixin:
             signal = payload.get("signal")
             if not isinstance(signal, dict):
                 self._raise_cognitive_integrity("accepted motivation decision has no signal object")
+            proposal_source = expected_proposals.get(proposal_id)
+            if (
+                proposal_source is None
+                or signal.get("proposal_id") != proposal_id
+                or signal.get("proposal_event_id") != proposal_source["proposal_event_id"]
+            ):
+                self._raise_cognitive_integrity("accepted signal proposal lineage mismatch")
+            proposal_payload = json.loads(proposal_source["proposal_json"])
+            if payload.get("evidence_event_ids") != (
+                proposal_payload["supporting_event_ids"]
+                + proposal_payload["counter_evidence_event_ids"]
+            ):
+                self._raise_cognitive_integrity("motivation decision evidence differs from its proposal")
+            supporting_ids = signal.get("supporting_event_ids")
+            counter_ids = signal.get("counter_evidence_event_ids")
+            if (
+                not isinstance(supporting_ids, list)
+                or not isinstance(counter_ids, list)
+                or any(not isinstance(item, str) or not item for item in supporting_ids + counter_ids)
+                or len(set(supporting_ids)) != len(supporting_ids)
+                or len(set(counter_ids)) != len(counter_ids)
+                or set(supporting_ids) & set(counter_ids)
+            ):
+                self._raise_cognitive_integrity("accepted signal evidence references are invalid")
+            for evidence_id in supporting_ids + counter_ids:
+                evidence_record = self.get_event(evidence_id)
+                evidence_payload = evidence_record["payload"]
+                if (
+                    evidence_record["event_type"] != INTERACTION_EVENT
+                    or int(evidence_record["sequence"]) >= decision_sequence
+                    or evidence_payload.get("subject_ref") != signal.get("subject_ref")
+                ):
+                    self._raise_cognitive_integrity("accepted signal references invalid or non-prior interaction evidence")
+                is_counter = evidence_id in counter_ids
+                if (evidence_payload.get("evidence_kind") == "counter_evidence") != is_counter:
+                    self._raise_cognitive_integrity("accepted signal evidence classification mismatch")
+            if not set(proposal_payload["supporting_event_ids"]).issubset(supporting_ids):
+                self._raise_cognitive_integrity("accepted signal omits current supporting evidence")
+            if not set(proposal_payload["counter_evidence_event_ids"]).issubset(counter_ids):
+                self._raise_cognitive_integrity("accepted signal omits current counterevidence")
             signal_id = signal.get("signal_id")
             signal_version = signal.get("signal_version")
             if (
