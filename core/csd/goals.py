@@ -51,6 +51,29 @@ def _g_string_list(value: Any, name: str, *, nonempty: bool = True) -> list[str]
 class CognitiveGoalMixin:
     """Methods mixed into CognitiveMemoryStore; all writes share its transaction."""
 
+    def _validate_goal_proposal_snapshot_version(
+        self, db: Any, event: Any, *, internal: bool
+    ) -> None:
+        payload = event["payload"] if isinstance(event, Mapping) else event.payload
+        event_id = event["event_id"] if isinstance(event, Mapping) else event.event_id
+        row = db.execute(
+            "SELECT sequence FROM events WHERE event_id=?", (event_id,)
+        ).fetchone()
+        if row is None:
+            self._raise_cognitive_integrity("goal proposal event is missing from event history")
+        state_at_proposal = self._authoritative_state_version(
+            db, through_sequence=int(row["sequence"]) - 1
+        )
+        claimed = payload["based_on"]["state_version"]
+        if claimed > state_at_proposal:
+            message = (
+                f"goal proposal claims future state_version={claimed}; "
+                f"only {state_at_proposal} existed when its event was appended"
+            )
+            if internal:
+                self._raise_cognitive_integrity(message)
+            raise ValueError(message)
+
     def _validate_goal_batch_proposal(self, event: Any) -> None:
         payload = event["payload"] if isinstance(event, Mapping) else event.payload
         event_source = event["source"] if isinstance(event, Mapping) else event.source
@@ -819,6 +842,7 @@ def _apply_goal_projection_event_v2(
         if event.event_type == GOAL_BATCH_PROPOSAL_EVENT:
             if internal:
                 raise ValueError("goal proposal events must use public Event Submit")
+            self._validate_goal_proposal_snapshot_version(db, event, internal=internal)
             self._validate_goal_batch_proposal(event)
             payload_json = _g_canonical(dict(event.payload))
             digest = _g_digest(payload_json)
@@ -844,6 +868,7 @@ def _apply_goal_projection_event_v2(
     if event.event_type == GOAL_ACTIVATION_PROPOSAL_EVENT:
         if internal:
             raise ValueError("goal activation proposals must use public Event Submit")
+        self._validate_goal_proposal_snapshot_version(db, event, internal=internal)
         _validate_goal_activation_proposal(event)
         payload_json = _g_canonical(dict(event.payload))
         digest = _g_digest(payload_json)
@@ -948,6 +973,7 @@ def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
         event_type = row["event_type"]
         if event_type == GOAL_BATCH_PROPOSAL_EVENT:
             proposal_id = _g_nonempty(payload.get("proposal_id"), "goal proposal_id")
+            self._validate_goal_proposal_snapshot_version(self._db, record, internal=True)
             self._validate_goal_batch_proposal(record)
             canonical = _g_canonical(payload)
             digest = _g_digest(canonical)
@@ -963,6 +989,7 @@ def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
 
         if event_type == GOAL_ACTIVATION_PROPOSAL_EVENT:
             proposal_id = _g_nonempty(payload.get("proposal_id"), "activation proposal_id")
+            self._validate_goal_proposal_snapshot_version(self._db, record, internal=True)
             _validate_goal_activation_proposal(record)
             canonical = _g_canonical(payload)
             digest = _g_digest(canonical)
