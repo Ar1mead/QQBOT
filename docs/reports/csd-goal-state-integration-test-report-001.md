@@ -6,10 +6,10 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified code/test commit: `2466c450c57baf00d45f3fb0c79d478652fd371e`
-- GitHub Actions: [CSD cognitive slice tests #204](https://github.com/Ar1mead/QQBOT/actions/runs/43686392386)
-- Linux: GitHub-hosted Ubuntu — Python 3.12.16 / SQLite 3.46.1; 279 tests passed in 2.046s.
-- Windows: GitHub-hosted Windows — Python 3.12.10 / SQLite 3.49.1; 279 tests passed in 40.160s.
+- Verified code/test commit: `6f1ff70026c7234ae452581e1d2f01cc5416c73d`
+- GitHub Actions: [CSD cognitive slice tests #205](https://github.com/Ar1mead/QQBOT/actions/runs/43686771898)
+- Linux: GitHub-hosted Ubuntu — Python 3.12.16 / SQLite 3.46.1; 281 tests passed in 2.064s.
+- Windows: GitHub-hosted Windows — Python 3.12.10 / SQLite 3.49.1; 281 tests passed in 14.982s.
 - Both jobs passed `python -m compileall -q core tests`, all individual test steps, and full test discovery.
 
 The Windows runner is a cross-platform CI check, not the user's own Windows 11 / Python 3.12.14 environment.
@@ -44,6 +44,8 @@ The new `tests/test_csd_goals.py` covers:
 9. CSD-derived user-requested goal origin.
 10. User-origin interest with a later emerging voluntary pattern becoming mixed-origin.
 11. Multiple goals created atomically with one shared state-version increment.
+12. A goal retains the exact historical signal version it referenced after that signal is revised; Recovery preserves the same lineage.
+13. Corruption of the append-only goal-version projection is detected and repaired by Recovery.
 
 Existing CSD motivation, cognitive memory, Life Engine, and other test suites also passed in the same run.
 
