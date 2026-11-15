@@ -11,7 +11,13 @@ from typing import Literal, Sequence
 
 
 SignalKind = Literal["need", "interest", "curiosity", "affect", "commitment", "opportunity"]
-SignalOrigin = Literal["internal_state", "external_opportunity", "user_request", "self_commitment"]
+SignalOriginClass = Literal[
+    "internally_initiated",
+    "user_requested_encounter",
+    "externally_exposed",
+    "mixed_origin",
+]
+InterestStage = Literal["tentative", "emerging", "contextual"]
 SideEffectLevel = Literal["none", "read_only", "external_side_effect"]
 Disposition = Literal[
     "start_activity",
@@ -31,10 +37,14 @@ Disposition = Literal[
 class MotivationSignal:
     signal_id: str
     kind: SignalKind
-    origin: SignalOrigin
+    origin_class: SignalOriginClass
     description: str
     evidence_event_ids: tuple[str, ...]
     active: bool = True
+    scope: str = "general"
+    interest_stage: InterestStage | None = None
+    # CSD-derived (encounter_id, occurrence timestamp, supporting event ID).
+    voluntary_encounters: tuple[tuple[str, str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -162,13 +172,47 @@ def validate_life_proposal(
             raise ValueError(f"duplicate signal_id: {signal.signal_id}")
         if signal.kind not in {"need", "interest", "curiosity", "affect", "commitment", "opportunity"}:
             raise ValueError(f"unsupported signal kind: {signal.kind}")
-        if signal.origin not in {"internal_state", "external_opportunity", "user_request", "self_commitment"}:
-            raise ValueError(f"unsupported signal origin: {signal.origin}")
+        if signal.origin_class not in {
+            "internally_initiated", "user_requested_encounter",
+            "externally_exposed", "mixed_origin",
+        }:
+            raise ValueError(f"unsupported signal origin_class: {signal.origin_class}")
         if not isinstance(signal.description, str) or not signal.description.strip():
             raise ValueError("signal description must be non-empty")
+        if not isinstance(signal.scope, str) or not signal.scope.strip():
+            raise ValueError("signal scope must be non-empty")
         if not isinstance(signal.active, bool):
             raise ValueError("signal.active must be boolean")
-        _unique_nonempty(signal.evidence_event_ids, "signal.evidence_event_ids")
+        support_ids = _unique_nonempty(signal.evidence_event_ids, "signal.evidence_event_ids")
+        if signal.kind == "interest":
+            if signal.interest_stage not in {None, "tentative", "emerging", "contextual"}:
+                raise ValueError("unsupported CSD-derived interest stage")
+        elif signal.interest_stage is not None or signal.voluntary_encounters:
+            raise ValueError("only interest signals may carry interest maturity/encounter summaries")
+        seen_encounters: set[str] = set()
+        seen_events: set[str] = set()
+        timestamps: set[str] = set()
+        for entry in signal.voluntary_encounters:
+            if not isinstance(entry, (tuple, list)) or len(entry) != 3:
+                raise ValueError("voluntary_encounters entries must contain encounter_id, timestamp, event_id")
+            encounter_id, timestamp, event_id = entry
+            if not isinstance(encounter_id, str) or not encounter_id.strip():
+                raise ValueError("voluntary encounter_id must be non-empty")
+            if not isinstance(timestamp, str) or not timestamp.strip():
+                raise ValueError("voluntary encounter timestamp must be non-empty")
+            if not isinstance(event_id, str) or not event_id.strip():
+                raise ValueError("voluntary encounter event_id must be non-empty")
+            if encounter_id in seen_encounters or event_id in seen_events:
+                raise ValueError("voluntary encounter IDs and evidence event IDs must be unique")
+            if event_id not in support_ids:
+                raise ValueError("voluntary encounter evidence must be in supporting event IDs")
+            seen_encounters.add(encounter_id)
+            seen_events.add(event_id)
+            timestamps.add(timestamp)
+        if signal.interest_stage == "emerging" and (
+            len(seen_encounters) < 2 or len(timestamps) < 2
+        ):
+            raise ValueError("emerging interest requires two distinct time-separated voluntary encounters")
         signal_by_id[signal.signal_id] = signal
 
     goal_by_id: dict[str, GoalState] = {}
@@ -260,12 +304,27 @@ def validate_life_proposal(
             raise ValueError("goal proposal must cite one or more signals in the current snapshot")
         if any(not signal_by_id[item].active for item in origin_ids):
             raise ValueError("goal proposal cannot originate from an inactive signal")
-        origins = {signal_by_id[item].origin for item in origin_ids}
-        if origins.issubset({"internal_state", "self_commitment"}):
+        # Preserve each signal's immutable CSD origin class. If an initially
+        # user/external-origin interest later develops an emerging pattern of
+        # voluntary encounters, the resulting goal has mixed lineage rather
+        # than rewriting the signal's original origin as purely internal.
+        origins = set()
+        for item in origin_ids:
+            signal = signal_by_id[item]
+            origin = signal.origin_class
+            if (
+                origin in {"user_requested_encounter", "externally_exposed"}
+                and signal.kind == "interest"
+                and signal.interest_stage == "emerging"
+                and signal.voluntary_encounters
+            ):
+                origin = "mixed_origin"
+            origins.add(origin)
+        if origins == {"internally_initiated"}:
             origin_class = "internally_initiated"
-        elif origins == {"user_request"}:
+        elif origins == {"user_requested_encounter"}:
             origin_class = "user_requested"
-        elif origins == {"external_opportunity"}:
+        elif origins == {"externally_exposed"}:
             origin_class = "externally_triggered"
         else:
             origin_class = "mixed_origin"
