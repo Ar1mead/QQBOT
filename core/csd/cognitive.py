@@ -23,9 +23,15 @@ from .motivation import (
     MOTIVATION_DECISION_SOURCE,
     MOTIVATION_PROPOSAL_EVENT,
 )
+from .goals import (
+    CognitiveGoalMixin,
+    GOAL_BATCH_DECISION_EVENT,
+    GOAL_BATCH_PROPOSAL_EVENT,
+    GOAL_DECISION_SOURCE,
+)
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 OBSERVATION_EVENT = "experience.observation_recorded.v1"
 PROPOSAL_EVENT = "cognition.memory_candidate_proposed.v1"
 GROUNDED_PROPOSAL_EVENT = "cognition.grounded_memory_candidate_proposed.v1"
@@ -95,7 +101,7 @@ def _nonempty(value: Any, name: str) -> str:
     return value
 
 
-class CognitiveMemoryStore(CognitiveMotivationMixin):
+class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
     """Single event stream with rebuildable proposal and accepted-memory views."""
 
     def _raise_cognitive_integrity(self, message: str) -> None:
@@ -236,6 +242,44 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
                 raise
             version = 2
 
+        if version == 2:
+            try:
+                self._db.executescript(
+                    """
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE goal_proposals (
+                        proposal_id TEXT PRIMARY KEY,
+                        proposal_digest TEXT NOT NULL,
+                        proposal_event_id TEXT NOT NULL,
+                        proposal_json TEXT NOT NULL,
+                        status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','deferred')),
+                        decision_event_id TEXT
+                    );
+                    CREATE TABLE goal_versions (
+                        goal_id TEXT NOT NULL,
+                        goal_version INTEGER NOT NULL CHECK(goal_version > 0),
+                        decision_event_id TEXT NOT NULL UNIQUE,
+                        transition_id TEXT NOT NULL UNIQUE,
+                        goal_json TEXT NOT NULL,
+                        PRIMARY KEY(goal_id, goal_version)
+                    );
+                    CREATE TABLE goals (
+                        goal_id TEXT PRIMARY KEY,
+                        goal_version INTEGER NOT NULL CHECK(goal_version > 0),
+                        decision_event_id TEXT NOT NULL,
+                        transition_id TEXT NOT NULL UNIQUE,
+                        goal_json TEXT NOT NULL
+                    );
+                    PRAGMA user_version = 3;
+                    COMMIT;
+                    """
+                )
+            except Exception:
+                if self._db.in_transaction:
+                    self._db.rollback()
+                raise
+            version = 3
+
         if version != SCHEMA_VERSION:
             raise CognitiveIntegrityError(f"unsupported schema version: {version}")
 
@@ -273,6 +317,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
         if not internal and (
             event.event_id.startswith("csd-decision:")
             or event.event_id.startswith("csd-motivation-decision:")
+            or event.event_id.startswith("csd-goal-decision:")
         ):
             raise ValueError("event_id uses a namespace reserved for CSD decisions")
         _nonempty(event.correlation_id, "correlation_id")
@@ -281,18 +326,21 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
         _timestamp(event.occurred_at, "occurred_at")
         if not isinstance(event.payload, Mapping):
             raise ValueError("payload must be an object")
-        if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT} and not internal:
+        if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT} and not internal:
             raise ValueError("CSD decision events are reserved for the internal authority path")
         if event.event_type not in {
             OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
             SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
             INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
+            GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
         }:
             raise ValueError(f"unsupported event type: {event.event_type}")
         if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT} and event.source != DECISION_SOURCE:
             raise ValueError("decision event source must identify CSD authority")
         if event.event_type == MOTIVATION_DECISION_EVENT and event.source != MOTIVATION_DECISION_SOURCE:
             raise ValueError("motivation decision event source must identify CSD authority")
+        if event.event_type == GOAL_BATCH_DECISION_EVENT and event.source != GOAL_DECISION_SOURCE:
+            raise ValueError("goal decision event source must identify CSD authority")
         if event.event_type == SEMANTIC_REVIEW_EVENT:
             reviewer = event.payload.get("reviewer")
             if not isinstance(reviewer, Mapping) or not isinstance(reviewer.get("component"), str):
@@ -809,6 +857,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
                 db, event, sequence, internal=internal
             )
             return
+        if event.event_type in {GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT}:
+            self._apply_goal_projection_event(db, event, internal=internal)
+            return
         raise CognitiveIntegrityError(f"unhandled event type at sequence {sequence}")
 
     def _authoritative_state_version(
@@ -816,9 +867,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
     ) -> int:
         query = (
             "SELECT e.event_id FROM events e "
-            "WHERE e.event_type IN (?,?)"
+            "WHERE e.event_type IN (?,?,?)"
         )
-        params: list[Any] = [DECISION_EVENT, MOTIVATION_DECISION_EVENT]
+        params: list[Any] = [DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT]
         if through_sequence is not None:
             if not isinstance(through_sequence, int) or isinstance(through_sequence, bool):
                 raise ValueError("through_sequence must be an integer or None")
@@ -1618,13 +1669,16 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
             state_version = self._authoritative_state_version(self._db)
             self._assert_accepted_projection_consistent()
             self._assert_motivation_projection_consistent()
+            self._assert_goal_projection_consistent()
             rows = self._db.execute(
                 "SELECT signal_json FROM motivation_signals ORDER BY rowid"
             ).fetchall()
             signals = [json.loads(row["signal_json"]) for row in rows]
+            goals = self.get_goals()
             result = {
                 "state_version": state_version,
                 "signals": signals,
+                "goals": goals,
             }
         except Exception:
             self._db.execute("ROLLBACK")
@@ -1644,6 +1698,8 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
         motivation_signal_version_count = int(self._db.execute(
             "SELECT COUNT(*) FROM motivation_signal_versions"
         ).fetchone()[0])
+        goal_count = int(self._db.execute("SELECT COUNT(*) FROM goals").fetchone()[0])
+        goal_version_count = int(self._db.execute("SELECT COUNT(*) FROM goal_versions").fetchone()[0])
         memory_consistent = True
         try:
             self._assert_accepted_projection_consistent()
@@ -1654,6 +1710,11 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
             self._assert_motivation_projection_consistent()
         except CognitiveIntegrityError:
             motivation_consistent = False
+        goal_consistent = True
+        try:
+            self._assert_goal_projection_consistent()
+        except CognitiveIntegrityError:
+            goal_consistent = False
         return {
             "event_count": int(self._db.execute("SELECT COUNT(*) FROM events").fetchone()[0]),
             "state_version": state_version,
@@ -1719,8 +1780,11 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
             db.execute("DELETE FROM motivation_signal_versions")
             db.execute("DELETE FROM motivation_signals")
             db.execute("DELETE FROM motivation_proposals")
+            db.execute("DELETE FROM goal_versions")
+            db.execute("DELETE FROM goals")
+            db.execute("DELETE FROM goal_proposals")
             for sequence, event in parsed:
-                decision_types = {DECISION_EVENT, MOTIVATION_DECISION_EVENT}
+                decision_types = {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT}
                 internal = event.event_type in decision_types and event.source == DECISION_SOURCE
                 if event.event_type in decision_types and not internal:
                     raise CognitiveIntegrityError("forged decision event in durable history")
@@ -1728,6 +1792,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
                     OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
                     SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
                     INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
+                    GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
                 }:
                     raise CognitiveIntegrityError(f"unknown event type: {event.event_type}")
                 self._apply_projection_event(db, event, sequence, internal=internal)
@@ -1747,4 +1812,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
             "motivation_signal_versions": int(self._db.execute(
                 "SELECT COUNT(*) FROM motivation_signal_versions"
             ).fetchone()[0]),
+            "goal_proposals": int(self._db.execute("SELECT COUNT(*) FROM goal_proposals").fetchone()[0]),
+            "goals": int(self._db.execute("SELECT COUNT(*) FROM goals").fetchone()[0]),
+            "goal_versions": int(self._db.execute("SELECT COUNT(*) FROM goal_versions").fetchone()[0]),
         }
