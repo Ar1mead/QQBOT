@@ -149,7 +149,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
     def add_proposal(self, event):
         return self.store.submit_event(event)
 
-    def test_migration_creates_schema_v3_and_preserves_v1_memory_data(self):
+    def test_migration_creates_schema_v4_and_preserves_v1_memory_data(self):
         observation = envelope(
             "migration-observation",
             OBSERVATION_EVENT,
