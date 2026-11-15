@@ -168,7 +168,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 At the time of this update:
 - Latest code/test commit verified by CI: `6f1ff70026c7234ae452581e1d2f01cc5416c73d`, workflow run #205.
-- Latest branch head before this progress-ledger update: `e3d12cc618cda0e50ccadaa47c6d0d2809e0da95` (goal-state test report documentation commit).
+- Latest branch head: `87cb1cf5fcfc677358d450af6cb540d68b6c2f63` (goal activation implementation-review documentation commit).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
 - `python -m unittest discover -s tests -v` passed: 281 tests on both Linux and Windows (Linux 2.064s; Windows 14.982s).
@@ -179,4 +179,4 @@ At the time of this update:
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted tests do not establish adapter authenticity, semantic truth, subjective desire, or autonomous cognition.
 
-**Resume from section 4: implement explicit candidate→active goal activation as a separate CSD-authoritative transition, using `docs/design/csd-goal-activation-proposal.md` as a proposal to review rather than a frozen spec.** Preserve candidate/active distinction, original goal origin and source lineage, shared state_version, event-backed goal versions, and deterministic Recovery. Activation must not start an activity or grant capabilities. Do not implement external activity execution until ASM governance is defined. Windows-local verification remains pending.**
+**Resume from section 4: implement the candidate→active goal activation slice using the reviewed constraints in `docs/design/csd-goal-activation-proposal.md` Section 11.** The review requires a distinct activation event family/projection, schema v3→v4 migration, proposal identity/idempotency, exact prior goal-version validation, accepted-only shared state_version increment, sequence-aware projection reconciliation, and Recovery. Preserve original goal origin and source signal-version lineage. Activation must not start an activity or grant capabilities. Do not implement external activity execution until ASM governance is defined. Windows-local verification remains pending.**
