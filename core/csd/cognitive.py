@@ -197,36 +197,43 @@ class CognitiveMemoryStore(CognitiveMotivationMixin):
             version = 1
 
         if version == 1:
-            self._db.executescript(
-                """
-                BEGIN IMMEDIATE;
-                CREATE TABLE motivation_proposals (
-                    proposal_id TEXT PRIMARY KEY,
-                    proposal_digest TEXT NOT NULL,
-                    proposal_event_id TEXT NOT NULL,
-                    proposal_json TEXT NOT NULL,
-                    status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','deferred','needs_more_evidence')),
-                    decision_event_id TEXT
-                );
-                CREATE TABLE motivation_signal_versions (
-                    signal_id TEXT NOT NULL,
-                    signal_version INTEGER NOT NULL CHECK(signal_version > 0),
-                    decision_event_id TEXT NOT NULL UNIQUE,
-                    transition_id TEXT NOT NULL UNIQUE,
-                    signal_json TEXT NOT NULL,
-                    PRIMARY KEY(signal_id, signal_version)
-                );
-                CREATE TABLE motivation_signals (
-                    signal_id TEXT PRIMARY KEY,
-                    signal_version INTEGER NOT NULL CHECK(signal_version > 0),
-                    decision_event_id TEXT NOT NULL,
-                    transition_id TEXT NOT NULL UNIQUE,
-                    signal_json TEXT NOT NULL
-                );
-                PRAGMA user_version = 2;
-                COMMIT;
-                """
-            )
+            try:
+                self._db.executescript(
+                    """
+                    BEGIN IMMEDIATE;
+                    CREATE TABLE motivation_proposals (
+                        proposal_id TEXT PRIMARY KEY,
+                        proposal_digest TEXT NOT NULL,
+                        proposal_event_id TEXT NOT NULL,
+                        proposal_json TEXT NOT NULL,
+                        status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected','deferred','needs_more_evidence')),
+                        decision_event_id TEXT
+                    );
+                    CREATE TABLE motivation_signal_versions (
+                        signal_id TEXT NOT NULL,
+                        signal_version INTEGER NOT NULL CHECK(signal_version > 0),
+                        decision_event_id TEXT NOT NULL UNIQUE,
+                        transition_id TEXT NOT NULL UNIQUE,
+                        signal_json TEXT NOT NULL,
+                        PRIMARY KEY(signal_id, signal_version)
+                    );
+                    CREATE TABLE motivation_signals (
+                        signal_id TEXT PRIMARY KEY,
+                        signal_version INTEGER NOT NULL CHECK(signal_version > 0),
+                        decision_event_id TEXT NOT NULL,
+                        transition_id TEXT NOT NULL UNIQUE,
+                        signal_json TEXT NOT NULL
+                    );
+                    PRAGMA user_version = 2;
+                    COMMIT;
+                    """
+                )
+            except Exception:
+                # sqlite3.executescript can leave its explicit transaction open
+                # when a statement fails. Roll back partial DDL and user_version.
+                if self._db.in_transaction:
+                    self._db.rollback()
+                raise
             version = 2
 
         if version != SCHEMA_VERSION:
