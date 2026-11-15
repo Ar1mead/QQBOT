@@ -362,6 +362,10 @@ class LifeProposalValidationTests(unittest.TestCase):
             result.goal_origin_classes,
             (("goal-evolved-user-interest", "mixed_origin"),),
         )
+        self.assertEqual(
+            result.goal_origin_signal_versions,
+            (("goal-evolved-user-interest", (("sig-user-evolved", 1),)),),
+        )
 
     def test_interest_encounter_summary_requires_timezone_aware_timestamps(self):
         invalid = signal(
