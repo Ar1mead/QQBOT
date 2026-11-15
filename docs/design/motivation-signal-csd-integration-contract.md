@@ -63,7 +63,7 @@ CSD should derive the usable evidence kind and origin class from the immutable i
 
 A `voluntary_selection` record must be traceable to a real selection and the choice set available at that time. A boolean supplied by a model saying "meaningful alternatives existed" is insufficient.
 
-The first prototype uses a conservative minimum check of two distinct encounter IDs and distinct timestamps before returning `emerging_interest_supported`. This is an implementation guard against a one-off click, not a universal maturity threshold or normative CSD rule. The actual maturity policy remains versioned, reviewable, and subject to later evidence-quality evaluation. CSD—not the provider—must assign the durable maturity state.
+The first prototype uses a conservative minimum check of two distinct encounter IDs and two distinct timezone-aware occurrence instants (normalized to UTC before comparison) before returning `emerging_interest_supported`. Different ISO-8601 offset spellings of the same instant do not count as separate encounters. This is an implementation guard against a one-off click, not a universal maturity threshold or normative CSD rule. The actual maturity policy remains versioned, reviewable, and subject to later evidence-quality evaluation. CSD—not the provider—must assign the durable maturity state.
 
 ### 3.2 Trust boundary
 
