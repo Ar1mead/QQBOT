@@ -758,6 +758,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
             new_signal_id=None,
             target_signal_id="signal-blue-boat",
             target_version=3,
+            scope="video:blue-boat",
             based_on=3,
             at="2026-11-14T12:01:00+00:00",
         ))
