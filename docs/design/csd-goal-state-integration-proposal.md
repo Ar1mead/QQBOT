@@ -184,3 +184,19 @@ The current `CognitiveStoreLifeSnapshotReader` intentionally supplies only accep
 - No claim that a persisted candidate proves genuine subjective motivation.
 
 This proposal is a basis for implementation review, not a frozen normative specification.
+
+
+## 11. Implementation review clarifications (2026-11-15)
+
+The first implementation review compared this proposal with the existing CSD event and projection machinery. The following details are required before code is treated as conforming:
+
+1. **Proposal events are not state transitions.** Appending `life.goal_batch_proposed.v1` records an immutable hypothesis and must not increment the shared `state_version`. Only an accepted decision that creates at least one candidate goal increments it, exactly once for the whole batch.
+2. **An empty no-op is not a goal batch.** The Life Engine may return `no_op` without submitting anything to the goal sink. A proposal submitted to this first goal-state sink must contain at least one goal. This avoids treating an empty decision record as an accepted state transition.
+3. **No implicit rebasing.** If `based_on.state_version` is stale at evaluation, CSD records one `deferred` decision with no goal transitions. It does not retry evaluation against the newer snapshot. A fresh deliberation must create a new proposal identity.
+4. **Decision identity is proposal-scoped.** The internal decision event ID is deterministic from the proposal ID, and the event correlation ID is the proposal correlation. A proposal has at most one decision, including deferred/rejected outcomes. Retrying evaluation returns the existing decision rather than creating another.
+5. **The accepted decision is self-verifying.** Its transition list must contain every goal in the proposal exactly once, in deterministic goal-ID order, with version 1 and status `candidate`. Each origin reference is a deterministic sorted pair of signal ID and exact signal version. CSD recomputes all of this while applying/replaying the event; it does not trust a Life Engine explanation.
+6. **Historical signal resolution is sequence-aware.** During event replay or projection reconciliation, source signal versions must be resolved as the latest accepted version visible before the decision event, not by looking at today's latest signal projection. The decision's evaluated state version and the exact signal versions must agree.
+7. **Identity conflicts abort the whole transaction.** Duplicate goal IDs within a batch, or IDs already used by accepted goals, reject the batch without partially creating goals. Reusing a proposal ID with different immutable content is an identity conflict. Identical proposal retries are idempotent.
+8. **Recovery remains deterministic.** It rebuilds goal proposal/status, goal-version, and latest-goal projections from the event stream. It must not call a deliberator, reinterpret goals with a model, activate candidates, or execute activities.
+
+These clarifications refine the implementation boundary; they do not freeze the broader CSD/ASM specifications. In particular, this slice still does not implement goal activation, revisions, abandonment, priorities, or action execution.
