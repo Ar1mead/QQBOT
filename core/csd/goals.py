@@ -1157,6 +1157,35 @@ def _apply_goal_projection_event_v2(
         )
         return
 
+    if event.event_type == GOAL_PAUSE_RESUME_PROPOSAL_EVENT:
+        if internal:
+            raise ValueError("goal pause/resume proposals must use public Event Submit")
+        self._validate_goal_proposal_snapshot_version(db, event, internal=internal)
+        _validate_goal_pause_resume_proposal(event)
+        payload_json = _g_canonical(dict(event.payload))
+        digest = _g_digest(payload_json)
+        proposal_id = event.payload["proposal_id"]
+        existing = db.execute(
+            "SELECT proposal_digest FROM goal_pause_resume_proposals WHERE proposal_id=?",
+            (proposal_id,),
+        ).fetchone()
+        if existing is not None:
+            if existing["proposal_digest"] != digest:
+                raise ValueError(f"goal pause/resume proposal identity conflict: {proposal_id}")
+            return
+        db.execute(
+            "INSERT INTO goal_pause_resume_proposals(proposal_id,proposal_digest,proposal_event_id,proposal_json,status,decision_event_id) "
+            "VALUES (?,?,?,?, 'pending',NULL)",
+            (proposal_id, digest, event.event_id, payload_json),
+        )
+        return
+
+    if event.event_type == GOAL_PAUSE_RESUME_DECISION_EVENT:
+        if not internal or event.source != GOAL_DECISION_SOURCE:
+            self._raise_cognitive_integrity("non-authoritative goal pause/resume decision event")
+        _apply_goal_pause_resume_decision(self, db, event)
+        return
+
     if event.event_type == GOAL_ACTIVATION_DECISION_EVENT:
         if not internal or event.source != GOAL_DECISION_SOURCE:
             self._raise_cognitive_integrity("non-authoritative goal activation decision event")
@@ -1437,14 +1466,17 @@ def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
             self._raise_cognitive_integrity("latest goal projection differs from event history")
 
 
-class CognitiveGoalActivationMixin:
-    """Separate CSD goal activation event path layered over candidate-goal storage."""
+class CognitiveGoalLifecycleMixin:
+    """CSD-authoritative candidate, activation, and pause/resume goal transitions."""
 
     def _apply_goal_projection_event(self, db: Any, event: Any, *, internal: bool) -> None:
         _apply_goal_projection_event_v2(self, db, event, internal=internal)
 
     def evaluate_goal_activation_proposal(self, proposal_id: str) -> dict[str, Any]:
         return _evaluate_goal_activation_proposal(self, proposal_id)
+
+    def evaluate_goal_pause_resume_proposal(self, proposal_id: str) -> dict[str, Any]:
+        return _evaluate_goal_pause_resume_proposal(self, proposal_id)
 
     def _assert_goal_projection_consistent(self) -> None:
         _assert_goal_projection_consistent_v2(self)
