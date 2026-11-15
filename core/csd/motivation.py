@@ -109,21 +109,7 @@ class CognitiveMotivationMixin:
         if set(payload) != allowed:
             raise ValueError("interaction payload contains missing or unsupported fields")
 
-        encounter_id = _m_nonempty(payload.get("encounter_id"), "interaction.encounter_id")
-        prior_encounters = db.execute(
-            "SELECT p.payload_json FROM events e "
-            "JOIN payloads p ON p.payload_ref=e.payload_ref "
-            "WHERE e.event_type=?",
-            (INTERACTION_EVENT,),
-        ).fetchall()
-        for prior_row in prior_encounters:
-            try:
-                prior_payload = json.loads(prior_row["payload_json"])
-            except json.JSONDecodeError as exc:
-                self._raise_cognitive_integrity("invalid prior interaction payload JSON")
-                raise exc
-            if prior_payload.get("encounter_id") == encounter_id:
-                raise ValueError("encounter_id must be unique across interaction events")
+        _m_nonempty(payload.get("encounter_id"), "interaction.encounter_id")
         _m_nonempty(payload.get("subject_ref"), "interaction.subject_ref")
         _m_nonempty(payload.get("context"), "interaction.context")
         _m_nonempty(payload.get("session_scope"), "interaction.session_scope")
