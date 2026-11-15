@@ -196,6 +196,34 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         )
         self.assertEqual(self.store.submit_event(self.observation())["status"], "accepted")
 
+
+    def test_state_snapshot_is_consistent_during_concurrent_event_append(self):
+        self.store.submit_event(self.observation())
+        concurrent_store = CognitiveMemoryStore(self.db_path)
+        original_assert = self.store._assert_accepted_projection_consistent
+
+        def append_during_snapshot():
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(
+                    concurrent_store.submit_event,
+                    self.observation(event_id="evt-observation-concurrent-snapshot"),
+                )
+                future.result(timeout=5)
+            return original_assert()
+
+        self.store._assert_accepted_projection_consistent = append_during_snapshot
+        try:
+            snapshot = self.store.get_state_snapshot()
+        finally:
+            self.store._assert_accepted_projection_consistent = original_assert
+            concurrent_store.close()
+
+        self.assertEqual(snapshot["event_count"], 1)
+        self.assertEqual(
+            self.store._db.execute("SELECT COUNT(*) FROM events").fetchone()[0],
+            2,
+        )
+
     def test_same_event_id_and_content_is_idempotent(self):
         event = self.observation()
         first = self.store.submit_event(event)
