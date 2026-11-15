@@ -24,6 +24,7 @@ from .motivation import (
     ValidatedMotivationUpdate,
     validate_motivation_update,
 )
+from .csd_adapter import motivation_signal_from_csd, motivation_signals_from_csd
 from .engine import LifeEngine
 
 __all__ = [
@@ -34,6 +35,8 @@ __all__ = [
     "GoalProposal",
     "GoalState",
     "LifeEngine",
+    "motivation_signal_from_csd",
+    "motivation_signals_from_csd",
     "MotivationEvidence",
     "MotivationSignalState",
     "MotivationSnapshot",
