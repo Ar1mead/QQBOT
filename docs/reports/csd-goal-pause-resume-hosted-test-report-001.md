@@ -3,8 +3,8 @@
 > Status: **hosted CI passed on Linux and Windows; user-local Windows verification pending**  
 > Tested code/test commit: `4dfd0fd133fadf3b13085d2ca4d5472d8e40f79c`  
 > Branch: `feature/csd-cognitive-memory-slice`  
-> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43690354004)  
-> Workflow run: **#259** — success on both matrix jobs
+> Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43690569670)  
+> Workflow run: **#263** — success on both matrix jobs
 
 ## 1. Implemented scope
 
@@ -40,6 +40,8 @@ Each proposal carries the exact shared `based_on.state_version`, target `goal_id
 - Goal projection reconciliation now includes pause/resume proposal/decision events and all resulting goal versions.
 - Recovery rebuilds the proposal table, goal version history, and latest goal state from authoritative events; it does not call a model or executor.
 - Tampering with the pause/resume proposal projection is detected and repaired by Recovery.
+- Recovery is tested across both `active → paused` and `paused → active` transitions.
+- A pause/resume proposal that claims a future `based_on.state_version` is rejected at append time and cannot become valid after later state transitions catch up.
 - An injected goal-version insert failure proves the decision event, proposal status, goal version, and shared state version roll back atomically.
 
 ## 4. Life Engine integration
