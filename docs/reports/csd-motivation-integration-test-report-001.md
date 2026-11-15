@@ -6,8 +6,8 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `13db2b4540c98ffb3114f64981841c7c8843ae1c`
-- Workflow run: [CSD cognitive slice tests #117](https://github.com/Ar1mead/QQBOT/actions/runs/43664232770)
+- Verified commit: `b22b8e00c54d72aab6b96d18fceeacd14840be5c`
+- Workflow run: [CSD cognitive slice tests #120](https://github.com/Ar1mead/QQBOT/actions/runs/43664485381)
 - Runner: GitHub-hosted Ubuntu 26.04.1
 - Python: 3.12.16
 - SQLite: 3.46.1
@@ -22,7 +22,7 @@ python -m unittest discover -s tests -v
 Both commands completed successfully. Full test discovery reported:
 
 ```text
-Ran 240 tests in 1.245s
+Ran 242 tests in 3.037s
 OK
 ```
 
@@ -39,6 +39,15 @@ The corrected migration test now:
 4. Reopens the database and verifies migration to v2 while preserving legacy events, accepted-memory state, and proposal data.
 
 A separate failure-path test deliberately creates a table-name collision partway through migration. It verifies that the migration transaction rolls back partial DDL and leaves `user_version` at 1.
+
+## Projection reconciliation hardening
+
+The first consistency check compared the latest motivation projection with its version-history table. That could miss coordinated corruption if both tables were changed to the same incorrect value. The check now reconciles:
+- every motivation proposal projection row against its immutable proposal event, including terminal decision status and decision-event identity;
+- every accepted signal version against the signal object embedded in its authoritative decision event;
+- each latest-signal projection against the highest event-backed signal version.
+
+Tests deliberately corrupt both signal projection tables identically and separately alter a proposal's projected status. Both cases are detected; Recovery rebuilds the correct projections from the event history.
 
 ## Scope and limitations
 
