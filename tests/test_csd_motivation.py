@@ -149,6 +149,29 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
     def add_proposal(self, event):
         return self.store.submit_event(event)
 
+
+    def test_motivation_proposal_cannot_claim_a_future_snapshot_version(self):
+        self.add_interaction(interaction("interaction-1"))
+        with self.assertRaisesRegex(ValueError, "future state_version"):
+            self.add_proposal(motivation_proposal(
+                "future-version-motivation",
+                support=("interaction-1",),
+                based_on=1,
+            ))
+        self.assertIsNone(self.store._db.execute(
+            "SELECT 1 FROM motivation_proposals WHERE proposal_id=?",
+            ("future-version-motivation",),
+        ).fetchone())
+        self.add_proposal(motivation_proposal(
+            "valid-motivation-after-reject",
+            support=("interaction-1",),
+            based_on=0,
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("valid-motivation-after-reject")["status"],
+            "accepted",
+        )
+
     def test_migration_creates_schema_v5_and_preserves_v1_memory_data(self):
         observation = envelope(
             "migration-observation",
