@@ -151,7 +151,7 @@ Blocked-state evidence that depends on capabilities, external attempts, or permi
 
 ## 7. Initial implementation order
 
-1. [x] Implemented pause/resume as the first low-risk lifecycle slice: explicit proposal, CSD-authoritative decision, exact version checks, atomic goal version update, projection reconciliation, Recovery, and Life Engine choice/sink support. Hosted CI run #259 passed 319 tests on Ubuntu and Windows.
+1. [x] Implemented pause/resume as the first low-risk lifecycle slice: explicit proposal, CSD-authoritative decision, exact version checks, atomic goal version update, projection reconciliation, Recovery, and Life Engine choice/sink support. Hosted CI run #264 passed 322 tests on Ubuntu and Windows.
 2. [x] Review the initial pause/resume slice on hosted Linux and Windows; continue adversarial review and run the user's local Windows validation when available.
 3. Design blocker evidence with ASM before implementing blocked/unblocked.
 4. Design satisfaction evidence and semantic-review attribution before implementing satisfied.
