@@ -553,11 +553,11 @@ class CognitiveGoalMixin:
             self._raise_cognitive_integrity("latest goal projection count differs from event history")
         for row in goal_rows:
             expected = expected_goals.get(row["goal_id"])
+            expected_state = json.loads(expected) if expected is not None else {}
             if (
                 int(row["goal_version"]) != 1
-                or row["decision_event_id"] not in {
-                    value[0] for key, value in expected_versions.items() if key[0] == row["goal_id"]
-                }
+                or row["decision_event_id"] != expected_state.get("decision_event_id")
+                or row["transition_id"] != expected_state.get("transition_id")
                 or row["goal_json"] != expected
             ):
                 self._raise_cognitive_integrity("latest goal projection differs from event history")
