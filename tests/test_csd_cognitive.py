@@ -397,6 +397,31 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         )
 
 
+
+    def test_recovery_takes_event_snapshot_after_acquiring_writer_transaction(self):
+        self.store.submit_event(self.observation())
+        concurrent_store = CognitiveMemoryStore(self.db_path)
+        original_tx = self.store._tx
+
+        def append_before_recovery_transaction():
+            # On the old implementation this hook ran after Recovery had already
+            # fetched its event rows. With the lock moved to the start, the event
+            # is appended before the snapshot query and must be included.
+            concurrent_store.submit_event(
+                self.observation(event_id="evt-observation-appended-during-recovery-entry")
+            )
+            return original_tx()
+
+        self.store._tx = append_before_recovery_transaction
+        try:
+            recovered = self.store.recover()
+        finally:
+            self.store._tx = original_tx
+            concurrent_store.close()
+
+        self.assertEqual(recovered["events"], 2)
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], 2)
+
     def test_recovery_rejects_future_snapshot_proposal_in_durable_history(self):
         self.store.submit_event(self.observation())
         event = self.proposal(state_version=1)
