@@ -5,7 +5,12 @@ from .motivation import (
     MOTIVATION_DECISION_EVENT,
     MOTIVATION_PROPOSAL_EVENT,
 )
-from .goals import GOAL_BATCH_DECISION_EVENT, GOAL_BATCH_PROPOSAL_EVENT
+from .goals import (
+    GOAL_BATCH_DECISION_EVENT,
+    GOAL_BATCH_PROPOSAL_EVENT,
+    GOAL_ACTIVATION_DECISION_EVENT,
+    GOAL_ACTIVATION_PROPOSAL_EVENT,
+)
 from .cognitive import (
     CognitiveEvent,
     CognitiveIdempotencyConflict,
@@ -44,6 +49,8 @@ __all__ = [
     "MOTIVATION_PROPOSAL_EVENT",
     "GOAL_BATCH_DECISION_EVENT",
     "GOAL_BATCH_PROPOSAL_EVENT",
+    "GOAL_ACTIVATION_DECISION_EVENT",
+    "GOAL_ACTIVATION_PROPOSAL_EVENT",
     "CognitiveEvent",
     "CognitiveIdempotencyConflict",
     "CognitiveIntegrityError",
