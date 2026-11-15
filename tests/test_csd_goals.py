@@ -432,6 +432,94 @@ class CSDGoalStateTests(unittest.TestCase):
             ["goal-multi-a", "goal-multi-b"],
         )
 
+
+    def test_goal_keeps_historical_signal_version_after_signal_is_revised(self):
+        signal_id = add_internal_signal(self.store, "historical")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_event("historical-goal", [signal_id], state_version=version))
+        self.assertEqual(
+            self.store.evaluate_goal_batch_proposal("historical-goal")["status"],
+            "accepted",
+        )
+        self.store.submit_event(event(
+            "historical-reinforcement-interaction", INTERACTION_EVENT,
+            "interaction-adapter:test",
+            {
+                "encounter_id": "historical-encounter-2",
+                "subject_ref": "topic:historical",
+                "evidence_kind": "voluntary_selection",
+                "origin": "internal_state",
+                "context": "A later independent choice.",
+                "meaningful_alternatives": True,
+                "choice_set_refs": ["item:historical", "item:other"],
+                "selected_ref": "item:historical",
+                "origin_event_id": None,
+                "related_event_id": None,
+                "adapter": {"component": "test", "version": "0.1"},
+                "session_scope": "test",
+            },
+            at="2026-11-15T08:03:00+00:00",
+        ))
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(event(
+            "historical-reinforcement-proposal-event",
+            MOTIVATION_PROPOSAL_EVENT,
+            "motivation-proposal:test",
+            {
+                "proposal_id": "historical-reinforcement",
+                "operation": "reinforce",
+                "kind": "interest",
+                "subject_ref": "topic:historical",
+                "scope": "general",
+                "statement": None,
+                "supporting_event_ids": ["historical-reinforcement-interaction"],
+                "counter_evidence_event_ids": [],
+                "new_signal_id": None,
+                "target_signal_id": signal_id,
+                "target_signal_version": 1,
+                "requested_interest_stage": "tentative",
+                "rationale": "A later independent encounter.",
+                "origin": {"component": "test", "version": "0.1"},
+                "based_on": {"state_version": version},
+            },
+            at="2026-11-15T08:04:00+00:00",
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("historical-reinforcement")["status"],
+            "accepted",
+        )
+        revised = self.store.get_motivation_signal(signal_id)
+        self.assertEqual(revised["signal_version"], 2)
+        goal = self.store.get_goal("goal-historical-goal")
+        self.assertEqual(
+            goal["origin_signal_refs"],
+            [{"signal_id": signal_id, "signal_version": 1}],
+        )
+        self.store.recover()
+        self.assertEqual(
+            self.store.get_goal("goal-historical-goal")["origin_signal_refs"],
+            [{"signal_id": signal_id, "signal_version": 1}],
+        )
+
+    def test_goal_version_projection_corruption_is_detected_and_recovered(self):
+        signal_id = add_internal_signal(self.store, "version-corrupt")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_event("version-corrupt", [signal_id], state_version=version))
+        self.assertEqual(
+            self.store.evaluate_goal_batch_proposal("version-corrupt")["status"],
+            "accepted",
+        )
+        self.store._db.execute(
+            "UPDATE goal_versions SET goal_json='{}' WHERE goal_id='goal-version-corrupt'"
+        )
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_goals()
+        self.store.recover()
+        self.assertEqual(
+            self.store.get_goal("goal-version-corrupt")["status"],
+            "candidate",
+        )
+
     def test_recovery_rebuilds_candidate_goal_without_activation(self):
         signal_id = add_internal_signal(self.store, "recovery")
         version = self.store.get_state_snapshot()["state_version"]
