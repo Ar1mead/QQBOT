@@ -306,6 +306,47 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         result = self.store.recover()
         self.assertEqual(result["accepted_memories"], 1)
 
+    def test_recovery_detects_accepted_memory_content_tampering(self):
+        self.seed_pending()
+        self.assertEqual(
+            self.store.evaluate_proposal("proposal-synthetic-1")["status"],
+            "accepted",
+        )
+        expected = self.store.get_memory("csd-memory:proposal-synthetic-1")
+        self.store._db.execute(
+            "UPDATE accepted_memories SET memory_json='{}' "
+            "WHERE memory_id='csd-memory:proposal-synthetic-1'"
+        )
+        self.assertFalse(self.store.get_state_snapshot()["projection_consistent"])
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_memory("csd-memory:proposal-synthetic-1")
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_memories()
+
+        self.store.recover()
+        self.assertTrue(self.store.get_state_snapshot()["projection_consistent"])
+        self.assertEqual(
+            self.store.get_memory("csd-memory:proposal-synthetic-1"),
+            expected,
+        )
+
+    def test_memory_proposal_projection_status_is_checked_against_event_history(self):
+        self.seed_pending()
+        self.store.evaluate_proposal("proposal-synthetic-1")
+        self.store._db.execute(
+            "UPDATE proposals SET status='pending',decision_event_id=NULL "
+            "WHERE proposal_id='proposal-synthetic-1'"
+        )
+        self.assertFalse(self.store.get_state_snapshot()["projection_consistent"])
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_proposal("proposal-synthetic-1")
+
+        self.store.recover()
+        self.assertEqual(
+            self.store.get_proposal("proposal-synthetic-1")["status"],
+            "accepted",
+        )
+
     def test_recovery_rebuilds_deleted_projection_from_events(self):
         self.seed_pending()
         self.store.evaluate_proposal("proposal-synthetic-1")
