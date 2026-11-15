@@ -584,6 +584,31 @@ def goal_activation_event(
     )
 
 
+def goal_pause_resume_event(
+    proposal_id: str,
+    goal_id: str,
+    *,
+    state_version: int,
+    expected_goal_version: int,
+    operation: str,
+):
+    return event(
+        event_id=f"goal-pause-resume-proposal-event-{proposal_id}",
+        event_type="life.goal_pause_resume_proposed.v1",
+        source="life-goal-pause-resume-proposal:test.deliberator",
+        payload={
+            "proposal_id": proposal_id,
+            "based_on": {"state_version": state_version},
+            "goal_id": goal_id,
+            "expected_goal_version": expected_goal_version,
+            "operation": operation,
+            "rationale": f"Explicitly choose to {operation} this goal.",
+            "origin": {"component": "test.deliberator", "version": "0.1"},
+            "contract_version": "life.goal_pause_resume_proposed.v1",
+        },
+    )
+
+
 class CSDGoalActivationTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -654,6 +679,127 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.assertNotIn("activity_id", active)
         self.assertNotIn("capability", active)
 
+
+
+    def activate_candidate(self, suffix="pause-resume"):
+        goal_id, _ = self.create_candidate(suffix)
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            f"activate-{suffix}", goal_id, state_version=version
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_activation_proposal(f"activate-{suffix}")["status"],
+            "accepted",
+        )
+        return goal_id
+
+    def test_pause_goal_creates_next_version_without_starting_activity(self):
+        goal_id = self.activate_candidate("pause")
+        before = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "pause-active-goal", goal_id,
+            state_version=before, expected_goal_version=2, operation="pause",
+        ))
+        result = self.store.evaluate_goal_pause_resume_proposal("pause-active-goal")
+        self.assertEqual(result["status"], "accepted")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], before + 1)
+        paused = self.store.get_goal(goal_id)
+        self.assertEqual(paused["status"], "paused")
+        self.assertEqual(paused["goal_version"], 3)
+        self.assertEqual(paused["lifecycle_operation"], "pause")
+        self.assertNotIn("activity_id", paused)
+
+    def test_resume_goal_requires_paused_state_and_creates_next_version(self):
+        goal_id = self.activate_candidate("resume")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "pause-before-resume", goal_id,
+            state_version=version, expected_goal_version=2, operation="pause",
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_pause_resume_proposal("pause-before-resume")["status"],
+            "accepted",
+        )
+        before = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "resume-paused-goal", goal_id,
+            state_version=before, expected_goal_version=3, operation="resume",
+        ))
+        result = self.store.evaluate_goal_pause_resume_proposal("resume-paused-goal")
+        self.assertEqual(result["status"], "accepted")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], before + 1)
+        active = self.store.get_goal(goal_id)
+        self.assertEqual(active["status"], "active")
+        self.assertEqual(active["goal_version"], 4)
+        self.assertEqual(active["lifecycle_operation"], "resume")
+
+    def test_stale_pause_resume_state_version_is_deferred_without_rebasing(self):
+        goal_id = self.activate_candidate("stale-pause")
+        before = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "stale-pause-proposal", goal_id,
+            state_version=before, expected_goal_version=2, operation="pause",
+        ))
+        add_internal_signal(self.store, "advance-after-pause-proposal")
+        result = self.store.evaluate_goal_pause_resume_proposal("stale-pause-proposal")
+        self.assertEqual(result["status"], "deferred")
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "active")
+        self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 2)
+
+    def test_stale_pause_resume_goal_version_is_deferred(self):
+        goal_id = self.activate_candidate("stale-goal-version")
+        before = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "stale-goal-version-proposal", goal_id,
+            state_version=before, expected_goal_version=1, operation="pause",
+        ))
+        result = self.store.evaluate_goal_pause_resume_proposal("stale-goal-version-proposal")
+        self.assertEqual(result["status"], "deferred")
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "active")
+
+    def test_pause_requires_active_and_resume_requires_paused(self):
+        goal_id = self.activate_candidate("invalid-state")
+        before = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "first-pause", goal_id,
+            state_version=before, expected_goal_version=2, operation="pause",
+        ))
+        self.assertEqual(self.store.evaluate_goal_pause_resume_proposal("first-pause")["status"], "accepted")
+        before = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "second-pause", goal_id,
+            state_version=before, expected_goal_version=3, operation="pause",
+        ))
+        self.assertEqual(self.store.evaluate_goal_pause_resume_proposal("second-pause")["status"], "rejected")
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "paused")
+        self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 3)
+
+    def test_pause_resume_projection_tampering_is_detected_and_recovered(self):
+        goal_id = self.activate_candidate("pause-recovery")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "pause-recovery-proposal", goal_id,
+            state_version=version, expected_goal_version=2, operation="pause",
+        ))
+        self.store.evaluate_goal_pause_resume_proposal("pause-recovery-proposal")
+        self.store._db.execute(
+            "UPDATE goal_pause_resume_proposals SET status='pending' WHERE proposal_id=?",
+            ("pause-recovery-proposal",),
+        )
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_goal(goal_id)
+        self.store.recover()
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "paused")
+        self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 3)
+
+    def test_public_path_cannot_append_goal_pause_resume_decision(self):
+        with self.assertRaises(ValueError):
+            self.store.submit_event(event(
+                "csd-goal-pause-resume-decision:forged",
+                "life.goal_pause_resume_decided.v1",
+                "csd.authority.v1",
+                {},
+            ))
 
     def test_activation_preserves_origin_lineage_after_source_signal_is_paused(self):
         goal_id, signal_id = self.create_candidate("paused-source")
