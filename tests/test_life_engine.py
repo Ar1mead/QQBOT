@@ -475,7 +475,7 @@ class LifeProposalValidationTests(unittest.TestCase):
 
     def test_pause_requires_existing_active_goal(self):
         snap = snapshot(goals=(GoalState("goal-1", "Understand", "active"),))
-        selected = choice("pause_goal", goal_id="goal-1")
+        selected = choice("pause_goal", goal_id="goal-1", expected_goal_version=1)
         self.assertEqual(validate_life_proposal(snap, proposal(snap, selected)).proposal.choice.disposition,
                          "pause_goal")
 
