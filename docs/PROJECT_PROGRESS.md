@@ -112,6 +112,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 - [x] Verified the exact implementation on GitHub-hosted Linux and Windows in Actions run #205: 281 tests passed on each platform; compileall and all individual test steps passed. Added regression checks for historical signal-version lineage after later signal revision and goal-version projection corruption/Recovery. See `docs/reports/csd-goal-state-integration-test-report-001.md`.
 - [ ] Verify the project on the user's own Windows 11 / Python 3.12.14 environment when the repository is ready and cloned.
 - [~] This slice persists candidates only; activation, lifecycle transitions, priorities, and execution remain out of scope.
+- [~] Drafted `docs/design/csd-goal-activation-proposal.md` for a separate, explicit candidate→active transition. It proposes a Life Engine `activate_goal` choice and a CSD-authoritative activation event; activation would not start an activity or grant capability. It recommends preserving original goal provenance even if the original motivation signal later becomes inactive. This is a proposal, not a frozen specification or implementation.
 
 
 ## 5. Specification status and constraints
@@ -137,7 +138,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation, memory, and goal projections now reconcile against authoritative events. Continue looking for coordinated projection corruption, invalid event order, and migration/recovery edge cases.
 2. **Run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** This remains pending until the repository is ready and cloned.
-3. **Expand durable goal lifecycle only after a separate design review.** Candidate creation is implemented. Define activation, pause, block, satisfaction, abandonment, supersession, and revision as distinct CSD transitions; do not bundle them into one generic goal update. Preserve the distinction between having a candidate and choosing to pursue it.
+3. **Implement explicit candidate→active goal activation after reviewing `docs/design/csd-goal-activation-proposal.md`.** Activation must be a separate CSD-authoritative transition, not part of candidate creation and not an activity start. The proposal recommends that an existing goal retain its original provenance even if its originating signal later becomes inactive. Then design pause/resume/blocked/satisfied/abandoned/superseded/revise as distinct transitions.
 4. **Connect Life Engine deliberation through explicit CSD interfaces.** The Life Engine may propose intentions; CSD accepts durable state transitions. Keep empty `no_op` deliberations cheap and avoid manufacturing goals to satisfy a scheduler.
 5. **Develop self-initiated activity and diary behavior.** No daily quota, no forced wake-up task, no requirement to save every draft.
 6. **Define ASM handoff and permission model before any side-effecting platform action.**
@@ -178,4 +179,4 @@ At the time of this update:
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted tests do not establish adapter authenticity, semantic truth, subjective desire, or autonomous cognition.
 
-**Resume from section 4: continue design and implementation of distinct goal lifecycle transitions, without conflating candidate persistence with activation or execution.** The current goal-state design proposal remains unfrozen. See its Section 11 for implementation invariants. Next, design activation as a separate CSD-authoritative transition and examine whether it should require an explicit Life Engine choice, additional evidence, or another deliberation event. Do not implement external activity execution until ASM governance is defined. Windows-local verification remains pending.**
+**Resume from section 4: implement explicit candidate→active goal activation as a separate CSD-authoritative transition, using `docs/design/csd-goal-activation-proposal.md` as a proposal to review rather than a frozen spec.** Preserve candidate/active distinction, original goal origin and source lineage, shared state_version, event-backed goal versions, and deterministic Recovery. Activation must not start an activity or grant capabilities. Do not implement external activity execution until ASM governance is defined. Windows-local verification remains pending.**
