@@ -27,6 +27,7 @@ Disposition = Literal[
     "wait",
     "request_information",
     "pause_goal",
+    "resume_goal",
     "abandon_goal",
     "revise_goal",
     "decline",
@@ -370,7 +371,7 @@ def validate_life_proposal(
         raise TypeError("proposal.choice must be ChoiceProposal")
     if choice.disposition not in {
         "start_activity", "continue_activity", "activate_goal", "wait", "request_information",
-        "pause_goal", "abandon_goal", "revise_goal", "decline", "stop_activity", "no_op",
+        "pause_goal", "resume_goal", "abandon_goal", "revise_goal", "decline", "stop_activity", "no_op",
     }:
         raise ValueError(f"unsupported disposition: {choice.disposition}")
     if not isinstance(choice.rationale, str) or not choice.rationale.strip():
@@ -451,14 +452,31 @@ def validate_life_proposal(
             raise ValueError("activate_goal requires a positive expected_goal_version")
         if choice.expected_goal_version != current_goal.goal_version:
             raise ValueError("activate_goal expected_goal_version is stale")
-    elif choice.disposition in {"pause_goal", "abandon_goal", "revise_goal"}:
+    elif choice.disposition in {"pause_goal", "resume_goal"}:
+        if proposal.goal_proposals:
+            raise ValueError("goal pause/resume must be a separate transition from candidate creation")
         if choice.goal_id is None:
             raise ValueError(f"{choice.disposition} requires goal_id")
         if choice.activity_id is not None or choice.active_activity_id is not None:
             raise ValueError(f"{choice.disposition} cannot also select an activity")
         current_goal = goal_by_id[choice.goal_id]
-        if choice.disposition == "pause_goal" and current_goal.status != "active":
-            raise ValueError("pause_goal requires an active goal")
+        required_status = "active" if choice.disposition == "pause_goal" else "paused"
+        if current_goal.status != required_status:
+            raise ValueError(f"{choice.disposition} requires a {required_status} goal")
+        if (
+            not isinstance(choice.expected_goal_version, int)
+            or isinstance(choice.expected_goal_version, bool)
+            or choice.expected_goal_version < 1
+        ):
+            raise ValueError(f"{choice.disposition} requires a positive expected_goal_version")
+        if choice.expected_goal_version != current_goal.goal_version:
+            raise ValueError(f"{choice.disposition} expected_goal_version is stale")
+    elif choice.disposition in {"abandon_goal", "revise_goal"}:
+        if choice.goal_id is None:
+            raise ValueError(f"{choice.disposition} requires goal_id")
+        if choice.activity_id is not None or choice.active_activity_id is not None:
+            raise ValueError(f"{choice.disposition} cannot also select an activity")
+        current_goal = goal_by_id[choice.goal_id]
         if choice.disposition == "abandon_goal" and current_goal.status not in {
             "candidate", "active", "paused", "blocked"
         }:
