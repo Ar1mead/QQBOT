@@ -1,7 +1,7 @@
 # CSD Goal Pause/Resume — Hosted Test Report 001
 
 > Status: **hosted CI passed on Linux and Windows; user-local Windows verification pending**  
-> Tested code/test commit: `8a853b40d6a416adf766143b9d56652cdd152e6e`  
+> Tested code/test commit: `4dfd0fd133fadf3b13085d2ca4d5472d8e40f79c`  
 > Branch: `feature/csd-cognitive-memory-slice`  
 > Workflow: [CSD cognitive slice tests](https://github.com/Ar1mead/QQBOT/actions/runs/43690354004)  
 > Workflow run: **#259** — success on both matrix jobs
@@ -55,8 +55,8 @@ Both GitHub-hosted runners passed:
 
 | Runner | Python / SQLite | Full test discovery | Time |
 |---|---|---:|---:|
-| Ubuntu | Python 3.12.16 / SQLite 3.46.1 | 319 passed | 2.687s |
-| Windows | Python 3.12.10 / SQLite 3.49.1 | 319 passed | 17.571s |
+| Ubuntu | Python 3.12.16 / SQLite 3.46.1 | 320 passed | 1.934s |
+| Windows | Python 3.12.10 / SQLite 3.49.1 | 320 passed | 31.315s |
 
 The workflow also passed `python -m compileall -q core tests` and every focused test step.
 
