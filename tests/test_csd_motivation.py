@@ -15,7 +15,10 @@ from core.csd import (
     MOTIVATION_DECISION_EVENT,
     MOTIVATION_PROPOSAL_EVENT,
 )
-from core.life_engine import motivation_signal_from_csd
+from core.life_engine import (
+    CognitiveStoreLifeSnapshotReader,
+    motivation_signal_from_csd,
+)
 
 from core.csd.cognitive import (
     DECISION_EVENT,
@@ -731,6 +734,13 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertEqual(life_signal.origin_class, "user_requested_encounter")
         self.assertEqual(life_signal.interest_stage, "emerging")
         self.assertEqual(len(life_signal.voluntary_encounters), 2)
+
+        life_snapshot = CognitiveStoreLifeSnapshotReader(self.store).get_life_snapshot()
+        self.assertEqual(life_snapshot.state_version, 3)
+        self.assertEqual(len(life_snapshot.signals), 1)
+        self.assertEqual(life_snapshot.signals[0].signal_version, 3)
+        self.assertEqual(life_snapshot.goals, ())
+        self.assertEqual(life_snapshot.activity_options, ())
 
     def test_equivalent_timezone_spellings_do_not_count_as_two_voluntary_encounters(self):
         first = interaction(
