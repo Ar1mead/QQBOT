@@ -161,10 +161,10 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 ## 7. Next work queue
 
-1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation, memory, and goal projections now reconcile against authoritative events. Continue looking for coordinated projection corruption, invalid event order, and migration/recovery edge cases.
+1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Memory, grounded-memory, motivation, and goal proposal families now share the append-time/replay chronology guard; continue looking for coordinated projection corruption, invalid event order, and migration/recovery edge cases.
 2. **Run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** This remains pending until the repository is ready and cloned.
-3. **Implement pause/resume as the next goal lifecycle slice**, following `docs/design/csd-goal-lifecycle-proposal.md`. Keep blocked/unblocked, satisfied, abandoned, superseded, and revise separate until their evidence and authority contracts are reviewed.
-4. **Connect a real deliberator/provider in pending or shadow mode only after local Windows verification.** The Life Engine now has a CSD sink for candidate creation and activation; no real model provider is connected. Keep empty `no_op` deliberations cheap and avoid manufacturing goals to satisfy a scheduler.
+3. **Design blocked/unblocked only against trusted ASM/prerequisite evidence.** Pause/resume is implemented and hosted-tested. Keep satisfied, abandoned, superseded, and revise separate until their evidence, authority, and atomicity contracts are reviewed.
+4. **Connect a real deliberator/provider in pending or shadow mode only after local Windows verification and further adversarial review.** The Life Engine has a CSD sink for candidate creation, activation, and pause/resume; no real model provider is connected. Keep empty `no_op` deliberations cheap and avoid manufacturing goals to satisfy a scheduler.
 5. **Develop self-initiated activity and diary behavior.** No daily quota, no forced wake-up task, no requirement to save every draft.
 6. **Define ASM handoff and permission model before any side-effecting platform action.**
 7. **Only then build the first read-only Bilibili adapter and evaluate actual video/audio comprehension.**
@@ -193,7 +193,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 At the time of this update:
 - Latest code/test commit verified by hosted CI: `146c0b86e58e72af6cab7f419bba7236821b6be1`, workflow run #270 (325 tests passed on Ubuntu and Windows).
-- Branch head immediately before this ledger refresh: `e5caabe9475c2980e8c065eced31c0da21de7731` (pause/resume competing-proposal and identity-conflict tests).
+- Branch head immediately before this ledger refresh: `3ad344a1b461e364f54169f15f8d7a5dccc2c810` (cross-domain chronology documentation sync).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
 - `python -m unittest discover -s tests -v` passed: 325 tests on both Linux and Windows (Linux 2.819s; Windows 22.161s).
