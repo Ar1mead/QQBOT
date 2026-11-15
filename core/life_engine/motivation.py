@@ -332,11 +332,15 @@ def validate_motivation_update(
             raise ValueError("resolve requires explicit resolution evidence")
         if counter:
             raise ValueError("resolve cannot include counterevidence as its resolution basis")
+    if proposal.operation == "pause" and (supporting or counter):
+        raise ValueError("pause does not accept supporting or counterevidence")
 
     if proposal.kind == "interest":
         if proposal.requested_interest_stage not in {"tentative", "emerging", "contextual", None}:
             raise ValueError("established interest maturity is CSD-derived, not provider-assigned")
         if proposal.operation in {"create", "reinforce"}:
+            if proposal.requested_interest_stage == "contextual":
+                raise ValueError("contextual interest scope is only produced by contextualize")
             allowed_support = {
                 "passive_exposure", "user_requested_action", "platform_autoplay",
                 "voluntary_selection", "return_visit", "affect_observation",
