@@ -619,8 +619,10 @@ class CSDGoalActivationTests(unittest.TestCase):
         goal_id, _ = self.create_candidate("future-activation")
         self.assertEqual(goal_id, "goal-candidate-future-activation")
         self.assertEqual(self.store.get_state_snapshot()["state_version"], 2)
-        with self.assertRaises(KeyError):
-            self.store.get_goal_activation_proposal("future-version-activation")
+        self.assertIsNone(self.store._db.execute(
+            "SELECT 1 FROM goal_activation_proposals WHERE proposal_id=?",
+            ("future-version-activation",),
+        ).fetchone())
 
     def test_explicit_activation_creates_version_two_and_increments_state_once(self):
         goal_id, signal_id = self.create_candidate()
