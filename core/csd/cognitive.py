@@ -25,6 +25,7 @@ from .motivation import (
 )
 from .goals import (
     CognitiveGoalMixin,
+    CognitiveGoalActivationMixin,
     GOAL_BATCH_DECISION_EVENT,
     GOAL_BATCH_PROPOSAL_EVENT,
     GOAL_DECISION_SOURCE,
@@ -103,7 +104,7 @@ def _nonempty(value: Any, name: str) -> str:
     return value
 
 
-class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalMixin):
+class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalActivationMixin, CognitiveGoalMixin):
     """Single event stream with rebuildable proposal and accepted-memory views."""
 
     def _raise_cognitive_integrity(self, message: str) -> None:
