@@ -184,7 +184,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 At the time of this update:
 - Latest code/test commit verified by hosted CI: `a04137532bee50b036a409209b9e66bdc884f866`, workflow run #230 (297 tests passed on Ubuntu and Windows).
-- Latest branch head before this progress-ledger update: `8b8c599ffd1560f875d0e2b24b7f9dd7c0bfc772` (goal activation hosted-test report documentation commit).
+- Latest branch head before this progress-ledger update: `b66a414ade1b34d9d84490b1fbff57490464e953` (goal activation progress-ledger update).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
 - `python -m unittest discover -s tests -v` passed: 297 tests on both Linux and Windows (Linux 2.122s; Windows 19.005s).
