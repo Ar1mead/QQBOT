@@ -5,7 +5,8 @@ This directory contains an isolated, provider-neutral proposal layer for the fir
 ## Files
 
 - `contracts.py` — typed motivation signals (including CSD signal version, subject, and evidence polarity), goal state, trusted activity options, goal proposals, and deliberation choices.
-- `csd_adapter.py` — maps event-verified CSD signal projections into Life Engine inputs and provides a snapshot reader backed by CSD's atomic, integrity-checked signal read; it does not authenticate the caller.
+- `csd_adapter.py` — maps event-verified CSD signal and candidate-goal projections into Life Engine inputs and provides a snapshot reader backed by CSD's atomic, integrity-checked read; it does not authenticate the caller.
+- `core/csd/goals.py` — CSD-owned goal-batch proposal/decision path, candidate projections, source-version lineage, and Recovery.
 - `motivation.py` — validates evidence-grounded motivation update proposals against a trusted snapshot, including signal statement/version, supporting/counterevidence, and source-origin restrictions; it does not accept or persist signal state.
 - `engine.py` — read snapshot -> ask deliberator -> validate references and hard admissibility -> submit a pending proposal to a CSD-facing sink.
 - Active activity snapshots carry current permission and stop-condition state; continuation is blocked after permission revocation or a met stop condition. Stopping/continuing an external side-effect activity is flagged for ASM governance. A new activity may be motivated by an active signal or by an accepted ongoing goal; it must not be source-free. Ordinary activity options cannot advance paused or blocked goals.
@@ -18,7 +19,7 @@ The prototype can represent:
 - CSD-derived immutable origin classes (`internally_initiated`, `user_requested_encounter`, `externally_exposed`, `mixed_origin`);
 - CSD-derived interest maturity and voluntary-encounter lineage, without rewriting the signal's initial origin;
 - goal snapshots distinguish candidate, active, paused, blocked, satisfied, abandoned, and superseded states; only active goals may serve as current activity targets;
-- candidate goals carry origin references and exact source signal-version lineage derived from the trusted snapshot, plus success, stop, and review conditions;
+- candidate goals carry CSD-derived origin references and exact source signal-version lineage, plus success, stop, and review conditions;
 - start, continue, wait, request-information, pause, abandon, revise, decline, stop, and no-op choices;
 - trusted activity options with explicit capability, prerequisite, and side-effect metadata;
 - a distinction between read-only activities and choices requiring ASM governance.
@@ -30,9 +31,9 @@ A selected side-effecting activity is only marked as requiring ASM governance. N
 ## Explicit limitations
 
 - No real model or deliberation provider is connected.
-- No live CSD snapshot reader or proposal sink adapter is implemented. The pure `csd_adapter.py` projection mapper is available, but its caller must obtain records through CSD's event-integrity-checked read path.
+- A live CSD snapshot reader is implemented for accepted signals and candidate goals. CSD exposes a durable candidate-goal proposal/decision sink, but the Life Engine deliberation pipeline is not yet connected to that sink; no real model provider is connected.
 - `motivation.py` provides proposal validation for create/reinforce/weaken/contextualize/pause/resolve operations, checks origin/event-kind compatibility, prevents evidence reuse on revisions, and distinguishes voluntary interest evidence from exposure or user-requested behavior. It does not synthesize signals, learn their semantics, accept changes, or persist them.
-- No durable goal/commitment/activity event schema has been approved or implemented in CSD.
+- CSD currently persists candidate goals only. Goal activation and the remaining lifecycle transitions, commitments, and activities are not yet implemented.
 - No goal conflict resolution, long-running activity monitor, or autonomous scheduler is implemented.
 - Local validation is not a security boundary; CSD must independently validate event schema, state version, provenance, permissions, and lifecycle transitions.
 - The current activity permission fields are trusted snapshot inputs, not grants created by the deliberator.
