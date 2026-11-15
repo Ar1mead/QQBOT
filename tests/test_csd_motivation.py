@@ -293,7 +293,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
             "test.user-request-fixture",
             {
                 "observation_id": "obs-user-request",
-                "observation_kind": "text_fixture",
+                "observation_kind": "user_message",
                 "content": "Synthetic user request provenance.",
                 "source_ref": "fixture://user-request",
                 "observed_at": "2026-11-14T09:59:00+00:00",
@@ -313,6 +313,60 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         )
         self.assertEqual(self.add_interaction(requested)["status"], "accepted")
 
+    def test_external_origin_must_match_referenced_observation_kind(self):
+        generic = envelope(
+            "source-generic-observation",
+            OBSERVATION_EVENT,
+            "test.generic-observation",
+            {
+                "observation_id": "obs-generic",
+                "observation_kind": "text_fixture",
+                "content": "This is not a user request.",
+                "source_ref": "fixture://generic",
+                "observed_at": "2026-11-14T09:58:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+            at="2026-11-14T09:58:00+00:00",
+        )
+        self.store.submit_event(generic)
+        bad_request = interaction(
+            "interaction-false-user-origin",
+            kind="user_requested_action",
+            origin="user_request",
+            meaningful=False,
+            choice_set=[],
+            origin_event_id="source-generic-observation",
+            at="2026-11-14T09:59:00+00:00",
+        )
+        with self.assertRaises(ValueError):
+            self.add_interaction(bad_request)
+
+        platform = envelope(
+            "source-platform-recommendation",
+            OBSERVATION_EVENT,
+            "test.platform-recommendation",
+            {
+                "observation_id": "obs-platform",
+                "observation_kind": "platform_recommendation",
+                "content": "The platform recommended a blue-boat video.",
+                "source_ref": "fixture://platform-recommendation",
+                "observed_at": "2026-11-14T10:00:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+            at="2026-11-14T10:00:00+00:00",
+        )
+        self.store.submit_event(platform)
+        autoplay = interaction(
+            "interaction-platform-autoplay",
+            kind="platform_autoplay",
+            origin="platform_recommendation",
+            meaningful=False,
+            choice_set=[],
+            origin_event_id="source-platform-recommendation",
+            at="2026-11-14T10:01:00+00:00",
+        )
+        self.assertEqual(self.add_interaction(autoplay)["status"], "accepted")
+
     def test_return_visit_requires_prior_same_subject_and_item(self):
         prior = interaction(
             "interaction-prior",
@@ -329,7 +383,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
             "test.user-request-fixture",
             {
                 "observation_id": "obs-request",
-                "observation_kind": "text_fixture",
+                "observation_kind": "user_message",
                 "content": "A request.",
                 "source_ref": "fixture://request",
                 "observed_at": "2026-11-14T09:58:00+00:00",
@@ -471,7 +525,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
             "test.user-request",
             {
                 "observation_id": "obs-request",
-                "observation_kind": "text_fixture",
+                "observation_kind": "user_message",
                 "content": "Synthetic request.",
                 "source_ref": "fixture://request",
                 "observed_at": "2026-11-14T09:58:00+00:00",
