@@ -303,7 +303,7 @@ class LifeProposalValidationTests(unittest.TestCase):
             )
 
     def test_mixed_internal_and_user_origins_are_not_claimed_as_purely_internal(self):
-        snap = snapshot(signals=(signal(), signal("sig-user", "user_request")))
+        snap = snapshot(signals=(signal(), signal("sig-user", "user_requested_encounter", kind="opportunity")))
         candidate = GoalProposal(
             "goal-mixed", "Explore the topic", ("sig-interest", "sig-user"),
             "An internal interest and a user request both contributed.",
