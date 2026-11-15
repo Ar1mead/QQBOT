@@ -1068,6 +1068,21 @@ class CSDGoalActivationTests(unittest.TestCase):
         ]
         self.assertEqual(columns, ["collision_marker"])
 
+
+    def test_v4_database_migrates_to_v5_pause_resume_projection(self):
+        self.store.close()
+        db = sqlite3.connect(self.path)
+        db.execute("DROP TABLE goal_pause_resume_proposals")
+        db.execute("PRAGMA user_version = 4")
+        db.commit()
+        db.close()
+        self.store = CognitiveMemoryStore(self.path)
+        version = int(self.store._db.execute("PRAGMA user_version").fetchone()[0])
+        self.assertEqual(version, 5)
+        self.assertIsNotNone(self.store._db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='goal_pause_resume_proposals'"
+        ).fetchone())
+
     def test_v3_database_migrates_to_v4_activation_projection(self):
         self.store.close()
         db = sqlite3.connect(self.path)
@@ -1077,7 +1092,7 @@ class CSDGoalActivationTests(unittest.TestCase):
         db.close()
         self.store = CognitiveMemoryStore(self.path)
         version = int(self.store._db.execute("PRAGMA user_version").fetchone()[0])
-        self.assertEqual(version, 4)
+        self.assertEqual(version, 5)
         self.assertIsNotNone(self.store._db.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='goal_activation_proposals'"
         ).fetchone())
