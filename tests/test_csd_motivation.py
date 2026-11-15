@@ -723,6 +723,32 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertEqual(third["interest_stage"], "emerging")
         self.assertEqual(self.store.get_state_snapshot()["state_version"], 3)
 
+    def test_equivalent_timezone_spellings_do_not_count_as_two_voluntary_encounters(self):
+        first = interaction(
+            "interaction-same-instant-1",
+            encounter="enc-same-instant-1",
+            at="2026-11-14T10:00:00+00:00",
+        )
+        second = interaction(
+            "interaction-same-instant-2",
+            encounter="enc-same-instant-2",
+            at="2026-11-14T11:00:00+01:00",
+        )
+        self.add_interaction(first)
+        self.add_interaction(second)
+        self.add_proposal(motivation_proposal(
+            "proposal-same-instant",
+            support=("interaction-same-instant-1", "interaction-same-instant-2"),
+            at="2026-11-14T12:00:00+00:00",
+        ))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("proposal-same-instant")["status"],
+            "accepted",
+        )
+        signal = self.store.get_motivation_signal("signal-blue-boat")
+        self.assertEqual(len(signal["voluntary_encounters"]), 2)
+        self.assertEqual(signal["interest_stage"], "tentative")
+
     def test_update_cannot_reuse_prior_evidence(self):
         self.add_interaction(interaction("interaction-1"))
         self.add_proposal(motivation_proposal("proposal-create"))
