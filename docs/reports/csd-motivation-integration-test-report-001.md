@@ -6,12 +6,12 @@
 
 - Repository: `Ar1mead/QQBOT`
 - Branch: `feature/csd-cognitive-memory-slice`
-- Verified commit: `7d326cf3c9e69471db4e42e8097454d86087fa86`
-- Workflow run: [CSD cognitive slice tests #129](https://github.com/Ar1mead/QQBOT/actions/runs/43665176432)
+- Verified commit: `53d56c1a88dca20161044d40400976727c37c647`
+- Workflow run: [CSD cognitive slice tests #131](https://github.com/Ar1mead/QQBOT/actions/runs/43665484649)
 - Linux runner: GitHub-hosted Ubuntu 26.04.1 — Python 3.12.16 / SQLite 3.46.1
 - Windows runner: GitHub-hosted `windows-latest` — Python 3.12.10 / SQLite 3.49.1
 
-Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (246 tests each; Linux 1.493s, Windows 14.004s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
+Both operating-system jobs passed `python -m compileall -q core tests` and the full `python -m unittest discover -s tests -v` run (247 tests each; Linux 1.968s, Windows 19.996s). The Windows runner is a useful platform-compatibility check, but it is not the user's own Windows 11 / Python 3.12.14 machine.
 
 ## Exact commands
 
@@ -53,6 +53,8 @@ Tests deliberately corrupt both signal projection tables identically and separat
 The accepted-memory side received the same event-backed integrity treatment. Proposal rows are checked against proposal/decision events, and accepted-memory JSON plus its relational identity fields are reconstructed and compared with the authoritative decision and proposal events. Tests corrupt memory content and proposal status; reads detect the inconsistency and Recovery restores the event-derived state.
 
 A further idempotency test submits a second event for an existing immutable motivation proposal with a forged source component. The duplicate is rejected and the attempted event is rolled back; valid duplicate submissions remain idempotent.
+
+External motivation origins are now tied to the kind of earlier observation they claim to reference: `user_request` must reference a `user_message` observation, and `platform_recommendation` must reference a `platform_recommendation` observation. This checks event semantics, not adapter authenticity; adapter metadata remains caller-supplied and untrusted.
 
 Lifecycle coverage now includes create, reinforce, weaken, contextualize, pause, and resolve transitions. In this prototype, weakening is represented by appending counter-evidence; there is not yet a continuous strength/confidence or affect-dynamics model.
 
