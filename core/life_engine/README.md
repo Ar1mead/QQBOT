@@ -5,7 +5,7 @@ This directory contains an isolated, provider-neutral proposal layer for the fir
 ## Files
 
 - `contracts.py` — typed motivation signals (including CSD signal version, subject, and evidence polarity), goal state, trusted activity options, goal proposals, and deliberation choices.
-- `csd_adapter.py` — pure mapping from event-verified CSD signal projections into Life Engine snapshot inputs; it does not read the database or authenticate its caller.
+- `csd_adapter.py` — maps event-verified CSD signal projections into Life Engine inputs and provides a snapshot reader backed by CSD's atomic, integrity-checked signal read; it does not authenticate the caller.
 - `motivation.py` — validates evidence-grounded motivation update proposals against a trusted snapshot, including signal statement/version, supporting/counterevidence, and source-origin restrictions; it does not accept or persist signal state.
 - `engine.py` — read snapshot -> ask deliberator -> validate references and hard admissibility -> submit a pending proposal to a CSD-facing sink.
 - Active activity snapshots carry current permission and stop-condition state; continuation is blocked after permission revocation or a met stop condition. Stopping/continuing an external side-effect activity is flagged for ASM governance. A new activity may be motivated by an active signal or by an accepted ongoing goal; it must not be source-free. Ordinary activity options cannot advance paused or blocked goals.
