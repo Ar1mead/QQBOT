@@ -592,6 +592,25 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.store.recover()
         self.assertEqual(self.store.get_motivation_signals()[0]["signal_version"], 1)
 
+    def test_duplicate_motivation_proposal_cannot_bypass_source_validation(self):
+        self.add_interaction(interaction("interaction-duplicate-source"))
+        original = motivation_proposal(
+            "proposal-duplicate-source",
+            support=("interaction-duplicate-source",),
+        )
+        self.add_proposal(original)
+        before = self.store.get_state_snapshot()["event_count"]
+        forged_duplicate = envelope(
+            "event-proposal-duplicate-source-copy",
+            original.event_type,
+            "motivation-proposal:forged-component",
+            original.payload,
+            at="2026-11-14T11:00:00+00:00",
+        )
+        with self.assertRaises(ValueError):
+            self.add_proposal(forged_duplicate)
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], before)
+
     def test_update_target_version_must_be_positive_integer(self):
         self.add_interaction(interaction("interaction-1"))
         self.add_proposal(motivation_proposal("proposal-create"))
