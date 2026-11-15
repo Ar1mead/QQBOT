@@ -642,7 +642,7 @@ class GoalActivationChoiceTests(unittest.TestCase):
             "goal-candidate", "Explore the subject", "candidate",
             ("evt-goal-origin",), goal_version=3,
         )
-        snap = snapshot(goals=(candidate,))
+        snap = snapshot(goals=(candidate,), options=())
         selected = choice(
             "activate_goal", goal_id="goal-candidate", expected_goal_version=3,
         )
@@ -651,7 +651,7 @@ class GoalActivationChoiceTests(unittest.TestCase):
 
     def test_activation_rejects_non_candidate_goal(self):
         active = GoalState("goal-active", "Continue the subject", "active", goal_version=2)
-        snap = snapshot(goals=(active,))
+        snap = snapshot(goals=(active,), options=())
         selected = choice(
             "activate_goal", goal_id="goal-active", expected_goal_version=2,
         )
