@@ -282,7 +282,7 @@ class MotivationEvidenceOriginTests(unittest.TestCase):
         )
         self.assertEqual(result.derived_origin_class, "mixed_origin")
 
-    def test_creation_origin_includes_counterevidence_provenance(self):
+    def test_creation_origin_ignores_counterevidence_provenance(self):
         items = (
             evidence("ev-1", "passive_exposure", origin="platform_recommendation"),
             evidence("ev-2", "counter_evidence", origin="internal_state"),
@@ -291,7 +291,20 @@ class MotivationEvidenceOriginTests(unittest.TestCase):
             snapshot(evidence_items=items),
             create_proposal(supporting=("ev-1",), counter=("ev-2",)),
         )
-        self.assertEqual(result.derived_origin_class, "mixed_origin")
+        self.assertEqual(result.derived_origin_class, "externally_exposed")
+
+    def test_internal_origin_is_not_changed_by_user_request_counterevidence(self):
+        items = (
+            evidence("ev-1", "voluntary_selection", origin="internal_state",
+                     encounter="enc-1", alternatives=True),
+            evidence("ev-2", "counter_evidence", origin="user_request",
+                     encounter="enc-2"),
+        )
+        result = validate_motivation_update(
+            snapshot(evidence_items=items),
+            create_proposal(supporting=("ev-1",), counter=("ev-2",)),
+        )
+        self.assertEqual(result.derived_origin_class, "internally_initiated")
 
     def test_established_interest_cannot_be_assigned_by_provider(self):
         item = evidence("ev-1", "passive_exposure", origin="platform_recommendation")
