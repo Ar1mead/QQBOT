@@ -288,6 +288,21 @@ class LifeProposalValidationTests(unittest.TestCase):
             (("goal-evolved-user-interest", "mixed_origin"),),
         )
 
+    def test_interest_encounter_summary_requires_timezone_aware_timestamps(self):
+        invalid = signal(
+            interest_stage="emerging",
+            evidence_event_ids=("evt-1", "evt-2"),
+            voluntary_encounters=(
+                ("enc-1", "2026-11-14T10:00:00", "evt-1"),
+                ("enc-2", "2026-11-15T10:00:00+00:00", "evt-2"),
+            ),
+        )
+        with self.assertRaises(ValueError):
+            validate_life_proposal(
+                snapshot(signals=(invalid,), options=()),
+                proposal(snapshot(signals=(invalid,), options=())),
+            )
+
     def test_interest_encounter_summary_must_reference_supporting_evidence(self):
         invalid = signal(
             interest_stage="emerging",
