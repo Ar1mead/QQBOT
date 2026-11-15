@@ -22,16 +22,20 @@ def signal(
     *,
     active=True,
     kind="interest",
+    subject_ref="topic:blue-boat",
+    supporting_event_ids=("evt-source-1",),
+    counter_evidence_event_ids=(),
     interest_stage=None,
     voluntary_encounters=(),
-    evidence_event_ids=("evt-source-1",),
 ):
     return MotivationSignal(
         signal_id=signal_id,
         kind=kind,
         origin_class=origin_class,
+        subject_ref=subject_ref,
         description="A synthetic motivation signal.",
-        evidence_event_ids=evidence_event_ids,
+        supporting_event_ids=supporting_event_ids,
+        counter_evidence_event_ids=counter_evidence_event_ids,
         active=active,
         scope="synthetic topic scope",
         interest_stage=interest_stage,
@@ -264,7 +268,7 @@ class LifeProposalValidationTests(unittest.TestCase):
             "user_requested_encounter",
             kind="interest",
             interest_stage="emerging",
-            evidence_event_ids=("evt-source-1", "evt-source-2"),
+            supporting_event_ids=("evt-source-1", "evt-source-2"),
             voluntary_encounters=(
                 ("enc-1", "2026-11-14T10:00:00+00:00", "evt-source-1"),
                 ("enc-2", "2026-11-15T10:00:00+00:00", "evt-source-2"),
@@ -447,11 +451,12 @@ class LifeProposalValidationTests(unittest.TestCase):
 
     def test_self_accepted_commitment_is_classified_as_internal_origin(self):
         commitment = MotivationSignal(
-            "sig-commitment",
-            "commitment",
-            "internally_initiated",
-            "A self-accepted commitment.",
-            ("evt-commitment",),
+            signal_id="sig-commitment",
+            kind="commitment",
+            origin_class="internally_initiated",
+            subject_ref="commitment:self-accepted",
+            description="A self-accepted commitment.",
+            supporting_event_ids=("evt-commitment",),
         )
         snap = snapshot(signals=(commitment,), options=())
         candidate = GoalProposal(
