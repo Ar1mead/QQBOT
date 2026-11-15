@@ -92,12 +92,12 @@ The current work connects motivation signals to the same CSD event stream as cog
 - [x] Added `tests/test_csd_motivation.py` with migration, provenance, idempotency, origin preservation, signal lifecycle, global version, transaction rollback, and Recovery scenarios.
 - [x] Updated the workflow path filters and test step so `test_csd_motivation.py` is included for both pushes and pull requests.
 - [x] Run `python -m compileall -q core tests` against the exact branch checkout (GitHub Actions, Linux and Windows runners).
-- [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (247 tests passed).
+- [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (248 tests passed).
 - [x] Fix the migration test fixture and update this ledger with the exact result; the earlier fixture represented an impossible v1 database state.
-- [x] Confirm a successful GitHub Actions run for the current branch: run #131, commit `53d56c1a88dca20161044d40400976727c37c647`.
+- [x] Confirm a successful GitHub Actions run for the current branch: run #135, commit `f38a0f5e828f4f5eacc1739d51d366b418f7cba7`.
 - [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
-- [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
-- [x] Run the full suite on a GitHub-hosted Windows runner (247 tests, Python 3.12.10 / SQLite 3.49.1); this is a cross-platform CI check, not the user's own Windows 11 environment.
+- [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; return visits now require prior voluntary-selection evidence and unique encounter IDs (new checks awaiting CI); lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
+- [x] Run the full suite on a GitHub-hosted Windows runner (248 tests, Python 3.12.10 / SQLite 3.49.1); this is a cross-platform CI check, not the user's own Windows 11 environment.
 - [ ] Only after the above: run the tests on the user's Windows environment.
 
 Important implementation boundary: the current CSD motivation decision path is deterministic scaffolding. It does not yet infer authentic human-like interests, feelings, needs, or desires; it does not authenticate adapter identity; and it does not establish that the evidence source is truthful. A caller-supplied adapter string is provenance metadata, not a security credential. Do not describe this slice as autonomous motivation or a complete cognitive system.
@@ -123,7 +123,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 ## 7. Next work queue
 
-1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation and memory projections now reconcile against event history; broader failure-path coverage remains.
+1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation and memory projections reconcile against event history. New encounter-uniqueness and return-visit linkage checks are awaiting CI.
 2. **Run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** This is the remaining platform-specific verification step once the remote branch is stable.
 3. **Stabilize CSD read/write contracts.** Separate memory, motivation, goal, affect, commitment, and diary state families without creating competing authorities.
 4. **Connect Life Engine through explicit CSD interfaces.** The Life Engine may propose intentions; CSD accepts durable state transitions.
@@ -154,14 +154,14 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by CI: `53d56c1a88dca20161044d40400976727c37c647`, workflow run #129; subsequent commits in this branch update only the report and progress ledger.
+- Latest code/test commit verified by CI: `f38a0f5e828f4f5eacc1739d51d366b418f7cba7`, workflow run #129; subsequent commits in this branch update only the report and progress ledger.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
-- `python -m unittest discover -s tests -v` passed: 247 tests on both Linux and Windows runners.
+- `python -m unittest discover -s tests -v` passed: 248 tests on both Linux and Windows runners.
 - The v1→v2 migration test uses legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
 - Motivation and accepted-memory proposal/state projections are checked against authoritative events; corruption tests verify Recovery repair.
 - Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
 
-**Resume from section 4, first remaining review item: continue adversarial review of event payload/replay/idempotency invariants, then Windows-local verification.**
+**Resume from section 4: finish CI verification of encounter/return-visit hardening, continue event payload/replay/idempotency review, then arrange Windows-local verification.**
