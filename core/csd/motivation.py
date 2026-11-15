@@ -172,6 +172,20 @@ class CognitiveMotivationMixin:
             ).fetchone()
             if row is None or int(row["sequence"]) >= current_sequence:
                 raise ValueError("origin_event_id must reference an earlier durable event")
+            expected_observation_kind = {
+                "user_request": "user_message",
+                "platform_recommendation": "platform_recommendation",
+            }.get(origin)
+            if expected_observation_kind is not None:
+                origin_event = self.get_event(origin_event_id)
+                if (
+                    origin_event["event_type"] != "experience.observation_recorded.v1"
+                    or origin_event["payload"].get("observation_kind") != expected_observation_kind
+                ):
+                    raise ValueError(
+                        f"{origin} origin_event_id must reference an observation "
+                        f"of kind {expected_observation_kind!r}"
+                    )
 
         if kind in {"voluntary_selection", "return_visit"}:
             if origin != "internal_state":
