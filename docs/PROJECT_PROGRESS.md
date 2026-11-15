@@ -90,7 +90,7 @@ Reference files:
 - [x] Added Life Engine `activate_goal` validation with expected goal version and a narrow CSD proposal sink for candidate/activation proposals. The sink does not execute activities.
 - [x] Added migration, idempotency, identity-conflict, stale-version, duplicate-activation, source-signal-paused lineage, projection-tampering, Recovery, and Life Engine sink tests.
 - [x] Hosted CI run #235 passed on Ubuntu and Windows: 301 total tests on each runner, including compileall. See `docs/reports/csd-goal-activation-hosted-test-report-001.md`.
-- [~] Added an append-time and replay-time guard rejecting candidate/activation proposals whose `based_on.state_version` is greater than the authoritative version that existed when the proposal event was appended; two regression tests are awaiting CI run #238/#239.
+- [x] Added an append-time and replay-time guard rejecting candidate/activation proposals whose `based_on.state_version` is greater than the authoritative version that existed when the proposal event was appended; two regression tests passed in hosted CI run #238 (303 tests on each platform). See `docs/reports/csd-goal-proposal-chronology-test-report-001.md`.
 - [ ] Run the exact suite on the user's own Windows 11 / Python 3.12.14 environment; hosted Windows CI is not a substitute.
 - [ ] Real deliberator/model provider is not connected. Goal activation is a persisted choice transition, not proof of subjective desire or autonomous motivation.
 - [ ] Remaining goal lifecycle transitions and activity execution remain out of scope.
@@ -99,7 +99,7 @@ Reference files:
 
 Branch: `feature/csd-cognitive-memory-slice`
 
-The current work connects motivation signals and goal lifecycle state to the same CSD event stream as cognitive memories. Hosted Linux and Windows CI passed the previous 301-test baseline; the future-snapshot-version guard is the current unverified code change.
+The current work connects motivation signals and goal lifecycle state to the same CSD event stream as cognitive memories. Hosted Linux and Windows CI passed the previous 301-test baseline; the future-snapshot-version guard passed hosted CI run #238 on both platforms.
 
 - [x] Added `core/csd/motivation.py` with interaction provenance validation, motivation proposal validation, CSD-side deterministic decision preparation, signal lifecycle projection, retrieval, and projection consistency checks.
 - [x] Added interaction events, motivation proposal events, and CSD-authoritative motivation decision events to the CSD event model.
@@ -110,7 +110,7 @@ The current work connects motivation signals and goal lifecycle state to the sam
 - [x] Added `tests/test_csd_motivation.py` with migration, provenance, idempotency, origin preservation, signal lifecycle, global version, transaction rollback, and Recovery scenarios.
 - [x] Updated the workflow path filters and test step so `test_csd_motivation.py` is included for both pushes and pull requests.
 - [x] Run `python -m compileall -q core tests` against the exact branch checkout (GitHub Actions, Linux and Windows runners).
-- [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (301 tests passed in hosted CI run #235; the current guard adds two regression tests and awaits run #238/#239).
+- [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (303 tests passed in hosted CI run #238 after adding two future-snapshot-version regression tests).
 - [x] Verify legacy v1→v3 migration and the schema v2→v3 goal-table migration.
 - [x] Confirm a successful GitHub Actions run for the goal-state implementation: run #205, code/test commit `6f1ff70026c7234ae452581e1d2f01cc5416c73d`.
 - [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
@@ -184,16 +184,16 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by hosted CI: `d167794c7ae52d9c9dcdcc13d5d98abf438a3fba`, workflow run #235 (301 tests passed on Ubuntu and Windows).
-- Current branch head at this ledger revision: `f722a32fea8328c1b2e3bb1578d03e3a992c72e8` (documentation sync; future-snapshot-version validation is in the code ancestor and hosted CI is pending).
+- Latest code/test commit verified by hosted CI: `fc266b92851f5278b353368e961226d3e3ba9d0c`, workflow run #238 (303 tests passed on Ubuntu and Windows).
+- Current branch head at this ledger revision: `1cb40e540ccd1a3471e499b1fb320aacf04f1acb` (chronology test report; later documentation-only commits do not alter the tested code).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
-- `python -m unittest discover -s tests -v` passed: 301 tests on both Linux and Windows (Linux 2.416s; Windows 29.157s).
+- `python -m unittest discover -s tests -v` passed: 303 tests on both Linux and Windows (Linux 1.807s; Windows 13.509s).
 - Schema v4 includes durable candidate-goal and activation proposal projections, goal-version history, and latest-goal state. Legacy v1→v4 migration and v3→v4 activation migration are covered.
 - Goal batch acceptance is atomic; accepted candidates increment shared state_version once regardless of batch size. Stale proposals defer without rebasing. Exact source signal versions are resolved at the decision event sequence.
 - The Life Engine snapshot reader includes versioned candidate/active goals. A narrow CSD sink can persist candidate-goal and explicit activation proposals; activity options remain empty pending a trusted capability-filtered source.
-- Detailed goal-state results: `docs/reports/csd-goal-state-integration-test-report-001.md`; activation results: `docs/reports/csd-goal-activation-hosted-test-report-001.md`. Motivation integration history: `docs/reports/csd-motivation-integration-test-report-001.md`.
+- Detailed goal-state results: `docs/reports/csd-goal-state-integration-test-report-001.md`; activation results: `docs/reports/csd-goal-activation-hosted-test-report-001.md`; proposal chronology guard: `docs/reports/csd-goal-proposal-chronology-test-report-001.md`. Motivation integration history: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted tests do not establish adapter authenticity, semantic truth, subjective desire, or autonomous cognition.
 
-**Resume from section 4: complete CI verification of the future-snapshot-version guard, then continue adversarial event/replay review.** Candidate creation and explicit activation are implemented; the next design task is to specify the remaining goal lifecycle transitions without collapsing them into a generic status setter. The user's own Windows 11 / Python 3.12.14 verification, process-interruption, backup/recovery, and durability checks remain open. Do not connect a real deliberator or implement external activity execution until these validation gates and ASM/OS-isolation boundaries are addressed.**
+**Resume from section 4: continue adversarial event/replay and migration review.** The future-snapshot-version chronology guard is implemented and passed hosted CI (303 tests on Ubuntu and Windows). Next, specify the remaining goal lifecycle transitions as separate evidence-bearing events; do not connect a real deliberator or external action execution until local Windows verification and ASM/OS-isolation boundaries are addressed. Candidate creation and explicit activation are implemented; the next design task is to specify the remaining goal lifecycle transitions without collapsing them into a generic status setter. The user's own Windows 11 / Python 3.12.14 verification, process-interruption, backup/recovery, and durability checks remain open. Do not connect a real deliberator or implement external activity execution until these validation gates and ASM/OS-isolation boundaries are addressed.**
