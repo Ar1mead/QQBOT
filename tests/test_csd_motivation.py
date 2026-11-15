@@ -811,6 +811,26 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.assertEqual(self.store.get_motivation_signal("signal-blue-boat")["signal_version"], 1)
         self.assertEqual(self.store.get_state_snapshot()["state_version"], 1)
 
+    def test_non_creation_interest_update_cannot_request_maturity_stage(self):
+        self.add_interaction(interaction("interaction-stage-request"))
+        self.add_proposal(motivation_proposal("proposal-stage-create"))
+        self.assertEqual(
+            self.store.evaluate_motivation_proposal("proposal-stage-create")["status"],
+            "accepted",
+        )
+        pause = motivation_proposal(
+            "proposal-stage-on-pause",
+            operation="pause",
+            support=(),
+            new_signal_id=None,
+            target_signal_id="signal-blue-boat",
+            target_version=1,
+            based_on=1,
+            requested_stage="tentative",
+        )
+        with self.assertRaises(ValueError):
+            self.add_proposal(pause)
+
     def test_pausing_signal_is_a_durable_state_transition(self):
         self.add_interaction(interaction("interaction-1"))
         self.add_proposal(motivation_proposal("proposal-create"))
