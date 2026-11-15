@@ -483,6 +483,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             (event.event_id,),
         ).fetchone()
         if prior is not None:
+            # Idempotent delivery must not turn a corrupted prior envelope into
+            # a successful duplicate acknowledgement.
+            self.get_event(event.event_id)
             same = (
                 prior["occurred_at"] == event.occurred_at
                 and prior["correlation_id"] == event.correlation_id
