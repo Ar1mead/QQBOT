@@ -78,6 +78,22 @@ Reference files:
 - [ ] Add persistent goal/commitment/affect state and learning/update reducers.
 - [ ] Connect no real model provider yet; autonomous deliberation and goal formation remain unimplemented.
 
+
+### 3.6 CSD goal activation
+
+- [x] Reviewed `docs/design/csd-goal-activation-proposal.md` and recorded implementation constraints in Section 11.
+- [x] Added schema v3→v4 migration and the rebuildable `goal_activation_proposals` projection.
+- [x] Added separate activation proposal/decision event types and a CSD-authoritative candidate→active transition.
+- [x] Enforced exact shared state-version and expected goal-version checks; stale proposals defer without rebasing, and non-candidate/unknown goals are rejected.
+- [x] Accepted activation appends goal version n+1, preserves original goal origin and source signal-version lineage, and increments shared state_version exactly once.
+- [x] Extended event-order goal reconciliation, projection consistency reporting, and deterministic Recovery to include activation history.
+- [x] Added Life Engine `activate_goal` validation with expected goal version and a narrow CSD proposal sink for candidate/activation proposals. The sink does not execute activities.
+- [x] Added migration, idempotency, identity-conflict, stale-version, duplicate-activation, source-signal-paused lineage, projection-tampering, Recovery, and Life Engine sink tests.
+- [x] Hosted CI run #230 passed on Ubuntu and Windows: 297 total tests on each runner, including compileall. See `docs/reports/csd-goal-activation-hosted-test-report-001.md`.
+- [ ] Run the exact suite on the user's own Windows 11 / Python 3.12.14 environment; hosted Windows CI is not a substitute.
+- [ ] Real deliberator/model provider is not connected. Goal activation is a persisted choice transition, not proof of subjective desire or autonomous motivation.
+- [ ] Remaining goal lifecycle transitions and activity execution remain out of scope.
+
 ## 4. Current work in progress — CSD motivation integration
 
 Branch: `feature/csd-cognitive-memory-slice`
@@ -139,7 +155,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation, memory, and goal projections now reconcile against authoritative events. Continue looking for coordinated projection corruption, invalid event order, and migration/recovery edge cases.
 2. **Run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** This remains pending until the repository is ready and cloned.
 3. **Implement explicit candidate→active goal activation after reviewing `docs/design/csd-goal-activation-proposal.md`.** Activation must be a separate CSD-authoritative transition, not part of candidate creation and not an activity start. The proposal recommends that an existing goal retain its original provenance even if its originating signal later becomes inactive. Then design pause/resume/blocked/satisfied/abandoned/superseded/revise as distinct transitions.
-4. **Connect Life Engine deliberation through explicit CSD interfaces.** The Life Engine may propose intentions; CSD accepts durable state transitions. Keep empty `no_op` deliberations cheap and avoid manufacturing goals to satisfy a scheduler.
+4. **Connect a real deliberator/provider in pending or shadow mode only after local Windows verification.** The Life Engine now has a CSD sink for candidate creation and activation; no real model provider is connected. Keep empty `no_op` deliberations cheap and avoid manufacturing goals to satisfy a scheduler.
 5. **Develop self-initiated activity and diary behavior.** No daily quota, no forced wake-up task, no requirement to save every draft.
 6. **Define ASM handoff and permission model before any side-effecting platform action.**
 7. **Only then build the first read-only Bilibili adapter and evaluate actual video/audio comprehension.**
@@ -167,16 +183,16 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by CI: `6f1ff70026c7234ae452581e1d2f01cc5416c73d`, workflow run #205.
-- Latest branch head: `87cb1cf5fcfc677358d450af6cb540d68b6c2f63` (goal activation implementation-review documentation commit).
+- Latest code/test commit verified by hosted CI: `a04137532bee50b036a409209b9e66bdc884f866`, workflow run #230 (297 tests passed on Ubuntu and Windows).
+- Latest branch head before this progress-ledger update: `8b8c599ffd1560f875d0e2b24b7f9dd7c0bfc772` (goal activation hosted-test report documentation commit).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
 - `python -m unittest discover -s tests -v` passed: 281 tests on both Linux and Windows (Linux 2.064s; Windows 14.982s).
-- Schema v3 now includes durable goal proposal, version, and latest-goal projections. Legacy v1→v3 migration and the v2→v3 goal-table migration are covered.
+- Schema v4 includes durable candidate-goal and activation proposal projections, goal-version history, and latest-goal state. Legacy v1→v4 migration and v3→v4 activation migration are covered.
 - Goal batch acceptance is atomic; accepted candidates increment shared state_version once regardless of batch size. Stale proposals defer without rebasing. Exact source signal versions are resolved at the decision event sequence.
-- The Life Engine snapshot reader now includes persisted candidate goals. Activity options remain empty pending a trusted capability-filtered source.
-- Detailed goal-state results and limitations: `docs/reports/csd-goal-state-integration-test-report-001.md`. Motivation integration history: `docs/reports/csd-motivation-integration-test-report-001.md`.
+- The Life Engine snapshot reader includes versioned candidate/active goals. A narrow CSD sink can persist candidate-goal and explicit activation proposals; activity options remain empty pending a trusted capability-filtered source.
+- Detailed goal-state results: `docs/reports/csd-goal-state-integration-test-report-001.md`; activation results: `docs/reports/csd-goal-activation-hosted-test-report-001.md`. Motivation integration history: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted tests do not establish adapter authenticity, semantic truth, subjective desire, or autonomous cognition.
 
-**Resume from section 4: implement the candidate→active goal activation slice using the reviewed constraints in `docs/design/csd-goal-activation-proposal.md` Section 11.** The review requires a distinct activation event family/projection, schema v3→v4 migration, proposal identity/idempotency, exact prior goal-version validation, accepted-only shared state_version increment, sequence-aware projection reconciliation, and Recovery. Preserve original goal origin and source signal-version lineage. Activation must not start an activity or grant capabilities. Do not implement external activity execution until ASM governance is defined. Windows-local verification remains pending.**
+**Resume from section 4: first run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** Hosted Linux and Windows CI now pass 297 tests for the goal-activation implementation, but local verification, process-interruption, backup/recovery, and durability checks remain open. After local validation, continue adversarial event/replay review, then design the remaining goal lifecycle transitions and connect a real deliberator in pending/shadow mode. Do not implement external activity execution until ASM governance and OS-level isolation are defined.**
