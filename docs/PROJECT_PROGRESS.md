@@ -164,4 +164,4 @@ At the time of this update:
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
 
-**Resume from section 4: continue event replay/idempotency review, then arrange Windows-local verification; the Life Engine snapshot-origin/voluntary-lineage contract passed run #161 and timestamp validation passed run #163.**
+**Resume from section 4: continue event replay/idempotency review, then arrange Windows-local verification; the Life Engine snapshot-origin/voluntary-lineage contract passed run #161 and timestamp validation passed run #163. The snapshot contract now separates subject, supporting evidence, and counterevidence; its CI run is pending after test-fixture updates.**
