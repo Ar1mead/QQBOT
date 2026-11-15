@@ -15,6 +15,10 @@ from core.csd import (
     MOTIVATION_PROPOSAL_EVENT,
 )
 from core.csd.cognitive import OBSERVATION_EVENT
+from core.csd.goals import (
+    GOAL_ACTIVATION_DECISION_EVENT,
+    GOAL_ACTIVATION_PROPOSAL_EVENT,
+)
 from core.life_engine import CognitiveStoreLifeSnapshotReader
 
 
@@ -537,3 +541,205 @@ class CSDGoalStateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def goal_activation_event(
+    proposal_id: str,
+    goal_id: str,
+    *,
+    state_version: int,
+    expected_goal_version: int = 1,
+    rationale: str = "I choose to pursue this goal for now.",
+    event_id: str | None = None,
+):
+    return event(
+        event_id or f"goal-activation-proposal-event-{proposal_id}",
+        GOAL_ACTIVATION_PROPOSAL_EVENT,
+        "life-goal-activation-proposal:test.deliberator",
+        {
+            "proposal_id": proposal_id,
+            "based_on": {"state_version": state_version},
+            "goal_id": goal_id,
+            "expected_goal_version": expected_goal_version,
+            "rationale": rationale,
+            "origin": {"component": "test.deliberator", "version": "0.1"},
+            "contract_version": "life.goal_activation_proposed.v1",
+        },
+    )
+
+
+class CSDGoalActivationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.path = Path(self.temp_dir.name) / "activation.sqlite3"
+        self.store = CognitiveMemoryStore(self.path)
+
+    def tearDown(self):
+        try:
+            self.store.close()
+        except sqlite3.ProgrammingError:
+            pass
+        self.temp_dir.cleanup()
+
+    def create_candidate(self, suffix="activation"):
+        signal_id = add_internal_signal(self.store, suffix)
+        version = self.store.get_state_snapshot()["state_version"]
+        proposal_id = f"candidate-{suffix}"
+        self.store.submit_event(goal_event(proposal_id, [signal_id], state_version=version))
+        result = self.store.evaluate_goal_batch_proposal(proposal_id)
+        self.assertEqual(result["status"], "accepted")
+        return f"goal-{proposal_id}", signal_id
+
+    def test_explicit_activation_creates_version_two_and_increments_state_once(self):
+        goal_id, signal_id = self.create_candidate()
+        before = self.store.get_state_snapshot()["state_version"]
+        candidate = self.store.get_goal(goal_id)
+        self.assertEqual(candidate["status"], "candidate")
+        self.assertEqual(candidate["goal_version"], 1)
+
+        proposal = goal_activation_event(
+            "activate-once", goal_id, state_version=before
+        )
+        self.store.submit_event(proposal)
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], before)
+
+        result = self.store.evaluate_goal_activation_proposal("activate-once")
+        self.assertEqual(result["status"], "accepted")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], before + 1)
+
+        active = self.store.get_goal(goal_id)
+        self.assertEqual(active["status"], "active")
+        self.assertEqual(active["goal_version"], 2)
+        self.assertEqual(active["origin_class"], candidate["origin_class"])
+        self.assertEqual(active["origin_signal_refs"], candidate["origin_signal_refs"])
+        self.assertEqual(active["origin_signal_refs"], [{"signal_id": signal_id, "signal_version": 1}])
+        self.assertEqual(active["proposal_id"], candidate["proposal_id"])
+        self.assertEqual(active["proposal_event_id"], candidate["proposal_event_id"])
+        self.assertEqual(active["created_at"], candidate["created_at"])
+        self.assertEqual(active["activation_proposal_id"], "activate-once")
+        self.assertNotIn("activity_id", active)
+        self.assertNotIn("capability", active)
+
+    def test_stale_shared_state_version_is_deferred_without_rebasing(self):
+        goal_id, signal_id = self.create_candidate("stale-state")
+        old_version = self.store.get_state_snapshot()["state_version"]
+        add_internal_signal(self.store, "stale-state-later")
+        current = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "stale-state-activation", goal_id, state_version=old_version
+        ))
+        result = self.store.evaluate_goal_activation_proposal("stale-state-activation")
+        self.assertEqual(result["status"], "deferred")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], current)
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "candidate")
+
+    def test_stale_goal_version_is_deferred(self):
+        goal_id, _ = self.create_candidate("stale-goal-version")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "stale-goal-version-activation", goal_id,
+            state_version=version, expected_goal_version=7,
+        ))
+        result = self.store.evaluate_goal_activation_proposal("stale-goal-version-activation")
+        self.assertEqual(result["status"], "deferred")
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "candidate")
+        self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 1)
+
+    def test_unknown_goal_is_rejected(self):
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "unknown-goal-activation", "missing-goal", state_version=version
+        ))
+        result = self.store.evaluate_goal_activation_proposal("unknown-goal-activation")
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(self.store.get_goals(), [])
+
+    def test_already_active_goal_cannot_be_activated_twice(self):
+        goal_id, _ = self.create_candidate("twice")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "first-activation", goal_id, state_version=version
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_activation_proposal("first-activation")["status"],
+            "accepted",
+        )
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "second-activation", goal_id, state_version=version, expected_goal_version=2
+        ))
+        result = self.store.evaluate_goal_activation_proposal("second-activation")
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 2)
+
+    def test_two_proposals_for_same_candidate_cannot_both_activate(self):
+        goal_id, _ = self.create_candidate("race")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event("race-a", goal_id, state_version=version))
+        self.store.submit_event(goal_activation_event("race-b", goal_id, state_version=version))
+        self.assertEqual(self.store.evaluate_goal_activation_proposal("race-a")["status"], "accepted")
+        self.assertEqual(self.store.evaluate_goal_activation_proposal("race-b")["status"], "deferred")
+        self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 2)
+
+    def test_activation_proposal_identity_conflict_rolls_back(self):
+        goal_id, _ = self.create_candidate("identity")
+        version = self.store.get_state_snapshot()["state_version"]
+        first = goal_activation_event("same-activation-id", goal_id, state_version=version)
+        self.store.submit_event(first)
+        before = self.store.get_state_snapshot()["event_count"]
+        conflicting = goal_activation_event(
+            "same-activation-id", goal_id, state_version=version,
+            rationale="Different immutable rationale.", event_id="different-activation-event",
+        )
+        with self.assertRaises(ValueError):
+            self.store.submit_event(conflicting)
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], before)
+
+    def test_recovery_rebuilds_active_goal_from_authoritative_events(self):
+        goal_id, _ = self.create_candidate("recovery-active")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "recovery-activation", goal_id, state_version=version
+        ))
+        self.store.evaluate_goal_activation_proposal("recovery-activation")
+        self.store._db.execute("UPDATE goals SET goal_json='{}' WHERE goal_id=?", (goal_id,))
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_goal(goal_id)
+        recovered = self.store.recover()
+        self.assertEqual(recovered["goals"], 1)
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "active")
+        self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 2)
+
+    def test_activation_projection_tampering_is_detected_and_recovered(self):
+        goal_id, _ = self.create_candidate("activation-projection")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "projection-activation", goal_id, state_version=version
+        ))
+        self.store.evaluate_goal_activation_proposal("projection-activation")
+        self.store._db.execute(
+            "UPDATE goal_activation_proposals SET status='pending' WHERE proposal_id='projection-activation'"
+        )
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_goals()
+        self.store.recover()
+        self.assertEqual(
+            self.store.get_goal_proposal("candidate-activation")["status"], "accepted"
+        )
+        self.assertEqual(self.store.get_goal(goal_id)["status"], "active")
+
+    def test_v3_database_migrates_to_v4_activation_projection(self):
+        self.store.close()
+        db = sqlite3.connect(self.path)
+        db.execute("DROP TABLE goal_activation_proposals")
+        db.execute("PRAGMA user_version = 3")
+        db.commit()
+        db.close()
+        self.store = CognitiveMemoryStore(self.path)
+        version = int(self.store._db.execute("PRAGMA user_version").fetchone()[0])
+        self.assertEqual(version, 4)
+        self.assertIsNotNone(self.store._db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='goal_activation_proposals'"
+        ).fetchone())
+
+
