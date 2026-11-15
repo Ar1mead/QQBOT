@@ -140,14 +140,46 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
     def add_proposal(self, event):
         return self.store.submit_event(event)
 
-    def test_migration_creates_schema_v2_and_preserves_existing_event_data(self):
-        first = self.add_interaction(interaction("interaction-1"))
-        self.add_proposal(motivation_proposal("proposal-migration"))
-        accepted = self.store.evaluate_motivation_proposal("proposal-migration")
-        self.assertEqual(accepted["status"], "accepted")
-        before_events = self.store.get_state_snapshot()["event_count"]
-        before_signals = self.store.get_motivation_signals()
+    def test_migration_creates_schema_v2_and_preserves_v1_memory_data(self):
+        observation = envelope(
+            "migration-observation",
+            OBSERVATION_EVENT,
+            "test.observation",
+            {
+                "observation_id": "obs-migration",
+                "observation_kind": "text_fixture",
+                "content": "A legacy observation retained through schema migration.",
+                "source_ref": "fixture://migration",
+                "observed_at": "2026-11-14T09:00:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+            at="2026-11-14T09:00:00+00:00",
+        )
+        self.store.submit_event(observation)
+        proposal = envelope(
+            "migration-memory-proposal-event",
+            PROPOSAL_EVENT,
+            "test.memory-provider",
+            {
+                "proposal_id": "migration-memory-proposal",
+                "memory_kind": "episodic_candidate",
+                "candidate_content": "A legacy memory candidate retained through migration.",
+                "evidence_event_ids": ["migration-observation"],
+                "origin": {"component": "test.memory-provider", "version": "0.1"},
+                "uncertainty": {"label": "fixture", "confidence": None},
+                "based_on": {"state_version": 0},
+                "operation": "create",
+            },
+            at="2026-11-14T09:01:00+00:00",
+        )
+        self.store.submit_event(proposal)
+        decision = self.store.evaluate_proposal("migration-memory-proposal")
+        self.assertEqual(decision["status"], "accepted")
+        before = self.store.get_state_snapshot()
+        before_memory = self.store.get_memory("migration-memory-proposal")
 
+        # Reconstruct the actual v1 table shape: legacy event/proposal/memory
+        # tables remain, while v2-only motivation projection tables do not exist.
         self.store.close()
         connection = sqlite3.connect(self.db_path)
         connection.execute("DROP TABLE motivation_signal_versions")
@@ -158,11 +190,20 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         connection.close()
 
         self.store = CognitiveMemoryStore(self.db_path)
+        after = self.store.get_state_snapshot()
         version = int(self.store._db.execute("PRAGMA user_version").fetchone()[0])
         self.assertEqual(version, 2)
-        self.assertEqual(self.store.get_state_snapshot()["event_count"], before_events)
-        self.assertEqual(self.store.get_motivation_signals(), before_signals)
-        self.assertEqual(self.store.get_event("interaction-1")["event_type"], INTERACTION_EVENT)
+        self.assertEqual(after["event_count"], before["event_count"])
+        self.assertEqual(after["state_version"], before["state_version"])
+        self.assertEqual(after["accepted_memory_count"], before["accepted_memory_count"])
+        self.assertEqual(
+            self.store.get_memory("migration-memory-proposal"),
+            before_memory,
+        )
+        self.assertEqual(
+            self.store.get_event("migration-observation")["event_type"],
+            OBSERVATION_EVENT,
+        )
 
     def test_fresh_schema_is_v2(self):
         self.assertEqual(
