@@ -724,7 +724,7 @@ class CSDGoalActivationTests(unittest.TestCase):
             self.store.get_goals()
         self.store.recover()
         self.assertEqual(
-            self.store.get_goal_proposal("candidate-activation")["status"], "accepted"
+            self.store.get_goal_proposal("candidate-activation-projection")["status"], "accepted"
         )
         self.assertEqual(self.store.get_goal(goal_id)["status"], "active")
 
