@@ -55,7 +55,7 @@ class MotivationSignal:
 class GoalState:
     goal_id: str
     desired_condition: str
-    status: Literal["active", "paused", "blocked"]
+    status: Literal["candidate", "active", "paused", "blocked", "satisfied", "abandoned", "superseded"]
     evidence_event_ids: tuple[str, ...] = ()
 
 
@@ -248,7 +248,7 @@ def validate_life_proposal(
             raise ValueError("goal_id must be non-empty")
         if goal.goal_id in goal_by_id:
             raise ValueError(f"duplicate goal_id: {goal.goal_id}")
-        if goal.status not in {"active", "paused", "blocked"}:
+        if goal.status not in {"candidate", "active", "paused", "blocked", "satisfied", "abandoned", "superseded"}:
             raise ValueError(f"unsupported current goal status: {goal.status}")
         _unique_nonempty(goal.evidence_event_ids, "goal.evidence_event_ids")
         goal_by_id[goal.goal_id] = goal
@@ -280,7 +280,7 @@ def validate_life_proposal(
         if not set(option.serves_goal_ids).issubset(goal_by_id):
             raise ValueError(f"activity {option.activity_id} references unknown goal")
         if any(goal_by_id[item].status != "active" for item in option.serves_goal_ids):
-            raise ValueError(f"activity {option.activity_id} cannot target a paused or blocked goal")
+            raise ValueError(f"activity {option.activity_id} cannot target an inactive goal")
         activity_by_id[option.activity_id] = option
 
     active_activity_ids = _unique_nonempty(
@@ -436,6 +436,14 @@ def validate_life_proposal(
         current_goal = goal_by_id[choice.goal_id]
         if choice.disposition == "pause_goal" and current_goal.status != "active":
             raise ValueError("pause_goal requires an active goal")
+        if choice.disposition == "abandon_goal" and current_goal.status not in {
+            "candidate", "active", "paused", "blocked"
+        }:
+            raise ValueError("abandon_goal requires a non-terminal goal")
+        if choice.disposition == "revise_goal" and current_goal.status not in {
+            "candidate", "active", "paused", "blocked"
+        }:
+            raise ValueError("revise_goal requires a non-terminal goal")
     elif choice.disposition in {"wait", "request_information", "decline", "no_op"}:
         if choice.activity_id is not None or choice.active_activity_id is not None:
             raise ValueError(f"{choice.disposition} cannot select an activity")
