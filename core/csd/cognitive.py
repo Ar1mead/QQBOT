@@ -350,7 +350,18 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             return self.db
 
         def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> bool:
-            self.db.execute("COMMIT" if exc_type is None else "ROLLBACK")
+            if exc_type is not None:
+                if self.db.in_transaction:
+                    self.db.rollback()
+                return False
+            try:
+                self.db.commit()
+            except Exception:
+                # SQLite may leave the transaction active when COMMIT itself fails
+                # (for example, a deferred constraint or a transient lock error).
+                if self.db.in_transaction:
+                    self.db.rollback()
+                raise
             return False
 
     def _tx(self) -> "CognitiveMemoryStore._Tx":
