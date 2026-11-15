@@ -24,13 +24,14 @@ def signal(
     kind="interest",
     interest_stage=None,
     voluntary_encounters=(),
+    evidence_event_ids=("evt-source-1",),
 ):
     return MotivationSignal(
         signal_id=signal_id,
         kind=kind,
         origin_class=origin_class,
         description="A synthetic motivation signal.",
-        evidence_event_ids=("evt-source-1",),
+        evidence_event_ids=evidence_event_ids,
         active=active,
         scope="synthetic topic scope",
         interest_stage=interest_stage,
@@ -263,6 +264,7 @@ class LifeProposalValidationTests(unittest.TestCase):
             "user_requested_encounter",
             kind="interest",
             interest_stage="emerging",
+            evidence_event_ids=("evt-source-1", "evt-source-2"),
             voluntary_encounters=(
                 ("enc-1", "2026-11-14T10:00:00+00:00", "evt-source-1"),
                 ("enc-2", "2026-11-15T10:00:00+00:00", "evt-source-2"),
