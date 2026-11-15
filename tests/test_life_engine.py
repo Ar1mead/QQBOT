@@ -636,5 +636,47 @@ class LifeEngineOrchestrationTests(unittest.TestCase):
         self.assertFalse(hasattr(engine, "action_executor"))
 
 
+class GoalActivationChoiceTests(unittest.TestCase):
+    def test_activation_requires_candidate_and_exact_goal_version(self):
+        candidate = GoalState(
+            "goal-candidate", "Explore the subject", "candidate",
+            ("evt-goal-origin",), goal_version=3,
+        )
+        snap = snapshot(goals=(candidate,))
+        selected = choice(
+            "activate_goal", goal_id="goal-candidate", expected_goal_version=3,
+        )
+        validated = validate_life_proposal(snap, proposal(snap, selected))
+        self.assertEqual(validated.proposal.choice.disposition, "activate_goal")
+
+    def test_activation_rejects_non_candidate_goal(self):
+        active = GoalState("goal-active", "Continue the subject", "active", goal_version=2)
+        snap = snapshot(goals=(active,))
+        selected = choice(
+            "activate_goal", goal_id="goal-active", expected_goal_version=2,
+        )
+        with self.assertRaises(ValueError):
+            validate_life_proposal(snap, proposal(snap, selected))
+
+    def test_activation_rejects_stale_goal_version(self):
+        candidate = GoalState("goal-candidate", "Explore the subject", "candidate", goal_version=4)
+        snap = snapshot(goals=(candidate,))
+        selected = choice(
+            "activate_goal", goal_id="goal-candidate", expected_goal_version=3,
+        )
+        with self.assertRaises(ValueError):
+            validate_life_proposal(snap, proposal(snap, selected))
+
+    def test_activation_cannot_start_or_continue_an_activity_in_same_choice(self):
+        candidate = GoalState("goal-candidate", "Explore the subject", "candidate", goal_version=1)
+        snap = snapshot(goals=(candidate,))
+        selected = choice(
+            "activate_goal", goal_id="goal-candidate", expected_goal_version=1,
+            activity_id="activity-read",
+        )
+        with self.assertRaises(ValueError):
+            validate_life_proposal(snap, proposal(snap, selected))
+
+
 if __name__ == "__main__":
     unittest.main()
