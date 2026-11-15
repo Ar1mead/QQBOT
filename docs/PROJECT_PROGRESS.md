@@ -87,24 +87,32 @@ The current work connects motivation signals to the same CSD event stream as cog
 - [x] Added `core/csd/motivation.py` with interaction provenance validation, motivation proposal validation, CSD-side deterministic decision preparation, signal lifecycle projection, retrieval, and projection consistency checks.
 - [x] Added interaction events, motivation proposal events, and CSD-authoritative motivation decision events to the CSD event model.
 - [x] Added a SQLite schema migration from cognitive-store schema v1 to v2 for motivation proposal/signal projections.
+- [x] Added schema v2 to v3 migration for durable goal proposals, goal versions, and latest-goal projections.
 - [x] Changed global `state_version` to count accepted memory and motivation state transitions, while validating the memory and motivation projections independently.
 - [x] Added Recovery rebuilding for motivation proposals and signal projections from the shared event history; Recovery does not call a model/provider or execute external actions.
 - [x] Added `tests/test_csd_motivation.py` with migration, provenance, idempotency, origin preservation, signal lifecycle, global version, transaction rollback, and Recovery scenarios.
 - [x] Updated the workflow path filters and test step so `test_csd_motivation.py` is included for both pushes and pull requests.
 - [x] Run `python -m compileall -q core tests` against the exact branch checkout (GitHub Actions, Linux and Windows runners).
-- [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (268 tests passed).
-- [x] Fix the migration test fixture and update this ledger with the exact result; the earlier fixture represented an impossible v1 database state.
-- [x] Confirm a successful GitHub Actions run for the current branch: run #192, commit `8bda3235f49825668b7091f72b6c232164dd3fe6`.
+- [x] Run `python -m unittest discover -s tests -v` against the exact branch checkout (279 tests passed).
+- [x] Verify legacy v1→v3 migration and the schema v2→v3 goal-table migration.
+- [x] Confirm a successful GitHub Actions run for the goal-state implementation: run #204, code/test commit `2466c450c57baf00d45f3fb0c79d478652fd371e`.
 - [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
 - [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; return-visit semantics are covered by run #142; event/payload digest checks cover motivation proposals, decisions, referenced interaction evidence, and authoritative state-version reads (runs #144 and #146). Pending proposal evidence is validated before retrieval; run #148 passed. Life Engine origin derivation now uses supporting evidence only, matching CSD; pause evidence and contextual-stage restrictions also align; run #152 passed. CSD now rejects maturity requests on pause/weaken/resolve proposals. Runs #153–#155 exposed two test-fixture defects; both were corrected and run #156 passed. Life Engine/CSD origin derivation and pause/contextual-stage validation are aligned. Lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains. A new Life Engine snapshot-contract change now carries CSD origin_class, interest_stage, and voluntary-encounter lineage so evolved user-origin interests are not misrepresented as purely internal; regression tests passed in run #161. Runs #157–#160 exposed remaining legacy test constructors that still used raw origin strings; these have been converted to CSD origin classes. Timezone-aware voluntary-encounter timestamp validation passed in run #163. Subject identity and support/counterevidence separation passed in run #166. A follow-up adversarial check found that CSD and Life Engine compared ISO-8601 timestamp strings rather than normalized instants; equivalent instants written with different offsets could falsely count as two voluntary encounters. Both layers now normalize timestamps to UTC before maturity checks, with regression tests passed in CI run #171. The pure CSD signal mapper and real-signal mapping passed runs #178/#179; the atomic CSD signal snapshot read and Life Engine reader passed run #186; exact goal source-version lineage passed run #189; and candidate/active/terminal goal lifecycle validation passed run #192.
-- [x] Run the full suite on a GitHub-hosted Windows runner (268 tests, Python 3.12.10 / SQLite 3.49.1); this is a cross-platform CI check, not the user's own Windows 11 environment.
+- [x] Run the full suite on a GitHub-hosted Windows runner (279 tests, Python 3.12.10 / SQLite 3.49.1; 40.160s); this is a cross-platform CI check, not the user's own Windows 11 environment.
 - [ ] Only after the above: run the tests on the user's Windows environment.
 
 Important implementation boundary: the current CSD motivation decision path is deterministic scaffolding. It does not yet infer authentic human-like interests, feelings, needs, or desires; it does not authenticate adapter identity; and it does not establish that the evidence source is truthful. A caller-supplied adapter string is provenance metadata, not a security credential. Do not describe this slice as autonomous motivation or a complete cognitive system.
 
-### 3.5 CSD goal-state integration design
+### 3.5 CSD goal-state integration
 
-- [~] Drafted and adversarially reviewed `docs/design/csd-goal-state-integration-proposal.md`. Review clarified that proposal events do not increment shared state_version; only a non-empty accepted candidate batch increments it once; empty no-op deliberations do not enter the goal sink; stale proposals receive one deferred decision and are never rebased; decision identity is proposal-scoped; replay must resolve signal versions as of the decision sequence. These are implementation clarifications, not a frozen CSD/ASM specification. Durable goal persistence is not yet implemented.
+- [x] Reviewed `docs/design/csd-goal-state-integration-proposal.md` against the actual CSD event append, state-version, projection, and Recovery paths. Implementation clarifications are recorded in Section 11; the broader proposal remains unfrozen.
+- [x] Implemented the first durable CSD goal-state slice on schema v3: `life.goal_batch_proposed.v1` and CSD-reserved `life.goal_batch_decided.v1`; proposal identity/digest checks; exact historical source signal-version resolution; CSD-derived origin; atomic multi-goal candidate creation; proposal-scoped one-decision identity; shared state_version update once per accepted batch; stale deferral without rebasing; event-backed proposal/goal/version projections; deterministic Recovery; and Life Engine snapshot mapping for persisted goals.
+- [x] Added `tests/test_csd_goals.py` for candidate persistence, no-op coexistence, stale deferral, missing source rejection, identity conflicts, CSD decision-path protection, user/mixed origin derivation, multi-goal atomicity, and Recovery.
+- [x] Added schema v2→v3 goal projection migration and extended the v1 legacy migration test through v3.
+- [x] Verified the exact implementation on GitHub-hosted Linux and Windows in Actions run #204: 279 tests passed on each platform; compileall and all individual test steps passed. See `docs/reports/csd-goal-state-integration-test-report-001.md`.
+- [ ] Verify the project on the user's own Windows 11 / Python 3.12.14 environment when the repository is ready and cloned.
+- [~] This slice persists candidates only; activation, lifecycle transitions, priorities, and execution remain out of scope.
+
 
 ## 5. Specification status and constraints
 
@@ -127,10 +135,10 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 ## 7. Next work queue
 
-1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation and memory projections reconcile against event history. The return-visit rule is verified: the current return is the voluntary choice; the prior linked interaction may be passive exposure or user-requested. A global encounter-ID uniqueness rule was tested and reverted because one encounter may legitimately contain multiple interaction events.
-2. **Run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** This is the remaining platform-specific verification step once the remote branch is stable.
-3. **Implement the first durable CSD goal-state slice from the reviewed proposal.** Add proposal/decision events, atomic candidate-batch persistence, exact historical signal-version lineage, projection reconciliation, and deterministic Recovery. Keep activation and execution out of scope. The implementation clarifications are recorded in Section 11 of the proposal; the broader specification remains unfrozen. Then continue separating memory, motivation, goal, affect, commitment, and diary state without creating competing authorities.
-4. **Connect Life Engine through explicit CSD interfaces.** The Life Engine may propose intentions; CSD accepts durable state transitions.
+1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Motivation, memory, and goal projections now reconcile against authoritative events. Continue looking for coordinated projection corruption, invalid event order, and migration/recovery edge cases.
+2. **Run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** This remains pending until the repository is ready and cloned.
+3. **Expand durable goal lifecycle only after a separate design review.** Candidate creation is implemented. Define activation, pause, block, satisfaction, abandonment, supersession, and revision as distinct CSD transitions; do not bundle them into one generic goal update. Preserve the distinction between having a candidate and choosing to pursue it.
+4. **Connect Life Engine deliberation through explicit CSD interfaces.** The Life Engine may propose intentions; CSD accepts durable state transitions. Keep empty `no_op` deliberations cheap and avoid manufacturing goals to satisfy a scheduler.
 5. **Develop self-initiated activity and diary behavior.** No daily quota, no forced wake-up task, no requirement to save every draft.
 6. **Define ASM handoff and permission model before any side-effecting platform action.**
 7. **Only then build the first read-only Bilibili adapter and evaluate actual video/audio comprehension.**
@@ -158,14 +166,16 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by CI: `8bda3235f49825668b7091f72b6c232164dd3fe6`, workflow run #192. The Life Engine snapshot contract preserves CSD origin, voluntary lineage, subject identity, and support/counterevidence polarity.
-- Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
-- `python -m compileall -q core tests` passed.
-- `python -m unittest discover -s tests -v` passed: 268 tests on both Linux and Windows runners (Linux 1.365s; Windows 18.371s).
-- The v1→v2 migration test uses legacy-only event history; a separate injected-failure test confirms partial DDL rollback.
-- Motivation and accepted-memory proposal/state projections are checked against authoritative events; corruption tests verify Recovery repair.
-- Detailed results and limitations: `docs/reports/csd-motivation-integration-test-report-001.md`.
+- Latest code/test commit verified by CI: `2466c450c57baf00d45f3fb0c79d478652fd371e`, workflow run #204.
+- Latest branch head before this progress-ledger update: `f5f3a41619d1cd9fd9a084695d67bad0dca310b9` (goal-state test report documentation commit).
+- Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
+- `python -m compileall -q core tests` passed on both runners.
+- `python -m unittest discover -s tests -v` passed: 279 tests on both Linux and Windows (Linux 2.046s; Windows 40.160s).
+- Schema v3 now includes durable goal proposal, version, and latest-goal projections. Legacy v1→v3 migration and the v2→v3 goal-table migration are covered.
+- Goal batch acceptance is atomic; accepted candidates increment shared state_version once regardless of batch size. Stale proposals defer without rebasing. Exact source signal versions are resolved at the decision event sequence.
+- The Life Engine snapshot reader now includes persisted candidate goals. Activity options remain empty pending a trusted capability-filtered source.
+- Detailed goal-state results and limitations: `docs/reports/csd-goal-state-integration-test-report-001.md`. Motivation integration history: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
-- Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
+- Hosted tests do not establish adapter authenticity, semantic truth, subjective desire, or autonomous cognition.
 
-**Resume from section 4: implement the first durable CSD goal-state slice.** The goal-state proposal was reviewed against the actual event append, shared state_version, projection, and Recovery paths. See Section 11 of `docs/design/csd-goal-state-integration-proposal.md` for required clarifications: proposal events do not advance state_version; empty no-op batches are not submitted; stale proposals defer without rebasing; decision identity is deterministic; exact signal versions must be resolved as of the decision event sequence; and accepted batches are atomic. The proposal remains unfrozen. No durable goal sink exists yet. The Life Engine reader still returns empty goals/activity options. Windows-local verification remains pending.
+**Resume from section 4: continue design and implementation of distinct goal lifecycle transitions, without conflating candidate persistence with activation or execution.** The current goal-state design proposal remains unfrozen. See its Section 11 for implementation invariants. Next, design activation as a separate CSD-authoritative transition and examine whether it should require an explicit Life Engine choice, additional evidence, or another deliberation event. Do not implement external activity execution until ASM governance is defined. Windows-local verification remains pending.**
