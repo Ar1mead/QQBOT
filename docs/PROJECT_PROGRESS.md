@@ -100,7 +100,7 @@ Reference files:
 
 - [x] Drafted `docs/design/csd-goal-lifecycle-proposal.md` to distinguish pause from blocked, define terminal states, preserve goal/source lineage, and specify version/Recovery invariants.
 - [x] Selected pause/resume as the first low-risk follow-on slice in the proposal; blocked/unblocked remains dependent on trusted ASM/prerequisite evidence, while satisfied/superseded/revise require their own evidence and atomicity review.
-- [ ] Implement CSD-authoritative pause/resume proposal and decision events, exact state/goal version checks, atomic goal version updates, reconciliation, Recovery, and Life Engine sink support.
+- [~] Implemented CSD-authoritative pause/resume proposal and decision events, exact state/goal version checks, atomic goal version updates, reconciliation, Recovery, and Life Engine sink support; migration, atomicity, and behavior tests are awaiting hosted CI.
 - [ ] Keep blocked, satisfied, abandoned, superseded, and revise unimplemented until their operation-specific evidence and authority contracts are reviewed.
 
 ## 4. Current work in progress — CSD motivation integration
@@ -197,11 +197,11 @@ At the time of this update:
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
 - `python -m unittest discover -s tests -v` passed: 303 tests on both Linux and Windows (Linux 1.807s; Windows 13.509s).
-- Schema v4 includes durable candidate-goal and activation proposal projections, goal-version history, and latest-goal state. Legacy v1→v4 migration and v3→v4 activation migration are covered.
+- Schema v5 includes durable candidate-goal, activation, and pause/resume proposal projections, goal-version history, and latest-goal state. Legacy v1→v5, v3→v5, and v4→v5 migrations are covered by tests; pause/resume CI verification is pending.
 - Goal batch acceptance is atomic; accepted candidates increment shared state_version once regardless of batch size. Stale proposals defer without rebasing. Exact source signal versions are resolved at the decision event sequence.
 - The Life Engine snapshot reader includes versioned candidate/active goals. A narrow CSD sink can persist candidate-goal and explicit activation proposals; activity options remain empty pending a trusted capability-filtered source.
 - Detailed goal-state results: `docs/reports/csd-goal-state-integration-test-report-001.md`; activation results: `docs/reports/csd-goal-activation-hosted-test-report-001.md`; proposal chronology guard: `docs/reports/csd-goal-proposal-chronology-test-report-001.md`. Motivation integration history: `docs/reports/csd-motivation-integration-test-report-001.md`.
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted tests do not establish adapter authenticity, semantic truth, subjective desire, or autonomous cognition.
 
-**Resume from section 4: implement pause/resume as the next goal lifecycle slice, following `docs/design/csd-goal-lifecycle-proposal.md`.** The future-snapshot-version chronology guard is implemented and passed hosted CI (303 tests on Ubuntu and Windows). The user's own Windows 11 / Python 3.12.14 verification, process-interruption, backup/recovery, and durability checks remain open. Keep blocked/unblocked, satisfied, abandoned, superseded, and revise separate until their evidence and authority contracts are reviewed. Do not connect a real deliberator or implement external activity execution until local validation and ASM/OS-isolation boundaries are addressed.**
+**Resume from section 4: complete hosted CI for the pause/resume lifecycle slice, then continue its adversarial review.** The future-snapshot-version chronology guard is implemented and passed hosted CI (303 tests on Ubuntu and Windows). The user's own Windows 11 / Python 3.12.14 verification, process-interruption, backup/recovery, and durability checks remain open. Keep blocked/unblocked, satisfied, abandoned, superseded, and revise separate until their evidence and authority contracts are reviewed. Do not connect a real deliberator or implement external activity execution until local validation and ASM/OS-isolation boundaries are addressed.**
