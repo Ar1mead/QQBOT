@@ -96,7 +96,7 @@ The current work connects motivation signals to the same CSD event stream as cog
 - [x] Fix the migration test fixture and update this ledger with the exact result; the earlier fixture represented an impossible v1 database state.
 - [x] Confirm a successful GitHub Actions run for the current branch: run #148, commit `861393eceb42fe380b26f3bd3b69427d92268a4d`.
 - [x] Review v1→v2 migration against a legacy-schema fixture and verify rollback after an injected partial-DDL failure.
-- [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; return-visit semantics are covered by run #142; event/payload digest checks cover motivation proposals, decisions, referenced interaction evidence, and authoritative state-version reads (runs #144 and #146). Pending proposal evidence is validated before retrieval; run #148 passed. Lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
+- [~] Reconcile both motivation and accepted-memory proposal/state projections against authoritative events; tampering tests and Recovery repair pass. Duplicate motivation-proposal source-validation bypass is closed; user/platform origin references are checked against observation kinds; return-visit semantics are covered by run #142; event/payload digest checks cover motivation proposals, decisions, referenced interaction evidence, and authoritative state-version reads (runs #144 and #146). Pending proposal evidence is validated before retrieval; run #148 passed. A cross-module review found Life Engine origin derivation still included counterevidence; this has been changed to use supporting evidence only, with regression tests awaiting CI. Lifecycle tests cover create/reinforce/weaken/contextualize/pause/resolve. Broader event-schema, replay, and idempotency adversarial coverage remains.
 - [x] Run the full suite on a GitHub-hosted Windows runner (252 tests, Python 3.12.10 / SQLite 3.49.1); this is a cross-platform CI check, not the user's own Windows 11 environment.
 - [ ] Only after the above: run the tests on the user's Windows environment.
 
@@ -154,7 +154,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 ## 9. Current checkpoint
 
 At the time of this update:
-- Latest code/test commit verified by CI: `861393eceb42fe380b26f3bd3b69427d92268a4d`, workflow run #148; subsequent commits in this branch update only the report and progress ledger.
+- Latest code/test commit verified by CI: `861393eceb42fe380b26f3bd3b69427d92268a4d`, workflow run #148. Follow-up Life Engine commits `e28c5c9e8d895b4fae4a3a286e368c1ea1840a3c` and `e53cc72ecb7819177130b03f76b92f350fd9fa1f` align origin derivation with CSD; CI verification is pending.
 - Hosted CI passed on Ubuntu 26.04.1 (Python 3.12.16 / SQLite 3.46.1) and GitHub-hosted Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed.
 - `python -m unittest discover -s tests -v` passed: 252 tests on both Linux and Windows runners (Linux 1.702s; Windows 13.906s).
@@ -164,4 +164,4 @@ At the time of this update:
 - The user's local machine has not cloned this repository; Windows-local verification remains pending.
 - Hosted test success does not establish adapter authenticity, semantic truth, or autonomous motivation.
 
-**Resume from section 4: continue event payload/replay/idempotency adversarial review, then arrange Windows-local verification.**
+**Resume from section 4: verify the Life Engine/CSD origin-classification alignment, continue event replay/idempotency review, then arrange Windows-local verification.**
