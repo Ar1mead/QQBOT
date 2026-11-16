@@ -76,3 +76,6 @@ Direct reads of semantic-review events now bind each review to the unique earlie
 
 
 Follow-up verification: hosted GitHub Actions run #385 passed on Ubuntu and Windows with **353 tests per platform**, including the new decision-history and semantic-review provenance regressions. The same run also verified that historical motivation proposals remain readable after later signal lifecycle changes. This does not replace the user's own Windows 11 / Python 3.12.14 test, which remains deferred until the project is ready to clone.
+
+
+Grounded proposal reads now validate the chronology of any source event that already exists in the event log: a proposal cannot cite a later observation as earlier evidence, even after payload/envelope digests are recomputed. Existing observation sources are loaded through the normal integrity-checked read path. Missing source events remain pending (`needs_more_evidence`); semantically invalid but structurally durable candidates (non-observation references, mismatched quotes, invalid ranges) remain reviewable and are deterministically rejected by evaluation. Hosted GitHub Actions run #393 passed on Ubuntu and Windows with **355 tests per platform**, including regressions for future-evidence rebinding and corrupted source observations. User-local Windows 11 / Python 3.12.14 verification is still pending.
