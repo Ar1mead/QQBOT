@@ -146,6 +146,47 @@ class SemanticReviewStoreTests(unittest.TestCase):
     def add_review(self, **kwargs):
         return self.store.submit_event(self.make_review(**kwargs))
 
+    def test_get_event_rejects_schema_invalid_observation_with_valid_digests(self):
+        original = self.store.get_event("evt-review-source")
+        malformed_payload = dict(original["payload"])
+        malformed_payload["observation_kind"] = ""
+        malformed_json = canonical(malformed_payload)
+        new_payload_ref = "sha256:" + hashlib.sha256(
+            malformed_json.encode("utf-8")
+        ).hexdigest()
+        row = self.store._db.execute(
+            "SELECT received_at FROM events WHERE event_id=?",
+            (original["event_id"],),
+        ).fetchone()
+
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute("DROP TRIGGER payloads_no_update")
+        self.store._db.execute(
+            "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (new_payload_ref, malformed_json),
+        )
+        corrupted_event = CognitiveEvent(
+            event_id=original["event_id"],
+            occurred_at=original["occurred_at"],
+            correlation_id=original["correlation_id"],
+            event_type=original["event_type"],
+            source=original["source"],
+            payload=malformed_payload,
+        )
+        event_digest = self.store._event_digest(
+            corrupted_event, new_payload_ref, row["received_at"]
+        )
+        self.store._db.execute(
+            "UPDATE events SET payload_ref=?,event_digest=? WHERE event_id=?",
+            (new_payload_ref, event_digest, original["event_id"]),
+        )
+
+        from core.csd.cognitive import CognitiveIntegrityError
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "invalid prior event schema"
+        ):
+            self.store.get_event(original["event_id"])
+
     def test_no_review_keeps_proposal_pending_without_decision_event(self):
         self.submit_proposal()
         before = self.store.get_state_snapshot()["event_count"]
