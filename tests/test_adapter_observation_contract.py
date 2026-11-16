@@ -1,3 +1,4 @@
+import hashlib
 import unittest
 
 from adapters.contracts.observation import (
@@ -26,7 +27,9 @@ class ObservationContractTests(unittest.TestCase):
             observed_at="2026-11-16T10:00:00+00:00",
             received_at="2026-11-16T10:00:02+00:00",
             extraction_method="fixture",
-            content_digest="sha256:" + "a" * 64,
+            content_digest="sha256:" + hashlib.sha256(
+                b"sample text from an untrusted source"
+            ).hexdigest(),
             coverage=ObservationCoverage(
                 modality="text", extraction_method="fixture", complete=complete,
                 missing_ranges_ms=missing_ranges,
