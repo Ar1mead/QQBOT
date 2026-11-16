@@ -143,3 +143,12 @@ Hosted GitHub Actions run #385 passed on both Ubuntu and Windows. `python -m com
 - Regression: `tests/test_csd_motivation.py::test_get_event_rejects_motivation_decision_with_rebound_evidence_ids` tampers with an accepted motivation decision's evidence list, recomputes payload and envelope digests, and confirms direct read rejection.
 - Implementation commit: `f4617e1757cfc43cfe5082fca3b916f30cbc2f5d`; regression commit: `1197c1b0ae3cdbfbd560e1e8016b7fb6f1261a68`.
 - Hosted GitHub Actions run #419 passed on Ubuntu and Windows. Compileall and every focused test group passed; complete unittest discovery passed **359 tests per platform**. User-local Windows 11 / Python 3.12.14 verification remains pending.
+
+
+## Follow-up: goal decision direct-read replay validation
+
+- Direct reads of goal batch, activation, and pause/resume decision events now invoke the goal subsystem's sequence-ordered history replay and projection reconciliation. This re-derives candidate/active/paused goal transitions from the historical proposals and prior state, instead of trusting only the mutable goal projections or the decision envelope digest.
+- The goal replay's internal event reads suppress only the recursive decision-context callback; event envelope/schema checks still run, and the replay itself validates each decision against the proposal and goal state that existed before its sequence.
+- Added tamper regressions for all three decision families: `test_get_event_rejects_goal_batch_decision_with_rewritten_transition`, `test_get_event_rejects_activation_decision_with_rewritten_goal_version`, and `test_get_event_rejects_pause_resume_decision_with_rewritten_operation`. Each rewrites a valid decision payload and recomputes its content and envelope digests before requiring `CognitiveIntegrityError`.
+- Implementation commits: `7d8220d97c390b66ec2b0a446a882301172c237d` and `e7a012e6c423caa7fc4d6db27ad35bfbe5be2d0d`; regression commit: `197e7c9cd1303549268a6f45ae652f5a336417cf`.
+- Hosted GitHub Actions run #428 passed on Ubuntu and Windows. Compileall and every focused workflow group passed; complete unittest discovery passed **362 tests per platform**. User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
