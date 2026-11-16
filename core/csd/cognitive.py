@@ -670,9 +670,53 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             elif event.event_type == GOAL_PAUSE_RESUME_PROPOSAL_EVENT:
                 from .goals import _validate_goal_pause_resume_proposal
                 _validate_goal_pause_resume_proposal(event)
+            elif event.event_type in {
+                DECISION_EVENT, MOTIVATION_DECISION_EVENT,
+                GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
+                GOAL_PAUSE_RESUME_DECISION_EVENT,
+            }:
+                proposal_id = _nonempty(event.payload.get("proposal_id"), "decision.proposal_id")
+                outcome = _nonempty(event.payload.get("outcome"), "decision.outcome")
+                if outcome not in {"accepted", "rejected", "deferred", "needs_more_evidence"}:
+                    raise ValueError("unsupported durable decision outcome")
+                expected_identity = {
+                    DECISION_EVENT: (
+                        DECISION_SOURCE,
+                        f"csd-decision:{proposal_id}:"
+                        f"{int(db.execute('SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<=?', (DECISION_EVENT, sequence)).fetchone()[0])}",
+                        f"proposal:{proposal_id}",
+                    ),
+                    MOTIVATION_DECISION_EVENT: (
+                        MOTIVATION_DECISION_SOURCE,
+                        f"csd-motivation-decision:{proposal_id}:"
+                        f"{int(db.execute('SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<=?', (MOTIVATION_DECISION_EVENT, sequence)).fetchone()[0])}",
+                        f"motivation-proposal:{proposal_id}",
+                    ),
+                    GOAL_BATCH_DECISION_EVENT: (
+                        GOAL_DECISION_SOURCE,
+                        f"csd-goal-decision:{proposal_id}",
+                        f"goal-proposal:{proposal_id}",
+                    ),
+                    GOAL_ACTIVATION_DECISION_EVENT: (
+                        GOAL_DECISION_SOURCE,
+                        f"csd-goal-activation-decision:{proposal_id}",
+                        f"goal-activation-proposal:{proposal_id}",
+                    ),
+                    GOAL_PAUSE_RESUME_DECISION_EVENT: (
+                        GOAL_DECISION_SOURCE,
+                        f"csd-goal-pause-resume-decision:{proposal_id}",
+                        f"goal-pause-resume-proposal:{proposal_id}",
+                    ),
+                }[event.event_type]
+                if (
+                    event.source != expected_identity[0]
+                    or event.event_id != expected_identity[1]
+                    or event.correlation_id != expected_identity[2]
+                ):
+                    raise ValueError("durable decision authority or identity mismatch")
             else:
                 raise CognitiveIntegrityError(
-                    f"unsupported public duplicate event type: {event.event_type}"
+                    f"unsupported duplicate event type: {event.event_type}"
                 )
         except CognitiveIntegrityError:
             raise
