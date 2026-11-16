@@ -459,6 +459,35 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 db, event, payload_json, internal=internal
             )
 
+    def _validate_existing_evidence_history(
+        self,
+        db: sqlite3.Connection,
+        evidence_event_ids: Sequence[str],
+        *,
+        sequence: int,
+        proposal_family: str,
+    ) -> None:
+        """Validate chronology and source-observation integrity for available evidence.
+
+        Missing evidence remains a legitimate pending-proposal condition and is
+        handled by deterministic evaluation. Existing references must point
+        backward in the event log. Existing observations are read through the
+        ordinary integrity path before they can be trusted as source records.
+        """
+        for evidence_event_id in evidence_event_ids:
+            row = db.execute(
+                "SELECT sequence,event_type FROM events WHERE event_id=?",
+                (evidence_event_id,),
+            ).fetchone()
+            if row is None:
+                continue
+            if int(row["sequence"]) >= sequence:
+                raise CognitiveIntegrityError(
+                    f"{proposal_family} evidence must reference an earlier event"
+                )
+            if row["event_type"] == OBSERVATION_EVENT:
+                self.get_event(evidence_event_id)
+
     def _validate_grounded_proposal_event_history(
         self,
         db: sqlite3.Connection,
@@ -466,27 +495,12 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         *,
         sequence: int,
     ) -> None:
-        """Check chronology and integrity for any source observations already present.
-
-        Missing evidence remains a legitimate pending-proposal condition and is
-        handled by the deterministic evaluator. If a referenced event exists,
-        however, it cannot be later than the proposal. Existing observation
-        events are read through the ordinary integrity path before being trusted.
-        """
-        for evidence_event_id in self._grounded_evidence_event_ids(event.payload):
-            row = db.execute(
-                "SELECT sequence,event_type FROM events WHERE event_id=?",
-                (evidence_event_id,),
-            ).fetchone()
-            if row is None:
-                # Pending candidates may legitimately arrive before their evidence.
-                continue
-            if int(row["sequence"]) >= sequence:
-                raise CognitiveIntegrityError(
-                    "grounded proposal evidence must reference an earlier event"
-                )
-            if row["event_type"] == OBSERVATION_EVENT:
-                self.get_event(evidence_event_id)
+        self._validate_existing_evidence_history(
+            db,
+            self._grounded_evidence_event_ids(event.payload),
+            sequence=sequence,
+            proposal_family="grounded proposal",
+        )
 
     def _validate_proposal_snapshot_chronology(
         self,
@@ -834,6 +848,12 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 self._validate_observation(event.payload)
             elif event.event_type == PROPOSAL_EVENT:
                 self._validate_proposal(event.payload)
+                self._validate_existing_evidence_history(
+                    db,
+                    event.payload["evidence_event_ids"],
+                    sequence=sequence,
+                    proposal_family="memory proposal",
+                )
             elif event.event_type == GROUNDED_PROPOSAL_EVENT:
                 self._validate_grounded_proposal(event.payload)
                 self._validate_grounded_proposal_event_history(
