@@ -143,7 +143,7 @@ The follow-up projection-deduplication regression was changed from brittle SQL t
 
 - Added reusable in-memory `FakeObservationAdapter` under `adapters/testing/`; it records requests and returns a configured immutable observation result without network, filesystem, account, or external side effects.
 - Adapter contract tests now exercise the fake adapter and verify repeated calls return the configured result while preserving untrusted evidence.
-- Observation content digests are checked against SHA-256 of normalized UTF-8 content; a correctly shaped but incorrect digest is rejected.
+- Observation content digests are checked against SHA-256 of UTF-8 bytes of the content field; a correctly shaped but incorrect digest is rejected.
 - Latest code/test head at this checkpoint: `d3d4dfc772859e1604607e8b9f9c83bbe2fd5797`. The available PR-workflow lookup still shows no run for the new head; the CSD and Stage 0 changes remain unverified by a fresh hosted run.
 
 ### Additional life-snapshot replay deduplication
