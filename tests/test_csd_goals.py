@@ -521,6 +521,41 @@ class CSDGoalStateTests(unittest.TestCase):
             [{"signal_id": signal_id, "signal_version": 1}],
         )
 
+    def test_get_event_rejects_goal_decision_with_rebound_event_id_and_valid_digest(self):
+        signal_id = add_internal_signal(self.store, "read-identity")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(
+            goal_event("read-identity-goal", [signal_id], state_version=version)
+        )
+        result = self.store.evaluate_goal_batch_proposal("read-identity-goal")
+        decision_id = result["decision_event_id"]
+        stored = self.store.get_event(decision_id)
+        row = self.store._db.execute(
+            "SELECT payload_ref,received_at FROM events WHERE event_id=?",
+            (decision_id,),
+        ).fetchone()
+        forged_id = "csd-goal-decision:forged-proposal"
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        forged_event = CognitiveEvent(
+            event_id=forged_id,
+            occurred_at=stored["occurred_at"],
+            correlation_id=stored["correlation_id"],
+            event_type=stored["event_type"],
+            source=stored["source"],
+            payload=dict(stored["payload"]),
+        )
+        forged_digest = self.store._event_digest(
+            forged_event, row["payload_ref"], row["received_at"]
+        )
+        self.store._db.execute(
+            "UPDATE events SET event_id=?,event_digest=? WHERE event_id=?",
+            (forged_id, forged_digest, decision_id),
+        )
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "decision event authority, identity"
+        ):
+            self.store.get_event(forged_id)
+
     def test_goal_version_projection_corruption_is_detected_and_recovered(self):
         signal_id = add_internal_signal(self.store, "version-corrupt")
         version = self.store.get_state_snapshot()["state_version"]
