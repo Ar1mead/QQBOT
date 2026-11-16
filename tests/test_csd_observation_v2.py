@@ -217,7 +217,7 @@ class CSDObservationV2Tests(unittest.TestCase):
             (payload_ref, event_digest, event.event_id),
         )
 
-        with self.assertRaisesRegex(CognitiveIntegrityError, "invalid durable event schema"):
+        with self.assertRaisesRegex(CognitiveIntegrityError, "invalid durable event envelope"):
             self.store.recover()
 
     def test_v1_and_v2_events_survive_recovery(self):
