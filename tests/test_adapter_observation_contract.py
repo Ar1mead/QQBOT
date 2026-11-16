@@ -115,6 +115,26 @@ class ObservationContractTests(unittest.TestCase):
                 missing_ranges_ms=((1000, 2500), (2000, 3000)),
             )
 
+    def test_missing_coverage_ranges_must_fit_declared_interval(self):
+        with self.assertRaisesRegex(ValueError, "starts before covered interval"):
+            ObservationCoverage(
+                modality="text",
+                extraction_method="fixture",
+                complete=False,
+                start_ms=1000,
+                end_ms=5000,
+                missing_ranges_ms=((500, 1500),),
+            )
+        with self.assertRaisesRegex(ValueError, "ends after covered interval"):
+            ObservationCoverage(
+                modality="text",
+                extraction_method="fixture",
+                complete=False,
+                start_ms=1000,
+                end_ms=5000,
+                missing_ranges_ms=((4500, 5500),),
+            )
+
     def test_coverage_extraction_method_must_match_evidence(self):
         evidence = self.make_evidence()
         coverage = ObservationCoverage(
