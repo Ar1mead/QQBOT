@@ -31,7 +31,7 @@ The v2 payload has exactly these top-level fields:
 | `coverage` | Modality, extraction method, completeness, optional time bounds, missing ranges, and notes |
 | `untrusted` | Must be the boolean `true` |
 
-The coverage object has exactly these fields: `modality`, `extraction_method`, `complete`, `start_ms`, `end_ms`, `missing_ranges_ms`, and `notes`. Its modality and extraction method must match the top-level values. A complete coverage record cannot declare missing ranges. Time bounds and missing ranges are non-negative and ordered.
+The coverage object has exactly these fields: `modality`, `extraction_method`, `complete`, `start_ms`, `end_ms`, `missing_ranges_ms`, and `notes`. Its modality and extraction method must match the top-level values. A complete coverage record cannot declare missing ranges. Time bounds and missing ranges are non-negative; missing ranges are sorted and non-overlapping.
 
 ## 3. Content origin is provenance, not truth
 
