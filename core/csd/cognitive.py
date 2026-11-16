@@ -708,6 +708,35 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                         f"goal-pause-resume-proposal:{proposal_id}",
                     ),
                 }[event.event_type]
+                decision_fields = {
+                    DECISION_EVENT: {
+                        "proposal_id", "proposal_event_id", "outcome", "policy",
+                        "evidence_event_ids", "semantic_review_event_ids",
+                        "semantic_review_status", "semantic_review_applied", "reason",
+                        "evaluated_state_version", "transition_id", "memory_id",
+                    },
+                    MOTIVATION_DECISION_EVENT: {
+                        "proposal_id", "proposal_event_id", "outcome", "policy",
+                        "evidence_event_ids", "signal", "transition_id", "reason",
+                        "evaluated_state_version",
+                    },
+                    GOAL_BATCH_DECISION_EVENT: {
+                        "proposal_id", "proposal_event_id", "outcome", "policy",
+                        "evaluated_state_version", "transitions", "reason",
+                    },
+                    GOAL_ACTIVATION_DECISION_EVENT: {
+                        "proposal_id", "proposal_event_id", "outcome", "policy",
+                        "evaluated_state_version", "goal_id", "expected_goal_version",
+                        "transition", "reason",
+                    },
+                    GOAL_PAUSE_RESUME_DECISION_EVENT: {
+                        "proposal_id", "proposal_event_id", "outcome", "policy",
+                        "evaluated_state_version", "goal_id", "expected_goal_version",
+                        "operation", "transition", "reason",
+                    },
+                }[event.event_type]
+                if set(event.payload) != decision_fields:
+                    raise ValueError("durable decision contains missing or unsupported fields")
                 if (
                     event.source != expected_identity[0]
                     or event.event_id != expected_identity[1]
@@ -1153,6 +1182,16 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
 
     def _apply_decision(self, db: sqlite3.Connection, event: CognitiveEvent) -> None:
         payload = event.payload
+        allowed_payload_fields = {
+            "proposal_id", "proposal_event_id", "outcome", "policy",
+            "evidence_event_ids", "semantic_review_event_ids",
+            "semantic_review_status", "semantic_review_applied", "reason",
+            "evaluated_state_version", "transition_id", "memory_id",
+        }
+        if set(payload) != allowed_payload_fields:
+            raise CognitiveIntegrityError(
+                "memory decision contains missing or unsupported fields"
+            )
         proposal_id = _nonempty(payload.get("proposal_id"), "decision.proposal_id")
         outcome = _nonempty(payload.get("outcome"), "decision.outcome")
         if outcome not in {"accepted", "rejected", "deferred", "needs_more_evidence"}:
