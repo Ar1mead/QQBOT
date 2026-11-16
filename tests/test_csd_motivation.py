@@ -279,6 +279,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         connection.execute("DROP TABLE goal_proposals")
         connection.execute("DROP TABLE goal_activation_proposals")
         connection.execute("DROP TABLE goal_pause_resume_proposals")
+        connection.execute("DROP INDEX IF EXISTS idx_events_event_type_sequence")
         connection.execute("PRAGMA user_version = 1")
         connection.commit()
         connection.close()
@@ -286,7 +287,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         self.store = CognitiveMemoryStore(self.db_path)
         after = self.store.get_state_snapshot()
         version = int(self.store._db.execute("PRAGMA user_version").fetchone()[0])
-        self.assertEqual(version, 5)
+        self.assertEqual(version, 6)
         self.assertEqual(after["event_count"], before["event_count"])
         self.assertEqual(after["state_version"], before["state_version"])
         self.assertEqual(after["accepted_memory_count"], before["accepted_memory_count"])
@@ -374,7 +375,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
     def test_fresh_schema_is_v5(self):
         self.assertEqual(
             int(self.store._db.execute("PRAGMA user_version").fetchone()[0]),
-            5,
+            6,
         )
 
     def test_voluntary_choice_requires_internal_origin_and_real_choice_set(self):
