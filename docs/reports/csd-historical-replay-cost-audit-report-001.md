@@ -123,3 +123,40 @@ The test counts the specific SQL prefix-selection query rather than relying only
 The implementation and mixed-family read-transaction regression were verified by PR workflow run #456: Ubuntu and Windows each passed **365 tests**, including compileall and all focused suites.
 
 The additional Recovery query-count assertion is in commit `e0d1a374784e6e9aaf66b956a1b96718001cb4fb`. PR workflow run #458 completed successfully on both Ubuntu and Windows: **365 tests per platform**, including compileall and focused suites. User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
+
+
+## Second-round follow-up — decision-family ordinals and accepted counts
+
+Date: 2026-11-16 (UTC+08:00)
+
+### Additional issue addressed
+
+The first replay-context pass removed repeated accepted-decision prefix aggregation for state-version lookups, but the follow-up review identified more decision-history prefix work:
+
+- Memory decision ordinal allocation.
+- Motivation decision ordinal allocation.
+- Accepted motivation transition counts used while validating historical motivation projections.
+
+These operations now reuse the same transaction-scoped verified context. It stores ordered decision sequences by event family and accepted sequences by family. Ordinals are derived from the family's verified sequence index; accepted transition counts use binary-search prefix lookups over accepted sequences.
+
+### Regression coverage and result
+
+The mixed-family regression now creates and accepts a second memory proposal and a second motivation proposal, verifies both family ordinals advance to `:2`, and creates a second goal-batch decision. The second motivation proposal is genuinely created and evaluated by the test helper before the test reads its projected decision ID.
+
+The test asserts:
+
+- No decision-family `SELECT COUNT(*)` prefix query occurs during decision creation.
+- Combined memory/goal projection validation performs one shared five-family decision-prefix selection.
+- Recovery performs one shared five-family decision-prefix selection.
+- Neither combined reads nor Recovery issue repeated decision-family prefix counts.
+- The context is cleared after each transaction.
+- Recovery preserves the expected state version (8).
+
+Latest branch head at review: `20ef3c5f021c2ff1d6010d993a18be024947ef5c`. PR workflow run #481 passed on Ubuntu and Windows; full unittest discovery reported **365 tests per platform**, and compileall plus all focused suites passed. Run #480's push-triggered result was not independently retrievable through the available workflow-run lookup and is therefore not claimed as verified. This remains hosted CI, not user-local Windows 11 / Python 3.12.14 verification.
+
+### Updated assessment and limits
+
+The identified repeated decision-family prefix counts and accepted-transition recounts are now covered by deterministic query-count regression assertions and routed through the per-transaction context. Other `COUNT(*)` queries used for projection row totals/diagnostics are not the same decision-history prefix operation and remain ordinary integrity/diagnostic checks.
+
+This is not a long-history wall-clock benchmark. It does not prove that every cross-projection scan, event validator, or future replay path scales linearly. Continue static review and add targeted tests where a repeated full-history scan is found before making a broader performance claim.
+
