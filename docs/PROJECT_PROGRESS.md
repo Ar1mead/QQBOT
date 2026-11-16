@@ -294,3 +294,15 @@ At the time of this update:
 - Implementation commits: `64222e020b7dde086c0befe98e878ec4a7053acf`, `7db787634f58b142b5b1027954fd3355fa67f9c0`; test commit: `333cae330f51e8cfc7a7dd665e960c616ef9e071`; documentation commits: `d7444f4a0de9fd749d9b4a94397f3f4a5071cd39`, `d5012d6dd9cc0cbfcf927417cb3f7fb987bb509c`.
 - Verification: not yet run. Latest new regression and full suite require hosted CI; user-local Windows verification remains deferred until the project is ready to clone, per user preference.
 - Next: continue adversarial review of evidence-event references in grounded proposals and interaction/motivation provenance, while confirming the full hosted workflow actually runs on the branch/PR.
+
+
+### 2026-11-16 follow-up — hosted verification and historical motivation-read correction
+
+- The first hosted runs after adding decision provenance checks exposed a real historical-read defect: `_validate_motivation_proposal()` compared old proposal events against the current `motivation_signals` projection. Later signal updates therefore made earlier valid proposals fail direct reads and decision provenance validation.
+- Separated event-shape/evidence validation from current-projection checks. Append-time validation retains the live-state checks; historical direct reads validate immutable payload shape and earlier interaction evidence without judging the proposal against today's signal state.
+- Two older test assertions still expected obsolete error text after the shared read validator standardized errors to `invalid durable event schema`; updated those assertions.
+- Hosted GitHub Actions run #385 passed on Ubuntu and Windows: compileall passed, every focused workflow step passed, and full discovery passed **353 tests on each platform**. Run #385 is the first successful full hosted verification of the recent decision-provenance and semantic-review provenance slices.
+- Earlier failed runs #369, #373, #379, #381, and #383 were investigated; failures were caused by the newly introduced historical validation coupling, a misplaced optional parameter during correction, and stale error-message assertions. These were corrected before #385.
+- Semantic-review direct reads now bind the review to the unique earlier grounded proposal, verify proposal and inference-claim digests, and check supporting-claim lineage. Regression: `test_get_event_rejects_semantic_review_referencing_another_proposal_event`.
+- User-local Windows 11 / Python 3.12.14 testing remains intentionally deferred until the project is ready to clone, per user preference. Hosted Windows is not a substitute.
+- Next: continue reviewing grounded proposal evidence references, semantic-review chronology, and motivation interaction provenance; also verify that the decision-event validation path remains bounded for long event histories.
