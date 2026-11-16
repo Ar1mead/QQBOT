@@ -83,14 +83,34 @@ class CognitiveEvent:
 
 @dataclass(frozen=True)
 class _DecisionReplayContext:
-    """Accepted-decision prefix index scoped to one SQLite transaction."""
+    """Verified decision indexes scoped to one SQLite transaction."""
 
     accepted_sequences: tuple[int, ...]
+    decision_sequences_by_type: tuple[tuple[str, tuple[int, ...]], ...]
+    accepted_sequences_by_type: tuple[tuple[str, tuple[int, ...]], ...]
 
     def state_version_at(self, through_sequence: int | None = None) -> int:
         if through_sequence is None:
             return len(self.accepted_sequences)
         return bisect_right(self.accepted_sequences, through_sequence)
+
+    def decision_number_for(self, event_type: str, sequence: int) -> int:
+        sequences = dict(self.decision_sequences_by_type).get(event_type, ())
+        return bisect_left(sequences, sequence) + 1
+
+    def accepted_count_for(
+        self, event_types: set[str], through_sequence: int | None = None
+    ) -> int:
+        accepted_by_type = dict(self.accepted_sequences_by_type)
+        total = 0
+        for event_type in event_types:
+            sequences = accepted_by_type.get(event_type, ())
+            total += (
+                len(sequences)
+                if through_sequence is None
+                else bisect_right(sequences, through_sequence)
+            )
+        return total
 
 
 def _canonical(value: Any) -> str:
@@ -1026,6 +1046,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         stored_event: Mapping[str, Any],
         *,
         sequence: int,
+        decision_number: int | None = None,
     ) -> None:
         """Recheck an immutable event's local and historical contract.
 
@@ -1085,17 +1106,31 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 outcome = _nonempty(event.payload.get("outcome"), "decision.outcome")
                 if outcome not in {"accepted", "rejected", "deferred", "needs_more_evidence"}:
                     raise ValueError("unsupported durable decision outcome")
+                if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT}:
+                    event_number = decision_number
+                    if event_number is None:
+                        family = event.event_type
+                        event_number = int(db.execute(
+                            "SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<=?",
+                            (family, sequence),
+                        ).fetchone()[0])
+                    if (
+                        not isinstance(event_number, int)
+                        or isinstance(event_number, bool)
+                        or event_number < 1
+                    ):
+                        raise CognitiveIntegrityError("invalid durable decision sequence number")
+                else:
+                    event_number = None
                 expected_identity = {
                     DECISION_EVENT: (
                         DECISION_SOURCE,
-                        f"csd-decision:{proposal_id}:"
-                        f"{int(db.execute('SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<=?', (DECISION_EVENT, sequence)).fetchone()[0])}",
+                        f"csd-decision:{proposal_id}:{event_number}",
                         f"proposal:{proposal_id}",
                     ),
                     MOTIVATION_DECISION_EVENT: (
                         MOTIVATION_DECISION_SOURCE,
-                        f"csd-motivation-decision:{proposal_id}:"
-                        f"{int(db.execute('SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<=?', (MOTIVATION_DECISION_EVENT, sequence)).fetchone()[0])}",
+                        f"csd-motivation-decision:{proposal_id}:{event_number}",
                         f"motivation-proposal:{proposal_id}",
                     ),
                     GOAL_BATCH_DECISION_EVENT: (
@@ -1586,21 +1621,29 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         )
         placeholders = ",".join("?" for _ in event_types)
         rows = db.execute(
-            f"SELECT e.sequence,e.event_id FROM events e "
+            f"SELECT e.sequence,e.event_id,e.event_type FROM events e "
             f"WHERE e.event_type IN ({placeholders}) ORDER BY e.sequence",
             event_types,
         ).fetchall()
         accepted_sequences: list[int] = []
+        decision_sequences_by_type: dict[str, list[int]] = {}
+        accepted_sequences_by_type: dict[str, list[int]] = {}
         prior_sequence = 0
         for row in rows:
             sequence = int(row["sequence"])
             if sequence <= prior_sequence:
                 raise CognitiveIntegrityError("decision event sequence is not strictly increasing")
             prior_sequence = sequence
+            event_type = row["event_type"]
+            family_sequences = decision_sequences_by_type.setdefault(event_type, [])
+            family_sequences.append(sequence)
+            decision_number = len(family_sequences)
             # Internal scan suppresses only recursive decision-context checks.
-            # Payload/envelope digests and the event-local schema remain checked.
+            # Payload/envelope digests and event-local identity/schema checks remain active.
             decision_event = self.get_event(
-                row["event_id"], _validate_decision_context=False
+                row["event_id"],
+                _validate_decision_context=False,
+                _decision_number=decision_number,
             )
             if int(decision_event["sequence"]) != sequence:
                 raise CognitiveIntegrityError("decision replay sequence changed within snapshot")
@@ -1609,7 +1652,18 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 raise CognitiveIntegrityError("invalid durable decision outcome")
             if outcome == "accepted":
                 accepted_sequences.append(sequence)
-        return _DecisionReplayContext(tuple(accepted_sequences))
+                accepted_sequences_by_type.setdefault(event_type, []).append(sequence)
+        return _DecisionReplayContext(
+            accepted_sequences=tuple(accepted_sequences),
+            decision_sequences_by_type=tuple(
+                (event_type, tuple(sequences))
+                for event_type, sequences in sorted(decision_sequences_by_type.items())
+            ),
+            accepted_sequences_by_type=tuple(
+                (event_type, tuple(sequences))
+                for event_type, sequences in sorted(accepted_sequences_by_type.items())
+            ),
+        )
 
     def _authoritative_state_version(
         self, db: sqlite3.Connection, *, through_sequence: int | None = None
@@ -2091,14 +2145,20 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             }
 
     def get_event(
-        self, event_id: str, *, _validate_decision_context: bool = True
+        self,
+        event_id: str,
+        *,
+        _validate_decision_context: bool = True,
+        _decision_number: int | None = None,
     ) -> dict[str, Any]:
         """Read one immutable event with its content-addressed payload."""
         _nonempty(event_id, "event_id")
         if not self._db.in_transaction:
             with self._read_tx():
                 return self.get_event(
-                    event_id, _validate_decision_context=_validate_decision_context
+                    event_id,
+                    _validate_decision_context=_validate_decision_context,
+                    _decision_number=_decision_number,
                 )
         row = self._db.execute(
             "SELECT e.sequence,e.event_id,e.occurred_at,e.received_at,e.correlation_id,"
@@ -2149,7 +2209,22 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
                 GOAL_PAUSE_RESUME_DECISION_EVENT,
             }
+            decision_number = _decision_number
             if event.event_type in decision_types:
+                if decision_number is None:
+                    context = self._active_decision_replay_context
+                    if context is None:
+                        context = self._build_decision_replay_context(self._db)
+                        self._active_decision_replay_context = context
+                    decision_number = context.decision_number_for(
+                        event.event_type, int(row["sequence"])
+                    )
+                if (
+                    not isinstance(decision_number, int)
+                    or isinstance(decision_number, bool)
+                    or decision_number < 1
+                ):
+                    raise CognitiveIntegrityError("invalid durable decision sequence number")
                 proposal_id = _nonempty(
                     payload.get("proposal_id"), "decision.proposal_id"
                 )
@@ -2190,18 +2265,10 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     )
 
                 if event.event_type == DECISION_EVENT:
-                    decision_number = int(self._db.execute(
-                        "SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<?",
-                        (DECISION_EVENT, int(row["sequence"])),
-                    ).fetchone()[0]) + 1
                     expected_event_id = f"csd-decision:{proposal_id}:{decision_number}"
                     expected_correlation_id = f"proposal:{proposal_id}"
                     expected_source = DECISION_SOURCE
                 elif event.event_type == MOTIVATION_DECISION_EVENT:
-                    decision_number = int(self._db.execute(
-                        "SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<?",
-                        (MOTIVATION_DECISION_EVENT, int(row["sequence"])),
-                    ).fetchone()[0]) + 1
                     expected_event_id = (
                         f"csd-motivation-decision:{proposal_id}:{decision_number}"
                     )
@@ -2248,6 +2315,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     "payload": event.payload,
                 },
                 sequence=int(row["sequence"]),
+                decision_number=decision_number,
             )
             if event.event_type in decision_types and _validate_decision_context:
                 self._validate_decision_event_history(
