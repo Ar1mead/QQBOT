@@ -7,7 +7,7 @@ It is not a security boundary against hostile code in the same Python process.
 
 from __future__ import annotations
 
-from bisect import bisect_right
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
