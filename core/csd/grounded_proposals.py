@@ -16,6 +16,7 @@ import uuid
 from .cognitive import (
     GROUNDED_PROPOSAL_EVENT,
     OBSERVATION_EVENT,
+    OBSERVATION_EVENT_V2,
     CognitiveEvent,
     CognitiveIntegrityError,
     CognitiveMemoryStore,
@@ -184,7 +185,7 @@ class GroundedMemoryProposalPipeline:
     def propose_from_observation(self, observation_event_id: str) -> list[dict[str, Any]]:
         """Call provider outside transactions and persist at most one pending v2 proposal."""
         observation = self.store.get_event(observation_event_id)
-        if observation["event_type"] != OBSERVATION_EVENT:
+        if observation["event_type"] not in {OBSERVATION_EVENT, OBSERVATION_EVENT_V2}:
             raise ValueError("grounded proposal generation requires an observation event")
         coverage = observation["payload"].get("coverage")
         if not isinstance(coverage, Mapping) or coverage.get("modality") != "text":
