@@ -114,3 +114,18 @@ The repeated prefix aggregation has now been replaced with a transaction-scoped 
 - The mixed-family regression creates accepted memory, motivation, goal-batch, goal-activation, and pause/resume decisions, then verifies a single decision-family prefix query for the combined read projection checks and a single query for Recovery. It also checks that the in-memory context is cleared after each operation.
 
 This removes repeated full-prefix aggregation within one history-wide operation. It is not yet a long-history wall-clock benchmark, and other per-event integrity/projection validation work remains. Hosted query-count coverage is deterministic and does not claim a production performance threshold. User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
+
+
+### Follow-up — per-family decision ordinals and accepted-transition counts
+
+The replay context now also stores decision sequence indexes and accepted-decision sequence indexes per event family:
+
+- Memory and motivation decision numbering reads the verified family count from the active transaction context instead of issuing repeated SQL prefix counts.
+- Motivation accepted-transition counting uses the accepted sequence index, including bounded historical counts.
+- The mixed-family regression creates two memory decisions and two motivation decisions, verifies the second decision in each family receives ordinal `:2`, and also exercises two goal-batch decisions.
+- It asserts no decision-family `COUNT(*)` prefix query during decision creation, combined projection validation, or Recovery; one shared five-family prefix selection per read/Recovery operation; cache cleanup; and unchanged replay state version (8).
+
+Hosted PR workflow run #481 passed on Ubuntu and Windows with **365 tests per platform**, including compileall, focused suites, and full unittest discovery. This is hosted CI, not user-local Windows verification. Run #480's push-triggered result was not independently available through the workflow lookup used for this review.
+
+The remaining SQL `COUNT(*)` calls that count projection rows for diagnostics or consistency checks are not decision-history prefix counts. This optimization does not claim that all projection work is linear or that long-history wall-clock performance has been benchmarked.
+
