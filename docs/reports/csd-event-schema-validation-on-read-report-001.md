@@ -96,3 +96,13 @@ The first follow-up runs exposed two issues that were corrected before the succe
 - Two existing regression assertions still expected the older error wording. They now assert the shared `invalid durable event schema` integrity error.
 
 Hosted GitHub Actions run #385 passed on both Ubuntu and Windows. `python -m compileall -q core tests` passed, every workflow test step passed, and complete unittest discovery passed **353 tests on each platform**. This is hosted CI only; the user's own Windows 11 / Python 3.12.14 verification remains intentionally deferred until the project is ready to clone.
+
+
+## Follow-up: grounded evidence chronology and source-event integrity
+
+- `get_event()` now validates grounded proposal references against immutable event history. If a referenced evidence event already exists, it must have been appended before the proposal; a later observation cannot be rebound as prior evidence even if the proposal payload and envelope digests are recomputed.
+- When the referenced event is an observation, the read path also loads it through `get_event()` so its durable envelope and observation schema are verified before treating it as a valid source record.
+- A missing evidence event remains an allowed pending-candidate condition; deterministic proposal evaluation continues to return `needs_more_evidence`. Existing but non-observation references, mismatched quoted text, and invalid text ranges remain deterministic rejection outcomes rather than being conflated with durable-log corruption.
+- Regressions: `test_get_event_rejects_grounded_proposal_referencing_later_observation` and `test_get_event_validates_existing_grounded_source_observation`. Both use recomputed payload/envelope digests where applicable.
+- Implementation commit: `03e202ce0d4c5f367cc4d2b84b02aa43dc373a1a`; test commit: `b3f08b6c0704c3d8fd0bfddd2e9c95468144ffc8`.
+- Hosted GitHub Actions run #393 passed on Ubuntu and Windows. Compileall and every focused test step passed; complete unittest discovery passed **355 tests per platform**. User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
