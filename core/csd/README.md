@@ -94,3 +94,10 @@ Motivation decision reads now bind their ordered evidence list to the historical
 
 
 Goal batch, activation, and pause/resume decision direct reads now trigger the goal subsystem's event-history replay and projection reconciliation. The replay validates every decision against its earlier proposal and the goal versions/status that existed at that point in the log. Three digest-recomputed tamper regressions cover all goal decision families. Hosted run #428 passed on Ubuntu and Windows with **362 tests per platform**.
+
+
+### Schema v6 — event-history query index
+
+Schema v6 adds the composite SQLite index `idx_events_event_type_sequence` on `events(event_type, sequence)`. It supports event-family scans and historical decision-prefix queries while preserving the event log as the authoritative source. The v5→v6 migration is transactional and has rollback coverage. The query-plan regression verifies that the shared decision-family prefix query can use this index.
+
+This is a low-risk query improvement, not a complete solution to repeated historical prefix scans. The historical replay cost audit remains open: per-operation prefix aggregation is the next optimization, and no claim is made that long-history scaling is solved.
