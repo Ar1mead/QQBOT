@@ -633,11 +633,11 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         *,
         sequence: int,
     ) -> None:
-        """Recheck the immutable event-local contract before duplicate acknowledgement.
+        """Recheck an immutable event's local and historical contract.
 
-        Contextual validation is deliberately limited to facts available at the
-        event's original sequence; later proposal/goal lifecycle state must not
-        invalidate an otherwise legitimate retry.
+        Used by direct reads, duplicate acknowledgement, and Recovery. Contextual
+        validation is bounded by the event's original sequence; later proposal or
+        goal lifecycle state must not invalidate a legitimate historical event.
         """
         event = CognitiveEvent(
             event_id=stored_event["event_id"],
