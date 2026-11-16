@@ -193,7 +193,7 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 At the time of this update:
 - Latest code/test commits: `20cc8661f122edc6ca4741c3ac4ec02bc7ada668` (enforce decision identity on all durable reads) and `023934e7b6e6dbb556cbb8f41be612565eb23584` / `2a4bc71ea2071c3c2f41e01ac6dd372d1b439967` (assert projection reads reject rebound identities), building on `ca6462b1a2b6e35fb09779c1a0f1b894dbbb04e1` and `98ba5d2bdf8bced9bde20848bb3cd622ca210acd`. Recovery regressions are `85785c70567dbb1e48e541898050d4f5c5f03a89`, `e5f86e72833a5b4f8bd9eb1b0254a18dab48f85a`, `c88d59de4b9dc237fedd0bda53947825365d42c7`, and `6c6d734d440d198550fd5af43531b24591b8edfe`. The new hosted CI result is pending; the previous verified baseline remains workflow run #302 (333 tests passed on Ubuntu and Windows).
-- Branch head before this ledger refresh: `3b4b35f7159772770b89c65b91b02770c50e89a4` (authoritative decision event identity validation report).
+- Branch head before this ledger refresh: `06c08da8a6e8ab9ad35734685a66105b137b3896` (README update documenting identity validation on durable reads).
 - Hosted CI passed on Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1).
 - `python -m compileall -q core tests` passed on both runners.
 - `python -m unittest discover -s tests -v` passed: 333 tests on both Linux and Windows (Linux 2.070s; Windows 35.767s).
