@@ -462,3 +462,9 @@ At the time of this update:
 - No plugins were installed, no account credentials were entered, and no local DSH/SurfCore settings or files were modified.
 - Next: implement Stage 0 observation/capability contracts and fake-adapter tests; then define CSD observation v2 and strict Bilibili CLI wrapper tests. Keep all real network/account access disabled until those gates pass.
 
+### Latest hosted verification refresh — 2026-11-16
+
+- Rechecked the documented branch head `59376a2abc4ced6be3398804900956493e0398b4` through the open PR record and fetched commit metadata. PR workflow run #485 completed successfully; both `ubuntu-latest` and `windows-latest` jobs passed, including compileall, all focused test groups, and full unittest discovery. This run validates the documentation-updated branch head; the runtime/test implementation remains the code/test commit `20ef3c5f021c2ff1d6010d993a18be024947ef5c`.
+- Run #480 remains unverified and is not used as evidence. Run #481 verified the code/test commit on both platforms with 365 tests each; run #485 independently confirms the later documentation-updated head.
+- No user-local Windows test has been performed. The project remains un-cloned locally by the user; hosted Windows CI is not a substitute.
+- PR #1 remains Draft, open, and unmerged.
