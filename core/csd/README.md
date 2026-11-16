@@ -70,3 +70,6 @@ Direct reads also revalidate proposal `based_on.state_version` against the autho
 
 
 Decision-event direct reads now also validate historical provenance: the evaluated state version must match the authoritative event history immediately before the decision, and the referenced proposal must be the unique earlier event in the correct proposal family. This check reads the event log rather than mutable projections and uses a bounded internal mode to avoid recursive state-version reads. New tamper regressions and hosted CI are pending; see [decision provenance on direct reads](../../docs/reports/csd-event-schema-validation-on-read-report-001.md).
+
+
+Direct reads of semantic-review events now bind each review to the unique earlier grounded proposal in the immutable event history. The read path also verifies the proposal digest, reviewed inference claim digest, and supporting-claim lineage, so recomputing payload/envelope digests cannot hide a rebound proposal reference. Regression: `test_get_event_rejects_semantic_review_referencing_another_proposal_event`. Hosted CI and user-local Windows verification are pending.
