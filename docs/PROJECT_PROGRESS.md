@@ -352,3 +352,14 @@ At the time of this update:
 - GitHub Actions run #411 passed on Ubuntu and Windows: compileall, every focused suite, and full unittest discovery passed; **357 tests per platform**.
 - User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
 - Next: review remaining motivation/goal decision evidence fields and cross-projection Recovery consistency; keep all new direct-read checks sequence-bounded.
+
+
+### 2026-11-16 follow-up — motivation decision evidence provenance
+
+- Direct reads of `motivation.decided.v1` now require `evidence_event_ids` to exactly match the historical proposal's ordered `supporting_event_ids + counter_evidence_event_ids`.
+- The proposal is read through the common historical event validator; referenced interaction events are checked for prior sequence, event family, schema, subject consistency, and origin constraints.
+- Added regression `tests/test_csd_motivation.py::test_get_event_rejects_motivation_decision_with_rebound_evidence_ids`, which tampers with an accepted decision's evidence list and recomputes both payload and envelope digests.
+- Implementation commit: `f4617e1757cfc43cfe5082fca3b916f30cbc2f5d`; test commit: `1197c1b0ae3cdbfbd560e1e8016b7fb6f1261a68`.
+- GitHub Actions run #419 passed on Ubuntu and Windows: compileall, all focused test groups, and complete unittest discovery passed; **359 tests per platform**.
+- User-local Windows 11 / Python 3.12.14 testing remains deferred until the project is ready to clone.
+- Next: inspect goal proposal/decision history for equivalent direct-read gaps, then review coordinated projection corruption and Recovery determinism. Keep every historical check bounded by the event's original sequence.
