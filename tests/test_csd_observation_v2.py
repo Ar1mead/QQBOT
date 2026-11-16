@@ -140,6 +140,15 @@ class CSDObservationV2Tests(unittest.TestCase):
         self.assertEqual(stored["payload"]["content_origin"], "adapter_extracted")
         self.assertIs(stored["payload"]["untrusted"], True)
 
+    def test_v2_rejects_overlapping_missing_ranges(self):
+        event = observation_evidence_to_csd_event(self.evidence())
+        payload = dict(event.payload)
+        coverage = dict(payload["coverage"])
+        coverage["missing_ranges_ms"] = [[10_000, 30_000], [20_000, 25_000]]
+        payload["coverage"] = coverage
+        with self.assertRaisesRegex(ValueError, "sorted and non-overlapping"):
+            self.store.submit_event(replace(event, payload=payload))
+
     def test_v2_rejects_event_identity_not_bound_to_adapter(self):
         event = observation_evidence_to_csd_event(self.evidence())
         with self.assertRaisesRegex(ValueError, "identity or source"):
