@@ -443,3 +443,10 @@ At the time of this update:
 - This is hosted CI only. User-local Windows 11 / Python 3.12.14 testing remains deferred until the project is ready to clone.
 - Remaining limits: query-count regression is not a long-history wall-clock benchmark and does not prove every CSD projection or validator has linear scaling. Continue auditing cross-projection scans and Recovery behavior before declaring CSD stable.
 
+
+
+### Additional projection-scan audit note
+
+- Static call-path review found no additional decision-family SQL prefix COUNT path beyond the ones covered by the second-round query-count regression.
+- A separate, non-prefix duplication remains: the goal projection validator calls the motivation projection validator, while some callers (including the state-snapshot path and goal proposal/decision paths) validate motivation immediately before invoking goal validation. This can repeat a full motivation projection scan inside one transaction.
+- This is not a decision-history ordinal/state-version bug and does not invalidate the second-round result. Track it as a separate projection-validation deduplication candidate; preserve all independent integrity checks and add transaction-scoped regression coverage before changing call paths.
