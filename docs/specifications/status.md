@@ -102,3 +102,5 @@ Malformed durable event read error normalization: `CognitiveMemoryStore.get_even
 
 
 Authoritative decision identity replay validation: Recovery now checks memory and motivation decision event IDs against their proposal-scoped decision sequence and requires the corresponding proposal correlation ID. Regressions rebind correlation IDs while recomputing valid envelope digests and verify Recovery rejects both histories. See [report](../reports/csd-authoritative-decision-event-identity-validation-report-001.md). Hosted CI is pending.
+
+The proposal-scoped memory and motivation decision identity contract is enforced during ordinary `get_event()` reads as well as Recovery replay. Therefore projection-consistency reads reject rebound decision event IDs/correlation IDs even when the altered envelope digest has been recomputed. See [decision identity validation report](../reports/csd-authoritative-decision-event-identity-validation-report-001.md).
