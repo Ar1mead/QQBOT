@@ -814,7 +814,6 @@ class CSDGoalActivationTests(unittest.TestCase):
                 and "order by e.sequence" in sql.lower()
             ]
 
-        result = None
         scans = count_motivation_scans(
             lambda: self.store.evaluate_goal_batch_proposal("projection-scan-dedup-goal")
         )
