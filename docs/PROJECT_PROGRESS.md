@@ -230,3 +230,14 @@ At the time of this update:
 - GitHub Actions run #342 passed on Ubuntu and Windows: **346 tests** passed on each platform, including compileall and full test discovery.
 - Updated report: `docs/reports/csd-same-event-id-duplicate-schema-validation-report-001.md`.
 - Remaining audit: decision payload field schemas and cross-family event ordering; coordinated corruption of projections versus event history. User-local Windows 11 / Python 3.12.14 verification remains pending.
+
+
+### 2026-11-16 follow-up — strict decision event payload schemas
+
+- Extended the duplicate-event audit to internal decision events. The duplicate validator now checks the exact payload field set for memory, motivation, goal-batch, goal-activation, and goal-pause/resume decisions, in addition to authority source, outcome, event identity, and correlation identity.
+- Strengthened `_apply_decision()` so Recovery rejects missing or unsupported memory-decision fields; the other decision reducers already enforce exact field sets.
+- Added `tests/test_csd_semantic_review.py::test_same_event_id_duplicate_rejects_decision_with_extra_payload_field`, which tampers with an otherwise correctly hashed and enveloped decision event and verifies that a same-ID retry is rejected as an integrity failure.
+- Implementation commit: `2c48338ac9ed46e868f059f8fcf8d265fe3c1fcf`; corrected regression test commit: `2c967b49ee766a52e27423ffbba02728c9f20292`.
+- Run #344 exposed only an overly specific test assertion (it expected the inner validation message rather than the normalized integrity error); the assertion was corrected. GitHub Actions run #345 passed on Ubuntu and Windows: **347 tests** passed on each platform, including compileall and full discovery.
+- Report: `docs/reports/csd-same-event-id-duplicate-schema-validation-report-001.md`.
+- Remaining: continue auditing deeper decision semantic/context validation, cross-family event chronology, and coordinated projection/event-history corruption. User-local Windows 11 / Python 3.12.14 verification remains pending.
