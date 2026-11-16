@@ -816,7 +816,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 self._validate_interaction_event(db, event, current_sequence=sequence)
             elif event.event_type == MOTIVATION_PROPOSAL_EVENT:
                 self._validate_motivation_proposal(
-                    db, event, current_sequence=sequence
+                    db, event, current_sequence=sequence, validate_state=False
                 )
             elif event.event_type == GOAL_BATCH_PROPOSAL_EVENT:
                 self._validate_goal_batch_proposal(event)
