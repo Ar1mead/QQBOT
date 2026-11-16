@@ -502,6 +502,22 @@ class SemanticReviewStoreTests(unittest.TestCase):
         with self.assertRaises(CognitiveIntegrityError):
             self.store.recover()
 
+    def test_recovery_normalizes_malformed_event_timestamp(self):
+        self.submit_proposal()
+        review = self.make_review()
+        self.store.submit_event(review)
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute(
+            "UPDATE events SET occurred_at=? WHERE event_id=?",
+            ("not-a-timestamp", review.event_id),
+        )
+
+        from core.csd.cognitive import CognitiveIntegrityError
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "invalid durable event envelope"
+        ):
+            self.store.recover()
+
     def test_same_review_id_with_changed_content_conflicts(self):
         self.submit_proposal()
         first = self.make_review(review_id="review-conflict")
