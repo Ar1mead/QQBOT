@@ -101,3 +101,16 @@ Goal batch, activation, and pause/resume decision direct reads now trigger the g
 Schema v6 adds the composite SQLite index `idx_events_event_type_sequence` on `events(event_type, sequence)`. It supports event-family scans and historical decision-prefix queries while preserving the event log as the authoritative source. The v5→v6 migration is transactional and has rollback coverage. The query-plan regression verifies that the shared decision-family prefix query can use this index.
 
 This is a low-risk query improvement, not a complete solution to repeated historical prefix scans. The historical replay cost audit remains open: per-operation prefix aggregation is the next optimization, and no claim is made that long-history scaling is solved.
+
+
+### Transaction-scoped verified decision replay context
+
+The repeated prefix aggregation has now been replaced with a transaction-scoped `_DecisionReplayContext`:
+
+- The context selects all five durable decision families in event-sequence order once for the active SQLite transaction.
+- Every selected decision is still read through the ordinary integrity-aware `get_event(..., _validate_decision_context=False)` path. Payload digest, canonical payload serialization, envelope digest, event-local schema, authority source, and event identity checks remain active. Only the recursive decision-context callback is suppressed during this inner scan.
+- Accepted decision sequence numbers are retained in an immutable tuple. Historical state versions are computed with a binary-search prefix lookup, counting accepted decisions only through the requested prior sequence.
+- Standalone memory, motivation, goal, and event-read validations establish a SQLite read transaction when one is not already active. Recovery and writes reuse their existing transaction. The context is cleared at transaction exit and invalidated after an event append; it is never cached across snapshots.
+- The mixed-family regression creates accepted memory, motivation, goal-batch, goal-activation, and pause/resume decisions, then verifies a single decision-family prefix query for the combined read projection checks and a single query for Recovery. It also checks that the in-memory context is cleared after each operation.
+
+This removes repeated full-prefix aggregation within one history-wide operation. It is not yet a long-history wall-clock benchmark, and other per-event integrity/projection validation work remains. Hosted query-count coverage is deterministic and does not claim a production performance threshold. User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
