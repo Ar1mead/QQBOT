@@ -130,3 +130,9 @@ Hosted PR workflow run #481 passed on Ubuntu and Windows with **365 tests per pl
 The remaining SQL `COUNT(*)` calls that count projection rows for diagnostics or consistency checks are not decision-history prefix counts. This optimization does not claim that all projection work is linear or that long-history wall-clock performance has been benchmarked.
 
 Latest verification refresh (2026-11-16): the documentation-updated branch head `59376a2abc4ced6be3398804900956493e0398b4` passed PR workflow run #485 on both Ubuntu and Windows, including compileall, focused suites, and full unittest discovery. The runtime/test code under test is commit `20ef3c5f021c2ff1d6010d993a18be024947ef5c`; run #481 had already passed that code/test commit with 365 tests per platform. Run #480 remains unverified. This is hosted CI only, not user-local Windows verification.
+
+### Follow-up — avoid duplicate motivation projection validation
+
+Goal batch, activation, and pause/resume decision evaluation now rely on the goal validator's required motivation projection reconciliation rather than invoking the motivation validator separately first. The life-signal snapshot follows the same rule. The state snapshot still reports motivation and goal consistency separately, but reuses the successful motivation validation within its active SQLite read transaction. The private reuse flag is rejected outside an active transaction. Regression coverage is in `test_goal_validation_reuses_motivation_projection_scan_per_transaction`.
+
+The initial SQLite trace-string regression failed on both hosted platforms because the assertion did not correctly observe the query through the trace callback. It has been replaced with a direct invocation-count assertion. Latest branch head `571be0ed206a5466edcba2f42bfaa088f394ed34` is awaiting a fresh hosted CI result; run #503 for the earlier test version failed and is not treated as a pass.
