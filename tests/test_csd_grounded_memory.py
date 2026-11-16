@@ -106,6 +106,42 @@ class GroundedMemoryV2Tests(unittest.TestCase):
         self.store.submit_event(event)
         return event
 
+    def rewrite_event_payload_with_valid_digests(self, event_id, mutate):
+        original = self.store.get_event(event_id)
+        payload = dict(original["payload"])
+        mutate(payload)
+        payload_json = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False,
+        )
+        payload_ref = "sha256:" + hashlib.sha256(
+            payload_json.encode("utf-8")
+        ).hexdigest()
+        row = self.store._db.execute(
+            "SELECT received_at FROM events WHERE event_id=?", (event_id,)
+        ).fetchone()
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute("DROP TRIGGER payloads_no_update")
+        self.store._db.execute(
+            "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (payload_ref, payload_json),
+        )
+        rewritten = CognitiveEvent(
+            event_id=original["event_id"],
+            occurred_at=original["occurred_at"],
+            correlation_id=original["correlation_id"],
+            event_type=original["event_type"],
+            source=original["source"],
+            payload=payload,
+        )
+        event_digest = self.store._event_digest(
+            rewritten, payload_ref, row["received_at"]
+        )
+        self.store._db.execute(
+            "UPDATE events SET payload_ref=?,event_digest=? WHERE event_id=?",
+            (payload_ref, event_digest, event_id),
+        )
+
     def submit_supported_review(self, proposal_id="grounded-proposal-1",
                                 claim_id="claim-inference-1",
                                 review_id="review-supported-1",
@@ -162,6 +198,48 @@ class GroundedMemoryV2Tests(unittest.TestCase):
         self.assertEqual(proposal["status"], "pending")
         self.assertEqual(proposal["proposal"]["claims"][0]["epistemic_type"], "source_assertion")
         self.assertEqual(self.store.get_memories(), [])
+
+    def test_get_event_rejects_grounded_proposal_referencing_later_observation(self):
+        proposal = self.submit_pending()
+        later = CognitiveEvent(
+            event_id="evt-grounded-later-observation",
+            occurred_at="2026-11-14T10:02:00+00:00",
+            correlation_id="corr-grounded",
+            event_type=OBSERVATION_EVENT,
+            source="test.observation_fixture",
+            payload={
+                "observation_id": "obs-grounded-later",
+                "observation_kind": "text_fixture",
+                "content": self.source_text,
+                "source_ref": "fixture://grounded/later-observation",
+                "observed_at": "2026-11-14T10:01:30+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+        )
+        self.store.submit_event(later)
+        self.rewrite_event_payload_with_valid_digests(
+            proposal.event_id,
+            lambda payload: payload["claims"][0]["evidence"][0].__setitem__(
+                "event_id", later.event_id
+            ),
+        )
+
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "grounded proposal evidence must reference an earlier event"
+        ):
+            self.store.get_event(proposal.event_id)
+
+    def test_get_event_validates_existing_grounded_source_observation(self):
+        proposal = self.submit_pending()
+        self.rewrite_event_payload_with_valid_digests(
+            self.observation.event_id,
+            lambda payload: payload.__setitem__("content", ""),
+        )
+
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "invalid durable event schema"
+        ):
+            self.store.get_event(proposal.event_id)
 
     def test_exact_text_span_is_accepted_and_preserved(self):
         self.submit_pending()
