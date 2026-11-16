@@ -99,6 +99,7 @@ class CognitiveMotivationMixin:
         event: Any,
         *,
         current_sequence: int,
+        validate_state: bool = True,
     ) -> None:
         payload = event.payload
         allowed = {
@@ -394,33 +395,35 @@ class CognitiveMotivationMixin:
             if not any(item["evidence_kind"] == "resolution" for item in supporting):
                 raise ValueError("resolve requires a resolution evidence event")
 
-        if operation == "create":
-            existing = db.execute(
-                "SELECT 1 FROM motivation_signals WHERE signal_id=?",
-                (payload["new_signal_id"],),
-            ).fetchone()
-            if existing is not None:
-                raise ValueError("new motivation signal identity already exists")
-        else:
-            target = db.execute(
-                "SELECT signal_version,signal_json FROM motivation_signals WHERE signal_id=?",
-                (payload["target_signal_id"],),
-            ).fetchone()
-            if target is None:
-                raise ValueError("motivation update references an unknown signal")
-            target_state = json.loads(target["signal_json"])
-            if target_state["kind"] != kind or target_state["subject_ref"] != subject_ref:
-                raise ValueError("motivation update cannot change signal kind or subject")
-            if target_state["status"] != "active":
-                raise ValueError("only active motivation signals can be updated")
-            old_evidence = set(target_state["supporting_event_ids"]) | set(target_state["counter_evidence_event_ids"])
-            if (set(supporting_ids) | set(counter_ids)) & old_evidence:
-                raise ValueError("motivation update must reference new evidence")
-            if operation != "contextualize":
-                if statement is not None and statement != target_state["statement"]:
-                    raise ValueError("only contextualize may change signal statement")
-                if scope != target_state["scope"]:
-                    raise ValueError("only contextualize may change signal scope")
+        if validate_state:
+            if operation == "create":
+                existing = db.execute(
+                    "SELECT 1 FROM motivation_signals WHERE signal_id=?",
+                    (payload["new_signal_id"],),
+                ).fetchone()
+                if existing is not None:
+                    raise ValueError("new motivation signal identity already exists")
+            else:
+                target = db.execute(
+                    "SELECT signal_version,signal_json FROM motivation_signals WHERE signal_id=?",
+                    (payload["target_signal_id"],),
+                ).fetchone()
+                if target is None:
+                    raise ValueError("motivation update references an unknown signal")
+                target_state = json.loads(target["signal_json"])
+                if target_state["kind"] != kind or target_state["subject_ref"] != subject_ref:
+                    raise ValueError("motivation update cannot change signal kind or subject")
+                if target_state["status"] != "active":
+                    raise ValueError("only active motivation signals can be updated")
+                old_evidence = set(target_state["supporting_event_ids"]) | set(target_state["counter_evidence_event_ids"])
+                if (set(supporting_ids) | set(counter_ids)) & old_evidence:
+                    raise ValueError("motivation update must reference new evidence")
+                if operation != "contextualize":
+                    if statement is not None and statement != target_state["statement"]:
+                        raise ValueError("only contextualize may change signal statement")
+                    if scope != target_state["scope"]:
+                        raise ValueError("only contextualize may change signal scope")
+    
 
     def _prepare_motivation_decision(
         self,
