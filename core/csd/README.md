@@ -129,3 +129,4 @@ Hosted PR workflow run #481 passed on Ubuntu and Windows with **365 tests per pl
 
 The remaining SQL `COUNT(*)` calls that count projection rows for diagnostics or consistency checks are not decision-history prefix counts. This optimization does not claim that all projection work is linear or that long-history wall-clock performance has been benchmarked.
 
+Latest verification refresh (2026-11-16): the documentation-updated branch head `59376a2abc4ced6be3398804900956493e0398b4` passed PR workflow run #485 on both Ubuntu and Windows, including compileall, focused suites, and full unittest discovery. The runtime/test code under test is commit `20ef3c5f021c2ff1d6010d993a18be024947ef5c`; run #481 had already passed that code/test commit with 365 tests per platform. Run #480 remains unverified. This is hosted CI only, not user-local Windows verification.
