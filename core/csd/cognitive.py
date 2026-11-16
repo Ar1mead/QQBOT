@@ -39,6 +39,7 @@ from .goals import (
 
 SCHEMA_VERSION = 6
 OBSERVATION_EVENT = "experience.observation_recorded.v1"
+OBSERVATION_EVENT_V2 = "experience.observation_recorded.v2"
 PROPOSAL_EVENT = "cognition.memory_candidate_proposed.v1"
 GROUNDED_PROPOSAL_EVENT = "cognition.grounded_memory_candidate_proposed.v1"
 SEMANTIC_REVIEW_EVENT = "cognition.semantic_review_recorded.v1"
@@ -493,7 +494,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT} and not internal:
             raise ValueError("CSD decision events are reserved for the internal authority path")
         if event.event_type not in {
-            OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
+            OBSERVATION_EVENT, OBSERVATION_EVENT_V2, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
             SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
             INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
             GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
@@ -507,6 +508,8 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             raise ValueError("motivation decision event source must identify CSD authority")
         if event.event_type in {GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT} and event.source != GOAL_DECISION_SOURCE:
             raise ValueError("goal decision event source must identify CSD authority")
+        if event.event_type == OBSERVATION_EVENT_V2:
+            self._validate_observation_v2_event(event)
         if event.event_type == SEMANTIC_REVIEW_EVENT:
             reviewer = event.payload.get("reviewer")
             if not isinstance(reviewer, Mapping) or not isinstance(reviewer.get("component"), str):
@@ -554,7 +557,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 raise CognitiveIntegrityError(
                     f"{proposal_family} evidence must reference an earlier event"
                 )
-            if row["event_type"] == OBSERVATION_EVENT:
+            if row["event_type"] in {OBSERVATION_EVENT, OBSERVATION_EVENT_V2}:
                 self.get_event(evidence_event_id)
 
     def _validate_grounded_proposal_event_history(
@@ -1073,6 +1076,8 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         try:
             if event.event_type == OBSERVATION_EVENT:
                 self._validate_observation(event.payload)
+            elif event.event_type == OBSERVATION_EVENT_V2:
+                self._validate_observation_v2_event(event)
             elif event.event_type == PROPOSAL_EVENT:
                 self._validate_proposal(event.payload)
                 self._validate_existing_evidence_history(
@@ -1226,6 +1231,98 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         _nonempty(coverage.get("modality"), "coverage.modality")
         if not isinstance(coverage.get("complete_for_fixture"), bool):
             raise ValueError("coverage.complete_for_fixture must be boolean")
+
+    @staticmethod
+    def _validate_observation_v2(payload: Mapping[str, Any]) -> None:
+        """Validate a provenance-complete, still-untrusted observation envelope."""
+        allowed = {
+            "observation_id", "adapter_id", "adapter_version", "platform",
+            "account_ref", "external_ref", "observation_kind", "content_origin",
+            "modality", "content", "source_ref", "source_artifact_ref",
+            "observed_at", "received_at", "extraction_method", "content_digest",
+            "coverage", "untrusted",
+        }
+        if set(payload) != allowed:
+            raise ValueError("observation v2 payload contains missing or unsupported fields")
+        for field in (
+            "observation_id", "adapter_id", "adapter_version", "platform",
+            "external_ref", "observation_kind", "modality", "content",
+            "source_ref", "extraction_method",
+        ):
+            _nonempty(payload.get(field), f"observation.{field}")
+        if payload.get("content_origin") not in {"source_provided", "adapter_extracted"}:
+            raise ValueError("observation.content_origin is unsupported")
+        for field in ("account_ref", "source_artifact_ref"):
+            value = payload.get(field)
+            if value is not None:
+                _nonempty(value, f"observation.{field}")
+        _timestamp(payload.get("observed_at"), "observed_at")
+        _timestamp(payload.get("received_at"), "received_at")
+        expected_digest = "sha256:" + hashlib.sha256(
+            payload["content"].encode("utf-8")
+        ).hexdigest()
+        if payload.get("content_digest") != expected_digest:
+            raise ValueError("observation content_digest does not match UTF-8 content bytes")
+        if payload.get("untrusted") is not True:
+            raise ValueError("external observation must remain untrusted")
+
+        coverage = payload.get("coverage")
+        coverage_fields = {
+            "modality", "extraction_method", "complete", "start_ms",
+            "end_ms", "missing_ranges_ms", "notes",
+        }
+        if not isinstance(coverage, Mapping) or set(coverage) != coverage_fields:
+            raise ValueError("observation v2 coverage contains missing or unsupported fields")
+        if coverage.get("modality") != payload["modality"]:
+            raise ValueError("observation coverage modality mismatch")
+        if coverage.get("extraction_method") != payload["extraction_method"]:
+            raise ValueError("observation coverage extraction_method mismatch")
+        if not isinstance(coverage.get("complete"), bool):
+            raise ValueError("observation coverage complete must be boolean")
+        start_ms, end_ms = coverage.get("start_ms"), coverage.get("end_ms")
+        for name, value in (("start_ms", start_ms), ("end_ms", end_ms)):
+            if value is not None and (
+                not isinstance(value, int) or isinstance(value, bool) or value < 0
+            ):
+                raise ValueError(f"observation coverage {name} must be a non-negative integer or None")
+        if start_ms is not None and end_ms is not None and end_ms < start_ms:
+            raise ValueError("observation coverage end_ms must be >= start_ms")
+        missing_ranges = coverage.get("missing_ranges_ms")
+        if not isinstance(missing_ranges, list):
+            raise ValueError("observation coverage missing_ranges_ms must be a list")
+        for index, item in enumerate(missing_ranges):
+            if not isinstance(item, list) or len(item) != 2:
+                raise ValueError(f"observation coverage missing_ranges_ms[{index}] must be a pair")
+            range_start, range_end = item
+            for name, value in (("start", range_start), ("end", range_end)):
+                if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                    raise ValueError(
+                        f"observation coverage missing_ranges_ms[{index}].{name} must be non-negative"
+                    )
+            if range_end < range_start:
+                raise ValueError("observation coverage missing range end must be >= start")
+            if start_ms is not None and range_start < start_ms:
+                raise ValueError("observation coverage missing range starts before covered interval")
+            if end_ms is not None and range_end > end_ms:
+                raise ValueError("observation coverage missing range ends after covered interval")
+        if coverage["complete"] and missing_ranges:
+            raise ValueError("complete observation coverage cannot declare missing ranges")
+        notes = coverage.get("notes")
+        if not isinstance(notes, list) or any(
+            not isinstance(note, str) or not note.strip() for note in notes
+        ):
+            raise ValueError("observation coverage notes must be a list of non-empty strings")
+
+    @staticmethod
+    def _validate_observation_v2_event(event: CognitiveEvent) -> None:
+        CognitiveMemoryStore._validate_observation_v2(event.payload)
+        expected_id = f"observation:{event.payload['adapter_id']}:{event.payload['observation_id']}"
+        if (
+            event.event_id != expected_id
+            or event.correlation_id != expected_id
+            or event.source != f"observation-adapter:{event.payload['adapter_id']}"
+        ):
+            raise ValueError("observation v2 event identity or source does not match adapter provenance")
 
     @staticmethod
     def _validate_proposal(payload: Mapping[str, Any]) -> None:
@@ -1400,11 +1497,14 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                         return "needs_more_evidence", (
                             f"referenced observation is unavailable: {evidence['event_id']}"
                         )
-                    if source_event["event_type"] != OBSERVATION_EVENT:
+                    if source_event["event_type"] not in {OBSERVATION_EVENT, OBSERVATION_EVENT_V2}:
                         return "rejected", (
                             f"evidence is not an observation event: {evidence['event_id']}"
                         )
-                    self._validate_observation(source_event["payload"])
+                    if source_event["event_type"] == OBSERVATION_EVENT:
+                        self._validate_observation(source_event["payload"])
+                    else:
+                        self._validate_observation_v2(source_event["payload"])
                     if source_event["payload"]["coverage"]["modality"] != "text":
                         return "rejected", (
                             f"grounded memory v2 requires text evidence, got modality "
@@ -1563,6 +1663,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
     ) -> None:
         if event.event_type == OBSERVATION_EVENT:
             self._validate_observation(event.payload)
+            return
+        if event.event_type == OBSERVATION_EVENT_V2:
+            self._validate_observation_v2_event(event)
             return
         if event.event_type in {PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT}:
             if event.event_type == PROPOSAL_EVENT:
