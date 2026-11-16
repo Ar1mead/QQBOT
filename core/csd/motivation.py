@@ -628,10 +628,9 @@ class CognitiveMotivationMixin:
         if event_row is None:
             self._raise_cognitive_integrity("motivation decision event is missing from history")
         sequence = int(event_row["sequence"])
-        decision_number = int(db.execute(
-            "SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<?",
-            (MOTIVATION_DECISION_EVENT, sequence),
-        ).fetchone()[0]) + 1
+        decision_number = self._decision_replay_context_for(
+            db
+        ).decision_number_for(MOTIVATION_DECISION_EVENT, sequence)
         if (
             event.event_id != f"csd-motivation-decision:{proposal_id}:{decision_number}"
             or event.correlation_id != f"motivation-proposal:{proposal_id}"
@@ -1097,8 +1096,8 @@ class CognitiveMotivationMixin:
             ):
                 self._raise_cognitive_integrity("latest motivation signal projection differs from event history")
 
-    @staticmethod
     def _accepted_transition_count(
+        self,
         db: Any,
         event_types: set[str],
         *,
@@ -1106,20 +1105,6 @@ class CognitiveMotivationMixin:
     ) -> int:
         if not event_types:
             return 0
-        types = sorted(event_types)
-        placeholders = ",".join("?" for _ in types)
-        query = (
-            f"SELECT p.payload_json FROM events e JOIN payloads p ON p.payload_ref=e.payload_ref "
-            f"WHERE e.event_type IN ({placeholders})"
+        return self._decision_replay_context_for(db).accepted_count_for(
+            event_types, through_sequence
         )
-        params: list[Any] = list(types)
-        if through_sequence is not None:
-            query += " AND e.sequence<=?"
-            params.append(through_sequence)
-        query += " ORDER BY e.sequence"
-        count = 0
-        for row in db.execute(query, params).fetchall():
-            payload = json.loads(row["payload_json"])
-            if payload.get("outcome") == "accepted":
-                count += 1
-        return count
