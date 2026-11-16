@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -171,6 +173,42 @@ def goal_event(
             "contract_version": "life.goal_batch_proposed.v1",
         },
         at="2026-11-15T08:02:00+00:00",
+    )
+
+
+def rewrite_event_payload_with_valid_digests(store, event_id: str, mutate) -> None:
+    """Tamper with an immutable event while recomputing both stored digests."""
+    original = store.get_event(event_id)
+    payload = dict(original["payload"])
+    mutate(payload)
+    payload_json = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True,
+        separators=(",", ":"), allow_nan=False,
+    )
+    payload_ref = "sha256:" + hashlib.sha256(
+        payload_json.encode("utf-8")
+    ).hexdigest()
+    row = store._db.execute(
+        "SELECT received_at FROM events WHERE event_id=?", (event_id,)
+    ).fetchone()
+    store._db.execute("DROP TRIGGER events_no_update")
+    store._db.execute("DROP TRIGGER payloads_no_update")
+    store._db.execute(
+        "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+        (payload_ref, payload_json),
+    )
+    rewritten = CognitiveEvent(
+        event_id=original["event_id"],
+        occurred_at=original["occurred_at"],
+        correlation_id=original["correlation_id"],
+        event_type=original["event_type"],
+        source=original["source"],
+        payload=payload,
+    )
+    event_digest = store._event_digest(rewritten, payload_ref, row["received_at"])
+    store._db.execute(
+        "UPDATE events SET payload_ref=?,event_digest=? WHERE event_id=?",
+        (payload_ref, event_digest, event_id),
     )
 
 
@@ -556,6 +594,30 @@ class CSDGoalStateTests(unittest.TestCase):
         ):
             self.store.get_event(forged_id)
 
+    def test_get_event_rejects_goal_batch_decision_with_rewritten_transition(self):
+        signal_id = add_internal_signal(self.store, "read-batch-transition")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_event(
+            "read-batch-transition",
+            [signal_id],
+            state_version=version,
+        ))
+        result = self.store.evaluate_goal_batch_proposal("read-batch-transition")
+        self.assertEqual(result["status"], "accepted")
+        decision_event_id = result["decision_event_id"]
+
+        def mutate(payload):
+            payload["transitions"][0]["origin_class"] = "externally_triggered"
+
+        rewrite_event_payload_with_valid_digests(
+            self.store, decision_event_id, mutate
+        )
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError,
+            "goal batch decision differs from deterministic CSD evaluation",
+        ):
+            self.store.get_event(decision_event_id)
+
     def test_goal_version_projection_corruption_is_detected_and_recovered(self):
         signal_id = add_internal_signal(self.store, "version-corrupt")
         version = self.store.get_state_snapshot()["state_version"]
@@ -885,6 +947,33 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.assertEqual(self.store.get_state_snapshot()["state_version"], version + 1)
         self.assertEqual(self.store.get_goal(goal_id)["goal_version"], 3)
 
+    def test_get_event_rejects_pause_resume_decision_with_rewritten_operation(self):
+        goal_id = self.activate_candidate("read-pause-resume-transition")
+        state_version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "read-pause-resume-transition",
+            goal_id,
+            state_version=state_version,
+            expected_goal_version=2,
+            operation="pause",
+        ))
+        result = self.store.evaluate_goal_pause_resume_proposal(
+            "read-pause-resume-transition"
+        )
+        self.assertEqual(result["status"], "accepted")
+        decision_event_id = result["decision_event_id"]
+
+        rewrite_event_payload_with_valid_digests(
+            self.store,
+            decision_event_id,
+            lambda payload: payload.__setitem__("operation", "resume"),
+        )
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError,
+            "goal pause/resume decision differs from deterministic CSD evaluation",
+        ):
+            self.store.get_event(decision_event_id)
+
     def test_pause_resume_decision_and_goal_version_commit_atomically(self):
         goal_id = self.activate_candidate("pause-atomic")
         version = self.store.get_state_snapshot()["state_version"]
@@ -954,6 +1043,32 @@ class CSDGoalActivationTests(unittest.TestCase):
                 "csd.authority.v1",
                 {},
             ))
+
+    def test_get_event_rejects_activation_decision_with_rewritten_goal_version(self):
+        goal_id, _ = self.create_candidate("read-activation-transition")
+        state_version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "read-activation-transition",
+            goal_id,
+            state_version=state_version,
+            expected_goal_version=1,
+        ))
+        result = self.store.evaluate_goal_activation_proposal(
+            "read-activation-transition"
+        )
+        self.assertEqual(result["status"], "accepted")
+        decision_event_id = result["decision_event_id"]
+
+        rewrite_event_payload_with_valid_digests(
+            self.store,
+            decision_event_id,
+            lambda payload: payload.__setitem__("expected_goal_version", 9),
+        )
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError,
+            "goal activation decision differs from deterministic CSD evaluation",
+        ):
+            self.store.get_event(decision_event_id)
 
     def test_activation_preserves_origin_lineage_after_source_signal_is_paused(self):
         goal_id, signal_id = self.create_candidate("paused-source")
