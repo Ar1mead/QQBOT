@@ -23,7 +23,10 @@ As a result, a direct SQL rewrite that also recomputed the payload reference and
 
 ## Regression
 
-Added `tests/test_csd_semantic_review.py::test_get_event_rejects_schema_invalid_observation_with_valid_digests`.
+Added two direct-read regressions:
+
+- `tests/test_csd_semantic_review.py::test_get_event_rejects_schema_invalid_observation_with_valid_digests`.
+- `tests/test_csd_semantic_review.py::test_get_event_rejects_proposal_claiming_future_state_with_valid_digests`.
 
 The test:
 1. Persists a valid observation event.
@@ -31,6 +34,8 @@ The test:
 3. Recomputes the canonical payload reference and envelope digest.
 4. Calls `get_event()` directly.
 5. Requires `CognitiveIntegrityError` instead of returning the malformed event.
+
+The proposal regression persists a valid grounded proposal, rewrites its `based_on.state_version` to a value that did not exist at that event's sequence, recomputes both digests, and verifies that direct read rejects the historical claim.
 
 ## Verification
 
