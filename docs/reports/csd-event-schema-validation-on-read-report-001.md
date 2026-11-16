@@ -124,3 +124,13 @@ Hosted GitHub Actions run #385 passed on both Ubuntu and Windows. `python -m com
 - Regression: `tests/test_csd_semantic_review.py::test_get_event_rejects_memory_decision_with_rebound_evidence_ids` changes the decision's evidence list, recomputes the payload and envelope digests, then confirms `get_event()` fails closed.
 - Implementation commit: `ef043337c610603e6065a7bfdf48acb2944c919e`; regression commit: `bdb52b9f794776efc7bee9fbba7911fd06ea2e68`.
 - Hosted GitHub Actions run #405 passed on Ubuntu and Windows. Compileall and all focused workflow groups passed; complete unittest discovery passed **356 tests per platform**. User-local Windows 11 / Python 3.12.14 verification remains pending.
+
+
+## Follow-up: decision-to-semantic-review history binding
+
+- Direct reads of memory decision events using grounded review policy v0.2 now compare `semantic_review_event_ids` and `semantic_review_status` with the immutable semantic-review event history that existed before the decision.
+- The direct-read path also checks the policy family/version, the `semantic_review_applied` flag, allowed review status/outcome combinations, and the rule that an inference cannot be accepted without supported prior review evidence.
+- The review summary is recomputed with an explicit `before_sequence` bound, so reviews appended after a decision cannot retroactively justify it. Every referenced review is itself validated against its unique earlier grounded proposal, proposal digest, inference claim digest, and supporting-claim lineage.
+- Regression: `tests/test_csd_semantic_review.py::test_get_event_rejects_memory_decision_with_rebound_semantic_review_ids` removes the review reference from an otherwise accepted decision, recomputes both digests, and confirms direct read rejection.
+- Implementation commit: `312a204a7cf0bd04719cac58e15ccbd83d77aa9a`; regression commit: `b3b450cc01df62a3df6f3bcd8acfbf7720df5043`.
+- Hosted GitHub Actions run #411 passed on Ubuntu and Windows. Compileall and all focused workflow groups passed; complete unittest discovery passed **357 tests per platform**. User-local Windows 11 / Python 3.12.14 verification remains pending.
