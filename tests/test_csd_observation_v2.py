@@ -112,6 +112,25 @@ class CSDObservationV2Tests(unittest.TestCase):
         self.assertEqual(stored["payload"]["coverage"]["missing_ranges_ms"], [[20_000, 25_000]])
         self.assertEqual(self.store.get_memories(), [])
 
+    def test_repeated_v2_delivery_is_idempotent_and_conflicts_are_rejected(self):
+        event = observation_evidence_to_csd_event(self.evidence())
+        first = self.store.submit_event(event)
+        duplicate = self.store.submit_event(event)
+
+        self.assertEqual(first["status"], "accepted")
+        self.assertEqual(duplicate["status"], "duplicate")
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], 1)
+
+        changed_payload = dict(event.payload)
+        changed_payload["content"] = "Different content for the same stable observation ID."
+        changed_payload["content_digest"] = "sha256:" + hashlib.sha256(
+            changed_payload["content"].encode("utf-8")
+        ).hexdigest()
+        conflicting = replace(event, payload=changed_payload)
+        with self.assertRaisesRegex(Exception, "observation:"):
+            self.store.submit_event(conflicting)
+        self.assertEqual(self.store.get_state_snapshot()["event_count"], 1)
+
     def test_adapter_extracted_content_remains_untrusted(self):
         evidence = self.evidence(content_origin=ContentOrigin.ADAPTER_EXTRACTED)
         event = observation_evidence_to_csd_event(evidence)
