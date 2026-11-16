@@ -16,7 +16,7 @@ from core.csd import (
     INTERACTION_EVENT,
     MOTIVATION_PROPOSAL_EVENT,
 )
-from core.csd.cognitive import OBSERVATION_EVENT
+from core.csd.cognitive import OBSERVATION_EVENT, PROPOSAL_EVENT
 from core.csd.goals import (
     GOAL_ACTIVATION_DECISION_EVENT,
     GOAL_ACTIVATION_PROPOSAL_EVENT,
@@ -790,6 +790,91 @@ class CSDGoalActivationTests(unittest.TestCase):
             "accepted",
         )
         return goal_id
+
+    def test_mixed_decision_history_uses_one_verified_prefix_scan_per_read_transaction(self):
+        self.store.submit_event(event(
+            "replay-memory-observation",
+            OBSERVATION_EVENT,
+            "test.observation",
+            {
+                "observation_id": "replay-memory-observation",
+                "observation_kind": "text_fixture",
+                "content": "A synthetic observation for replay-context testing.",
+                "source_ref": "fixture://decision-replay/memory",
+                "observed_at": "2026-11-15T08:00:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+        ))
+        self.store.submit_event(event(
+            "replay-memory-proposal",
+            PROPOSAL_EVENT,
+            "test.memory_candidate_fixture",
+            {
+                "proposal_id": "replay-memory",
+                "memory_kind": "episodic_candidate",
+                "candidate_content": "A synthetic memory used to test mixed decision replay.",
+                "evidence_event_ids": ["replay-memory-observation"],
+                "origin": {"component": "test.memory_candidate_fixture", "version": "0.1"},
+                "uncertainty": {"label": "fixture_only", "confidence": None},
+                "based_on": {"state_version": self.store.get_state_snapshot()["state_version"]},
+                "operation": "create",
+            },
+        ))
+        self.assertEqual(self.store.evaluate_proposal("replay-memory")["status"], "accepted")
+
+        signal_id = add_internal_signal(self.store, "replay-context")
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_event(
+            "replay-context-goal", [signal_id], state_version=version
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_batch_proposal("replay-context-goal")["status"],
+            "accepted",
+        )
+        goal_id = "goal-replay-context-goal"
+
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_activation_event(
+            "replay-context-activation", goal_id, state_version=version
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_activation_proposal("replay-context-activation")["status"],
+            "accepted",
+        )
+
+        version = self.store.get_state_snapshot()["state_version"]
+        self.store.submit_event(goal_pause_resume_event(
+            "replay-context-pause", goal_id,
+            state_version=version, expected_goal_version=2, operation="pause",
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_pause_resume_proposal("replay-context-pause")["status"],
+            "accepted",
+        )
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], 5)
+
+        statements = []
+        self.store._db.set_trace_callback(statements.append)
+        try:
+            with self.store._read_tx():
+                self.store._assert_accepted_projection_consistent()
+                self.store._assert_goal_projection_consistent()
+        finally:
+            self.store._db.set_trace_callback(None)
+
+        prefix_scans = [
+            sql for sql in statements
+            if sql.lstrip().lower().startswith(
+                "select e.sequence,e.event_id from events e"
+            )
+            and "where e.event_type in" in sql.lower()
+            and "order by e.sequence" in sql.lower()
+        ]
+        self.assertEqual(
+            len(prefix_scans),
+            1,
+            "all five decision families should share one verified prefix scan",
+        )
 
 
     def test_pause_resume_proposal_cannot_claim_a_future_snapshot_version(self):
