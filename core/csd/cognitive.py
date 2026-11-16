@@ -751,6 +751,17 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     "decision references semantic reviews outside grounded review policy"
                 )
 
+        elif event.event_type == MOTIVATION_DECISION_EVENT:
+            proposal_payload = proposal_event["payload"]
+            expected_evidence_ids = (
+                proposal_payload["supporting_event_ids"]
+                + proposal_payload["counter_evidence_event_ids"]
+            )
+            if event.payload.get("evidence_event_ids") != expected_evidence_ids:
+                raise CognitiveIntegrityError(
+                    "motivation decision evidence references do not match historical proposal"
+                )
+
     def _validate_semantic_review_event_history(
         self,
         db: sqlite3.Connection,
