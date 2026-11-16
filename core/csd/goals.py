@@ -1565,5 +1565,9 @@ class CognitiveGoalLifecycleMixin:
         return _evaluate_goal_pause_resume_proposal(self, proposal_id)
 
     def _assert_goal_projection_consistent(self) -> None:
+        if not self._db.in_transaction:
+            with self._read_tx():
+                _assert_goal_projection_consistent_v2(self)
+            return
         _assert_goal_projection_consistent_v2(self)
 
