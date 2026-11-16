@@ -875,6 +875,29 @@ class CSDGoalActivationTests(unittest.TestCase):
             1,
             "all five decision families should share one verified prefix scan",
         )
+        self.assertIsNone(self.store._active_decision_replay_context)
+
+        recovery_statements = []
+        self.store._db.set_trace_callback(recovery_statements.append)
+        try:
+            self.store.recover()
+        finally:
+            self.store._db.set_trace_callback(None)
+        recovery_prefix_scans = [
+            sql for sql in recovery_statements
+            if sql.lstrip().lower().startswith(
+                "select e.sequence,e.event_id from events e"
+            )
+            and "where e.event_type in" in sql.lower()
+            and "order by e.sequence" in sql.lower()
+        ]
+        self.assertEqual(
+            len(recovery_prefix_scans),
+            1,
+            "Recovery should share one verified prefix scan across the whole replay",
+        )
+        self.assertIsNone(self.store._active_decision_replay_context)
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], 5)
 
 
     def test_pause_resume_proposal_cannot_claim_a_future_snapshot_version(self):
