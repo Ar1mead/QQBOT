@@ -348,6 +348,28 @@ class SemanticReviewStoreTests(unittest.TestCase):
             1,
         )
 
+    def test_duplicate_event_rejects_prior_event_with_invalid_timestamp_as_integrity_error(self):
+        original = self.make_review()
+        self.store.submit_event(original)
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute(
+            "UPDATE events SET occurred_at=? WHERE event_id=?",
+            ("not-a-timestamp", original.event_id),
+        )
+
+        from core.csd.cognitive import CognitiveIntegrityError
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "invalid durable event envelope"
+        ):
+            self.store.submit_event(original)
+        self.assertEqual(
+            self.store._db.execute(
+                "SELECT COUNT(*) FROM events WHERE event_type=?",
+                (SEMANTIC_REVIEW_EVENT,),
+            ).fetchone()[0],
+            1,
+        )
+
     def test_same_review_id_with_changed_content_conflicts(self):
         self.submit_proposal()
         first = self.make_review(review_id="review-conflict")
