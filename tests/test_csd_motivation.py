@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -149,6 +150,62 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
     def add_proposal(self, event):
         return self.store.submit_event(event)
 
+    def rewrite_event_payload_with_valid_digests(self, event_id, mutate):
+        original = self.store.get_event(event_id)
+        payload = dict(original["payload"])
+        mutate(payload)
+        payload_json = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False,
+        )
+        payload_ref = "sha256:" + hashlib.sha256(
+            payload_json.encode("utf-8")
+        ).hexdigest()
+        row = self.store._db.execute(
+            "SELECT received_at FROM events WHERE event_id=?", (event_id,)
+        ).fetchone()
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute("DROP TRIGGER payloads_no_update")
+        self.store._db.execute(
+            "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (payload_ref, payload_json),
+        )
+        rewritten = CognitiveEvent(
+            event_id=original["event_id"],
+            occurred_at=original["occurred_at"],
+            correlation_id=original["correlation_id"],
+            event_type=original["event_type"],
+            source=original["source"],
+            payload=payload,
+        )
+        event_digest = self.store._event_digest(
+            rewritten, payload_ref, row["received_at"]
+        )
+        self.store._db.execute(
+            "UPDATE events SET payload_ref=?,event_digest=? WHERE event_id=?",
+            (payload_ref, event_digest, event_id),
+        )
+
+
+    def test_get_event_rejects_motivation_decision_with_rebound_evidence_ids(self):
+        self.add_interaction(interaction("interaction-decision-evidence"))
+        self.add_proposal(motivation_proposal(
+            "proposal-decision-evidence",
+            support=("interaction-decision-evidence",),
+        ))
+        decision = self.store.evaluate_motivation_proposal("proposal-decision-evidence")
+        self.assertEqual(decision["status"], "accepted")
+        decision_event_id = decision["decision_event_id"]
+        self.rewrite_event_payload_with_valid_digests(
+            decision_event_id,
+            lambda payload: payload.__setitem__("evidence_event_ids", []),
+        )
+
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError,
+            "motivation decision evidence references do not match historical proposal",
+        ):
+            self.store.get_event(decision_event_id)
 
     def test_motivation_proposal_cannot_claim_a_future_snapshot_version(self):
         self.add_interaction(interaction("interaction-1"))
