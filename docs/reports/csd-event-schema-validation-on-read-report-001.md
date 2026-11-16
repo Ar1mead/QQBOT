@@ -49,3 +49,31 @@ The proposal regression persists a valid grounded proposal, rewrites its `based_
 The event digest is an integrity checksum, not an authenticated signature. This change detects schema-invalid rewrites even when their hashes are recomputed. It cannot prove authenticity against an actor able to rewrite the complete event history into a different, internally valid history and recompute all dependent values. Stronger tamper evidence requires an independently protected checkpoint or signing key outside the writable SQLite database; that is a separate design decision.
 
 This change does not connect a model provider, infer subjective motivation, or execute external actions.
+
+
+## Follow-up: decision provenance on direct reads
+
+A further audit found that decision-event reads checked exact payload fields, authority source, proposal-scoped event identity, and correlation identity, but did not independently prove that the decision's `evaluated_state_version` and `proposal_event_id` matched the event history immediately before the decision.
+
+### Change
+
+- Direct reads now require `evaluated_state_version` to equal the authoritative state version immediately before the decision event.
+- `proposal_event_id` must identify the unique earlier proposal event with the same `proposal_id`, and the event type must belong to the decision family's expected proposal family.
+- The historical proposal is loaded and validated from the immutable event log, not from mutable proposal projection tables.
+- Internal authoritative-state scans use a bounded validation mode to avoid recursive contextual reads. They retain envelope, payload, schema, authority, and identity checks for each counted decision.
+- Proposal-family matching uses SQLite JSON functions over the durable payload table; malformed JSON is protected by a lazy `CASE` expression.
+
+### Regression
+
+Added:
+- `test_get_event_rejects_decision_with_rewritten_evaluated_state_version`
+- `test_get_event_rejects_decision_referencing_another_proposal_event`
+
+Both tests recompute payload and envelope digests after tampering, so rejection must come from historical semantic validation rather than checksum mismatch.
+
+### Verification status
+
+- Implementation: commits `44b295b170ca32b5f7f4b9b4e1055bf6c6280645` and `cc3a2ae8035aac68b61ad02fbc6e4804a2ebee4e`.
+- Tests: commits `6a52756d9e1186f1950a71c504dbec0af487a971` and `6ca959bdab7d36a77c1bdcc996befa8ddbf96c8e`.
+- Hosted CI: pending. Run #350 (348 tests per OS) predates this change and is not evidence for these additions.
+- User-local Windows 11 / Python 3.12.14: pending.
