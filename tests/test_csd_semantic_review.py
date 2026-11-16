@@ -342,6 +342,23 @@ class SemanticReviewStoreTests(unittest.TestCase):
         ):
             self.store.get_event(decision_event_id)
 
+    def test_get_event_rejects_memory_decision_with_rebound_semantic_review_ids(self):
+        self.submit_proposal()
+        self.add_review()
+        decision = self.store.evaluate_proposal("proposal-review-1")
+        self.assertEqual(decision["status"], "accepted")
+        decision_event_id = decision["decision_event_id"]
+        self.rewrite_event_payload_with_valid_digests(
+            decision_event_id,
+            lambda payload: payload.__setitem__("semantic_review_event_ids", []),
+        )
+
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError,
+            "decision semantic review references do not match prior review history",
+        ):
+            self.store.get_event(decision_event_id)
+
     def test_get_event_rejects_memory_decision_with_rebound_evidence_ids(self):
         self.submit_proposal()
         self.add_review()
