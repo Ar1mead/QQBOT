@@ -188,6 +188,38 @@ class SemanticReviewStoreTests(unittest.TestCase):
         ):
             self.store.recover()
 
+    def test_recovery_rejects_memory_decision_with_rebound_wrong_event_id(self):
+        self.submit_proposal()
+        self.add_review()
+        decision = self.store.evaluate_proposal("proposal-review-1")
+        event_id = decision["decision_event_id"]
+        stored = self.store.get_event(event_id)
+        row = self.store._db.execute(
+            "SELECT payload_ref,received_at FROM events WHERE event_id=?",
+            (event_id,),
+        ).fetchone()
+        corrupted = CognitiveEvent(
+            event_id="csd-decision:proposal-review-1:999",
+            occurred_at=stored["occurred_at"],
+            correlation_id=stored["correlation_id"],
+            event_type=stored["event_type"],
+            source=stored["source"],
+            payload=stored["payload"],
+        )
+        digest = self.store._event_digest(
+            corrupted, row["payload_ref"], row["received_at"]
+        )
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute(
+            "UPDATE events SET event_id=?,event_digest=? WHERE event_id=?",
+            (corrupted.event_id, digest, event_id),
+        )
+        from core.csd.cognitive import CognitiveIntegrityError
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "identity or correlation_id mismatch"
+        ):
+            self.store.recover()
+
     def test_supported_review_allows_csd_to_accept_and_preserves_review_ref(self):
         self.submit_proposal()
         review = self.add_review()
