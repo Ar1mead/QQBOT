@@ -99,6 +99,22 @@ class ObservationContractTests(unittest.TestCase):
         self.assertEqual(result.status, ObservationStatus.PARTIAL)
         self.assertEqual(result.evidence[0].coverage.missing_ranges_ms, ((1000, 2000),))
 
+    def test_missing_coverage_ranges_must_be_sorted_and_non_overlapping(self):
+        with self.assertRaisesRegex(ValueError, "sorted and non-overlapping"):
+            ObservationCoverage(
+                modality="text",
+                extraction_method="fixture",
+                complete=False,
+                missing_ranges_ms=((2000, 3000), (1000, 1500)),
+            )
+        with self.assertRaisesRegex(ValueError, "sorted and non-overlapping"):
+            ObservationCoverage(
+                modality="text",
+                extraction_method="fixture",
+                complete=False,
+                missing_ranges_ms=((1000, 2500), (2000, 3000)),
+            )
+
     def test_coverage_extraction_method_must_match_evidence(self):
         evidence = self.make_evidence()
         coverage = ObservationCoverage(
