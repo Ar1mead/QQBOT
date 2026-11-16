@@ -151,3 +151,13 @@ The follow-up projection-deduplication regression was changed from brittle SQL t
 - A deeper call-path check found that `get_life_signal_snapshot()` validated goal history, then called `get_goals()`, which validated the same goal history a second time. It now reads the goal projection rows directly inside the same already-validated read transaction.
 - The projection-deduplication regression now counts both motivation-validator and goal-validator invocations. Goal batch evaluation, life snapshot, and state snapshot must each perform exactly one goal replay and one motivation validation. The out-of-transaction reuse guard remains covered.
 - Code/test head for this change: `3efa72823f82eb0db79dcff34445484c3271aa0b`. No fresh passing hosted workflow result is visible through the available PR-run lookup; run #503 remains a failure for the earlier trace-based test and is not evidence for this revision.
+
+### Observation event v2 — adapter provenance and compatibility
+
+CSD now accepts both the original fixture-oriented `experience.observation_recorded.v1` event and `experience.observation_recorded.v2`. V1 retains its original exact schema and is not rewritten. V2 adds adapter/platform/object provenance, optional opaque account reference, explicit source-provided versus adapter-extracted content origin, separate observed/received timestamps, extraction method, SHA-256 of exact UTF-8 content bytes, and modality-specific coverage including partial ranges and notes.
+
+The v2 event and its adapter mapper preserve external content as untrusted evidence. The content-origin field records where text came from; it does not make a caption, platform claim, ASR transcript, or OCR result true. The mapper uses a stable adapter/observation identity, and CSD validates both the payload and event-envelope identity.
+
+Grounded-memory v2 accepts exact text spans from v1 or v2 text observations. It does not accept image/audio/video evidence as text grounding. Inference claims remain separate from source assertions and continue through semantic review. Recovery replays both observation versions without rewriting old events.
+
+See [CSD Observation Event v2 Contract](../../docs/design/csd-observation-event-v2-contract.md). No real platform connector or account is enabled by this work.
