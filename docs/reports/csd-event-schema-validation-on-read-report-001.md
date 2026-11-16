@@ -86,3 +86,13 @@ Both tests recompute payload and envelope digests after tampering, so rejection 
 - Regression: `tests/test_csd_semantic_review.py::test_get_event_rejects_semantic_review_referencing_another_proposal_event` rewrites the review's proposal event reference to a different real proposal and recomputes the payload and envelope digests. The expected result is `CognitiveIntegrityError`.
 - Implementation commits: `64222e020b7dde086c0befe98e878ec4a7053acf` and `7db787634f58b142b5b1027954fd3355fa67f9c0`; regression commit: `333cae330f51e8cfc7a7dd665e960c616ef9e071`.
 - Hosted CI and local Windows verification: pending. The new test has been committed but has not yet been executed.
+
+
+## Verification correction: hosted run #385
+
+The first follow-up runs exposed two issues that were corrected before the successful run:
+
+- Historical direct reads of motivation proposals were reusing live projection checks. After later motivation transitions, those checks incorrectly rejected valid earlier proposals. The direct-read path now performs structural and event-evidence validation without comparing an old proposal against today's signal projection; append-time validation still applies the live-state checks.
+- Two existing regression assertions still expected the older error wording. They now assert the shared `invalid durable event schema` integrity error.
+
+Hosted GitHub Actions run #385 passed on both Ubuntu and Windows. `python -m compileall -q core tests` passed, every workflow test step passed, and complete unittest discovery passed **353 tests on each platform**. This is hosted CI only; the user's own Windows 11 / Python 3.12.14 verification remains intentionally deferred until the project is ready to clone.
