@@ -67,3 +67,6 @@ The same-event-ID duplicate path now validates event-family schemas before ackno
 
 
 Direct reads also revalidate proposal `based_on.state_version` against the authoritative state version immediately before the proposal's original sequence. This prevents a digest-consistent proposal from claiming a future state snapshot. Regression: `test_get_event_rejects_proposal_claiming_future_state_with_valid_digests`; hosted CI is pending.
+
+
+Decision-event direct reads now also validate historical provenance: the evaluated state version must match the authoritative event history immediately before the decision, and the referenced proposal must be the unique earlier event in the correct proposal family. This check reads the event log rather than mutable projections and uses a bounded internal mode to avoid recursive state-version reads. New tamper regressions and hosted CI are pending; see [decision provenance on direct reads](../../docs/reports/csd-event-schema-validation-on-read-report-001.md).
