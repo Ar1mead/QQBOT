@@ -385,3 +385,12 @@ At the time of this update:
 - Report: `docs/reports/csd-historical-replay-cost-audit-report-001.md`.
 - Next: design and implement a per-operation, sequence-ordered historical replay context that computes verified accepted-decision prefix versions once per stable SQLite snapshot. Preserve event-history authority, all five decision families, payload/envelope validation, and deterministic Recovery. Add mixed-family chronology and query-count/scaling regressions before considering any index changes.
 - User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
+
+
+### 2026-11-16 follow-up — event-history query index
+
+- Added schema v6 with transactional migration from v5, creating composite index `idx_events_event_type_sequence` on `events(event_type, sequence)`.
+- Added migration success and rollback tests, updated older v3/v4 migration fixtures to accurately remove the later-schema index, and added an `EXPLAIN QUERY PLAN` regression confirming the shared event-family/prefix query uses the index.
+- Hosted GitHub Actions run #438 passed on Ubuntu and Windows. Full unittest discovery reported **364 tests per platform**; all focused steps and compileall passed. This is hosted CI, not the user's local Windows test.
+- Updated `core/csd/README.md` and the historical replay cost audit report. The index improves each event-family/prefix lookup but does not solve repeated prefix aggregation; no long-history performance claim is made.
+- Next: implement a per-operation, sequence-ordered historical replay context to calculate verified accepted-decision prefix versions once per stable SQLite snapshot. Preserve all five decision families and the existing direct-read/Recovery integrity checks.
