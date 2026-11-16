@@ -264,6 +264,22 @@ class SemanticReviewStoreTests(unittest.TestCase):
             (payload_ref, event_digest, event_id),
         )
 
+    def test_get_event_rejects_semantic_review_referencing_another_proposal_event(self):
+        self.submit_proposal("proposal-review-1")
+        self.submit_proposal("proposal-review-2")
+        self.add_review(proposal_id="proposal-review-1")
+        self.rewrite_event_payload_with_valid_digests(
+            "evt-review-1",
+            lambda payload: payload.__setitem__(
+                "proposal_event_id", "evt-proposal-review-2"
+            ),
+        )
+
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "semantic review proposal-event reference"
+        ):
+            self.store.get_event("evt-review-1")
+
     def test_get_event_rejects_decision_with_rewritten_evaluated_state_version(self):
         self.submit_proposal()
         self.add_review()
