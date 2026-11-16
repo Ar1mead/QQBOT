@@ -220,3 +220,13 @@ At the time of this update:
 - Implementation commit: `32915b190d888aee36d584dd2987b0a4d51e953d`; regression-test commit: `6ca4e4a479d560569e8855dc646767fa0b7d6cba`.
 - GitHub Actions run #339 passed on Ubuntu and Windows: **345 tests** passed on each platform; compileall and all workflow test steps passed. Report: `docs/reports/csd-same-event-id-duplicate-schema-validation-report-001.md`.
 - Remaining: audit internal decision-event retry validation, cross-family event ordering, and coordinated projection/event-history corruption. User-local Windows 11 / Python 3.12.14 verification remains pending; no real model provider or external action execution is connected.
+
+
+### 2026-11-16 follow-up — internal decision retry compatibility and final verification
+
+- The duplicate-schema helper now also preserves legitimate internal decision-event retries. Before a duplicate acknowledgement it checks the decision authority source, supported outcome, and proposal-scoped event ID/correlation ID; memory and motivation decision sequence identity is additionally checked by `get_event()`.
+- Added `tests/test_csd_semantic_review.py::test_same_event_id_internal_decision_retry_remains_idempotent`. The first version of this test did not satisfy the grounded-proposal review gate and therefore did not create a decision event; run #341 exposed the fixture issue. The test was corrected to submit a supported review before evaluation (commit `1b37d53061b0dd397792f7b06d353338e88f46d9`).
+- Decision retry implementation commit: `6492fa8e94c8e8cb487ee163b8e8d1380537aa52`. Corrected regression-test commit: `1b37d53061b0dd397792f7b06d353338e88f46d9`.
+- GitHub Actions run #342 passed on Ubuntu and Windows: **346 tests** passed on each platform, including compileall and full test discovery.
+- Updated report: `docs/reports/csd-same-event-id-duplicate-schema-validation-report-001.md`.
+- Remaining audit: decision payload field schemas and cross-family event ordering; coordinated corruption of projections versus event history. User-local Windows 11 / Python 3.12.14 verification remains pending.
