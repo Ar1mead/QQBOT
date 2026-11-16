@@ -518,9 +518,12 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             (event.event_id,),
         ).fetchone()
         if prior is not None:
-            # Idempotent delivery must not turn a corrupted prior envelope into
-            # a successful duplicate acknowledgement.
-            self.get_event(event.event_id)
+            # Idempotent delivery must not turn a corrupted prior envelope or
+            # event-specific schema into a successful duplicate acknowledgement.
+            stored_event = self.get_event(event.event_id)
+            self._validate_duplicate_event_shape(
+                db, stored_event, sequence=int(prior["sequence"])
+            )
             same = (
                 prior["occurred_at"] == event.occurred_at
                 and prior["correlation_id"] == event.correlation_id
@@ -622,6 +625,61 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             "received_at": received_at,
             "payload_ref": payload_ref,
         }
+
+    def _validate_duplicate_event_shape(
+        self,
+        db: sqlite3.Connection,
+        stored_event: Mapping[str, Any],
+        *,
+        sequence: int,
+    ) -> None:
+        """Recheck the immutable event-local contract before duplicate acknowledgement.
+
+        Contextual validation is deliberately limited to facts available at the
+        event's original sequence; later proposal/goal lifecycle state must not
+        invalidate an otherwise legitimate retry.
+        """
+        event = CognitiveEvent(
+            event_id=stored_event["event_id"],
+            occurred_at=stored_event["occurred_at"],
+            correlation_id=stored_event["correlation_id"],
+            event_type=stored_event["event_type"],
+            source=stored_event["source"],
+            payload=stored_event["payload"],
+        )
+        try:
+            if event.event_type == OBSERVATION_EVENT:
+                self._validate_observation(event.payload)
+            elif event.event_type == PROPOSAL_EVENT:
+                self._validate_proposal(event.payload)
+            elif event.event_type == GROUNDED_PROPOSAL_EVENT:
+                self._validate_grounded_proposal(event.payload)
+            elif event.event_type == SEMANTIC_REVIEW_EVENT:
+                self._validate_semantic_review_shape(event)
+            elif event.event_type == INTERACTION_EVENT:
+                self._validate_interaction_event(db, event, current_sequence=sequence)
+            elif event.event_type == MOTIVATION_PROPOSAL_EVENT:
+                self._validate_motivation_proposal(
+                    db, event, current_sequence=sequence
+                )
+            elif event.event_type == GOAL_BATCH_PROPOSAL_EVENT:
+                self._validate_goal_batch_proposal(event)
+            elif event.event_type == GOAL_ACTIVATION_PROPOSAL_EVENT:
+                from .goals import _validate_goal_activation_proposal
+                _validate_goal_activation_proposal(event)
+            elif event.event_type == GOAL_PAUSE_RESUME_PROPOSAL_EVENT:
+                from .goals import _validate_goal_pause_resume_proposal
+                _validate_goal_pause_resume_proposal(event)
+            else:
+                raise CognitiveIntegrityError(
+                    f"unsupported public duplicate event type: {event.event_type}"
+                )
+        except CognitiveIntegrityError:
+            raise
+        except (TypeError, ValueError, KeyError, IndexError, RecursionError, OverflowError) as exc:
+            raise CognitiveIntegrityError(
+                f"invalid prior event schema: {event.event_id}"
+            ) from exc
 
     @staticmethod
     def _validate_observation(payload: Mapping[str, Any]) -> None:
