@@ -8,6 +8,7 @@ import unittest
 
 from core.csd import CognitiveEvent, CognitiveMemoryStore, SemanticReviewCandidate
 from core.csd.cognitive import (
+    CognitiveIntegrityError,
     DECISION_EVENT,
     GROUNDED_PROPOSAL_EVENT,
     OBSERVATION_EVENT,
