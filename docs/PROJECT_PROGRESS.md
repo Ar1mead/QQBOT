@@ -374,3 +374,14 @@ At the time of this update:
 - GitHub Actions run #428 passed on Ubuntu and Windows: compileall, every focused suite, and full unittest discovery passed; **362 tests per platform**.
 - User-local Windows 11 / Python 3.12.14 testing remains deferred until the project is ready to clone.
 - Next: inspect event-log replay cost and SQLite query behavior as history grows, then continue coordinated projection tampering and crash/recovery tests.
+
+
+### 2026-11-16 follow-up — historical replay cost audit
+
+- Reviewed the current historical state-version and projection-reconciliation paths in `core/csd/cognitive.py`, `core/csd/goals.py`, and `core/csd/motivation.py`.
+- Found a scaling risk: history-wide validation repeatedly calls `_authoritative_state_version()`, which scans and integrity-reads accepted decision prefixes. Goal replay repeats this for each proposal/decision; memory and motivation projection reconciliation also invoke decision-context checks through ordinary `get_event()` reads. The repeated prefix work can grow quadratically with the number of decision events.
+- This is a code-structure finding, not a measured performance failure. The existing suite has no large-history benchmark establishing a practical slowdown threshold.
+- No runtime code changed in this audit. The full hosted GitHub Actions run #431 passed on Ubuntu and Windows; complete unittest discovery reported 362 tests passed on each platform, and compileall/focused steps passed.
+- Report: `docs/reports/csd-historical-replay-cost-audit-report-001.md`.
+- Next: design and implement a per-operation, sequence-ordered historical replay context that computes verified accepted-decision prefix versions once per stable SQLite snapshot. Preserve event-history authority, all five decision families, payload/envelope validation, and deterministic Recovery. Add mixed-family chronology and query-count/scaling regressions before considering any index changes.
+- User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
