@@ -1665,6 +1665,17 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             ),
         )
 
+    def _decision_replay_context_for(
+        self, db: sqlite3.Connection
+    ) -> _DecisionReplayContext:
+        if not db.in_transaction:
+            raise RuntimeError("decision replay context requires an active SQLite transaction")
+        context = self._active_decision_replay_context
+        if context is None:
+            context = self._build_decision_replay_context(db)
+            self._active_decision_replay_context = context
+        return context
+
     def _authoritative_state_version(
         self, db: sqlite3.Connection, *, through_sequence: int | None = None
     ) -> int:
@@ -1677,11 +1688,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 return self._authoritative_state_version(
                     db, through_sequence=through_sequence
                 )
-        context = self._active_decision_replay_context
-        if context is None:
-            context = self._build_decision_replay_context(db)
-            self._active_decision_replay_context = context
-        return context.state_version_at(through_sequence)
+        return self._decision_replay_context_for(db).state_version_at(through_sequence)
 
     def _apply_decision(self, db: sqlite3.Connection, event: CognitiveEvent) -> None:
         payload = event.payload
@@ -1755,10 +1762,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         if event_sequence_row is None:
             raise CognitiveIntegrityError("decision event is missing from durable history")
         event_sequence = int(event_sequence_row["sequence"])
-        decision_number = int(db.execute(
-            "SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<?",
-            (DECISION_EVENT, event_sequence),
-        ).fetchone()[0]) + 1
+        decision_number = self._decision_replay_context_for(
+            db
+        ).decision_number_for(DECISION_EVENT, event_sequence)
         if (
             event.event_id != f"csd-decision:{proposal_id}:{decision_number}"
             or event.correlation_id != f"proposal:{proposal_id}"
