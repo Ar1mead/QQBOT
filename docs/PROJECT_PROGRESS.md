@@ -258,7 +258,7 @@ At the time of this update:
 - Audit found that `get_event()` verified payload/envelope integrity and decision-event identity, but did not consistently rerun the event-family schema validator for ordinary observations, proposals, semantic reviews, interactions, motivation proposals, and goal proposals.
 - `get_event()` now invokes the shared event-local validator used by duplicate delivery and Recovery. Applicable references are validated against earlier event sequence numbers; later lifecycle state does not invalidate historical events.
 - Added `tests/test_csd_semantic_review.py::test_get_event_rejects_schema_invalid_observation_with_valid_digests`, which changes a valid observation's schema field and recomputes both payload and envelope digests before requiring direct read to fail with `CognitiveIntegrityError`.
-- Implementation commit: `68956b4092742fb8aa9c2c31e37204c01134b63c`; regression test commit: `12c059db63443bb9a848fcd0df4f1c70555cf187`.
+- Implementation commits: `68956b4092742fb8aa9c2c31e37204c01134b63c`, `aa5c13fca447bf7cd64669c8df98890fe9932122`, and `c61677c04980cdafb0d51b34efd60588f3fa825d`; regression test commits: `12c059db63443bb9a848fcd0df4f1c70555cf187` and `f7698e1e0726375211a1dcd73fe99f96007a6edf`.
 - Hosted CI is pending. User-local Windows 11 / Python 3.12.14 verification remains pending.
 - Integrity boundary: hashes are not authenticated signatures. Rewriting an entire history into a different internally valid history and recomputing all dependent hashes cannot be detected without an independently protected checkpoint or signing key. Do not claim protection against that threat without a separate anchor design.
 
