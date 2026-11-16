@@ -720,7 +720,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     raise CognitiveIntegrityError(
                         "decision evidence must precede its decision event"
                     )
-                if evidence_row["event_type"] != OBSERVATION_EVENT and outcome != "rejected":
+                if evidence_row["event_type"] not in {OBSERVATION_EVENT, OBSERVATION_EVENT_V2} and outcome != "rejected":
                     raise CognitiveIntegrityError(
                         "decision references disallowed historical evidence type"
                     )
@@ -1869,7 +1869,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 if outcome not in {"needs_more_evidence", "rejected"}:
                     raise CognitiveIntegrityError("decision references missing evidence")
                 continue
-            if evidence["event_type"] != OBSERVATION_EVENT and outcome != "rejected":
+            if evidence["event_type"] not in {OBSERVATION_EVENT, OBSERVATION_EVENT_V2} and outcome != "rejected":
                 raise CognitiveIntegrityError("decision references disallowed evidence type")
 
         evaluated_version = payload.get("evaluated_state_version")
@@ -2179,7 +2179,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                         outcome = "needs_more_evidence"
                         reason = f"referenced evidence event is missing: {evidence_id}"
                         break
-                    if evidence_record["event_type"] != OBSERVATION_EVENT:
+                    if evidence_record["event_type"] not in {OBSERVATION_EVENT, OBSERVATION_EVENT_V2}:
                         outcome = "rejected"
                         reason = f"evidence event is not an allowed observation: {evidence_id}"
                         break
@@ -2934,7 +2934,8 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                         f"non-canonical durable event payload: {event.event_id}"
                     )
                 if event.event_type not in {
-                    OBSERVATION_EVENT, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
+                    OBSERVATION_EVENT, OBSERVATION_EVENT_V2,
+                    PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
                     SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
                     INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
                     GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
