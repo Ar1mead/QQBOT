@@ -791,10 +791,9 @@ class CognitiveMotivationMixin:
                 current_state_version=current_version,
                 decision_time=now,
             )
-            decision_no = int(db.execute(
-                "SELECT COUNT(*) FROM events WHERE event_type=?",
-                (MOTIVATION_DECISION_EVENT,),
-            ).fetchone()[0]) + 1
+            decision_no = self._decision_replay_context_for(
+                db
+            ).decision_count_for(MOTIVATION_DECISION_EVENT) + 1
             decision_event_id = f"csd-motivation-decision:{proposal_id}:{decision_no}"
             outcome = prepared["outcome"]
             transition_id = f"csd-motivation-transition:{proposal_id}" if outcome == "accepted" else None
