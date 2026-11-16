@@ -468,3 +468,20 @@ At the time of this update:
 - Run #480 remains unverified and is not used as evidence. Run #481 verified the code/test commit on both platforms with 365 tests each; run #485 independently confirms the later documentation-updated head.
 - No user-local Windows test has been performed. The project remains un-cloned locally by the user; hosted Windows CI is not a substitute.
 - PR #1 remains Draft, open, and unmerged.
+
+### 2026-11-16 follow-up — motivation/goal projection validation deduplication
+
+- Removed redundant standalone motivation projection checks from goal batch, activation, and pause/resume decision paths. Goal reconciliation still performs the complete motivation event/projection validation exactly once before replaying goal history.
+- `get_life_signal_snapshot()` now relies on the goal validator's required motivation check rather than performing the same scan first. `get_state_snapshot()` preserves separate motivation/goal status reporting: after motivation validates successfully in the same read transaction, goal validation reuses that completed check; if motivation validation fails, goal consistency is also reported false as before.
+- The reuse flag is accepted only inside an already active SQLite transaction. An out-of-transaction attempt to claim prior validation raises `RuntimeError`, preventing an unchecked standalone goal read.
+- Added `test_goal_validation_reuses_motivation_projection_scan_per_transaction` covering goal decision evaluation, life snapshot, state snapshot, and rejection of out-of-transaction validation reuse.
+- First regression attempt used a brittle SQLite trace-string matcher and failed on both hosted platforms in run #503; this exposed a test-instrumentation assumption, not a CSD integrity failure. The regression now counts calls to the motivation validator directly. The latest branch head at this update is `571be0ed206a5466edcba2f42bfaa088f394ed34`; no passing workflow result for this head is currently visible, so the change remains **CI pending**.
+- Updated `.github/workflows/csd-cognitive-slice.yml`: added the missing `tests/test_csd_goals.py` PR path, included `adapters/**` and the two Stage 0 test files in push/PR path filters, and added dedicated adapter-contract/Bilibili-target test steps. The workflow-file change is intended to trigger a fresh hosted run.
+- No user-local test has been performed. PR #1 remains Draft, open, and unmerged.
+
+### Stage 0 adapter contract — initial code checkpoint
+
+- Added platform-neutral dataclasses/protocols in `adapters/contracts/observation.py` for capability modes, adapter manifests, observation requests, modality coverage, untrusted evidence, and observation results.
+- Added strict Bilibili target parsing in `adapters/platforms/bilibili/target.py`; the first-stage target accepts only a canonical-shaped BV identifier and rejects arbitrary URLs, short links, and local paths before extraction.
+- Added focused tests in `tests/test_adapter_observation_contract.py` and `tests/test_bilibili_target.py`; the CSD workflow now includes both suites on Ubuntu and Windows.
+- This is an initial contract slice, not a completed Stage 0 adapter: no real Bilibili network access, account login, DSH plugin, or external side effect is enabled. A deterministic fake adapter, adapter-to-CSD mapping, richer provenance/claim distinction, and Observation v2 event integration remain to be designed and tested.
