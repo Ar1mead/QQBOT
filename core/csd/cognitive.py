@@ -1510,6 +1510,30 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             _timestamp(row["received_at"], "received_at")
             if self._event_digest(event, row["payload_ref"], row["received_at"]) != row["event_digest"]:
                 raise CognitiveIntegrityError(f"event envelope digest failure: {event_id}")
+            if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT}:
+                proposal_id = _nonempty(
+                    payload.get("proposal_id"), "decision.proposal_id"
+                )
+                family_type = event.event_type
+                decision_number = int(self._db.execute(
+                    "SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<?",
+                    (family_type, int(row["sequence"])),
+                ).fetchone()[0]) + 1
+                if event.event_type == DECISION_EVENT:
+                    expected_event_id = f"csd-decision:{proposal_id}:{decision_number}"
+                    expected_correlation_id = f"proposal:{proposal_id}"
+                else:
+                    expected_event_id = (
+                        f"csd-motivation-decision:{proposal_id}:{decision_number}"
+                    )
+                    expected_correlation_id = f"motivation-proposal:{proposal_id}"
+                if (
+                    event.event_id != expected_event_id
+                    or event.correlation_id != expected_correlation_id
+                ):
+                    raise CognitiveIntegrityError(
+                        "decision event identity or correlation_id mismatch"
+                    )
             return {
                 "sequence": int(row["sequence"]),
                 "event_id": row["event_id"],
