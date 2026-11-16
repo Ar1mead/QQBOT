@@ -1568,10 +1568,12 @@ class CognitiveGoalLifecycleMixin:
         self, *, _motivation_already_validated: bool = False
     ) -> None:
         if not self._db.in_transaction:
-            with self._read_tx():
-                _assert_goal_projection_consistent_v2(
-                    self, motivation_already_validated=_motivation_already_validated
+            if _motivation_already_validated:
+                raise RuntimeError(
+                    "motivation validation can only be reused inside its active transaction"
                 )
+            with self._read_tx():
+                _assert_goal_projection_consistent_v2(self)
             return
         _assert_goal_projection_consistent_v2(
             self, motivation_already_validated=_motivation_already_validated
