@@ -79,3 +79,6 @@ Follow-up verification: hosted GitHub Actions run #385 passed on Ubuntu and Wind
 
 
 Grounded proposal reads now validate the chronology of any source event that already exists in the event log: a proposal cannot cite a later observation as earlier evidence, even after payload/envelope digests are recomputed. Existing observation sources are loaded through the normal integrity-checked read path. Missing source events remain pending (`needs_more_evidence`); semantically invalid but structurally durable candidates (non-observation references, mismatched quotes, invalid ranges) remain reviewable and are deterministically rejected by evaluation. Hosted GitHub Actions run #393 passed on Ubuntu and Windows with **355 tests per platform**, including regressions for future-evidence rebinding and corrupted source observations. User-local Windows 11 / Python 3.12.14 verification is still pending.
+
+
+Legacy memory proposals using `evidence_event_ids` now receive the same event-history checks as grounded-memory v2 claims: any already-existing evidence event must precede the proposal, and observation evidence is read through the full integrity validator. Missing evidence remains a pending condition; non-observation sources are deterministically rejected at evaluation. Hosted run #400 passed on Ubuntu and Windows with **356 tests per platform**.
