@@ -78,6 +78,13 @@ class ObservationContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "content_digest"):
             ObservationEvidence(**{**evidence.__dict__, "content_digest": "bad"})
 
+    def test_digest_must_match_normalized_content(self):
+        evidence = self.make_evidence()
+        with self.assertRaisesRegex(ValueError, "does not match normalized content"):
+            ObservationEvidence(
+                **{**evidence.__dict__, "content_digest": "sha256:" + "b" * 64}
+            )
+
     def test_failed_result_requires_error_code(self):
         with self.assertRaisesRegex(ValueError, "error_code"):
             ObservationResult(ObservationStatus.FAILED)
