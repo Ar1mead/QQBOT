@@ -48,6 +48,7 @@ The runtime, model, and platform adapters are replaceable infrastructure. The lo
 - [Project progress ledger and session handoff](docs/PROJECT_PROGRESS.md)
 
 - [Architecture overview](docs/architecture/overview.md)
+- [Platform and runtime adapter contract](docs/architecture/platform-and-runtime-adapter-contract.md)
 - [Persistent individual runtime model](docs/architecture/individual-runtime-model.md)
 - [CSD state authority and cognitive proposal boundary](docs/design/csd-state-authority-boundary.md)
 - [CSD v0.1 and architecture reconciliation](docs/reports/csd-v0.1-architecture-reconciliation.md)
