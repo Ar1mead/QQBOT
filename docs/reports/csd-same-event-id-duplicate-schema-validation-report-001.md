@@ -16,6 +16,7 @@ Consequently, a previously accepted event whose payload and envelope were both m
 
 - Added `_validate_duplicate_event_shape()` and invoke it on the stored event before acknowledging a same-event-ID retry.
 - Revalidate the immutable event-local contract at the event's original sequence.
+- Preserve internal decision-event retry idempotency while checking authority source, allowed outcome, proposal-scoped event ID, and correlation ID for each decision family. Memory/motivation decision sequence numbering is checked by `get_event()` and repeated at the duplicate boundary; goal decision IDs are checked against their family-specific proposal identity.
 - Covered observation, memory proposal, grounded-memory proposal, semantic review, interaction, motivation proposal, goal batch proposal, goal activation proposal, and goal pause/resume proposal event families.
 - Keep the existing generic envelope verification and idempotency-conflict comparison.
 - Convert malformed prior event schema errors to `CognitiveIntegrityError`.
@@ -26,7 +27,8 @@ The helper intentionally validates event-local and historically available eviden
 
 Added:
 
-`tests/test_csd_semantic_review.py::test_same_event_id_duplicate_rejects_prior_event_with_invalid_review_schema`
+- `tests/test_csd_semantic_review.py::test_same_event_id_duplicate_rejects_prior_event_with_invalid_review_schema`
+- `tests/test_csd_semantic_review.py::test_same_event_id_internal_decision_retry_remains_idempotent`
 
 The test:
 1. Persists a valid semantic-review event.
@@ -37,13 +39,15 @@ The test:
 
 ## Verification
 
-- Implementation commit: `32915b190d888aee36d584dd2987b0a4d51e953d`
-- Regression-test commit: `6ca4e4a479d560569e8855dc646767fa0b7d6cba`
-- GitHub Actions run #339: **passed** on Ubuntu and Windows.
-- Full test discovery: **345 tests passed** on each platform.
+- Schema-validation implementation commit: `32915b190d888aee36d584dd2987b0a4d51e953d`.
+- Decision-retry compatibility implementation commit: `6492fa8e94c8e8cb487ee163b8e8d1380537aa52`.
+- Same-event-ID schema regression commit: `6ca4e4a479d560569e8855dc646767fa0b7d6cba`.
+- Internal-decision retry test was first added with an incomplete fixture; run #341 exposed that the fixture had not supplied the required semantic review. The fixture was corrected in commit `1b37d53061b0dd397792f7b06d353338e88f46d9`.
+- GitHub Actions run #342: **passed** on Ubuntu and Windows.
+- Full test discovery: **346 tests passed** on each platform.
 - `compileall` and all workflow test steps passed.
 - Hosted Windows CI is not a substitute for the user's own Windows 11 / Python 3.12.14 verification.
 
 ## Remaining audit boundary
 
-This closes the event-local schema gap for the listed public event families on the same-event-ID duplicate path. Continue auditing internal decision-event retries, cross-family event ordering, and coordinated corruption of projections versus event history. No real model provider or external action execution is introduced by this change.
+This closes the event-local schema gap for the listed public event families on the same-event-ID duplicate path. Continue auditing decision payload field schemas and cross-family event ordering, plus coordinated corruption of projections versus event history. No real model provider or external action execution is introduced by this change.
