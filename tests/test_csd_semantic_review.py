@@ -443,6 +443,65 @@ class SemanticReviewStoreTests(unittest.TestCase):
             1,
         )
 
+    def test_event_reads_and_recovery_reject_non_text_payload_storage(self):
+        self.submit_proposal()
+        review = self.make_review()
+        self.store.submit_event(review)
+        row = self.store._db.execute(
+            "SELECT payload_ref FROM events WHERE event_id=?",
+            (review.event_id,),
+        ).fetchone()
+        self.store._db.execute("DROP TRIGGER payloads_no_update")
+        self.store._db.execute(
+            "UPDATE payloads SET payload_json=? WHERE payload_ref=?",
+            (b"{}", row["payload_ref"]),
+        )
+
+        from core.csd.cognitive import CognitiveIntegrityError
+        with self.assertRaisesRegex(CognitiveIntegrityError, "not stored as text"):
+            self.store.get_event(review.event_id)
+        with self.assertRaisesRegex(CognitiveIntegrityError, "not stored as text"):
+            self.store.recover()
+
+    def test_event_reads_and_recovery_normalize_deeply_nested_payload_json(self):
+        self.submit_proposal()
+        review = self.make_review()
+        self.store.submit_event(review)
+        row = self.store._db.execute(
+            "SELECT e.payload_ref,e.received_at FROM events e WHERE e.event_id=?",
+            (review.event_id,),
+        ).fetchone()
+        nested_json = "[" * 2000 + "0" + "]" * 2000
+        new_payload_ref = "sha256:" + hashlib.sha256(
+            nested_json.encode("utf-8")
+        ).hexdigest()
+        corrupted = CognitiveEvent(
+            event_id=review.event_id,
+            occurred_at=review.occurred_at,
+            correlation_id=review.correlation_id,
+            event_type=review.event_type,
+            source=review.source,
+            payload=review.payload,
+        )
+        event_digest = self.store._event_digest(
+            corrupted, new_payload_ref, row["received_at"]
+        )
+        self.store._db.execute(
+            "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (new_payload_ref, nested_json),
+        )
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute(
+            "UPDATE events SET payload_ref=?,event_digest=? WHERE event_id=?",
+            (new_payload_ref, event_digest, review.event_id),
+        )
+
+        from core.csd.cognitive import CognitiveIntegrityError
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_event(review.event_id)
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.recover()
+
     def test_same_review_id_with_changed_content_conflicts(self):
         self.submit_proposal()
         first = self.make_review(review_id="review-conflict")
