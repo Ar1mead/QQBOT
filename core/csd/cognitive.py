@@ -1290,6 +1290,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         missing_ranges = coverage.get("missing_ranges_ms")
         if not isinstance(missing_ranges, list):
             raise ValueError("observation coverage missing_ranges_ms must be a list")
+        prior_missing_end: int | None = None
         for index, item in enumerate(missing_ranges):
             if not isinstance(item, list) or len(item) != 2:
                 raise ValueError(f"observation coverage missing_ranges_ms[{index}] must be a pair")
@@ -1301,6 +1302,11 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     )
             if range_end < range_start:
                 raise ValueError("observation coverage missing range end must be >= start")
+            if prior_missing_end is not None and range_start < prior_missing_end:
+                raise ValueError(
+                    "observation coverage missing ranges must be sorted and non-overlapping"
+                )
+            prior_missing_end = range_end
             if start_ms is not None and range_start < start_ms:
                 raise ValueError("observation coverage missing range starts before covered interval")
             if end_ms is not None and range_end > end_ms:
