@@ -1775,7 +1775,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     or event.source != expected_source
                 ):
                     raise CognitiveIntegrityError(
-                        "decision event authority, identity, or correlation_id mismatch"
+                        "decision event identity or correlation_id mismatch"
                     )
             return {
                 "sequence": int(row["sequence"]),
