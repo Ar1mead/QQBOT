@@ -43,3 +43,6 @@ Semantic-review duplicate delivery is keyed by `review_id`, but now resolves and
 
 
 `get_event()` also verifies that stored payload JSON uses the canonical serialization emitted by the append path. A parseable payload with recomputed content and envelope digests but non-canonical bytes (or a payload that cannot be canonically serialized) is rejected with `CognitiveIntegrityError`; this prevents duplicate-delivery and duplicate-review paths from acknowledging that damaged event. Regression and scope: [canonical event payload read validation report](../../docs/reports/csd-canonical-event-payload-read-validation-test-report-001.md). Hosted CI is pending; this is not writer authentication and does not replace Recovery's event-family schema checks.
+
+
+Persisted event reads now normalize malformed event fields, timestamps, and unexpected validation exceptions to `CognitiveIntegrityError`, while preserving explicit integrity failure messages. Duplicate-delivery regression and scope: [malformed durable event read error normalization report](../../docs/reports/csd-malformed-durable-event-read-error-normalization-report-001.md). Hosted CI is pending.
