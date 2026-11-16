@@ -169,3 +169,7 @@ A follow-up call-path scan found no additional decision-family prefix COUNT quer
 It did identify a separate redundant scan: the goal projection validator invokes the motivation projection validator, while several callers validate motivation immediately before invoking goal projection validation. The state-snapshot path also performs a standalone motivation consistency check before the goal check. These paths can therefore scan the motivation proposal/decision history more than once in one SQLite transaction.
 
 This is not another accepted-decision prefix-count defect and does not undermine the second-round ordinal/prefix optimization. It is a separate projection-validation deduplication opportunity. Any future change should preserve standalone goal-validation safety, avoid cross-transaction caching, and add query-count plus tamper-detection regressions before removing redundant calls.
+
+## Latest hosted verification refresh — 2026-11-16
+
+The code/test implementation is commit `20ef3c5f021c2ff1d6010d993a18be024947ef5c`. PR workflow run #481 passed on Ubuntu and Windows with 365 tests per platform. The subsequent documentation-updated branch head `59376a2abc4ced6be3398804900956493e0398b4` was independently checked by PR workflow run #485; both Ubuntu and Windows jobs completed successfully, including compileall, focused suites, and full unittest discovery. Run #480 remains unverified and is not treated as evidence. These are hosted CI results only; user-local Windows 11 / Python 3.12.14 verification remains deferred.
