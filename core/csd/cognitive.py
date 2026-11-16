@@ -2025,7 +2025,20 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 self._validate_proposal_snapshot_chronology(
                     db, event, sequence, replay=True
                 )
-                self._apply_projection_event(db, event, sequence, internal=internal)
+                try:
+                    self._apply_projection_event(
+                        db, event, sequence, internal=internal
+                    )
+                except CognitiveIntegrityError:
+                    raise
+                except (
+                    CognitiveStoreError, TypeError, ValueError, KeyError, IndexError,
+                    RecursionError, OverflowError, sqlite3.IntegrityError,
+                ) as exc:
+                    raise CognitiveIntegrityError(
+                        f"invalid durable event projection at sequence {sequence}: "
+                        f"{event.event_id}"
+                    ) from exc
 
             # Report counts from the same locked snapshot used for replay.
             return {
