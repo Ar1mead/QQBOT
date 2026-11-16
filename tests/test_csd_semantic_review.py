@@ -420,6 +420,23 @@ class SemanticReviewStoreTests(unittest.TestCase):
             1,
         )
 
+    def test_same_event_id_internal_decision_retry_remains_idempotent(self):
+        self.submit_proposal()
+        decision = self.store.evaluate_proposal("proposal-review-1")
+        stored = self.store.get_event(decision["decision_event_id"])
+        retry = CognitiveEvent(
+            event_id=stored["event_id"],
+            occurred_at=stored["occurred_at"],
+            correlation_id=stored["correlation_id"],
+            event_type=stored["event_type"],
+            source=stored["source"],
+            payload=dict(stored["payload"]),
+        )
+        payload_json = canonical(dict(retry.payload))
+        result = self.store._append_event(retry, payload_json, internal=True)
+        self.assertEqual(result["status"], "duplicate")
+        self.assertEqual(result["event_id"], retry.event_id)
+
     def test_same_event_id_duplicate_rejects_prior_event_with_invalid_review_schema(self):
         self.submit_proposal()
         original = self.make_review(review_id="review-same-event-invalid-schema")
