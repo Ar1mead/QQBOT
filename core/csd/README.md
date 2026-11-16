@@ -52,3 +52,6 @@ Durable event reads and Recovery bind memory and motivation decision event IDs a
 
 
 Recovery now rejects SQLite BLOB values stored in the event payload text column and normalizes deeply nested JSON parser/validation failures, malformed event fields, and invalid timestamps to `CognitiveIntegrityError`. Regressions exercise both ordinary event reads and Recovery with malformed storage. See [malformed payload storage and deep JSON recovery report](../../docs/reports/csd-malformed-payload-storage-recovery-report-001.md). Hosted CI and Windows-local verification are pending.
+
+
+Recovery now also normalizes expected event-family schema and projection-application failures to `CognitiveIntegrityError`, while preserving already-normalized integrity failures. This ensures a digest-consistent but schema-invalid durable observation cannot leak a raw `ValueError` during projection replay. See [Recovery projection-validation error normalization report](../../docs/reports/csd-recovery-projection-validation-error-normalization-report-001.md). Hosted CI run #333 passed 343 tests on Ubuntu and Windows.
