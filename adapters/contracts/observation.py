@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+import hashlib
 from enum import Enum
 import re
 from typing import Protocol
@@ -160,6 +161,11 @@ class ObservationEvidence:
         _aware_timestamp(self.received_at, "evidence.received_at")
         if not re.fullmatch(r"sha256:[0-9a-f]{64}", self.content_digest):
             raise ValueError("evidence.content_digest must be sha256:<64 lowercase hex chars>")
+        expected_digest = "sha256:" + hashlib.sha256(
+            self.content.encode("utf-8")
+        ).hexdigest()
+        if self.content_digest != expected_digest:
+            raise ValueError("evidence.content_digest does not match normalized content")
         if self.coverage.modality != self.modality:
             raise ValueError("evidence modality must match coverage modality")
         if self.source_artifact_ref is not None:
