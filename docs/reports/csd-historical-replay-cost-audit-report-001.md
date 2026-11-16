@@ -73,3 +73,19 @@ Then add deterministic regression coverage for mixed decision families and histo
 - This audit itself changes no runtime code and has not been performance-benchmarked.
 - User-local Windows 11 / Python 3.12.14 testing remains deferred by design.
 
+
+
+## Follow-up implementation — schema v6 query index
+
+After the audit, schema v6 added the transactional composite index `idx_events_event_type_sequence` on `events(event_type, sequence)`.
+
+Regression coverage now verifies:
+
+- successful v5→v6 migration;
+- rollback when the target index name already exists with a conflicting definition;
+- use of the new index by the shared event-type/prefix query, through `EXPLAIN QUERY PLAN);
+- migration from v3 and v4 fixtures through the later schema versions.
+
+Hosted verification for commit `7fb4922423af318622e804bdc0225fb6c50cddc7`, GitHub Actions run #438: Ubuntu and Windows both passed; full discovery reported **364 tests per platform**. This is hosted verification only.
+
+The index reduces the cost of each event-family/prefix query, but it does not remove the repeated-prefix algorithm identified above. The per-operation replay context remains the next work item.
