@@ -380,8 +380,8 @@ class SemanticReviewStoreTests(unittest.TestCase):
         self.store._db.execute("DROP TRIGGER events_no_update")
         self.store._db.execute("DROP TRIGGER payloads_no_update")
         self.store._db.execute(
-            "UPDATE payloads SET payload_json=? WHERE payload_ref=?",
-            (noncanonical_json, row["payload_ref"]),
+            "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (new_payload_ref, noncanonical_json),
         )
         corrupted_event = CognitiveEvent(
             event_id=original.event_id,
