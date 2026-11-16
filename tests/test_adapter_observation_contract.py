@@ -1,5 +1,6 @@
 import hashlib
 import unittest
+from dataclasses import replace
 
 from adapters.testing import FakeObservationAdapter
 from adapters.contracts.observation import (
@@ -97,6 +98,23 @@ class ObservationContractTests(unittest.TestCase):
         result = ObservationResult(ObservationStatus.PARTIAL, evidence=(evidence,))
         self.assertEqual(result.status, ObservationStatus.PARTIAL)
         self.assertEqual(result.evidence[0].coverage.missing_ranges_ms, ((1000, 2000),))
+
+    def test_coverage_extraction_method_must_match_evidence(self):
+        evidence = self.make_evidence()
+        coverage = ObservationCoverage(
+            modality="text", extraction_method="different-method", complete=True
+        )
+        with self.assertRaisesRegex(ValueError, "must match coverage extraction_method"):
+            replace(evidence, coverage=coverage)
+
+    def test_manifest_defaults_to_observation_v2(self):
+        manifest = AdapterManifest(
+            adapter_id="bilibili.fake",
+            adapter_version="0.1.0",
+            platform="bilibili",
+            capabilities=(Capability("video.read", CapabilityMode.OBSERVE, "Read fixture"),),
+        )
+        self.assertEqual(manifest.observation_schema_versions, (2,))
 
     def test_external_evidence_cannot_be_marked_trusted(self):
         with self.assertRaisesRegex(ValueError, "must remain untrusted"):
