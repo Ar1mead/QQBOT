@@ -82,3 +82,6 @@ Grounded proposal reads now validate the chronology of any source event that alr
 
 
 Legacy memory proposals using `evidence_event_ids` now receive the same event-history checks as grounded-memory v2 claims: any already-existing evidence event must precede the proposal, and observation evidence is read through the full integrity validator. Missing evidence remains a pending condition; non-observation sources are deterministically rejected at evaluation. Hosted run #400 passed on Ubuntu and Windows with **356 tests per platform**.
+
+
+Memory decision event reads now verify that `evidence_event_ids` exactly matches the evidence attached to the historical proposal (legacy `evidence_event_ids` or the derived grounded-memory v2 source-event list). They also check the allowed missing-evidence outcomes, source event chronology, and observation-vs-non-observation outcome rules. Hosted run #405 passed on Ubuntu and Windows with **356 tests per platform**.
