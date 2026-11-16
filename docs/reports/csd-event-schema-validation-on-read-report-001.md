@@ -33,8 +33,8 @@ The test:
 
 ## Verification
 
-- Implementation commit: `68956b4092742fb8aa9c2c31e37204c01134b63c`.
-- Regression test commit: `12c059db63443bb9a848fcd0df4f1c70555cf187`.
+- Implementation commits: `68956b4092742fb8aa9c2c31e37204c01134b63c` (shared validation on reads), `aa5c13fca447bf7cd64669c8df98890fe9932122` (helper naming and avoid duplicate decision checks), and `c61677c04980cdafb0d51b34efd60588f3fa825d` (generalized error wording).
+- Regression test commits: `12c059db63443bb9a848fcd0df4f1c70555cf187` and `f7698e1e0726375211a1dcd73fe99f96007a6edf` (assertion wording aligned with the generalized integrity error).
 - Hosted CI: pending.
 - User-local Windows 11 / Python 3.12.14 verification: pending.
 
