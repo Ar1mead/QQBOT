@@ -106,3 +106,12 @@ Hosted GitHub Actions run #385 passed on both Ubuntu and Windows. `python -m com
 - Regressions: `test_get_event_rejects_grounded_proposal_referencing_later_observation` and `test_get_event_validates_existing_grounded_source_observation`. Both use recomputed payload/envelope digests where applicable.
 - Implementation commit: `03e202ce0d4c5f367cc4d2b84b02aa43dc373a1a`; test commit: `b3f08b6c0704c3d8fd0bfddd2e9c95468144ffc8`.
 - Hosted GitHub Actions run #393 passed on Ubuntu and Windows. Compileall and every focused test step passed; complete unittest discovery passed **355 tests per platform**. User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
+
+
+## Follow-up: legacy memory proposal evidence chronology
+
+- The same historical evidence rule now covers legacy `memory.proposed.v1` events that use `evidence_event_ids`, not only grounded-memory v2 claims.
+- For each reference that already exists in the event log, the referenced event must precede the proposal. Existing observation events are loaded through `get_event()` to verify their stored envelope and observation schema. A missing evidence event remains a pending proposal condition; non-observation evidence is still handled as a deterministic rejection by the evaluator.
+- Regression: `tests/test_csd_semantic_review.py::test_get_event_rejects_legacy_memory_proposal_referencing_later_observation`, which rebinds a legacy proposal to a later observation and recomputes payload and envelope digests.
+- Implementation commit: `95e43fcda22f84bbbca1100c477434dabe6a8935`; regression commit: `ce26413e331e3f8910004b403a0774d5361b6ffe`.
+- Hosted GitHub Actions run #400 passed on Ubuntu and Windows. Compileall and all focused test groups passed; complete unittest discovery passed **356 tests per platform**. Local Windows 11 / Python 3.12.14 verification remains pending.
