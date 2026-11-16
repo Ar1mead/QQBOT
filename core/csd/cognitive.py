@@ -761,6 +761,17 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 raise CognitiveIntegrityError(
                     "motivation decision evidence references do not match historical proposal"
                 )
+        elif event.event_type in {
+            GOAL_BATCH_DECISION_EVENT,
+            GOAL_ACTIVATION_DECISION_EVENT,
+            GOAL_PAUSE_RESUME_DECISION_EVENT,
+        }:
+            # The goal subsystem has a sequence-ordered event replay that
+            # reconstructs candidate/active/paused state and checks every
+            # decision against its historical proposal and prior goal versions.
+            # It also reconciles the projections before those projections are
+            # used as evidence for a direct decision read.
+            self._assert_goal_projection_consistent()
 
     def _validate_semantic_review_event_history(
         self,
