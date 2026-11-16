@@ -28,6 +28,7 @@ on:
       - "core/csd/**"
       - "core/life_engine/**"
       - "adapters/**"
+      - "tests/test_csd_observation_v2.py"
       - "tests/test_csd_goals.py"
       - "tests/test_adapter_observation_contract.py"
       - "tests/test_bilibili_target.py"
