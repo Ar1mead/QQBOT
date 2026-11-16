@@ -363,3 +363,14 @@ At the time of this update:
 - GitHub Actions run #419 passed on Ubuntu and Windows: compileall, all focused test groups, and complete unittest discovery passed; **359 tests per platform**.
 - User-local Windows 11 / Python 3.12.14 testing remains deferred until the project is ready to clone.
 - Next: inspect goal proposal/decision history for equivalent direct-read gaps, then review coordinated projection corruption and Recovery determinism. Keep every historical check bounded by the event's original sequence.
+
+
+### 2026-11-16 follow-up — goal decision history replay on direct reads
+
+- Direct reads of goal batch, candidate activation, and pause/resume decisions now invoke the goal subsystem's sequence-ordered replay and projection reconciliation. Each decision is checked against the unique earlier proposal and the goal state/version available before the decision's original sequence.
+- The replay internally reads event rows with only the recursive decision-context callback suppressed; envelope, canonical payload, event-family shape, proposal chronology, and the full deterministic goal replay remain active.
+- Added three adversarial regressions: `test_get_event_rejects_goal_batch_decision_with_rewritten_transition`, `test_get_event_rejects_activation_decision_with_rewritten_goal_version`, and `test_get_event_rejects_pause_resume_decision_with_rewritten_operation`. All recompute payload and envelope digests after tampering.
+- Implementation commits: `7d8220d97c390b66ec2b0a446a882301172c237d`, `e7a012e6c423caa7fc4d6db27ad35bfbe5be2d0d`; test commit: `197e7c9cd1303549268a6f45ae652f5a336417cf`.
+- GitHub Actions run #428 passed on Ubuntu and Windows: compileall, every focused suite, and full unittest discovery passed; **362 tests per platform**.
+- User-local Windows 11 / Python 3.12.14 testing remains deferred until the project is ready to clone.
+- Next: inspect event-log replay cost and SQLite query behavior as history grows, then continue coordinated projection tampering and crash/recovery tests.
