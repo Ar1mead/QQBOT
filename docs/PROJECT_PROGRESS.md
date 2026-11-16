@@ -488,7 +488,7 @@ At the time of this update:
 
 ### 2026-11-16 Stage 0 contract hardening and CI coverage
 
-- `ObservationEvidence` now verifies that `content_digest` equals the SHA-256 digest of the normalized UTF-8 content, not merely that the field has the right textual shape. Added a mismatch regression and corrected the fixture to use the real digest.
+- `ObservationEvidence` now verifies that `content_digest` equals the SHA-256 digest of the UTF-8 bytes of the content field, not merely that the field has the right textual shape. Added a mismatch regression and corrected the fixture to use the real digest.
 - The hosted workflow now compiles `adapters`, `core`, and `tests`; it runs the observation-contract and Bilibili target allowlist suites on both operating systems. The PR path filter now includes `tests/test_csd_goals.py`, which had been omitted, as well as the Stage 0 adapter files/tests.
 - Latest code/test head before this documentation entry: `5ae72133d46833a6d6b161c5c001d9fa913d81fa`. The available PR-workflow lookup has not returned a run for the new head. Do not claim the new regression or Stage 0 suites have passed hosted CI yet. The earlier run #503 failed on the first, SQL-trace-based regression implementation; that test was replaced with a direct validator-call counter.
 - PR #1 remains Draft, open, and unmerged. No user-local tests, real Bilibili network access, account login, or plugin installation occurred.
@@ -497,7 +497,7 @@ At the time of this update:
 
 - Added reusable in-memory `FakeObservationAdapter` under `adapters/testing/`; it records requests and returns a configured immutable observation result without network, filesystem, account, or external side effects.
 - Adapter contract tests now exercise the fake adapter and verify repeated calls return the configured result while preserving untrusted evidence.
-- Observation content digests are checked against SHA-256 of normalized UTF-8 content; a correctly shaped but incorrect digest is rejected.
+- Observation content digests are checked against SHA-256 of UTF-8 bytes of the content field; a correctly shaped but incorrect digest is rejected.
 - Latest code/test head at this checkpoint: `d3d4dfc772859e1604607e8b9f9c83bbe2fd5797`. The available PR-workflow lookup still shows no run for the new head; the CSD and Stage 0 changes remain unverified by a fresh hosted run.
 
 ### Additional life-snapshot replay deduplication
