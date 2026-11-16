@@ -132,7 +132,7 @@ class ObservationContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "content_digest"):
             ObservationEvidence(**{**evidence.__dict__, "content_digest": "bad"})
 
-    def test_digest_must_match_normalized_content(self):
+    def test_digest_must_match_exact_utf8_content_bytes(self):
         evidence = self.make_evidence()
         with self.assertRaisesRegex(ValueError, "does not match the UTF-8 bytes of content"):
             ObservationEvidence(
