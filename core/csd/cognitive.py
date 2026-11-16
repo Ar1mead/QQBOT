@@ -747,6 +747,13 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 raise CognitiveIntegrityError(
                     f"unsupported durable event type: {event.event_type}"
                 )
+
+            # Proposal snapshots are historical claims. Validate them against
+            # the authoritative state that existed immediately before this
+            # event, not against today's later state.
+            self._validate_proposal_snapshot_chronology(
+                db, event, sequence, replay=True
+            )
         except CognitiveIntegrityError:
             raise
         except (TypeError, ValueError, KeyError, IndexError, RecursionError, OverflowError) as exc:
