@@ -96,7 +96,15 @@ class _DecisionReplayContext:
 
     def decision_number_for(self, event_type: str, sequence: int) -> int:
         sequences = dict(self.decision_sequences_by_type).get(event_type, ())
-        return bisect_left(sequences, sequence) + 1
+        index = bisect_left(sequences, sequence)
+        if index >= len(sequences) or sequences[index] != sequence:
+            raise CognitiveIntegrityError(
+                "decision replay context does not contain the requested event sequence"
+            )
+        return index + 1
+
+    def decision_count_for(self, event_type: str) -> int:
+        return len(dict(self.decision_sequences_by_type).get(event_type, ()))
 
     def accepted_count_for(
         self, event_types: set[str], through_sequence: int | None = None
@@ -2110,10 +2118,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     f"current state_version={current_state_version}"
                 )
 
-            decision_number = int(db.execute(
-                "SELECT COUNT(*) FROM events WHERE event_type=?",
-                (DECISION_EVENT,),
-            ).fetchone()[0]) + 1
+            decision_number = self._decision_replay_context_for(
+                db
+            ).decision_count_for(DECISION_EVENT) + 1
             decision_event_id = f"csd-decision:{proposal_id}:{decision_number}"
             transition_id = f"csd-transition:{proposal_id}" if outcome == "accepted" else None
             memory_id = f"csd-memory:{proposal_id}" if outcome == "accepted" else None
