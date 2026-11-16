@@ -577,6 +577,80 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 "decision proposal-event reference does not identify its historical proposal"
             )
 
+    def _validate_semantic_review_event_history(
+        self,
+        db: sqlite3.Connection,
+        event: CognitiveEvent,
+        *,
+        sequence: int,
+    ) -> None:
+        """Bind a semantic review to its unique earlier grounded proposal."""
+        review = self._validate_semantic_review_shape(event)
+        proposal_id = review["proposal_id"]
+        proposal_event_id = review["proposal_event_id"]
+        placeholders = "?"
+        matches = db.execute(
+            "SELECT e.event_id,e.sequence FROM events e "
+            "JOIN payloads p ON p.payload_ref=e.payload_ref "
+            f"WHERE e.event_type IN ({placeholders}) AND e.sequence<? "
+            "AND CASE WHEN json_valid(p.payload_json) "
+            "THEN json_extract(p.payload_json,'$.proposal_id') END=? "
+            "ORDER BY e.sequence",
+            (GROUNDED_PROPOSAL_EVENT, sequence, proposal_id),
+        ).fetchall()
+        if len(matches) != 1 or matches[0]["event_id"] != proposal_event_id:
+            raise CognitiveIntegrityError(
+                "semantic review proposal-event reference is missing, ambiguous, or mismatched"
+            )
+
+        proposal_sequence = int(matches[0]["sequence"])
+        if proposal_sequence >= sequence:
+            raise CognitiveIntegrityError(
+                "semantic review must reference an earlier grounded proposal"
+            )
+        proposal_event = self.get_event(proposal_event_id)
+        proposal_payload = proposal_event["payload"]
+        if (
+            proposal_event["event_type"] != GROUNDED_PROPOSAL_EVENT
+            or int(proposal_event["sequence"]) != proposal_sequence
+            or proposal_payload.get("proposal_id") != proposal_id
+        ):
+            raise CognitiveIntegrityError(
+                "semantic review does not identify its historical grounded proposal"
+            )
+        if review["proposal_digest"] != "sha256:" + _digest(_canonical(proposal_payload)):
+            raise CognitiveIntegrityError(
+                "semantic review proposal digest does not match historical proposal"
+            )
+
+        claims = proposal_payload.get("claims")
+        claim = next(
+            (
+                item for item in claims
+                if isinstance(item, Mapping) and item.get("claim_id") == review["claim_id"]
+            ),
+            None,
+        ) if isinstance(claims, list) else None
+        if (
+            claim is None
+            or claim.get("epistemic_type") != "inference"
+            or review["claim_digest"] != "sha256:" + _digest(_canonical(claim))
+        ):
+            raise CognitiveIntegrityError(
+                "semantic review claim reference does not match historical inference"
+            )
+
+        derived_ids = claim.get("derived_from_claim_ids")
+        supporting_ids = review["supporting_claim_ids"]
+        if not isinstance(derived_ids, list) or not set(supporting_ids).issubset(set(derived_ids)):
+            raise CognitiveIntegrityError(
+                "semantic review supporting claims are not direct proposal evidence"
+            )
+        if event.payload.get("outcome") == "supported" and not supporting_ids:
+            raise CognitiveIntegrityError(
+                "supported semantic review requires direct supporting claims"
+            )
+
     def _append_event_in_transaction(
         self,
         db: sqlite3.Connection,
