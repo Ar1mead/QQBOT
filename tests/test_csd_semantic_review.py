@@ -229,6 +229,71 @@ class SemanticReviewStoreTests(unittest.TestCase):
         ):
             self.store.get_event(original["event_id"])
 
+
+    def rewrite_event_payload_with_valid_digests(self, event_id, mutate):
+        original = self.store.get_event(event_id)
+        payload = dict(original["payload"])
+        mutate(payload)
+        payload_json = canonical(payload)
+        payload_ref = "sha256:" + hashlib.sha256(
+            payload_json.encode("utf-8")
+        ).hexdigest()
+        row = self.store._db.execute(
+            "SELECT received_at FROM events WHERE event_id=?", (event_id,)
+        ).fetchone()
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute("DROP TRIGGER payloads_no_update")
+        self.store._db.execute(
+            "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (payload_ref, payload_json),
+        )
+        rewritten = CognitiveEvent(
+            event_id=original["event_id"],
+            occurred_at=original["occurred_at"],
+            correlation_id=original["correlation_id"],
+            event_type=original["event_type"],
+            source=original["source"],
+            payload=payload,
+        )
+        event_digest = self.store._event_digest(
+            rewritten, payload_ref, row["received_at"]
+        )
+        self.store._db.execute(
+            "UPDATE events SET payload_ref=?,event_digest=? WHERE event_id=?",
+            (payload_ref, event_digest, event_id),
+        )
+
+    def test_get_event_rejects_decision_with_rewritten_evaluated_state_version(self):
+        self.submit_proposal()
+        self.add_review()
+        result = self.store.evaluate_proposal("proposal-review-1")
+        decision_event_id = result["decision_event_id"]
+        self.rewrite_event_payload_with_valid_digests(
+            decision_event_id,
+            lambda payload: payload.__setitem__("evaluated_state_version", 1),
+        )
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "evaluated_state_version"
+        ):
+            self.store.get_event(decision_event_id)
+
+    def test_get_event_rejects_decision_referencing_another_proposal_event(self):
+        self.submit_proposal("proposal-review-1")
+        self.submit_proposal("proposal-review-2")
+        self.add_review(proposal_id="proposal-review-1")
+        result = self.store.evaluate_proposal("proposal-review-1")
+        decision_event_id = result["decision_event_id"]
+        self.rewrite_event_payload_with_valid_digests(
+            decision_event_id,
+            lambda payload: payload.__setitem__(
+                "proposal_event_id", "evt-proposal-review-2"
+            ),
+        )
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "proposal-event reference"
+        ):
+            self.store.get_event(decision_event_id)
+
     def test_no_review_keeps_proposal_pending_without_decision_event(self):
         self.submit_proposal()
         before = self.store.get_state_snapshot()["event_count"]
