@@ -810,7 +810,7 @@ class CSDGoalActivationTests(unittest.TestCase):
                 if sql.lstrip().lower().startswith(
                     "select e.event_id,e.event_type,e.sequence from events e"
                 )
-                and "where e.event_type in (?,?)" in sql.lower()
+                and "where e.event_type in" in sql.lower()
                 and "order by e.sequence" in sql.lower()
             ]
 
