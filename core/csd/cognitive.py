@@ -653,6 +653,104 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                         "decision references disallowed historical evidence type"
                     )
 
+            grounded = proposal_event["event_type"] == GROUNDED_PROPOSAL_EVENT
+            policy = event.payload.get("policy")
+            expected_policy_id = GROUNDED_POLICY_ID if grounded else POLICY_ID
+            allowed_policy_versions = (
+                {POLICY_VERSION, GROUNDED_POLICY_VERSION}
+                if grounded else {POLICY_VERSION}
+            )
+            if (
+                not isinstance(policy, Mapping)
+                or policy.get("id") != expected_policy_id
+                or policy.get("version") not in allowed_policy_versions
+            ):
+                raise CognitiveIntegrityError(
+                    "memory decision policy does not match its proposal family"
+                )
+
+            semantic_review_event_ids = event.payload.get("semantic_review_event_ids")
+            semantic_review_status = event.payload.get("semantic_review_status")
+            semantic_review_applied = event.payload.get("semantic_review_applied")
+            if (
+                not isinstance(semantic_review_event_ids, list)
+                or any(not isinstance(item, str) or not item.strip()
+                       for item in semantic_review_event_ids)
+                or len(set(semantic_review_event_ids)) != len(semantic_review_event_ids)
+            ):
+                raise CognitiveIntegrityError(
+                    "decision semantic review references are invalid"
+                )
+            if not isinstance(semantic_review_applied, bool):
+                raise CognitiveIntegrityError(
+                    "decision semantic_review_applied must be boolean"
+                )
+
+            grounded_review_policy = (
+                grounded and policy.get("version") == GROUNDED_POLICY_VERSION
+            )
+            if grounded_review_policy:
+                has_inferences = any(
+                    claim.get("epistemic_type") == "inference"
+                    for claim in proposal_payload.get("claims", [])
+                )
+                if semantic_review_applied:
+                    review_summary = self._semantic_review_summary(
+                        db, proposal_id, proposal_payload, before_sequence=sequence
+                    )
+                    if semantic_review_event_ids != review_summary["review_event_ids"]:
+                        raise CognitiveIntegrityError(
+                            "decision semantic review references do not match prior review history"
+                        )
+                    if semantic_review_status != review_summary["status"]:
+                        raise CognitiveIntegrityError(
+                            "decision semantic review status does not match prior review history"
+                        )
+                    if review_summary["status"] == "awaiting_review":
+                        raise CognitiveIntegrityError(
+                            "decision cannot reference an incomplete semantic review history"
+                        )
+                    required_outcomes = {
+                        "unsupported": "rejected",
+                        "insufficient_context": "needs_more_evidence",
+                        "uncertain": "deferred",
+                        "conflicting": "deferred",
+                        "supported": None,
+                        "not_applicable": None,
+                    }
+                    expected_outcome = required_outcomes.get(review_summary["status"])
+                    if review_summary["status"] not in required_outcomes:
+                        raise CognitiveIntegrityError(
+                            "unknown semantic review history status"
+                        )
+                    if expected_outcome is not None and outcome != expected_outcome:
+                        raise CognitiveIntegrityError(
+                            "decision outcome conflicts with prior semantic review history"
+                        )
+                    if outcome == "accepted" and review_summary["status"] not in {
+                        "supported", "not_applicable"
+                    }:
+                        raise CognitiveIntegrityError(
+                            "accepted inference lacks supported semantic review history"
+                        )
+                else:
+                    if semantic_review_event_ids or semantic_review_status != "not_applicable":
+                        raise CognitiveIntegrityError(
+                            "decision omitted required semantic review provenance"
+                        )
+                    if outcome == "accepted" and has_inferences:
+                        raise CognitiveIntegrityError(
+                            "inference memory cannot be accepted without semantic review"
+                        )
+            elif (
+                semantic_review_applied
+                or semantic_review_event_ids
+                or semantic_review_status != "not_applicable"
+            ):
+                raise CognitiveIntegrityError(
+                    "decision references semantic reviews outside grounded review policy"
+                )
+
     def _validate_semantic_review_event_history(
         self,
         db: sqlite3.Connection,
