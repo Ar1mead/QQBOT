@@ -64,3 +64,6 @@ Direct event reads through `get_event()` now rerun the event-family schema valid
 
 
 The same-event-ID duplicate path now validates event-family schemas before acknowledging retries, and `get_event()` now applies the same event-local validation to direct reads. Decision-event reads additionally enforce exact payload fields, authority source, proposal-scoped event identity, and correlation identity. See [same-event-ID duplicate schema validation report](../../docs/reports/csd-same-event-id-duplicate-schema-validation-report-001.md) and [direct event schema validation on read report](../../docs/reports/csd-event-schema-validation-on-read-report-001.md). Run #350 verified the decision-read changes (348 tests on Ubuntu and Windows); the new direct-read follow-up is awaiting CI.
+
+
+Direct reads also revalidate proposal `based_on.state_version` against the authoritative state version immediately before the proposal's original sequence. This prevents a digest-consistent proposal from claiming a future state snapshot. Regression: `test_get_event_rejects_proposal_claiming_future_state_with_valid_digests`; hosted CI is pending.
