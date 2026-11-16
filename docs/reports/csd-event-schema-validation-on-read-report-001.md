@@ -77,3 +77,12 @@ Both tests recompute payload and envelope digests after tampering, so rejection 
 - Tests: commits `6a52756d9e1186f1950a71c504dbec0af487a971` and `6ca959bdab7d36a77c1bdcc996befa8ddbf96c8e`.
 - Hosted CI: pending. Run #350 (348 tests per OS) predates this change and is not evidence for these additions.
 - User-local Windows 11 / Python 3.12.14: pending.
+
+
+## Follow-up: semantic-review proposal provenance on direct reads
+
+- Direct reads now verify that a semantic-review event references the unique earlier grounded proposal event for its proposal ID.
+- The referenced proposal is loaded through the immutable event log and validated through the normal event-read path; its proposal digest, inference claim ID/digest, and direct supporting-claim lineage are checked.
+- Regression: `tests/test_csd_semantic_review.py::test_get_event_rejects_semantic_review_referencing_another_proposal_event` rewrites the review's proposal event reference to a different real proposal and recomputes the payload and envelope digests. The expected result is `CognitiveIntegrityError`.
+- Implementation commits: `64222e020b7dde086c0befe98e878ec4a7053acf` and `7db787634f58b142b5b1027954fd3355fa67f9c0`; regression commit: `333cae330f51e8cfc7a7dd665e960c616ef9e071`.
+- Hosted CI and local Windows verification: pending. The new test has been committed but has not yet been executed.
