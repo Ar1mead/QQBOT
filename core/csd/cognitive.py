@@ -2665,7 +2665,6 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         with self._read_tx() as db:
             state_version = self._authoritative_state_version(db)
             self._assert_accepted_projection_consistent()
-            self._assert_motivation_projection_consistent()
             self._assert_goal_projection_consistent()
             rows = db.execute(
                 "SELECT signal_json FROM motivation_signals ORDER BY rowid"
@@ -2703,11 +2702,15 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 self._assert_motivation_projection_consistent()
             except CognitiveIntegrityError:
                 motivation_consistent = False
-            goal_consistent = True
-            try:
-                self._assert_goal_projection_consistent()
-            except CognitiveIntegrityError:
-                goal_consistent = False
+            goal_consistent = False
+            if motivation_consistent:
+                try:
+                    self._assert_goal_projection_consistent(
+                        _motivation_already_validated=True
+                    )
+                    goal_consistent = True
+                except CognitiveIntegrityError:
+                    goal_consistent = False
             return {
                 "event_count": int(db.execute("SELECT COUNT(*) FROM events").fetchone()[0]),
                 "state_version": state_version,
