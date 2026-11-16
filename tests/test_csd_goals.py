@@ -823,11 +823,50 @@ class CSDGoalActivationTests(unittest.TestCase):
                     "operation": "create",
                 },
             ))
-            self.assertEqual(
-                self.store.evaluate_proposal("replay-memory")["status"], "accepted"
-            )
+            first_memory = self.store.evaluate_proposal("replay-memory")
+            self.assertEqual(first_memory["status"], "accepted")
+            self.assertTrue(first_memory["decision_event_id"].endswith(":1"))
+
+            self.store.submit_event(event(
+                "replay-memory-observation-two",
+                OBSERVATION_EVENT,
+                "test.observation",
+                {
+                    "observation_id": "replay-memory-observation-two",
+                    "observation_kind": "text_fixture",
+                    "content": "A second synthetic observation for ordinal testing.",
+                    "source_ref": "fixture://decision-replay/memory-two",
+                    "observed_at": "2026-11-15T08:00:00+00:00",
+                    "coverage": {"modality": "text", "complete_for_fixture": True},
+                },
+            ))
+            self.store.submit_event(event(
+                "replay-memory-proposal-two",
+                PROPOSAL_EVENT,
+                "test.memory_candidate_fixture",
+                {
+                    "proposal_id": "replay-memory-two",
+                    "memory_kind": "episodic_candidate",
+                    "candidate_content": "A second synthetic memory for decision ordinal testing.",
+                    "evidence_event_ids": ["replay-memory-observation-two"],
+                    "origin": {"component": "test.memory_candidate_fixture", "version": "0.1"},
+                    "uncertainty": {"label": "fixture_only", "confidence": None},
+                    "based_on": {"state_version": self.store.get_state_snapshot()["state_version"]},
+                    "operation": "create",
+                },
+            ))
+            second_memory = self.store.evaluate_proposal("replay-memory-two")
+            self.assertEqual(second_memory["status"], "accepted")
+            self.assertTrue(second_memory["decision_event_id"].endswith(":2"))
 
             signal_id = add_internal_signal(self.store, "replay-context")
+            second_signal_id = add_internal_signal(self.store, "replay-context-two")
+            second_motivation = self.store._db.execute(
+                "SELECT decision_event_id FROM motivation_proposals WHERE proposal_id=?",
+                ("motivation-replay-context-two",),
+            ).fetchone()
+            self.assertIsNotNone(second_motivation)
+            self.assertTrue(second_motivation["decision_event_id"].endswith(":2"))
             version = self.store.get_state_snapshot()["state_version"]
             self.store.submit_event(goal_event(
                 "replay-context-goal", [signal_id], state_version=version
@@ -837,6 +876,15 @@ class CSDGoalActivationTests(unittest.TestCase):
                 "accepted",
             )
             goal_id = "goal-replay-context-goal"
+
+            version = self.store.get_state_snapshot()["state_version"]
+            self.store.submit_event(goal_event(
+                "replay-context-goal-two", [second_signal_id], state_version=version
+            ))
+            self.assertEqual(
+                self.store.evaluate_goal_batch_proposal("replay-context-goal-two")["status"],
+                "accepted",
+            )
 
             version = self.store.get_state_snapshot()["state_version"]
             self.store.submit_event(goal_activation_event(
@@ -856,7 +904,7 @@ class CSDGoalActivationTests(unittest.TestCase):
                 self.store.evaluate_goal_pause_resume_proposal("replay-context-pause")["status"],
                 "accepted",
             )
-            self.assertEqual(self.store.get_state_snapshot()["state_version"], 5)
+            self.assertEqual(self.store.get_state_snapshot()["state_version"], 8)
         finally:
             self.store._db.set_trace_callback(None)
 
@@ -938,7 +986,7 @@ class CSDGoalActivationTests(unittest.TestCase):
             "Recovery must not recount decision-family prefixes for each replayed event",
         )
         self.assertIsNone(self.store._active_decision_replay_context)
-        self.assertEqual(self.store.get_state_snapshot()["state_version"], 5)
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], 8)
 
 
     def test_pause_resume_proposal_cannot_claim_a_future_snapshot_version(self):
