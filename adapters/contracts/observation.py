@@ -140,6 +140,10 @@ class ObservationCoverage:
                 raise ValueError("coverage missing ranges must be non-negative ordered integer pairs")
             if prior_end is not None and start < prior_end:
                 raise ValueError("coverage missing ranges must be sorted and non-overlapping")
+            if self.start_ms is not None and start < self.start_ms:
+                raise ValueError("coverage missing range starts before covered interval")
+            if self.end_ms is not None and end > self.end_ms:
+                raise ValueError("coverage missing range ends after covered interval")
             prior_end = end
         if self.complete and self.missing_ranges_ms:
             raise ValueError("complete coverage cannot declare missing ranges")
