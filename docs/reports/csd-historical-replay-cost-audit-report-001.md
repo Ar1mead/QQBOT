@@ -122,4 +122,4 @@ The test counts the specific SQL prefix-selection query rather than relying only
 
 The implementation and mixed-family read-transaction regression were verified by PR workflow run #456: Ubuntu and Windows each passed **365 tests**, including compileall and all focused suites.
 
-The additional Recovery query-count assertion is in the subsequent commit `e0d1a374784e6e9aaf66b956a1b96718001cb4fb`. At the time of this report update, the corresponding PR workflow run #458 had passed on Ubuntu (**365 tests**); the Windows job was still running. User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
+The additional Recovery query-count assertion is in commit `e0d1a374784e6e9aaf66b956a1b96718001cb4fb`. PR workflow run #458 completed successfully on both Ubuntu and Windows: **365 tests per platform**, including compileall and focused suites. User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
