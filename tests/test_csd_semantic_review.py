@@ -420,6 +420,57 @@ class SemanticReviewStoreTests(unittest.TestCase):
             1,
         )
 
+    def test_same_event_id_duplicate_rejects_prior_event_with_invalid_review_schema(self):
+        self.submit_proposal()
+        original = self.make_review(review_id="review-same-event-invalid-schema")
+        self.store.submit_event(original)
+        stored = self.store.get_event(original.event_id)
+        row = self.store._db.execute(
+            "SELECT received_at FROM events WHERE event_id=?",
+            (original.event_id,),
+        ).fetchone()
+        malformed_payload = dict(stored["payload"])
+        malformed_payload["outcome"] = "not-a-review-outcome"
+        malformed_json = canonical(malformed_payload)
+        new_payload_ref = "sha256:" + hashlib.sha256(
+            malformed_json.encode("utf-8")
+        ).hexdigest()
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute("DROP TRIGGER payloads_no_update")
+        self.store._db.execute(
+            "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (new_payload_ref, malformed_json),
+        )
+        corrupted_event = CognitiveEvent(
+            event_id=original.event_id,
+            occurred_at=original.occurred_at,
+            correlation_id=original.correlation_id,
+            event_type=original.event_type,
+            source=original.source,
+            payload=malformed_payload,
+        )
+        event_digest = self.store._event_digest(
+            corrupted_event, new_payload_ref, row["received_at"]
+        )
+        self.store._db.execute(
+            "UPDATE events SET payload_ref=?,event_digest=? WHERE event_id=?",
+            (new_payload_ref, event_digest, original.event_id),
+        )
+
+        from core.csd.cognitive import CognitiveIntegrityError
+        retry = CognitiveEvent(
+            event_id=original.event_id,
+            occurred_at=original.occurred_at,
+            correlation_id=original.correlation_id,
+            event_type=original.event_type,
+            source=original.source,
+            payload=malformed_payload,
+        )
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "invalid prior event schema"
+        ):
+            self.store.submit_event(retry)
+
     def test_duplicate_review_rejects_prior_event_with_invalid_review_schema(self):
         self.submit_proposal()
         original = self.make_review(review_id="review-invalid-schema-retry")
