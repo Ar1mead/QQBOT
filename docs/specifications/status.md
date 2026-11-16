@@ -1,0 +1,106 @@
+# Specification Status Register
+
+This register records the status of specification work at repository initialization. It is not a substitute for the full source specifications.
+
+## CSD
+
+**Status: working contract; not frozen.**
+
+A CSD contract v0.1 has been discussed. Its direction includes:
+
+- CSD as the authoritative source of long-term cognitive state.
+- Runtime components submit events rather than directly evaluating and mutating authoritative long-term state.
+- Idempotent event ingestion, with deduplication and business-state updates committed atomically.
+- Read interfaces for state snapshots, memory retrieval, and goal retrieval, plus event submission and recovery.
+- Recovery reconciles durable logs and snapshots without replaying external side effects.
+- Uncertain external outcomes are inspected and verified rather than blindly retried.
+
+The CSD contract, recovery details, storage behavior, and test matrix still require implementation-level validation. Do not treat this summary as a verbatim specification.
+
+### Cognitive-memory reference slice
+
+A separate, non-production `CognitiveMemoryStore` prototype exists on branch `feature/csd-cognitive-memory-slice`. It preserves the original generic `CSDStore` baseline and uses a separate SQLite schema. The prototype distinguishes observation events, candidate-memory proposals, CSD decision events, and accepted-memory projections. The decision event and accepted projection are committed in one transaction; Recovery rebuilds projections from events without reevaluating proposals.
+
+A provider-neutral proposal pipeline turns a replaceable provider's output into pending candidate events; it does not accept memory. Provider execution happens outside the CSD write transaction. The deterministic policy validates proposal shape, evidence existence/type, and accepted-state version only. It does not validate semantic truth or whether candidate wording faithfully represents source material. The in-process authority boundary is not security isolation against hostile code.
+
+A text-first grounded-memory v2 path is implemented as a separate versioned proposal event. It validates exact Unicode-codepoint text spans, requires source-assertion text to equal its quote, keeps inference claims distinct, and preserves claim/evidence provenance in accepted memories. The grounded proposal pipeline binds the source observation, provider identity/version, and CSD state version; it can only submit pending proposals. This path does not establish semantic entailment or source truth, and no real proposal model provider is connected.
+
+A semantic-review event and provider-neutral review pipeline have been added. Review records bind to immutable proposal and inference-claim digests. The reviewer submits attributed opinions only; CSD remains the decision authority. Missing reviews leave proposals pending, conflicting or uncertain reviews defer, unsupported reviews reject, and insufficient-context reviews request more evidence. This remains an in-process prototype: reviewer identity strings are not authentication, no real reviewer provider is connected, and semantic review does not prove objective truth.
+
+Deterministic accepted-memory retrieval is implemented with substring, memory-kind, epistemic-type, evidence-event, and pagination filters. Reads fail closed if the accepted-memory projection count differs from the authoritative decision count; Recovery can rebuild it from event history. Semantic/vector retrieval is not implemented.
+
+Hosted CI on Python 3.12.16 passed 97 tests at commit `7d57ed2dfbb3bed76fe8208de79a8cef49bdc4cf`. That historical result covered the v1 cognitive store, v1 proposal pipeline, grounded-memory store, grounded proposal pipeline, accepted-memory retrieval, and original generic persistence baseline. It did **not** cover the later semantic-review files or the new Life Engine prototype. The current workflow has been extended to include semantic-review and life-engine tests, but a current successful run has not yet been verified. Windows-local verification is also pending.
+
+The active `feature/csd-cognitive-memory-slice` branch has since extended this reference slice substantially. Schema v5 now includes motivation signals, candidate goals, separate candidate→active activation, and explicit pause/resume proposal projections. Goal versions and the shared state_version are checked exactly; stale proposals defer without rebasing. A common append-time and Recovery chronology guard rejects any memory, grounded-memory, motivation, or goal proposal that claims a state version which did not exist immediately before its event sequence. Projection reconciliation and Recovery cover these event families, and pause/resume transitions do not start activities or grant capabilities.
+
+The Life Engine is now connected to an integrity-checked CSD snapshot reader and a narrow CSD proposal sink for candidate-goal creation, activation, and pause/resume. The sink persists internal goal-state transitions only. No real deliberator/model provider is connected, no external activity is executed, and blocked/unblocked, satisfied, abandoned, superseded, and revision transitions remain unimplemented pending separate evidence/authority contracts.
+
+The latest verified hosted workflow on this branch is run #297: 332 tests passed on GitHub-hosted Ubuntu (Python 3.12.16 / SQLite 3.46.1) and Windows (Python 3.12.10 / SQLite 3.49.1), including compileall and the full test discovery. This is not the user's own Windows 11 / Python 3.12.14 environment; local verification, process-interruption, and durability testing remain pending. A local one-command verifier is available at `scripts/verify_windows.ps1`. Fresh-schema v0→v1 migration rollback is also covered by failure-injection testing. Recovery takes its writer transaction before reading the event snapshot, with a deterministic two-connection regression test. Every replayed event is also checked against the common append-time envelope contract and canonical payload representation. Duplicate event delivery validates the prior stored envelope before acknowledging idempotency. The shared transaction context also rolls back after commit-time failures that leave SQLite in an active transaction. Both the diagnostic state snapshot and Life Engine snapshot now use an explicit read transaction; run #297 verifies the diagnostic result remains internally consistent when a second connection appends concurrently.
+
+
+### Memory lifecycle
+
+A separate design proposal distinguishes epistemic standing, validity, accessibility, lifecycle relations, and privacy/retention. It covers revision, supersession, consolidation, accessibility decay, cognitive forgetting, privacy erasure, and diary isolation. None of these lifecycle operations is implemented in the current prototype. In particular, the current append-only plaintext event store cannot claim secure content erasure. See `docs/design/memory-lifecycle-and-revision-contract.md`.
+
+### Motivation and Life Engine
+
+A provider-neutral reference slice has been added under `core/life_engine/`. It defines distinct motivational signal types, goal proposals with explicit origin references and lifecycle criteria, trusted activity options, and deliberation choices including a first-class `no_op`. Goal-origin classification is derived from the authoritative snapshot references; the deliberator cannot self-assert an internal origin. A selected external side-effect activity is only marked as requiring ASM governance; it is never dispatched by this package.
+
+The active feature branch is connected to CSD through an integrity-checked snapshot reader and a narrow proposal sink for candidate-goal creation, activation, and pause/resume. Motivation and goal event schemas, projections, version rules, chronology checks, and Recovery are implemented and hosted-tested. There is still no real deliberation model, no drive/interest learning reducer, no activity scheduler, and no external platform integration. The prototype is not connected to DSH, SurfCore, Bilibili, or QQ. Its local validation is not a security boundary; CSD must repeat all authoritative checks. The 37-case Life Engine test suite was mirrored into an isolated verification environment and passed there under Python 3.13.5, including active-activity permission revocation, stop-condition enforcement, missing active-state metadata, ASM handoff classification, goal-sourced activities, paused-goal blocking, and self-commitment origin provenance. This is not a run of the exact remote checkout or the target Windows environment. The GitHub Actions workflow includes the Life Engine test step, but a successful hosted run on the current branch has not yet been verified. An evidence-grounded motivation update validator has been added. It distinguishes user-requested actions, platform autoplay/exposure, and independent choices; guards against one-off or repeated-in-one-encounter interest claims; enforces signal versions and evidence non-reuse; and stores a versioned signal statement separately from its subject/scope. Reinforcement cannot rewrite the statement or scope; contextualization creates an explicit content/scope revision. Verified voluntary encounter summaries accumulate across accepted versions while the signal's initial origin remains unchanged. Self-commitment follow-through is not counted as independent interest evidence. It is still a pure proposal validator: the evidence snapshot must be constructed by a trusted CSD path, and the module cannot authenticate or prove its source metadata. A 51-case test file exists and the GitHub Actions workflow includes it, but the exact remote suite has not yet been verified as passing in hosted CI. In the assistant's isolated mirror, 37 Life Engine tests and 31 separate targeted motivation checks passed under Python 3.13.5; the 31 checks are not the exact 51-case repository test file and neither run is a Windows-local test. A CSD integration proposal defines trusted interaction provenance, signal decision events, projections, state-version rules, and Recovery.
+
+The design intentionally rejects a universal weighted priority formula. Hard permissions and prerequisites are admission gates; remaining choices are deliberated with reasons, alternatives, uncertainty, and the option to wait or do nothing. The model may suggest a choice but cannot grant capabilities or bypass ASM.
+
+See:
+- `docs/design/motivation-and-life-engine-contract.md`
+- `docs/design/life-engine-csd-event-contract.md`
+- `docs/design/motivation-signal-formation-and-lifecycle.md`
+- `docs/design/motivation-signal-test-contract.md`
+- `docs/design/motivation-signal-csd-integration-contract.md`\n- `tests/test_motivation_synthesis.py`
+- `docs/design/motivation-and-life-engine-test-contract.md`
+- `core/life_engine/README.md`
+
+This implementation remains an engineering experiment, not a frozen CSD rule set or a complete memory/motivation system. It does not yet implement autobiographical consolidation, forgetting, personality change, drive learning, autonomous goal formation by a real model, diary motivation, or autonomous life behavior.
+
+## ASM-5.3
+
+**Status: confirmed semantic working baseline; verbatim source restoration incomplete.**
+
+The current confirmed baseline includes:
+
+- ASM-5.3 is the decision gate for creating a new outbound business-action attempt.
+- Retry eligibility depends on execution evidence, repeatability, and platform idempotency constraints.
+- A confirmed execution prohibits retrying the same `business_action_id`; this does not prohibit other business actions under the same `correlation_id`.
+- A 5.4 authorization result does not itself create an attempt; the 5.3 checks still apply.
+- Verification-attempt creation/frequency is outside the retry rules for outbound business-action attempts.
+
+This is a summary of the confirmed semantic baseline, not a replacement for the original clauses.
+
+## ASM-5.4
+
+**Status: under review; not frozen.**
+
+A reconstructed, explicitly non-verbatim 5.4 text and a set of semantic questions have been discussed. The current working interpretation is that 5.4 handles retry-eligibility cases not conclusively decided by fixed 5.3 rules. It does not create attempts or change execution facts. Its decision outputs and audit requirements have been discussed, but several boundaries remain unresolved.
+
+Do not present ASM-5.4 as finalized, and do not generate conformance tests from unresolved interpretations as if they were normative clauses.
+
+## General handling rules
+
+- Distinguish verbatim source text from reconstructed summaries.
+- Label confirmed decisions, proposed patches, engineering assumptions, and unresolved questions separately.
+- Do not silently promote an unresolved issue into a normative rule.
+- Build conformance tests only against an explicitly selected and sufficiently stable source baseline.
+
+Snapshot consistency verification: both diagnostic and Life Engine snapshot readers execute within the shared explicit read-transaction helper. A deterministic two-connection test commits a new event after the diagnostic snapshot has established its read view and confirms the returned snapshot excludes that later event while the database contains it. The test uses two independent connections without crossing SQLite thread affinity. Hosted CI run #298 passed 332 tests on Ubuntu and Windows.
+
+Semantic-review idempotency verification: a repeated `review_id` now validates the original event through `get_event` before returning `duplicate_review`. A regression corrupts the original review event's envelope digest and confirms that a retry with a new event ID cannot mask the damaged event. Hosted CI run #302 passed 333 tests on Ubuntu and Windows; see [semantic-review duplicate integrity report](../reports/csd-semantic-review-duplicate-integrity-test-report-001.md).
+
+
+Canonical event payload read validation: `get_event()` now rejects parseable but non-canonical stored JSON even if both payload and event-envelope digests have been recomputed. This protects event-ID and semantic-review duplicate acknowledgements from accepting such a damaged prior event. Regression: `test_duplicate_review_rejects_noncanonical_prior_payload_even_with_matching_digests`; see [canonical event payload read validation report](../reports/csd-canonical-event-payload-read-validation-test-report-001.md). Hosted CI is pending. This does not authenticate the writer or replace Recovery's event-family schema and replay checks.
+
+
+Malformed durable event read error normalization: `CognitiveMemoryStore.get_event()` now preserves explicit integrity failures and converts malformed persisted fields, timestamps, and validation exceptions into `CognitiveIntegrityError`. A regression corrupts an existing event timestamp and confirms duplicate delivery cannot acknowledge it or append another event. Test: `test_duplicate_event_rejects_prior_event_with_invalid_timestamp_as_integrity_error`; see [report](../reports/csd-malformed-durable-event-read-error-normalization-report-001.md). Hosted CI is pending.
+
+
+Authoritative decision identity replay validation: Recovery now checks memory and motivation decision event IDs against their proposal-scoped decision sequence and requires the corresponding proposal correlation ID. Regressions rebind correlation IDs while recomputing valid envelope digests and verify Recovery rejects both histories. See [report](../reports/csd-authoritative-decision-event-identity-validation-report-001.md). Hosted CI is pending.
+
+The proposal-scoped memory and motivation decision identity contract is enforced during ordinary `get_event()` reads as well as Recovery replay. Therefore projection-consistency reads reject rebound decision event IDs/correlation IDs even when the altered envelope digest has been recomputed. See [decision identity validation report](../reports/csd-authoritative-decision-event-identity-validation-report-001.md).

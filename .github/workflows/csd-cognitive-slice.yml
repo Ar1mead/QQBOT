@@ -1,0 +1,86 @@
+name: CSD cognitive slice tests
+
+on:
+  push:
+    branches:
+      - feature/csd-cognitive-memory-slice
+    paths:
+      - "core/csd/**"
+      - "core/life_engine/**"
+      - "tests/test_life_engine.py"
+      - "tests/test_motivation_synthesis.py"
+      - "tests/test_csd_cognitive.py"
+      - "tests/test_csd_motivation.py"
+      - "tests/test_csd_goals.py"
+      - "tests/test_csd_proposal_pipeline.py"
+      - "tests/test_csd_grounded_memory.py"
+      - "tests/test_csd_grounded_proposal_pipeline.py"
+      - "tests/test_csd_memory_retrieval.py"
+      - "tests/test_csd_semantic_review.py"
+      - "tests/test_csd_semantic_review_pipeline.py"
+      - ".github/workflows/csd-cognitive-slice.yml"
+  pull_request:
+    paths:
+      - "core/csd/**"
+      - "core/life_engine/**"
+      - "tests/test_life_engine.py"
+      - "tests/test_motivation_synthesis.py"
+      - "tests/test_csd_cognitive.py"
+      - "tests/test_csd_motivation.py"
+      - "tests/test_csd_proposal_pipeline.py"
+      - "tests/test_csd_grounded_memory.py"
+      - "tests/test_csd_grounded_proposal_pipeline.py"
+      - "tests/test_csd_memory_retrieval.py"
+      - "tests/test_csd_semantic_review.py"
+      - "tests/test_csd_semantic_review_pipeline.py"
+      - ".github/workflows/csd-cognitive-slice.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cognitive-slice:
+    name: CSD cognitive slice tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Report Python and SQLite versions
+        run: python -c "import sqlite3,sys; print('Python:', sys.version); print('SQLite:', sqlite3.sqlite_version)"
+      - name: Compile CSD and tests
+        run: python -m compileall -q core tests
+      - name: Run cognitive-memory slice tests
+        run: python -m unittest discover -s tests -p "test_csd_cognitive.py" -v
+      - name: Run CSD motivation state tests
+        run: python -m unittest discover -s tests -p "test_csd_motivation.py" -v
+      - name: Run CSD candidate goal state tests
+        run: python -m unittest discover -s tests -p "test_csd_goals.py" -v
+      - name: Run provider-neutral proposal pipeline tests
+        run: python -m unittest discover -s tests -p "test_csd_proposal_pipeline.py" -v
+      - name: Run grounded-memory v2 tests
+        run: python -m unittest discover -s tests -p "test_csd_grounded_memory.py" -v
+      - name: Run grounded-memory provider pipeline tests
+        run: python -m unittest discover -s tests -p "test_csd_grounded_proposal_pipeline.py" -v
+      - name: Run accepted-memory retrieval tests
+        run: python -m unittest discover -s tests -p "test_csd_memory_retrieval.py" -v
+      - name: Run semantic review event tests
+        run: python -m unittest discover -s tests -p "test_csd_semantic_review.py" -v
+      - name: Run semantic review provider pipeline tests
+        run: python -m unittest discover -s tests -p "test_csd_semantic_review_pipeline.py" -v
+      - name: Run existing persistence baseline tests
+        run: python -m unittest discover -s tests -p "test_csd_store.py" -v
+      - name: Run motivation signal synthesis tests
+        run: python -m unittest discover -s tests -p "test_motivation_synthesis.py" -v
+      - name: Run motivation and life-engine tests
+        run: python -m unittest discover -s tests -p "test_life_engine.py" -v
+      - name: Run complete test discovery
+        run: python -m unittest discover -s tests -v
