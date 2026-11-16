@@ -229,7 +229,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
             "accepted",
         )
 
-    def test_migration_creates_schema_v5_and_preserves_v1_memory_data(self):
+    def test_migration_creates_schema_v6_and_preserves_v1_memory_data(self):
         observation = envelope(
             "migration-observation",
             OBSERVATION_EVENT,
@@ -372,7 +372,7 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
             [],
         )
 
-    def test_fresh_schema_is_v5(self):
+    def test_fresh_schema_is_v6(self):
         self.assertEqual(
             int(self.store._db.execute("PRAGMA user_version").fetchone()[0]),
             6,
