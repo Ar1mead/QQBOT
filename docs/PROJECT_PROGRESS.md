@@ -267,4 +267,7 @@ At the time of this update:
 - Chronology implementation commit: `dbfa9af2a703283249c440efa4efc6a84e322c77`; regression commit: `559494e1433257bb6501f84db26a9299ea966c5b`.
 - CI remains unverified for these latest commits. Run #350 passed before this follow-up; do not extend that result to the new tests.
 
+- Current branch comparison against `e7f47d52c3eeaa015e01cb461bb342d700f61807`: 18 commits ahead, 0 behind; no merge to `main` has been performed.
+- The GitHub connector reports no workflow run or commit status for the latest follow-up commits. Run #350 remains the last verified cross-platform baseline (348 tests per OS), not verification of these additions.
+- Next audit target: direct-read semantic validation of decision events, especially whether `evaluated_state_version` and `proposal_event_id` are validated against the exact earlier event history, not only field shape and proposal-scoped event identity. Design this without recursive state-version reads or trusting mutable projections.
 **Resume:** verify the new direct-read regression and full cross-platform CI. Then continue cross-family chronology and projection/event-history coordinated-corruption review, keeping the distinction between detectable inconsistency and fully coherent unauthenticated history rewrite explicit.
