@@ -422,6 +422,7 @@ class SemanticReviewStoreTests(unittest.TestCase):
 
     def test_same_event_id_internal_decision_retry_remains_idempotent(self):
         self.submit_proposal()
+        self.store.submit_event(self.make_review())
         decision = self.store.evaluate_proposal("proposal-review-1")
         stored = self.store.get_event(decision["decision_event_id"])
         retry = CognitiveEvent(
