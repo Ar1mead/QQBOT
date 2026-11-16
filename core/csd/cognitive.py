@@ -498,6 +498,85 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 raise CognitiveIntegrityError(message)
             raise ValueError(message)
 
+    def _validate_decision_event_history(
+        self,
+        db: sqlite3.Connection,
+        event: CognitiveEvent,
+        *,
+        sequence: int,
+    ) -> None:
+        """Validate decision provenance against the immutable earlier event log."""
+        proposal_families = {
+            DECISION_EVENT: (PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT),
+            MOTIVATION_DECISION_EVENT: (MOTIVATION_PROPOSAL_EVENT,),
+            GOAL_BATCH_DECISION_EVENT: (GOAL_BATCH_PROPOSAL_EVENT,),
+            GOAL_ACTIVATION_DECISION_EVENT: (GOAL_ACTIVATION_PROPOSAL_EVENT,),
+            GOAL_PAUSE_RESUME_DECISION_EVENT: (GOAL_PAUSE_RESUME_PROPOSAL_EVENT,),
+        }
+        expected_types = proposal_families.get(event.event_type)
+        if expected_types is None:
+            raise CognitiveIntegrityError("unknown durable decision family")
+
+        proposal_id = _nonempty(
+            event.payload.get("proposal_id"), "decision.proposal_id"
+        )
+        proposal_event_id = _nonempty(
+            event.payload.get("proposal_event_id"), "decision.proposal_event_id"
+        )
+        evaluated_version = event.payload.get("evaluated_state_version")
+        if (
+            not isinstance(evaluated_version, int)
+            or isinstance(evaluated_version, bool)
+            or evaluated_version < 0
+        ):
+            raise CognitiveIntegrityError(
+                "decision evaluated_state_version must be a non-negative integer"
+            )
+
+        authoritative_version = self._authoritative_state_version(
+            db, through_sequence=sequence - 1
+        )
+        if evaluated_version != authoritative_version:
+            raise CognitiveIntegrityError(
+                "decision evaluated_state_version does not match authoritative history"
+            )
+
+        placeholders = ",".join("?" for _ in expected_types)
+        params: list[Any] = [*expected_types, sequence, proposal_id]
+        matching_proposals = db.execute(
+            "SELECT e.event_id,e.sequence FROM events e "
+            "JOIN payloads p ON p.payload_ref=e.payload_ref "
+            f"WHERE e.event_type IN ({placeholders}) AND e.sequence<? "
+            "AND json_valid(p.payload_json) "
+            "AND json_extract(p.payload_json,'$.proposal_id')=? "
+            "ORDER BY e.sequence",
+            params,
+        ).fetchall()
+        if (
+            len(matching_proposals) != 1
+            or matching_proposals[0]["event_id"] != proposal_event_id
+        ):
+            raise CognitiveIntegrityError(
+                "decision proposal-event reference is missing, ambiguous, or mismatched"
+            )
+
+        proposal_sequence = int(matching_proposals[0]["sequence"])
+        if proposal_sequence >= sequence:
+            raise CognitiveIntegrityError(
+                "decision proposal-event reference must point to an earlier event"
+            )
+        proposal_event = self.get_event(
+            proposal_event_id, _validate_decision_context=False
+        )
+        if (
+            proposal_event["event_type"] not in expected_types
+            or proposal_event["payload"].get("proposal_id") != proposal_id
+            or int(proposal_event["sequence"]) != proposal_sequence
+        ):
+            raise CognitiveIntegrityError(
+                "decision proposal-event reference does not identify its historical proposal"
+            )
+
     def _append_event_in_transaction(
         self,
         db: sqlite3.Connection,
@@ -1178,7 +1257,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         for row in db.execute(query, params).fetchall():
             # State-version reads must not trust raw decision payload JSON:
             # verify its content and envelope digests before counting it.
-            decision_event = self.get_event(row["event_id"])
+            decision_event = self.get_event(
+                row["event_id"], _validate_decision_context=False
+            )
             decision = decision_event["payload"]
             outcome = decision.get("outcome")
             if outcome not in {"accepted", "rejected", "deferred", "needs_more_evidence"}:
@@ -1648,7 +1729,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 "reason": reason,
             }
 
-    def get_event(self, event_id: str) -> dict[str, Any]:
+    def get_event(
+        self, event_id: str, *, _validate_decision_context: bool = True
+    ) -> dict[str, Any]:
         """Read one immutable event with its content-addressed payload."""
         _nonempty(event_id, "event_id")
         row = self._db.execute(
@@ -1785,21 +1868,24 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                         "decision event identity or correlation_id mismatch"
                     )
 
-            # Every read path must enforce the same event-local schema contract
-            # as duplicate delivery and Recovery. Referenced evidence is resolved
-            # recursively through earlier sequence numbers by the validators.
-            if event.event_type not in decision_types:
-                self._validate_event_local_shape(
-                    self._db,
-                    {
-                        "event_id": event.event_id,
-                        "occurred_at": event.occurred_at,
-                        "correlation_id": event.correlation_id,
-                        "event_type": event.event_type,
-                        "source": event.source,
-                        "payload": event.payload,
-                    },
-                    sequence=int(row["sequence"]),
+            # Every read path enforces the same event-local schema contract
+            # as duplicate delivery and Recovery. Decision history checks are
+            # skipped only for internal state-version scans to prevent recursion.
+            self._validate_event_local_shape(
+                self._db,
+                {
+                    "event_id": event.event_id,
+                    "occurred_at": event.occurred_at,
+                    "correlation_id": event.correlation_id,
+                    "event_type": event.event_type,
+                    "source": event.source,
+                    "payload": event.payload,
+                },
+                sequence=int(row["sequence"]),
+            )
+            if event.event_type in decision_types and _validate_decision_context:
+                self._validate_decision_event_history(
+                    self._db, event, sequence=int(row["sequence"])
                 )
             return {
                 "sequence": int(row["sequence"]),
