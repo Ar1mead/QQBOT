@@ -745,13 +745,13 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     raise ValueError("durable decision authority or identity mismatch")
             else:
                 raise CognitiveIntegrityError(
-                    f"unsupported duplicate event type: {event.event_type}"
+                    f"unsupported durable event type: {event.event_type}"
                 )
         except CognitiveIntegrityError:
             raise
         except (TypeError, ValueError, KeyError, IndexError, RecursionError, OverflowError) as exc:
             raise CognitiveIntegrityError(
-                f"invalid prior event schema: {event.event_id}"
+                f"invalid durable event schema: {event.event_id}"
             ) from exc
 
     @staticmethod
