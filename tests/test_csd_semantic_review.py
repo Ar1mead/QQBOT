@@ -183,7 +183,7 @@ class SemanticReviewStoreTests(unittest.TestCase):
 
         from core.csd.cognitive import CognitiveIntegrityError
         with self.assertRaisesRegex(
-            CognitiveIntegrityError, "invalid prior event schema"
+            CognitiveIntegrityError, "invalid durable event schema"
         ):
             self.store.get_event(original["event_id"])
 
