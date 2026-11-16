@@ -394,3 +394,6 @@ At the time of this update:
 - Hosted GitHub Actions run #438 passed on Ubuntu and Windows. Full unittest discovery reported **364 tests per platform**; all focused steps and compileall passed. This is hosted CI, not the user's local Windows test.
 - Updated `core/csd/README.md` and the historical replay cost audit report. The index improves each event-family/prefix lookup but does not solve repeated prefix aggregation; no long-history performance claim is made.
 - Next: implement a per-operation, sequence-ordered historical replay context to calculate verified accepted-decision prefix versions once per stable SQLite snapshot. Preserve all five decision families and the existing direct-read/Recovery integrity checks.
+
+
+- Final branch-head verification after test-name/documentation cleanup: commit `8f52c3e43f133b62b210e36fac4cc9951097aea0`; PR-triggered GitHub Actions run #444 passed on Ubuntu and Windows, with **364 tests per platform**. Run #444 is the latest verified PR workflow for this branch head.
