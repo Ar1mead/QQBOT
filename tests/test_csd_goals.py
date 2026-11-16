@@ -1411,6 +1411,7 @@ class CSDGoalActivationTests(unittest.TestCase):
         self.store.close()
         db = sqlite3.connect(self.path)
         db.execute("DROP TABLE goal_pause_resume_proposals")
+        db.execute("DROP INDEX IF EXISTS idx_events_event_type_sequence")
         db.execute("PRAGMA user_version = 4")
         db.commit()
         db.close()
@@ -1462,7 +1463,7 @@ class CSDGoalActivationTests(unittest.TestCase):
             "AND name='idx_events_event_type_sequence'"
         ).fetchone()
         self.assertEqual(
-            index["sql"],
+            " ".join(index["sql"].split()),
             "CREATE INDEX idx_events_event_type_sequence ON events(event_type, sequence)",
         )
         plan = [
@@ -1489,6 +1490,7 @@ class CSDGoalActivationTests(unittest.TestCase):
         db = sqlite3.connect(self.path)
         db.execute("DROP TABLE goal_activation_proposals")
         db.execute("DROP TABLE goal_pause_resume_proposals")
+        db.execute("DROP INDEX IF EXISTS idx_events_event_type_sequence")
         db.execute("PRAGMA user_version = 3")
         db.commit()
         db.close()
