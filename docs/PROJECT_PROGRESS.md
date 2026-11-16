@@ -505,3 +505,14 @@ At the time of this update:
 - A deeper call-path check found that `get_life_signal_snapshot()` validated goal history, then called `get_goals()`, which validated the same goal history a second time. It now reads the goal projection rows directly inside the same already-validated read transaction.
 - The projection-deduplication regression now counts both motivation-validator and goal-validator invocations. Goal batch evaluation, life snapshot, and state snapshot must each perform exactly one goal replay and one motivation validation. The out-of-transaction reuse guard remains covered.
 - Code/test head for this change: `3efa72823f82eb0db79dcff34445484c3271aa0b`. No fresh passing hosted workflow result is visible through the available PR-run lookup; run #503 remains a failure for the earlier trace-based test and is not evidence for this revision.
+
+### 2026-11-16 — CSD Observation v2 and adapter-to-CSD mapping
+
+- Added `experience.observation_recorded.v2` while retaining the original v1 event and payload unchanged. Direct event reads, proposal evidence chronology, grounded-memory text evaluation, and Recovery now recognize both versions.
+- V2 records adapter ID/version, platform, optional opaque account reference, external object reference, content origin (`source_provided` or `adapter_extracted`), modality, source/artifact references, source-observed and local-received timestamps, extraction method, exact UTF-8 content SHA-256, and explicit completeness/time-range/missing-range coverage.
+- Both source-provided and adapter-extracted material remain untrusted. The origin field describes provenance only; it does not assert that a platform claim, caption, ASR transcript, or OCR result is true.
+- Added `adapters/csd_mapping.py` to convert validated adapter evidence into deterministic CSD v2 events. The event identity is stable per adapter/observation ID; receipt time is used for the event envelope while source time remains separate in the payload.
+- Grounded-memory proposal generation can now consume v2 text observations. Exact quoted spans remain mandatory; non-text observations are not passed into the text-grounded provider path.
+- Added CSD v2 integration tests for mapping, stable identity, tamper rejection, trust flag enforcement, coverage consistency, v1/v2 Recovery, and grounded-memory use of v2 text evidence. Adapter tests also cover content-origin, extraction-method consistency, and v2 manifest declaration.
+- The CSD workflow now includes the new integration suite and path filters on Ubuntu/Windows. Hosted CI for this new revision is pending; do not claim it has passed until the corresponding Actions run is green.
+- This is still a contract/mapping slice. No real Bilibili network access, account login, DSH plugin, local runtime changes, or external action was performed. V2 stores text plus source/artifact references, not raw media bytes.
