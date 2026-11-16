@@ -187,3 +187,51 @@ No stage is considered complete based only on a package installing or a plugin a
 - Credential storage implementation and retention/deletion policy.
 
 These questions should be resolved with evidence during the corresponding implementation stage, not guessed in advance.
+
+
+## 10. Source review checkpoint — 2026-11-16
+
+This checkpoint records upstream source/version observations. It does not authorize installation or claim owner-local runtime compatibility.
+
+### DSH runtime
+
+- Official upstream repository: `deepseek-ai/deepseek-harness`.
+- Current `master` package metadata reviewed at commit `39163dd30f703a79079e2d2446545cff3c453738`: root package version `0.2.2-rc.3`, Node engine `>=24.9.0`.
+- The exact DSH Desktop version currently installed on the owner's machine has not been independently confirmed. A previously inspected Node runtime was `24.21.0`, which satisfies the current upstream Node engine requirement, but Node version alone does not establish DSH compatibility.
+- Upstream Windows reports for `0.2.2-rc.3` include proxy/VPN-related startup `ECONNRESET`; this is a known upstream caveat to investigate only if it matches the local environment, not a reason to change the local installation now.
+
+### SurfCore
+
+- Current upstream repository: `Mieksido/surfcore`; main package metadata reports `0.8.9`, Node `>=22.13.0`, latest reviewed commit `0ce8580048d3dddb21860114edb8b115d5d79d1e`.
+- Its README targets DSH `0.2.1-rc.2` or newer, while explicitly noting that `0.2.2-rc.3` can install but has not completed full feature regression.
+- The existing capability assessment remains pinned to SurfCore `0.8.8` / `0deb8261afe4c31b3127759ee4de36a1439cf422`. Do not silently rewrite those source-specific findings as if they covered 0.8.9. A new source review is required before reusing changed implementation details.
+- No local SurfCore files, settings, plugins, credentials, or DSH profile were changed.
+
+### Bilibili candidates
+
+**Provisional observation-engine candidate: `Sacredbluedragon/dsh-bili-watch`.**
+
+- Current `main` package metadata: version `0.4.12`, MIT, Node `>=22`, DSH peer range `>=0.2.0-rc.2 <0.3.0-0`; latest reviewed commit `cee80fd100cc112ad6beccf4ad6d12aa7a0c88d9`.
+- The declared peer range includes the upstream DSH `0.2.2-rc.3` version. This is a package-level compatibility declaration only; it is not proof against the exact local Desktop build.
+- Its read path covers video metadata, comments, danmaku, subtitles, local ASR, frame extraction, and OCR. The reviewed Bilibili API helper uses GET requests for the data endpoints.
+- It is not a pure read-only plugin package: it also contains QR login/credential writing, cache cleanup, local cache/output writes, an optional `markSeen` write, and local-file processing. Its generic-URL path uses yt-dlp and its own README warns that internal-address filtering is absent.
+- Therefore, do **not** install its raw DSH plugin/tool surface as the project's first adapter. If selected after further review, use its CLI/data extraction behind a project-owned wrapper with a strict command allowlist, BV-ID-only targets, no login/credentials, no `clean`, no `local`, no `markSeen`, no `--out`, and bounded project-owned cache handling. Never pass arbitrary URLs or paths from platform content into it.
+- Start with metadata/comments/danmaku and other anonymous GET-only observations. Treat authenticated subtitles as a later, explicit account-scope decision. ASR/OCR are optional; do not install CUDA/cuDNN packages or large local models as a prerequisite.
+
+**Not selected for the first stage: `Alterssss/dsh-bili-whale`.**
+
+- Current README identifies version `0.4.6` and describes autonomous scheduled viewing, diaries, comment posting, mentions, and private-message sending.
+- Its documented self-test asks the operator to grant its DSH session `danger-full-access`. Those assumptions conflict with the project's least-privilege, read-only first-stage boundary. It may be studied for ideas later, but must not be used as the first Bilibili adapter.
+
+### CSD observation-schema gap
+
+The current CSD `experience.observation_recorded.v1` payload is deliberately minimal and accepts only `observation_id`, `observation_kind`, `content`, `source_ref`, `observed_at`, and a small fixture-oriented coverage object. That is insufficient for media provenance, modality-specific timestamps, extraction method, partial coverage, artifact digests, and source-vs-inference distinctions.
+
+Before connecting a real Bilibili source, define a backward-compatible observation v2 event contract (retain v1 replay compatibility) and update evidence validation so text-grounded memory can cite supported v2 text observations without treating video/audio/OCR coverage as complete by default.
+
+### Current decision
+
+- Proceed to Stage 0: project-owned observation envelope, capability manifest, strict Bilibili target/command allowlist, deterministic fake adapter, and tests.
+- Keep real Bilibili access disabled until the observation v2 mapping and adapter security tests exist.
+- No plugin was installed, no account was logged in, and no local DSH/SurfCore configuration was touched.
+
