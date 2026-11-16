@@ -262,4 +262,9 @@ At the time of this update:
 - Hosted CI is pending. User-local Windows 11 / Python 3.12.14 verification remains pending.
 - Integrity boundary: hashes are not authenticated signatures. Rewriting an entire history into a different internally valid history and recomputing all dependent hashes cannot be detected without an independently protected checkpoint or signing key. Do not claim protection against that threat without a separate anchor design.
 
+- Follow-up chronology audit found that event-local schema checks alone did not re-evaluate proposal `based_on.state_version` at the proposal's original position in history. The shared read validator now checks the claimed version against authoritative decisions through sequence-1; later events cannot retroactively change that historical value.
+- Added `tests/test_csd_semantic_review.py::test_get_event_rejects_proposal_claiming_future_state_with_valid_digests`, which changes a proposal snapshot to a future state version and recomputes payload/envelope digests before requiring rejection.
+- Chronology implementation commit: `dbfa9af2a703283249c440efa4efc6a84e322c77`; regression commit: `559494e1433257bb6501f84db26a9299ea966c5b`.
+- CI remains unverified for these latest commits. Run #350 passed before this follow-up; do not extend that result to the new tests.
+
 **Resume:** verify the new direct-read regression and full cross-platform CI. Then continue cross-family chronology and projection/event-history coordinated-corruption review, keeping the distinction between detectable inconsistency and fully coherent unauthenticated history rewrite explicit.
