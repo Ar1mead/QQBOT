@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 import hashlib
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -15,6 +16,7 @@ from adapters.csd_mapping import observation_evidence_to_csd_event
 from core.csd import (
     CognitiveEvent,
     CognitiveIdempotencyConflict,
+    CognitiveIntegrityError,
     CognitiveMemoryStore,
     GroundedMemoryCandidate,
     GroundedMemoryProposalPipeline,
@@ -185,6 +187,38 @@ class CSDObservationV2Tests(unittest.TestCase):
         payload["coverage"] = coverage
         with self.assertRaisesRegex(ValueError, "coverage modality mismatch"):
             self.store.submit_event(replace(event, payload=payload))
+
+    def test_recovery_rejects_v2_trust_flag_tampering_with_recomputed_digests(self):
+        event = observation_evidence_to_csd_event(self.evidence())
+        self.store.submit_event(event)
+        stored = self.store.get_event(event.event_id)
+        payload = dict(stored["payload"])
+        payload["untrusted"] = False
+        payload_json = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False,
+        )
+        payload_ref = "sha256:" + hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+        row = self.store._db.execute(
+            "SELECT received_at FROM events WHERE event_id=?", (event.event_id,)
+        ).fetchone()
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute("DROP TRIGGER payloads_no_update")
+        self.store._db.execute(
+            "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (payload_ref, payload_json),
+        )
+        rewritten = replace(event, payload=payload)
+        event_digest = self.store._event_digest(
+            rewritten, payload_ref, row["received_at"]
+        )
+        self.store._db.execute(
+            "UPDATE events SET payload_ref=?,event_digest=? WHERE event_id=?",
+            (payload_ref, event_digest, event.event_id),
+        )
+
+        with self.assertRaisesRegex(CognitiveIntegrityError, "invalid durable event schema"):
+            self.store.recover()
 
     def test_v1_and_v2_events_survive_recovery(self):
         legacy = self.v1_event()
