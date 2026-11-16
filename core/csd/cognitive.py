@@ -521,7 +521,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             # Idempotent delivery must not turn a corrupted prior envelope or
             # event-specific schema into a successful duplicate acknowledgement.
             stored_event = self.get_event(event.event_id)
-            self._validate_duplicate_event_shape(
+            self._validate_event_local_shape(
                 db, stored_event, sequence=int(prior["sequence"])
             )
             same = (
@@ -626,7 +626,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             "payload_ref": payload_ref,
         }
 
-    def _validate_duplicate_event_shape(
+    def _validate_event_local_shape(
         self,
         db: sqlite3.Connection,
         stored_event: Mapping[str, Any],
@@ -1781,18 +1781,19 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             # Every read path must enforce the same event-local schema contract
             # as duplicate delivery and Recovery. Referenced evidence is resolved
             # recursively through earlier sequence numbers by the validators.
-            self._validate_duplicate_event_shape(
-                self._db,
-                {
-                    "event_id": event.event_id,
-                    "occurred_at": event.occurred_at,
-                    "correlation_id": event.correlation_id,
-                    "event_type": event.event_type,
-                    "source": event.source,
-                    "payload": event.payload,
-                },
-                sequence=int(row["sequence"]),
-            )
+            if event.event_type not in decision_types:
+                self._validate_event_local_shape(
+                    self._db,
+                    {
+                        "event_id": event.event_id,
+                        "occurred_at": event.occurred_at,
+                        "correlation_id": event.correlation_id,
+                        "event_type": event.event_type,
+                        "source": event.source,
+                        "payload": event.payload,
+                    },
+                    sequence=int(row["sequence"]),
+                )
             return {
                 "sequence": int(row["sequence"]),
                 "event_id": row["event_id"],
