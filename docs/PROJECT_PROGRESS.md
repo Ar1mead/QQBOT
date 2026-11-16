@@ -340,3 +340,15 @@ At the time of this update:
 - GitHub Actions run #405 passed on Ubuntu and Windows: compileall, each focused test group, and full unittest discovery passed; **356 tests per platform**.
 - User-local Windows 11 / Python 3.12.14 validation remains deferred until the project is ready to clone.
 - Next: audit semantic-review references recorded on memory decision events against the review history visible before the decision, then check the remaining event-family evidence links.
+
+
+### 2026-11-16 follow-up — decision and semantic-review history binding
+
+- Direct memory-decision reads using grounded review policy v0.2 now recompute the semantic-review summary from immutable review events strictly before the decision's sequence. `semantic_review_event_ids`, `semantic_review_status`, policy ID/version, and `semantic_review_applied` must agree with this history.
+- Direct validation also rechecks allowed review-status/outcome combinations and prevents accepting inference claims without supported review evidence. Reviews appended after a decision cannot be used retroactively.
+- The review summary reads each review through the direct event validator, which independently binds it to the unique earlier grounded proposal, proposal digest, inference claim digest, and declared supporting-source lineage.
+- Added regression `tests/test_csd_semantic_review.py::test_get_event_rejects_memory_decision_with_rebound_semantic_review_ids`; it removes the review reference from an accepted decision and recomputes payload/envelope digests.
+- Implementation commit: `312a204a7cf0bd04719cac58e15ccbd83d77aa9a`; test commit: `b3b450cc01df62a3df6f3bcd8acfbf7720df5043`.
+- GitHub Actions run #411 passed on Ubuntu and Windows: compileall, every focused suite, and full unittest discovery passed; **357 tests per platform**.
+- User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
+- Next: review remaining motivation/goal decision evidence fields and cross-projection Recovery consistency; keep all new direct-read checks sequence-bounded.
