@@ -284,3 +284,13 @@ At the time of this update:
 - Implementation commits: `44b295b170ca32b5f7f4b9b4e1055bf6c6280645` and `cc3a2ae8035aac68b61ad02fbc6e4804a2ebee4e`; test commits: `6a52756d9e1186f1950a71c504dbec0af487a971` and `6ca959bdab7d36a77c1bdcc996befa8ddbf96c8e`.
 - CI and local Windows verification: pending. The last verified hosted baseline remains Run #350 (348 tests per OS), which predates these changes.
 - Next: verify the new regressions and full suite, then audit remaining decision families, evidence/review reference chronology, and cross-projection/event-history corruption.
+
+
+### 2026-11-16 follow-up — semantic-review history validation on direct reads
+
+- Found that direct `get_event()` reads checked semantic-review field shape but did not independently bind `proposal_event_id` to the unique earlier grounded proposal in event history.
+- Added event-history validation: resolve the unique earlier grounded proposal by `proposal_id`, read and validate it from the event log, then verify proposal digest, inference claim identity/digest, and supporting-claim lineage.
+- Added regression `tests/test_csd_semantic_review.py::test_get_event_rejects_semantic_review_referencing_another_proposal_event`; it rebinds a review to another real proposal event and recomputes payload/envelope digests before requiring `CognitiveIntegrityError`.
+- Implementation commits: `64222e020b7dde086c0befe98e878ec4a7053acf`, `7db787634f58b142b5b1027954fd3355fa67f9c0`; test commit: `333cae330f51e8cfc7a7dd665e960c616ef9e071`; documentation commits: `d7444f4a0de9fd749d9b4a94397f3f4a5071cd39`, `d5012d6dd9cc0cbfcf927417cb3f7fb987bb509c`.
+- Verification: not yet run. Latest new regression and full suite require hosted CI; user-local Windows verification remains deferred until the project is ready to clone, per user preference.
+- Next: continue adversarial review of evidence-event references in grounded proposals and interaction/motivation provenance, while confirming the full hosted workflow actually runs on the branch/PR.
