@@ -120,6 +120,11 @@ class CSDObservationV2Tests(unittest.TestCase):
         self.assertEqual(stored["payload"]["content_origin"], "adapter_extracted")
         self.assertIs(stored["payload"]["untrusted"], True)
 
+    def test_v2_rejects_event_identity_not_bound_to_adapter(self):
+        event = observation_evidence_to_csd_event(self.evidence())
+        with self.assertRaisesRegex(ValueError, "identity or source"):
+            self.store.submit_event(replace(event, correlation_id="unrelated-correlation"))
+
     def test_v2_rejects_digest_mismatch(self):
         event = observation_evidence_to_csd_event(self.evidence())
         payload = dict(event.payload)
