@@ -875,6 +875,17 @@ class CSDGoalActivationTests(unittest.TestCase):
             1,
             "all five decision families should share one verified prefix scan",
         )
+        repeated_event_count_queries = [
+            sql for sql in statements
+            if " ".join(sql.lower().split()).startswith(
+                "select count(*) from events where event_type"
+            )
+        ]
+        self.assertEqual(
+            repeated_event_count_queries,
+            [],
+            "decision ordinals and accepted counts must come from the shared context",
+        )
         self.assertIsNone(self.store._active_decision_replay_context)
 
         recovery_statements = []
@@ -895,6 +906,17 @@ class CSDGoalActivationTests(unittest.TestCase):
             len(recovery_prefix_scans),
             1,
             "Recovery should share one verified prefix scan across the whole replay",
+        )
+        recovery_event_count_queries = [
+            sql for sql in recovery_statements
+            if " ".join(sql.lower().split()).startswith(
+                "select count(*) from events where event_type"
+            )
+        ]
+        self.assertEqual(
+            recovery_event_count_queries,
+            [],
+            "Recovery must not recount decision-family prefixes for each replayed event",
         )
         self.assertIsNone(self.store._active_decision_replay_context)
         self.assertEqual(self.store.get_state_snapshot()["state_version"], 5)
