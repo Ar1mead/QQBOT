@@ -1688,29 +1688,94 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             _timestamp(row["received_at"], "received_at")
             if self._event_digest(event, row["payload_ref"], row["received_at"]) != row["event_digest"]:
                 raise CognitiveIntegrityError(f"event envelope digest failure: {event_id}")
-            if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT}:
+            decision_types = {
+                DECISION_EVENT, MOTIVATION_DECISION_EVENT,
+                GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
+                GOAL_PAUSE_RESUME_DECISION_EVENT,
+            }
+            if event.event_type in decision_types:
                 proposal_id = _nonempty(
                     payload.get("proposal_id"), "decision.proposal_id"
                 )
-                family_type = event.event_type
-                decision_number = int(self._db.execute(
-                    "SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<?",
-                    (family_type, int(row["sequence"])),
-                ).fetchone()[0]) + 1
+                outcome = _nonempty(payload.get("outcome"), "decision.outcome")
+                if outcome not in {"accepted", "rejected", "deferred", "needs_more_evidence"}:
+                    raise CognitiveIntegrityError("invalid durable decision outcome")
+
+                decision_fields = {
+                    DECISION_EVENT: {
+                        "proposal_id", "proposal_event_id", "outcome", "policy",
+                        "evidence_event_ids", "semantic_review_event_ids",
+                        "semantic_review_status", "semantic_review_applied", "reason",
+                        "evaluated_state_version", "transition_id", "memory_id",
+                    },
+                    MOTIVATION_DECISION_EVENT: {
+                        "proposal_id", "proposal_event_id", "outcome", "policy",
+                        "evidence_event_ids", "signal", "transition_id", "reason",
+                        "evaluated_state_version",
+                    },
+                    GOAL_BATCH_DECISION_EVENT: {
+                        "proposal_id", "proposal_event_id", "outcome", "policy",
+                        "evaluated_state_version", "transitions", "reason",
+                    },
+                    GOAL_ACTIVATION_DECISION_EVENT: {
+                        "proposal_id", "proposal_event_id", "outcome", "policy",
+                        "evaluated_state_version", "goal_id", "expected_goal_version",
+                        "transition", "reason",
+                    },
+                    GOAL_PAUSE_RESUME_DECISION_EVENT: {
+                        "proposal_id", "proposal_event_id", "outcome", "policy",
+                        "evaluated_state_version", "goal_id", "expected_goal_version",
+                        "operation", "transition", "reason",
+                    },
+                }[event.event_type]
+                if set(payload) != decision_fields:
+                    raise CognitiveIntegrityError(
+                        "durable decision contains missing or unsupported fields"
+                    )
+
                 if event.event_type == DECISION_EVENT:
+                    decision_number = int(self._db.execute(
+                        "SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<?",
+                        (DECISION_EVENT, int(row["sequence"])),
+                    ).fetchone()[0]) + 1
                     expected_event_id = f"csd-decision:{proposal_id}:{decision_number}"
                     expected_correlation_id = f"proposal:{proposal_id}"
-                else:
+                    expected_source = DECISION_SOURCE
+                elif event.event_type == MOTIVATION_DECISION_EVENT:
+                    decision_number = int(self._db.execute(
+                        "SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<?",
+                        (MOTIVATION_DECISION_EVENT, int(row["sequence"])),
+                    ).fetchone()[0]) + 1
                     expected_event_id = (
                         f"csd-motivation-decision:{proposal_id}:{decision_number}"
                     )
                     expected_correlation_id = f"motivation-proposal:{proposal_id}"
+                    expected_source = MOTIVATION_DECISION_SOURCE
+                else:
+                    goal_identity = {
+                        GOAL_BATCH_DECISION_EVENT: (
+                            f"csd-goal-decision:{proposal_id}",
+                            f"goal-proposal:{proposal_id}",
+                        ),
+                        GOAL_ACTIVATION_DECISION_EVENT: (
+                            f"csd-goal-activation-decision:{proposal_id}",
+                            f"goal-activation-proposal:{proposal_id}",
+                        ),
+                        GOAL_PAUSE_RESUME_DECISION_EVENT: (
+                            f"csd-goal-pause-resume-decision:{proposal_id}",
+                            f"goal-pause-resume-proposal:{proposal_id}",
+                        ),
+                    }[event.event_type]
+                    expected_event_id, expected_correlation_id = goal_identity
+                    expected_source = GOAL_DECISION_SOURCE
+
                 if (
                     event.event_id != expected_event_id
                     or event.correlation_id != expected_correlation_id
+                    or event.source != expected_source
                 ):
                     raise CognitiveIntegrityError(
-                        "decision event identity or correlation_id mismatch"
+                        "decision event authority, identity, or correlation_id mismatch"
                     )
             return {
                 "sequence": int(row["sequence"]),
