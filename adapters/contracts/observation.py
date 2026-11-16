@@ -27,6 +27,13 @@ class ObservationStatus(str, Enum):
     FAILED = "failed"
 
 
+class ContentOrigin(str, Enum):
+    """Where normalized evidence text came from; neither value implies truth."""
+
+    SOURCE_PROVIDED = "source_provided"
+    ADAPTER_EXTRACTED = "adapter_extracted"
+
+
 def _nonempty(value: str, field: str) -> None:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field} must be a non-empty string")
@@ -64,7 +71,7 @@ class AdapterManifest:
     adapter_version: str
     platform: str
     capabilities: tuple[Capability, ...]
-    observation_schema_versions: tuple[int, ...] = (1,)
+    observation_schema_versions: tuple[int, ...] = (2,)
 
     def __post_init__(self) -> None:
         _nonempty(self.adapter_id, "manifest.adapter_id")
@@ -139,6 +146,7 @@ class ObservationEvidence:
     platform: str
     external_ref: str
     observation_kind: str
+    content_origin: ContentOrigin
     modality: str
     content: str
     source_ref: str
@@ -148,6 +156,7 @@ class ObservationEvidence:
     content_digest: str
     coverage: ObservationCoverage
     source_artifact_ref: str | None = None
+    account_ref: str | None = None
     untrusted: bool = True
 
     def __post_init__(self) -> None:
@@ -157,6 +166,8 @@ class ObservationEvidence:
             "source_ref", "extraction_method",
         ):
             _nonempty(getattr(self, field), f"evidence.{field}")
+        if not isinstance(self.content_origin, ContentOrigin):
+            raise ValueError("evidence.content_origin must be a ContentOrigin")
         _aware_timestamp(self.observed_at, "evidence.observed_at")
         _aware_timestamp(self.received_at, "evidence.received_at")
         if not re.fullmatch(r"sha256:[0-9a-f]{64}", self.content_digest):
@@ -165,11 +176,13 @@ class ObservationEvidence:
             self.content.encode("utf-8")
         ).hexdigest()
         if self.content_digest != expected_digest:
-            raise ValueError("evidence.content_digest does not match normalized content")
+            raise ValueError("evidence.content_digest does not match the UTF-8 bytes of content")
         if self.coverage.modality != self.modality:
             raise ValueError("evidence modality must match coverage modality")
         if self.source_artifact_ref is not None:
             _nonempty(self.source_artifact_ref, "evidence.source_artifact_ref")
+        if self.account_ref is not None:
+            _nonempty(self.account_ref, "evidence.account_ref")
         if self.untrusted is not True:
             raise ValueError("external observation evidence must remain untrusted")
 
