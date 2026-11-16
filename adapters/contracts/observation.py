@@ -179,6 +179,8 @@ class ObservationEvidence:
             raise ValueError("evidence.content_digest does not match the UTF-8 bytes of content")
         if self.coverage.modality != self.modality:
             raise ValueError("evidence modality must match coverage modality")
+        if self.coverage.extraction_method != self.extraction_method:
+            raise ValueError("evidence extraction_method must match coverage extraction_method")
         if self.source_artifact_ref is not None:
             _nonempty(self.source_artifact_ref, "evidence.source_artifact_ref")
         if self.account_ref is not None:
