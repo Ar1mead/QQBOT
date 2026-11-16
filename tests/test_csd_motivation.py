@@ -1149,6 +1149,10 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(
             CognitiveIntegrityError, "identity or correlation_id mismatch"
         ):
+            self.store.get_motivation_signals()
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "identity or correlation_id mismatch"
+        ):
             self.store.recover()
 
     def test_recovery_rejects_motivation_decision_with_rebound_wrong_event_id(self):
@@ -1181,6 +1185,10 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
             "UPDATE events SET event_id=?,event_digest=? WHERE event_id=?",
             (corrupted.event_id, digest, event_id),
         )
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "identity or correlation_id mismatch"
+        ):
+            self.store.get_motivation_signals()
         with self.assertRaisesRegex(
             CognitiveIntegrityError, "identity or correlation_id mismatch"
         ):
