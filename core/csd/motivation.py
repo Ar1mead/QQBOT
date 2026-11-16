@@ -625,6 +625,17 @@ class CognitiveMotivationMixin:
         if event_row is None:
             self._raise_cognitive_integrity("motivation decision event is missing from history")
         sequence = int(event_row["sequence"])
+        decision_number = int(db.execute(
+            "SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<?",
+            (MOTIVATION_DECISION_EVENT, sequence),
+        ).fetchone()[0]) + 1
+        if (
+            event.event_id != f"csd-motivation-decision:{proposal_id}:{decision_number}"
+            or event.correlation_id != f"motivation-proposal:{proposal_id}"
+        ):
+            self._raise_cognitive_integrity(
+                "motivation decision event identity or correlation_id mismatch"
+            )
         current_version = self._authoritative_state_version(
             db, through_sequence=sequence - 1
         )
