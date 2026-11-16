@@ -1207,7 +1207,6 @@ def _evaluate_goal_activation_proposal(
         if row["decision_event_id"] is not None:
             return {"status": "already_decided", "decision_event_id": row["decision_event_id"]}
         self._assert_accepted_projection_consistent()
-        self._assert_motivation_projection_consistent()
         self._assert_goal_projection_consistent()
         current_version = self._authoritative_state_version(db)
         prepared = _prepare_goal_activation_decision(
