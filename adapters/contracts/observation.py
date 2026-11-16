@@ -82,9 +82,14 @@ class AdapterManifest:
             raise ValueError("manifest capability names must be unique")
         if not self.capabilities:
             raise ValueError("manifest must declare at least one capability")
-        if any(not isinstance(version, int) or isinstance(version, bool) or version < 1
-               for version in self.observation_schema_versions):
-            raise ValueError("observation schema versions must be positive integers")
+        if (
+            not self.observation_schema_versions
+            or any(not isinstance(version, int) or isinstance(version, bool) or version < 1
+                   for version in self.observation_schema_versions)
+        ):
+            raise ValueError("observation schema versions must be non-empty positive integers")
+        if len(self.observation_schema_versions) != len(set(self.observation_schema_versions)):
+            raise ValueError("observation schema versions must not contain duplicates")
 
     @property
     def observation_only(self) -> bool:
@@ -128,10 +133,14 @@ class ObservationCoverage:
                 raise ValueError(f"coverage.{name} must be a non-negative integer or None")
         if self.start_ms is not None and self.end_ms is not None and self.end_ms < self.start_ms:
             raise ValueError("coverage.end_ms must be >= coverage.start_ms")
+        prior_end: int | None = None
         for start, end in self.missing_ranges_ms:
             if (not isinstance(start, int) or isinstance(start, bool) or start < 0
                     or not isinstance(end, int) or isinstance(end, bool) or end < start):
                 raise ValueError("coverage missing ranges must be non-negative ordered integer pairs")
+            if prior_end is not None and start < prior_end:
+                raise ValueError("coverage missing ranges must be sorted and non-overlapping")
+            prior_end = end
         if self.complete and self.missing_ranges_ms:
             raise ValueError("complete coverage cannot declare missing ranges")
         if any(not isinstance(note, str) or not note.strip() for note in self.notes):
