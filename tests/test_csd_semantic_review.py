@@ -458,7 +458,7 @@ class SemanticReviewStoreTests(unittest.TestCase):
         )
         from core.csd.cognitive import CognitiveIntegrityError
         with self.assertRaisesRegex(
-            CognitiveIntegrityError, "invalid prior event schema"
+            CognitiveIntegrityError, "durable decision contains missing or unsupported fields"
         ):
             self.store._append_event(
                 corrupted_event, malformed_json, internal=True
