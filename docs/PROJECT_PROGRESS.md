@@ -397,3 +397,15 @@ At the time of this update:
 
 
 - Final branch-head verification after test-name/documentation cleanup: commit `8f52c3e43f133b62b210e36fac4cc9951097aea0`; PR-triggered GitHub Actions run #444 passed on Ubuntu and Windows, with **364 tests per platform**. Run #444 is the latest verified PR workflow for this branch head.
+
+
+### 2026-11-16 follow-up — runtime and platform adapter boundaries
+
+- Added `docs/architecture/platform-and-runtime-adapter-contract.md` and indexed it from the repository README.
+- Chosen direction: define stable adapter contracts now, but defer real platform connections until the corresponding core permissions and event contracts are ready. This avoids coupling CSD/identity to any one runtime, plugin, account, or SDK.
+- Explicitly separated the DSH runtime adapter, SurfCore capability wrappers, model-provider adapters, and environment adapters (Bilibili, QQ, web, desktop). They are related but not interchangeable.
+- The first platform stage remains **read-only Bilibili perception**. QQ starts with receive-only message ingestion; sending messages and Bilibili interactions are later, individually ASM-governed actions. Web starts read-only; desktop starts with selected observation before any local actions.
+- Previously discussed `dsh-bili-watch`, `dsh-bili-whale`, MXC, and `feltstate` are recorded as research candidates only, not approved dependencies or verified security boundaries. Their source, maintenance, licence, permissions, and compatibility must be checked when their stage begins.
+- The adapter document is an architecture proposal, not a frozen API or an installation instruction. No local application, platform account, credentials, or permissions were changed.
+- Current CSD status remains unchanged: schema v6/index optimization is hosted-tested; repeated decision-prefix scanning remains unresolved and is the next runtime engineering task. PR #1 remains open, draft, and unmerged. The latest PR run #445 succeeded on Ubuntu and Windows; it validates the existing 364-test code state, not the new documentation's runtime behavior.
+- Next: implement operation-scoped, sequence-ordered decision replay context without weakening payload/envelope validation or changing Recovery's no-external-replay rule; then add mixed-family chronology and query-count regressions. After that, add fake adapter contract tests before selecting a real Bilibili connector.
