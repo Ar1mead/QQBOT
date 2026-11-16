@@ -798,31 +798,46 @@ class CSDGoalActivationTests(unittest.TestCase):
             "projection-scan-dedup-goal", [signal_id], state_version=version
         ))
 
-        original = self.store._assert_motivation_projection_consistent
-        calls = []
+        original_motivation = self.store._assert_motivation_projection_consistent
+        original_goal = self.store._assert_goal_projection_consistent
+        motivation_calls = []
+        goal_calls = []
 
-        def counted_validation():
-            calls.append(True)
-            return original()
+        def counted_motivation_validation():
+            motivation_calls.append(True)
+            return original_motivation()
 
-        self.store._assert_motivation_projection_consistent = counted_validation
+        def counted_goal_validation(*, _motivation_already_validated=False):
+            goal_calls.append(True)
+            return original_goal(
+                _motivation_already_validated=_motivation_already_validated
+            )
+
+        self.store._assert_motivation_projection_consistent = counted_motivation_validation
+        self.store._assert_goal_projection_consistent = counted_goal_validation
         try:
             self.store.evaluate_goal_batch_proposal("projection-scan-dedup-goal")
-            self.assertEqual(len(calls), 1)
+            self.assertEqual(len(motivation_calls), 1)
+            self.assertEqual(len(goal_calls), 1)
             self.assertEqual(
                 self.store.get_goal("goal-projection-scan-dedup-goal")["status"],
                 "candidate",
             )
 
-            calls.clear()
+            motivation_calls.clear()
+            goal_calls.clear()
             self.store.get_life_signal_snapshot()
-            self.assertEqual(len(calls), 1)
+            self.assertEqual(len(motivation_calls), 1)
+            self.assertEqual(len(goal_calls), 1)
 
-            calls.clear()
+            motivation_calls.clear()
+            goal_calls.clear()
             self.store.get_state_snapshot()
-            self.assertEqual(len(calls), 1)
+            self.assertEqual(len(motivation_calls), 1)
+            self.assertEqual(len(goal_calls), 1)
         finally:
-            self.store._assert_motivation_projection_consistent = original
+            self.store._assert_motivation_projection_consistent = original_motivation
+            self.store._assert_goal_projection_consistent = original_goal
 
         with self.assertRaisesRegex(RuntimeError, "active transaction"):
             self.store._assert_goal_projection_consistent(
