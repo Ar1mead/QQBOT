@@ -1097,6 +1097,15 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         if event_sequence_row is None:
             raise CognitiveIntegrityError("decision event is missing from durable history")
         event_sequence = int(event_sequence_row["sequence"])
+        decision_number = int(db.execute(
+            "SELECT COUNT(*) FROM events WHERE event_type=? AND sequence<?",
+            (DECISION_EVENT, event_sequence),
+        ).fetchone()[0]) + 1
+        if (
+            event.event_id != f"csd-decision:{proposal_id}:{decision_number}"
+            or event.correlation_id != f"proposal:{proposal_id}"
+        ):
+            raise CognitiveIntegrityError("decision event identity or correlation_id mismatch")
         current_version = self._authoritative_state_version(
             db, through_sequence=event_sequence - 1
         )
