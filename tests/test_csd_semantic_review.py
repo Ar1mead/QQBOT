@@ -694,7 +694,7 @@ class SemanticReviewStoreTests(unittest.TestCase):
             payload=malformed_payload,
         )
         with self.assertRaisesRegex(
-            CognitiveIntegrityError, "invalid prior event schema"
+            CognitiveIntegrityError, "invalid durable event schema"
         ):
             self.store.submit_event(retry)
 
@@ -745,7 +745,7 @@ class SemanticReviewStoreTests(unittest.TestCase):
 
         from core.csd.cognitive import CognitiveIntegrityError
         with self.assertRaisesRegex(
-            CognitiveIntegrityError, "invalid prior semantic review event"
+            CognitiveIntegrityError, "invalid durable event schema"
         ):
             self.store.submit_event(retry)
 
