@@ -459,6 +459,35 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 db, event, payload_json, internal=internal
             )
 
+    def _validate_grounded_proposal_event_history(
+        self,
+        db: sqlite3.Connection,
+        event: CognitiveEvent,
+        *,
+        sequence: int,
+    ) -> None:
+        """Check chronology and integrity for any source observations already present.
+
+        Missing evidence remains a legitimate pending-proposal condition and is
+        handled by the deterministic evaluator. If a referenced event exists,
+        however, it cannot be later than the proposal. Existing observation
+        events are read through the ordinary integrity path before being trusted.
+        """
+        for evidence_event_id in self._grounded_evidence_event_ids(event.payload):
+            row = db.execute(
+                "SELECT sequence,event_type FROM events WHERE event_id=?",
+                (evidence_event_id,),
+            ).fetchone()
+            if row is None:
+                # Pending candidates may legitimately arrive before their evidence.
+                continue
+            if int(row["sequence"]) >= sequence:
+                raise CognitiveIntegrityError(
+                    "grounded proposal evidence must reference an earlier event"
+                )
+            if row["event_type"] == OBSERVATION_EVENT:
+                self.get_event(evidence_event_id)
+
     def _validate_proposal_snapshot_chronology(
         self,
         db: sqlite3.Connection,
@@ -807,6 +836,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 self._validate_proposal(event.payload)
             elif event.event_type == GROUNDED_PROPOSAL_EVENT:
                 self._validate_grounded_proposal(event.payload)
+                self._validate_grounded_proposal_event_history(
+                    db, event, sequence=sequence
+                )
             elif event.event_type == SEMANTIC_REVIEW_EVENT:
                 self._validate_semantic_review_shape(event)
                 self._validate_semantic_review_event_history(
