@@ -225,9 +225,9 @@ This checkpoint records upstream source/version observations. It does not author
 
 ### CSD observation-schema gap
 
-The current CSD `experience.observation_recorded.v1` payload is deliberately minimal and accepts only `observation_id`, `observation_kind`, `content`, `source_ref`, `observed_at`, and a small fixture-oriented coverage object. That is insufficient for media provenance, modality-specific timestamps, extraction method, partial coverage, artifact digests, and source-vs-inference distinctions.
+The original CSD `experience.observation_recorded.v1` payload remains intentionally minimal and is retained for historical event compatibility. The new `experience.observation_recorded.v2` event and adapter-to-CSD mapper now preserve adapter/platform/object provenance, source-provided versus adapter-extracted content origin, separate observed/received timestamps, extraction method, exact UTF-8 content SHA-256, and explicit partial/completeness coverage. V1 replay is unchanged.
 
-Before connecting a real Bilibili source, define a backward-compatible observation v2 event contract (retain v1 replay compatibility) and update evidence validation so text-grounded memory can cite supported v2 text observations without treating video/audio/OCR coverage as complete by default.
+The v2 schema, validation, stable event identity, Recovery compatibility, and grounded text-evidence integration are implemented in the current reference slice. See [CSD Observation Event v2 Contract](../design/csd-observation-event-v2-contract.md). This closes the schema/mapping gap, but does not complete Stage 0 or authorize a real Bilibili connector: strict tool-command isolation, adapter security tests, and hosted verification of the new commits remain gates.
 
 ### Current decision
 
