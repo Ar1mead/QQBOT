@@ -241,3 +241,13 @@ At the time of this update:
 - Run #344 exposed only an overly specific test assertion (it expected the inner validation message rather than the normalized integrity error); the assertion was corrected. GitHub Actions run #345 passed on Ubuntu and Windows: **347 tests** passed on each platform, including compileall and full discovery.
 - Report: `docs/reports/csd-same-event-id-duplicate-schema-validation-report-001.md`.
 - Remaining: continue auditing deeper decision semantic/context validation, cross-family event chronology, and coordinated projection/event-history corruption. User-local Windows 11 / Python 3.12.14 verification remains pending.
+
+
+### 2026-11-16 follow-up — decision event read integrity
+
+- Extended `get_event()` to validate all five decision families: memory, motivation, goal batch, goal activation, and goal pause/resume. Reads now check exact payload field sets, authority source, proposal-scoped event ID, and correlation ID. This also protects authoritative state-version reads, which consume decision events through `get_event()`.
+- Added `tests/test_csd_goals.py::test_get_event_rejects_goal_decision_with_rebound_event_id_and_valid_digest`. The test changes a goal decision event ID, recomputes the envelope digest, and verifies that a normal event read rejects the forged identity.
+- Implementation commit: `83b1927d2a08991f4c31e05146f0b21fad6a7a14`; final error-contract/test assertion commits: `1dfb7d28d7eed4775a2253f019010d07b5a2fd91`, `31c77293acd2d33cd71312bad252e57cf67ef638`, `53c479cc6ec8b1f70fc0b1b2290f825d2e1001e7`.
+- Runs #346–#349 exposed assertion-message mismatches after decision integrity checks moved earlier into `get_event()`; the tests were updated to the new earlier failure point. Run #350 passed on Ubuntu and Windows: **348 tests** passed on each platform, including compileall and full test discovery.
+- Report: `docs/reports/csd-same-event-id-duplicate-schema-validation-report-001.md`.
+- Remaining: continue deeper decision semantic/context checks, cross-family event ordering, and coordinated projection/event-history corruption. User-local Windows 11 / Python 3.12.14 verification remains pending.
