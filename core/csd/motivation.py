@@ -871,6 +871,10 @@ class CognitiveMotivationMixin:
         return json.loads(row["signal_json"])
 
     def _assert_motivation_projection_consistent(self) -> None:
+        if not self._db.in_transaction:
+            with self._read_tx():
+                self._assert_motivation_projection_consistent()
+            return
         # Reconcile every motivation projection against the immutable event log.
         # Comparing only row counts or comparing the two projections to each
         # other would miss coordinated corruption of both projection tables.
