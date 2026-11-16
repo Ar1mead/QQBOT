@@ -1484,7 +1484,13 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             raise CognitiveIntegrityError(f"invalid event payload: {event_id}") from exc
         if not isinstance(payload, dict):
             raise CognitiveIntegrityError(f"event payload is not an object: {event_id}")
-        if _canonical(payload) != payload_json:
+        try:
+            canonical_payload_json = _canonical(payload)
+        except (TypeError, ValueError) as exc:
+            raise CognitiveIntegrityError(
+                f"event payload cannot be canonically serialized: {event_id}"
+            ) from exc
+        if canonical_payload_json != payload_json:
             raise CognitiveIntegrityError(f"event payload is not canonically serialized: {event_id}")
         event = CognitiveEvent(
             event_id=row["event_id"],
