@@ -14,7 +14,7 @@ These cases matter because malformed durable history must fail closed through th
 - `get_event()` now rejects payload values that SQLite returns as anything other than `str`.
 - Recovery applies the same stored-text type check before hashing.
 - Recovery normalizes `TypeError`, `ValueError`, `RecursionError`, and `OverflowError` from JSON decoding, event-field/timestamp validation, digest construction, and event validation to `CognitiveIntegrityError`.
-- Added two regressions:
+- Added three regressions:
   - A BLOB payload is rejected by both ordinary event reads and Recovery.
   - A deeply nested JSON payload with recomputed payload reference and event-envelope digest is rejected by both ordinary event reads and Recovery.
   - A malformed durable event timestamp is normalized to `CognitiveIntegrityError` during Recovery.
