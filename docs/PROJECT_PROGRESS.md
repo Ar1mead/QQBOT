@@ -271,3 +271,16 @@ At the time of this update:
 - The GitHub connector reports no workflow run or commit status for the latest follow-up commits. Run #350 remains the last verified cross-platform baseline (348 tests per OS), not verification of these additions.
 - Next audit target: direct-read semantic validation of decision events, especially whether `evaluated_state_version` and `proposal_event_id` are validated against the exact earlier event history, not only field shape and proposal-scoped event identity. Design this without recursive state-version reads or trusting mutable projections.
 **Resume:** verify the new direct-read regression and full cross-platform CI. Then continue cross-family chronology and projection/event-history coordinated-corruption review, keeping the distinction between detectable inconsistency and fully coherent unauthenticated history rewrite explicit.
+
+
+### 2026-11-16 follow-up — decision provenance on direct reads
+
+- Added two regression tests that rewrite a memory decision's `evaluated_state_version` or `proposal_event_id`, then recompute the payload reference and event digest. Direct `get_event()` reads must reject both histories.
+- `get_event()` now validates decision provenance against earlier authoritative events: the evaluated version must equal the state version immediately before the decision; the referenced proposal must be the unique earlier proposal event for that proposal ID and must belong to the matching proposal family.
+- Decision history validation reads the referenced proposal from the event log, not mutable proposal projections.
+- Avoided recursive state-version validation by adding a private internal read mode used only by `_authoritative_state_version()`: it still validates decision envelope, exact schema, authority and identity, but skips the outer contextual decision check while counting prior decisions.
+- Historical proposal matching uses SQLite JSON functions against stored event payloads; malformed JSON is guarded by a `CASE` expression. Runtime compatibility and full test behavior still require CI verification.
+- Regression tests: `test_get_event_rejects_decision_with_rewritten_evaluated_state_version` and `test_get_event_rejects_decision_referencing_another_proposal_event`.
+- Implementation commits: `44b295b170ca32b5f7f4b9b4e1055bf6c6280645` and `cc3a2ae8035aac68b61ad02fbc6e4804a2ebee4e`; test commits: `6a52756d9e1186f1950a71c504dbec0af487a971` and `6ca959bdab7d36a77c1bdcc996befa8ddbf96c8e`.
+- CI and local Windows verification: pending. The last verified hosted baseline remains Run #350 (348 tests per OS), which predates these changes.
+- Next: verify the new regressions and full suite, then audit remaining decision families, evidence/review reference chronology, and cross-projection/event-history corruption.
