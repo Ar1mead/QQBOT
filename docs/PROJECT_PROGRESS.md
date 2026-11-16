@@ -318,3 +318,14 @@ At the time of this update:
 - GitHub Actions run #393 passed on Ubuntu and Windows: compileall, all focused workflow test groups, and complete unittest discovery all passed; **355 tests per platform**.
 - User-local Windows 11 / Python 3.12.14 verification remains deferred until the project is ready to clone. Hosted Windows is not a substitute.
 - Next: audit legacy memory proposal `evidence_event_ids` for the same history-order guarantee, then review cross-projection reconstruction and Recovery consistency for both legacy and grounded memory paths.
+
+
+### 2026-11-16 follow-up — legacy memory evidence chronology
+
+- Extended the evidence-history guard to legacy `memory.proposed.v1` records using `evidence_event_ids`, not just grounded-memory v2 claim evidence.
+- An existing evidence event must precede the proposal. Existing observation sources are loaded through `get_event()` to verify their canonical payload, envelope digest, and observation schema. Missing references remain pending; non-observation sources remain deterministic evaluation rejections.
+- Added regression `tests/test_csd_semantic_review.py::test_get_event_rejects_legacy_memory_proposal_referencing_later_observation`, which rewrites a stored proposal to cite a later observation and recomputes both payload and envelope digests.
+- Implementation commit: `95e43fcda22f84bbbca1100c477434dabe6a8935`; test commit: `ce26413e331e3f8910004b403a0774d5361b6ffe`.
+- GitHub Actions run #400 passed on Ubuntu and Windows: compileall, every focused workflow test group, and complete unittest discovery all passed; **356 tests per platform**.
+- User-local Windows 11 / Python 3.12.14 verification remains deferred until the project is ready to clone.
+- Next: audit direct decision reads for consistency between decision evidence IDs and the historical proposal's evidence set; then continue projection/Recovery checks.
