@@ -1151,6 +1151,41 @@ class CognitiveMotivationStoreTests(unittest.TestCase):
         ):
             self.store.recover()
 
+    def test_recovery_rejects_motivation_decision_with_rebound_wrong_event_id(self):
+        self.add_interaction(interaction("interaction-event-id-replay"))
+        self.add_proposal(motivation_proposal(
+            "proposal-event-id-replay",
+            support=("interaction-event-id-replay",),
+        ))
+        decision = self.store.evaluate_motivation_proposal("proposal-event-id-replay")
+        event_id = decision["decision_event_id"]
+        stored = self.store.get_event(event_id)
+        row = self.store._db.execute(
+            "SELECT payload_ref,received_at FROM events WHERE event_id=?",
+            (event_id,),
+        ).fetchone()
+        from core.csd import CognitiveEvent
+        corrupted = CognitiveEvent(
+            event_id="csd-motivation-decision:proposal-event-id-replay:999",
+            occurred_at=stored["occurred_at"],
+            correlation_id=stored["correlation_id"],
+            event_type=stored["event_type"],
+            source=stored["source"],
+            payload=stored["payload"],
+        )
+        digest = self.store._event_digest(
+            corrupted, row["payload_ref"], row["received_at"]
+        )
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute(
+            "UPDATE events SET event_id=?,event_digest=? WHERE event_id=?",
+            (corrupted.event_id, digest, event_id),
+        )
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "identity or correlation_id mismatch"
+        ):
+            self.store.recover()
+
     def test_recovery_rebuilds_motivation_projections_without_provider(self):
         self.add_interaction(interaction("interaction-1"))
         self.add_proposal(motivation_proposal("proposal-recover"))
