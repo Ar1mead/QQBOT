@@ -792,66 +792,85 @@ class CSDGoalActivationTests(unittest.TestCase):
         return goal_id
 
     def test_mixed_decision_history_uses_one_verified_prefix_scan_per_read_transaction(self):
-        self.store.submit_event(event(
-            "replay-memory-observation",
-            OBSERVATION_EVENT,
-            "test.observation",
-            {
-                "observation_id": "replay-memory-observation",
-                "observation_kind": "text_fixture",
-                "content": "A synthetic observation for replay-context testing.",
-                "source_ref": "fixture://decision-replay/memory",
-                "observed_at": "2026-11-15T08:00:00+00:00",
-                "coverage": {"modality": "text", "complete_for_fixture": True},
-            },
-        ))
-        self.store.submit_event(event(
-            "replay-memory-proposal",
-            PROPOSAL_EVENT,
-            "test.memory_candidate_fixture",
-            {
-                "proposal_id": "replay-memory",
-                "memory_kind": "episodic_candidate",
-                "candidate_content": "A synthetic memory used to test mixed decision replay.",
-                "evidence_event_ids": ["replay-memory-observation"],
-                "origin": {"component": "test.memory_candidate_fixture", "version": "0.1"},
-                "uncertainty": {"label": "fixture_only", "confidence": None},
-                "based_on": {"state_version": self.store.get_state_snapshot()["state_version"]},
-                "operation": "create",
-            },
-        ))
-        self.assertEqual(self.store.evaluate_proposal("replay-memory")["status"], "accepted")
+        creation_statements = []
+        self.store._db.set_trace_callback(creation_statements.append)
+        try:
+            self.store.submit_event(event(
+                "replay-memory-observation",
+                OBSERVATION_EVENT,
+                "test.observation",
+                {
+                    "observation_id": "replay-memory-observation",
+                    "observation_kind": "text_fixture",
+                    "content": "A synthetic observation for replay-context testing.",
+                    "source_ref": "fixture://decision-replay/memory",
+                    "observed_at": "2026-11-15T08:00:00+00:00",
+                    "coverage": {"modality": "text", "complete_for_fixture": True},
+                },
+            ))
+            self.store.submit_event(event(
+                "replay-memory-proposal",
+                PROPOSAL_EVENT,
+                "test.memory_candidate_fixture",
+                {
+                    "proposal_id": "replay-memory",
+                    "memory_kind": "episodic_candidate",
+                    "candidate_content": "A synthetic memory used to test mixed decision replay.",
+                    "evidence_event_ids": ["replay-memory-observation"],
+                    "origin": {"component": "test.memory_candidate_fixture", "version": "0.1"},
+                    "uncertainty": {"label": "fixture_only", "confidence": None},
+                    "based_on": {"state_version": self.store.get_state_snapshot()["state_version"]},
+                    "operation": "create",
+                },
+            ))
+            self.assertEqual(
+                self.store.evaluate_proposal("replay-memory")["status"], "accepted"
+            )
 
-        signal_id = add_internal_signal(self.store, "replay-context")
-        version = self.store.get_state_snapshot()["state_version"]
-        self.store.submit_event(goal_event(
-            "replay-context-goal", [signal_id], state_version=version
-        ))
-        self.assertEqual(
-            self.store.evaluate_goal_batch_proposal("replay-context-goal")["status"],
-            "accepted",
-        )
-        goal_id = "goal-replay-context-goal"
+            signal_id = add_internal_signal(self.store, "replay-context")
+            version = self.store.get_state_snapshot()["state_version"]
+            self.store.submit_event(goal_event(
+                "replay-context-goal", [signal_id], state_version=version
+            ))
+            self.assertEqual(
+                self.store.evaluate_goal_batch_proposal("replay-context-goal")["status"],
+                "accepted",
+            )
+            goal_id = "goal-replay-context-goal"
 
-        version = self.store.get_state_snapshot()["state_version"]
-        self.store.submit_event(goal_activation_event(
-            "replay-context-activation", goal_id, state_version=version
-        ))
-        self.assertEqual(
-            self.store.evaluate_goal_activation_proposal("replay-context-activation")["status"],
-            "accepted",
-        )
+            version = self.store.get_state_snapshot()["state_version"]
+            self.store.submit_event(goal_activation_event(
+                "replay-context-activation", goal_id, state_version=version
+            ))
+            self.assertEqual(
+                self.store.evaluate_goal_activation_proposal("replay-context-activation")["status"],
+                "accepted",
+            )
 
-        version = self.store.get_state_snapshot()["state_version"]
-        self.store.submit_event(goal_pause_resume_event(
-            "replay-context-pause", goal_id,
-            state_version=version, expected_goal_version=2, operation="pause",
-        ))
+            version = self.store.get_state_snapshot()["state_version"]
+            self.store.submit_event(goal_pause_resume_event(
+                "replay-context-pause", goal_id,
+                state_version=version, expected_goal_version=2, operation="pause",
+            ))
+            self.assertEqual(
+                self.store.evaluate_goal_pause_resume_proposal("replay-context-pause")["status"],
+                "accepted",
+            )
+            self.assertEqual(self.store.get_state_snapshot()["state_version"], 5)
+        finally:
+            self.store._db.set_trace_callback(None)
+
+        creation_event_count_queries = [
+            sql for sql in creation_statements
+            if " ".join(sql.lower().split()).startswith(
+                "select count(*) from events where event_type"
+            )
+        ]
         self.assertEqual(
-            self.store.evaluate_goal_pause_resume_proposal("replay-context-pause")["status"],
-            "accepted",
+            creation_event_count_queries,
+            [],
+            "new decision IDs must use verified per-family counts, not repeated SQL prefix counts",
         )
-        self.assertEqual(self.store.get_state_snapshot()["state_version"], 5)
 
         statements = []
         self.store._db.set_trace_callback(statements.append)
@@ -865,7 +884,7 @@ class CSDGoalActivationTests(unittest.TestCase):
         prefix_scans = [
             sql for sql in statements
             if sql.lstrip().lower().startswith(
-                "select e.sequence,e.event_id from events e"
+                "select e.sequence,e.event_id,e.event_type from events e"
             )
             and "where e.event_type in" in sql.lower()
             and "order by e.sequence" in sql.lower()
@@ -897,7 +916,7 @@ class CSDGoalActivationTests(unittest.TestCase):
         recovery_prefix_scans = [
             sql for sql in recovery_statements
             if sql.lstrip().lower().startswith(
-                "select e.sequence,e.event_id from events e"
+                "select e.sequence,e.event_id,e.event_type from events e"
             )
             and "where e.event_type in" in sql.lower()
             and "order by e.sequence" in sql.lower()
