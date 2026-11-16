@@ -92,3 +92,34 @@ The index reduces the cost of each event-family/prefix query, but it does not re
 
 
 Final branch-head confirmation: commit `8f52c3e43f133b62b210e36fac4cc9951097aea0`, PR-triggered GitHub Actions run #444 passed on Ubuntu and Windows with **364 tests per platform**. Run #444 is the latest verified PR workflow for this report's implementation state.
+
+
+## Follow-up implementation — transaction-scoped decision replay context
+
+The per-operation replay-context design has now been implemented in the CSD reference slice.
+
+### Implementation
+
+- Added immutable `_DecisionReplayContext`, containing the sequence numbers of accepted durable decisions.
+- Added one transaction-scoped builder that selects all five durable decision families in event order and reads each decision through the existing `get_event` integrity path with only recursive decision-context validation disabled.
+- State-version lookups now use `bisect_right` over the accepted-decision sequence list rather than re-querying and recounting the entire decision prefix each time.
+- Memory, motivation, and goal projection validation now run inside a stable read transaction when they are not already inside a read/write transaction. Existing write and Recovery transactions share the same context.
+- The context is reset when a transaction begins/ends and invalidated immediately after each event append. It is not persisted or reused across transactions.
+- Event payload/envelope integrity and event-local schema checks remain active for every decision. The context is an optimization of prefix aggregation, not a shortcut around event validation.
+
+### Regression coverage
+
+A mixed-family test creates valid accepted decisions for memory, motivation, goal batch, activation, and pause/resume. It verifies:
+- all five decision families contribute to the shared state version;
+- combined memory/motivation/goal read validation executes one decision-family prefix selection in one read transaction;
+- Recovery executes one prefix selection for the full event replay;
+- the context is cleared after both operations;
+- state version remains unchanged after Recovery.
+
+The test counts the specific SQL prefix-selection query rather than relying only on elapsed time. This detects repeated prefix selection deterministically. A separate long-history timing benchmark is still pending.
+
+### Hosted verification
+
+The implementation and mixed-family read-transaction regression were verified by PR workflow run #456: Ubuntu and Windows each passed **365 tests**, including compileall and all focused suites.
+
+The additional Recovery query-count assertion is in the subsequent commit `e0d1a374784e6e9aaf66b956a1b96718001cb4fb`. At the time of this report update, the corresponding PR workflow run #458 had passed on Ubuntu (**365 tests**); the Windows job was still running. User-local Windows 11 / Python 3.12.14 verification remains deferred until project handoff.
