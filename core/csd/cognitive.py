@@ -1965,13 +1965,21 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     source=row["source"],
                     payload=payload,
                 )
-                _nonempty(event.event_id, "event_id")
-                _nonempty(event.correlation_id, "correlation_id")
-                _nonempty(event.event_type, "event_type")
-                _nonempty(event.source, "source")
-                _timestamp(event.occurred_at, "occurred_at")
-                _timestamp(row["received_at"], "received_at")
-                if self._event_digest(event, row["payload_ref"], row["received_at"]) != row["event_digest"]:
+                try:
+                    _nonempty(event.event_id, "event_id")
+                    _nonempty(event.correlation_id, "correlation_id")
+                    _nonempty(event.event_type, "event_type")
+                    _nonempty(event.source, "source")
+                    _timestamp(event.occurred_at, "occurred_at")
+                    _timestamp(row["received_at"], "received_at")
+                    computed_event_digest = self._event_digest(
+                        event, row["payload_ref"], row["received_at"]
+                    )
+                except (TypeError, ValueError, RecursionError, OverflowError) as exc:
+                    raise CognitiveIntegrityError(
+                        f"invalid durable event envelope: {row['event_id']}"
+                    ) from exc
+                if computed_event_digest != row["event_digest"]:
                     raise CognitiveIntegrityError(f"event envelope digest failure: {event.event_id}")
                 parsed.append((expected - 1, event, payload_json))
 
