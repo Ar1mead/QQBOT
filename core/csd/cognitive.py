@@ -1468,52 +1468,56 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         ).fetchone()
         if row is None:
             raise KeyError(event_id)
-        payload_json = row["payload_json"]
-        if payload_json is None:
-            raise CognitiveIntegrityError(f"event payload is missing: {event_id}")
-        _nonempty(row["event_id"], "event_id")
-        _nonempty(row["correlation_id"], "correlation_id")
-        _nonempty(row["event_type"], "event_type")
-        _nonempty(row["source"], "source")
-        _timestamp(row["occurred_at"], "occurred_at")
-        if "sha256:" + _digest(payload_json) != row["payload_ref"]:
-            raise CognitiveIntegrityError(f"payload digest failure: {event_id}")
         try:
+            payload_json = row["payload_json"]
+            if payload_json is None:
+                raise CognitiveIntegrityError(f"event payload is missing: {event_id}")
+            _nonempty(row["event_id"], "event_id")
+            _nonempty(row["correlation_id"], "correlation_id")
+            _nonempty(row["event_type"], "event_type")
+            _nonempty(row["source"], "source")
+            _timestamp(row["occurred_at"], "occurred_at")
+            if "sha256:" + _digest(payload_json) != row["payload_ref"]:
+                raise CognitiveIntegrityError(f"payload digest failure: {event_id}")
             payload = json.loads(payload_json)
-        except json.JSONDecodeError as exc:
-            raise CognitiveIntegrityError(f"invalid event payload: {event_id}") from exc
-        if not isinstance(payload, dict):
-            raise CognitiveIntegrityError(f"event payload is not an object: {event_id}")
-        try:
-            canonical_payload_json = _canonical(payload)
-        except (TypeError, ValueError) as exc:
+            if not isinstance(payload, dict):
+                raise CognitiveIntegrityError(f"event payload is not an object: {event_id}")
+            try:
+                canonical_payload_json = _canonical(payload)
+            except (TypeError, ValueError, RecursionError, OverflowError) as exc:
+                raise CognitiveIntegrityError(
+                    f"event payload cannot be canonically serialized: {event_id}"
+                ) from exc
+            if canonical_payload_json != payload_json:
+                raise CognitiveIntegrityError(f"event payload is not canonically serialized: {event_id}")
+            event = CognitiveEvent(
+                event_id=row["event_id"],
+                occurred_at=row["occurred_at"],
+                correlation_id=row["correlation_id"],
+                event_type=row["event_type"],
+                source=row["source"],
+                payload=payload,
+            )
+            _timestamp(row["received_at"], "received_at")
+            if self._event_digest(event, row["payload_ref"], row["received_at"]) != row["event_digest"]:
+                raise CognitiveIntegrityError(f"event envelope digest failure: {event_id}")
+            return {
+                "sequence": int(row["sequence"]),
+                "event_id": row["event_id"],
+                "occurred_at": row["occurred_at"],
+                "received_at": row["received_at"],
+                "correlation_id": row["correlation_id"],
+                "event_type": row["event_type"],
+                "source": row["source"],
+                "payload_ref": row["payload_ref"],
+                "payload": payload,
+            }
+        except CognitiveIntegrityError:
+            raise
+        except (TypeError, ValueError, RecursionError, OverflowError) as exc:
             raise CognitiveIntegrityError(
-                f"event payload cannot be canonically serialized: {event_id}"
+                f"invalid durable event envelope: {event_id}"
             ) from exc
-        if canonical_payload_json != payload_json:
-            raise CognitiveIntegrityError(f"event payload is not canonically serialized: {event_id}")
-        event = CognitiveEvent(
-            event_id=row["event_id"],
-            occurred_at=row["occurred_at"],
-            correlation_id=row["correlation_id"],
-            event_type=row["event_type"],
-            source=row["source"],
-            payload=payload,
-        )
-        _timestamp(row["received_at"], "received_at")
-        if self._event_digest(event, row["payload_ref"], row["received_at"]) != row["event_digest"]:
-            raise CognitiveIntegrityError(f"event envelope digest failure: {event_id}")
-        return {
-            "sequence": int(row["sequence"]),
-            "event_id": row["event_id"],
-            "occurred_at": row["occurred_at"],
-            "received_at": row["received_at"],
-            "correlation_id": row["correlation_id"],
-            "event_type": row["event_type"],
-            "source": row["source"],
-            "payload_ref": row["payload_ref"],
-            "payload": payload,
-        }
 
     def _memory_projection_sources(
         self,
