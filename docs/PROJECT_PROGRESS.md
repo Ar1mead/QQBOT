@@ -329,3 +329,14 @@ At the time of this update:
 - GitHub Actions run #400 passed on Ubuntu and Windows: compileall, every focused workflow test group, and complete unittest discovery all passed; **356 tests per platform**.
 - User-local Windows 11 / Python 3.12.14 verification remains deferred until the project is ready to clone.
 - Next: audit direct decision reads for consistency between decision evidence IDs and the historical proposal's evidence set; then continue projection/Recovery checks.
+
+
+### 2026-11-16 follow-up — memory decision evidence provenance on direct reads
+
+- Direct `get_event()` reads of memory decision events now bind `evidence_event_ids` to the exact evidence set in the uniquely referenced earlier proposal. Legacy proposals use their persisted evidence list; grounded-memory v2 proposals derive the ordered unique evidence list from source-assertion claims.
+- Direct reads now also apply evidence availability/type/chronology rules: missing evidence is compatible only with `needs_more_evidence` or `rejected`; existing evidence must precede the decision; non-observation sources are compatible only with a rejected outcome.
+- Added regression `tests/test_csd_semantic_review.py::test_get_event_rejects_memory_decision_with_rebound_evidence_ids`; it tampers with an accepted decision's evidence list and recomputes payload and envelope digests.
+- Implementation commit: `ef043337c610603e6065a7bfdf48acb2944c919e`; test commit: `bdb52b9f794776efc7bee9fbba7911fd06ea2e68`.
+- GitHub Actions run #405 passed on Ubuntu and Windows: compileall, each focused test group, and full unittest discovery passed; **356 tests per platform**.
+- User-local Windows 11 / Python 3.12.14 validation remains deferred until the project is ready to clone.
+- Next: audit semantic-review references recorded on memory decision events against the review history visible before the decision, then check the remaining event-family evidence links.
