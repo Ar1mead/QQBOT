@@ -2670,7 +2670,10 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 "SELECT signal_json FROM motivation_signals ORDER BY rowid"
             ).fetchall()
             signals = [json.loads(row["signal_json"]) for row in rows]
-            goals = self.get_goals()
+            goal_rows = db.execute(
+                "SELECT goal_json FROM goals ORDER BY goal_id"
+            ).fetchall()
+            goals = [json.loads(row["goal_json"]) for row in goal_rows]
             return {
                 "state_version": state_version,
                 "signals": signals,
