@@ -571,6 +571,20 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 # validate the authoritative event payload and envelope first.
                 stored_event = self.get_event(prior_review["event_id"])
                 stored_payload = stored_event["payload"]
+                prior_event = CognitiveEvent(
+                    event_id=stored_event["event_id"],
+                    occurred_at=stored_event["occurred_at"],
+                    correlation_id=stored_event["correlation_id"],
+                    event_type=stored_event["event_type"],
+                    source=stored_event["source"],
+                    payload=stored_payload,
+                )
+                try:
+                    self._validate_semantic_review_shape(prior_event)
+                except (TypeError, ValueError, KeyError, IndexError, RecursionError, OverflowError) as exc:
+                    raise CognitiveIntegrityError(
+                        f"invalid prior semantic review event: {prior_event.event_id}"
+                    ) from exc
                 if stored_payload.get("review_id") == review_id:
                     if stored_payload != dict(event.payload):
                         raise SemanticReviewIdentityConflict(review_id)
@@ -1226,13 +1240,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         elif payload.get("transition_id") is not None or payload.get("memory_id") is not None:
             raise CognitiveIntegrityError("non-accepted decision must not contain transition or memory")
 
-    def _validate_semantic_review_event(
-        self,
-        db: sqlite3.Connection,
-        event: CognitiveEvent,
-        *,
-        current_sequence: int,
-    ) -> None:
+    @staticmethod
+    def _validate_semantic_review_shape(event: CognitiveEvent) -> dict[str, Any]:
+        """Validate event-local semantic-review fields without consulting mutable state."""
         payload = event.payload
         allowed = {
             "review_id", "proposal_id", "proposal_event_id", "proposal_digest",
@@ -1276,6 +1286,31 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         )
         validate_string_list(payload.get("alternative_explanations"), "alternative_explanations")
         validate_string_list(payload.get("limitations"), "limitations")
+        return {
+            "review_id": review_id,
+            "proposal_id": proposal_id,
+            "proposal_event_id": proposal_event_id,
+            "proposal_digest": proposal_digest,
+            "claim_id": claim_id,
+            "claim_digest": claim_digest,
+            "supporting_claim_ids": supporting_ids,
+        }
+
+    def _validate_semantic_review_event(
+        self,
+        db: sqlite3.Connection,
+        event: CognitiveEvent,
+        *,
+        current_sequence: int,
+    ) -> None:
+        review = self._validate_semantic_review_shape(event)
+        review_id = review["review_id"]
+        proposal_id = review["proposal_id"]
+        proposal_event_id = review["proposal_event_id"]
+        proposal_digest = review["proposal_digest"]
+        claim_id = review["claim_id"]
+        claim_digest = review["claim_digest"]
+        supporting_ids = review["supporting_claim_ids"]
 
         proposal = db.execute(
             "SELECT proposal_digest,proposal_event_id,proposal_json,status,decision_event_id "
@@ -1302,7 +1337,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         derived_ids = claim["derived_from_claim_ids"]
         if not set(supporting_ids).issubset(set(derived_ids)):
             raise ValueError("supporting_claim_ids must be direct source claims for the inference")
-        if outcome == "supported" and not supporting_ids:
+        if event.payload.get("outcome") == "supported" and not supporting_ids:
             raise ValueError("supported review requires at least one supporting source claim")
 
         duplicate = db.execute(
