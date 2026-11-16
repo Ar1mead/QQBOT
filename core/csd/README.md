@@ -138,3 +138,10 @@ Goal batch, activation, and pause/resume decision evaluation now rely on the goa
 The initial SQLite trace-string regression failed on both hosted platforms because the assertion did not correctly observe the query through the trace callback. It has been replaced with a direct invocation-count assertion. Latest branch head `571be0ed206a5466edcba2f42bfaa088f394ed34` is awaiting a fresh hosted CI result; run #503 for the earlier test version failed and is not treated as a pass.
 
 The follow-up projection-deduplication regression was changed from brittle SQL trace matching to direct counting of motivation-validator invocations after run #503 showed the trace assertion was not portable/reliable. The latest code/test branch head has not yet produced a visible passing hosted workflow result. The CSD change remains pending verification; no user-local test has been run.
+
+### Deterministic adapter fake and digest verification
+
+- Added reusable in-memory `FakeObservationAdapter` under `adapters/testing/`; it records requests and returns a configured immutable observation result without network, filesystem, account, or external side effects.
+- Adapter contract tests now exercise the fake adapter and verify repeated calls return the configured result while preserving untrusted evidence.
+- Observation content digests are checked against SHA-256 of normalized UTF-8 content; a correctly shaped but incorrect digest is rejected.
+- Latest code/test head at this checkpoint: `d3d4dfc772859e1604607e8b9f9c83bbe2fd5797`. The available PR-workflow lookup still shows no run for the new head; the CSD and Stage 0 changes remain unverified by a fresh hosted run.
