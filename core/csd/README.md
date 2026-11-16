@@ -85,3 +85,6 @@ Legacy memory proposals using `evidence_event_ids` now receive the same event-hi
 
 
 Memory decision event reads now verify that `evidence_event_ids` exactly matches the evidence attached to the historical proposal (legacy `evidence_event_ids` or the derived grounded-memory v2 source-event list). They also check the allowed missing-evidence outcomes, source event chronology, and observation-vs-non-observation outcome rules. Hosted run #405 passed on Ubuntu and Windows with **356 tests per platform**.
+
+
+For grounded-memory decisions using semantic review policy v0.2, direct reads now recompute the review summary from immutable review events strictly before the decision sequence. The recorded review IDs/status, policy version, applied flag, and outcome must match that history; later reviews cannot retroactively justify an earlier decision. Hosted run #411 passed on Ubuntu and Windows with **357 tests per platform**.
