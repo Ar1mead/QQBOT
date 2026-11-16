@@ -410,7 +410,6 @@ class CognitiveGoalMixin:
                     "decision_event_id": row["decision_event_id"],
                 }
             self._assert_accepted_projection_consistent()
-            self._assert_motivation_projection_consistent()
             self._assert_goal_projection_consistent()
             current_version = self._authoritative_state_version(db)
             prepared = self._prepare_goal_batch_decision(
@@ -845,7 +844,6 @@ def _evaluate_goal_pause_resume_proposal(
         if row["decision_event_id"] is not None:
             return {"status": "already_decided", "decision_event_id": row["decision_event_id"]}
         self._assert_accepted_projection_consistent()
-        self._assert_motivation_projection_consistent()
         self._assert_goal_projection_consistent()
         current_version = self._authoritative_state_version(db)
         proposal_payload = json.loads(row["proposal_json"])
@@ -1246,9 +1244,12 @@ def _evaluate_goal_activation_proposal(
         }
 
 
-def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
-    """Reconcile candidate and activation histories, all goal versions, and latest goals."""
-    self._assert_motivation_projection_consistent()
+def _assert_goal_projection_consistent_v2(
+    self: CognitiveGoalMixin, *, motivation_already_validated: bool = False
+) -> None:
+    """Reconcile goal history; optionally reuse a prior check in this same transaction."""
+    if not motivation_already_validated:
+        self._assert_motivation_projection_consistent()
     event_types = (
         GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
         GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
@@ -1564,10 +1565,16 @@ class CognitiveGoalLifecycleMixin:
     def evaluate_goal_pause_resume_proposal(self, proposal_id: str) -> dict[str, Any]:
         return _evaluate_goal_pause_resume_proposal(self, proposal_id)
 
-    def _assert_goal_projection_consistent(self) -> None:
+    def _assert_goal_projection_consistent(
+        self, *, _motivation_already_validated: bool = False
+    ) -> None:
         if not self._db.in_transaction:
             with self._read_tx():
-                _assert_goal_projection_consistent_v2(self)
+                _assert_goal_projection_consistent_v2(
+                    self, motivation_already_validated=_motivation_already_validated
+                )
             return
-        _assert_goal_projection_consistent_v2(self)
+        _assert_goal_projection_consistent_v2(
+            self, motivation_already_validated=_motivation_already_validated
+        )
 
