@@ -515,5 +515,13 @@ At the time of this update:
 - Grounded-memory proposal generation can now consume v2 text observations. Exact quoted spans remain mandatory; non-text observations are not passed into the text-grounded provider path.
 - Added CSD v2 integration tests for mapping, stable identity, identical-delivery idempotency, conflicting-identity rejection, tamper rejection, trust flag enforcement, coverage consistency, v1/v2 Recovery, and grounded-memory use of v2 text evidence. Adapter tests also cover content-origin, extraction-method consistency, v2 manifest declaration, and rejection of unordered/overlapping missing coverage ranges.
 - The CSD workflow now includes the new integration suite and path filters on Ubuntu/Windows. Hosted CI for this new revision is pending; do not claim it has passed until the corresponding Actions run is green.
-- Coverage validation also rejects missing ranges outside the declared interval and rejects out-of-order or overlapping gaps at both the adapter-contract and CSD event-validation layers.
+- Coverage validation also rejects missing ranges outside the declared interval and rejects out-of-order or overlapping gaps at both the adapter-contract and CSD event-validation layers. A recovery-tamper regression recomputes the durable payload and envelope digests after flipping the v2 trust flag, then verifies Recovery still rejects the semantically invalid event.
 - This is still a contract/mapping slice. No real Bilibili network access, account login, DSH plugin, local runtime changes, or external action was performed. V2 stores text plus source/artifact references, not raw media bytes.
+
+
+### Observation v2 verification checkpoint
+
+- The v2 integration suite now also exercises Recovery against a deliberately tampered v2 event whose payload and envelope digests have both been recomputed. Recovery must still reject the event because external evidence cannot be changed to trusted.
+- Adapter and CSD coverage validators both enforce sorted, non-overlapping missing ranges contained within any declared observation interval.
+- The workflow's push and pull-request path filters both include the v2 integration test; the focused suite and full unittest discovery both run in the Ubuntu/Windows matrix.
+- Latest code checkpoint: `378cafdb917a388b8ea602785708aa4079909071`. Hosted verification of this latest revision is pending confirmation. The GitHub run lookup available here does not expose the push-triggered run shown in the Actions UI; no green result for this checkpoint is claimed.
