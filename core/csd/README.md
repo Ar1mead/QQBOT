@@ -46,3 +46,6 @@ Semantic-review duplicate delivery is keyed by `review_id`, but now resolves and
 
 
 Persisted event reads now normalize malformed event fields, timestamps, and unexpected validation exceptions to `CognitiveIntegrityError`, while preserving explicit integrity failure messages. Duplicate-delivery regression and scope: [malformed durable event read error normalization report](../../docs/reports/csd-malformed-durable-event-read-error-normalization-report-001.md). Hosted CI is pending.
+
+
+Recovery also binds memory and motivation decision event IDs and correlation IDs to the proposal identity and decision-family replay order. This aligns their replay checks with the goal decision families. Regression and scope: [authoritative decision event identity validation report](../../docs/reports/csd-authoritative-decision-event-identity-validation-report-001.md). Hosted CI is pending.
