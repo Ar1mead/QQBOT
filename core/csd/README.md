@@ -55,3 +55,6 @@ Recovery now rejects SQLite BLOB values stored in the event payload text column 
 
 
 Recovery now also normalizes expected event-family schema and projection-application failures to `CognitiveIntegrityError`, while preserving already-normalized integrity failures. This ensures a digest-consistent but schema-invalid durable observation cannot leak a raw `ValueError` during projection replay. See [Recovery projection-validation error normalization report](../../docs/reports/csd-recovery-projection-validation-error-normalization-report-001.md). Hosted CI run #333 passed 343 tests on Ubuntu and Windows.
+
+
+Semantic-review duplicate delivery now validates the prior event's event-local schema after verifying its canonical payload and envelope. This prevents a digest-consistent but schema-invalid prior review from being acknowledged as a valid duplicate, without rejecting legitimate retries after the proposal later reaches a terminal state. See [semantic-review duplicate schema validation report](../../docs/reports/csd-semantic-review-duplicate-schema-validation-report-001.md). Hosted CI run #336 passed 344 tests on Ubuntu and Windows.
