@@ -1777,6 +1777,22 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     raise CognitiveIntegrityError(
                         "decision event identity or correlation_id mismatch"
                     )
+
+            # Every read path must enforce the same event-local schema contract
+            # as duplicate delivery and Recovery. Referenced evidence is resolved
+            # recursively through earlier sequence numbers by the validators.
+            self._validate_duplicate_event_shape(
+                self._db,
+                {
+                    "event_id": event.event_id,
+                    "occurred_at": event.occurred_at,
+                    "correlation_id": event.correlation_id,
+                    "event_type": event.event_type,
+                    "source": event.source,
+                    "payload": event.payload,
+                },
+                sequence=int(row["sequence"]),
+            )
             return {
                 "sequence": int(row["sequence"]),
                 "event_id": row["event_id"],
