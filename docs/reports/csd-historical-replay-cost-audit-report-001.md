@@ -190,3 +190,9 @@ The first test implementation for cross-projection deduplication used SQLite tra
 - Adapter contract tests now exercise the fake adapter and verify repeated calls return the configured result while preserving untrusted evidence.
 - Observation content digests are checked against SHA-256 of normalized UTF-8 content; a correctly shaped but incorrect digest is rejected.
 - Latest code/test head at this checkpoint: `d3d4dfc772859e1604607e8b9f9c83bbe2fd5797`. The available PR-workflow lookup still shows no run for the new head; the CSD and Stage 0 changes remain unverified by a fresh hosted run.
+
+### Additional life-snapshot replay deduplication
+
+- A deeper call-path check found that `get_life_signal_snapshot()` validated goal history, then called `get_goals()`, which validated the same goal history a second time. It now reads the goal projection rows directly inside the same already-validated read transaction.
+- The projection-deduplication regression now counts both motivation-validator and goal-validator invocations. Goal batch evaluation, life snapshot, and state snapshot must each perform exactly one goal replay and one motivation validation. The out-of-transaction reuse guard remains covered.
+- Code/test head for this change: `3efa72823f82eb0db79dcff34445484c3271aa0b`. No fresh passing hosted workflow result is visible through the available PR-run lookup; run #503 remains a failure for the earlier trace-based test and is not evidence for this revision.
