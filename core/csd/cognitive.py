@@ -36,7 +36,7 @@ from .goals import (
 )
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 OBSERVATION_EVENT = "experience.observation_recorded.v1"
 PROPOSAL_EVENT = "cognition.memory_candidate_proposed.v1"
 GROUNDED_PROPOSAL_EVENT = "cognition.grounded_memory_candidate_proposed.v1"
@@ -337,6 +337,23 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     self._db.rollback()
                 raise
             version = 5
+
+        if version == 5:
+            try:
+                self._db.executescript(
+                    """
+                    BEGIN IMMEDIATE;
+                    CREATE INDEX idx_events_event_type_sequence
+                    ON events(event_type, sequence);
+                    PRAGMA user_version = 6;
+                    COMMIT;
+                    """
+                )
+            except Exception:
+                if self._db.in_transaction:
+                    self._db.rollback()
+                raise
+            version = 6
 
         if version != SCHEMA_VERSION:
             raise CognitiveIntegrityError(f"unsupported schema version: {version}")
