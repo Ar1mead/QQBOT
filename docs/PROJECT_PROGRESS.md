@@ -251,3 +251,15 @@ At the time of this update:
 - Runs #346–#349 exposed assertion-message mismatches after decision integrity checks moved earlier into `get_event()`; the tests were updated to the new earlier failure point. Run #350 passed on Ubuntu and Windows: **348 tests** passed on each platform, including compileall and full test discovery.
 - Report: `docs/reports/csd-same-event-id-duplicate-schema-validation-report-001.md`.
 - Remaining: continue deeper decision semantic/context checks, cross-family event ordering, and coordinated projection/event-history corruption. User-local Windows 11 / Python 3.12.14 verification remains pending.
+
+
+### 2026-11-16 follow-up — event-family schema validation on direct reads
+
+- Audit found that `get_event()` verified payload/envelope integrity and decision-event identity, but did not consistently rerun the event-family schema validator for ordinary observations, proposals, semantic reviews, interactions, motivation proposals, and goal proposals.
+- `get_event()` now invokes the shared event-local validator used by duplicate delivery and Recovery. Applicable references are validated against earlier event sequence numbers; later lifecycle state does not invalidate historical events.
+- Added `tests/test_csd_semantic_review.py::test_get_event_rejects_schema_invalid_observation_with_valid_digests`, which changes a valid observation's schema field and recomputes both payload and envelope digests before requiring direct read to fail with `CognitiveIntegrityError`.
+- Implementation commit: `68956b4092742fb8aa9c2c31e37204c01134b63c`; regression test commit: `12c059db63443bb9a848fcd0df4f1c70555cf187`.
+- Hosted CI is pending. User-local Windows 11 / Python 3.12.14 verification remains pending.
+- Integrity boundary: hashes are not authenticated signatures. Rewriting an entire history into a different internally valid history and recomputing all dependent hashes cannot be detected without an independently protected checkpoint or signing key. Do not claim protection against that threat without a separate anchor design.
+
+**Resume:** verify the new direct-read regression and full cross-platform CI. Then continue cross-family chronology and projection/event-history coordinated-corruption review, keeping the distinction between detectable inconsistency and fully coherent unauthenticated history rewrite explicit.
