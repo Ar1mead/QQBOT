@@ -735,6 +735,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 self._validate_grounded_proposal(event.payload)
             elif event.event_type == SEMANTIC_REVIEW_EVENT:
                 self._validate_semantic_review_shape(event)
+                self._validate_semantic_review_event_history(
+                    db, event, sequence=sequence
+                )
             elif event.event_type == INTERACTION_EVENT:
                 self._validate_interaction_event(db, event, current_sequence=sequence)
             elif event.event_type == MOTIVATION_PROPOSAL_EVENT:
