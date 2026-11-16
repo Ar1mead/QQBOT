@@ -349,6 +349,7 @@ class SemanticReviewStoreTests(unittest.TestCase):
         )
 
     def test_duplicate_event_rejects_prior_event_with_invalid_timestamp_as_integrity_error(self):
+        self.submit_proposal()
         original = self.make_review()
         self.store.submit_event(original)
         self.store._db.execute("DROP TRIGGER events_no_update")
