@@ -73,3 +73,6 @@ Decision-event direct reads now also validate historical provenance: the evaluat
 
 
 Direct reads of semantic-review events now bind each review to the unique earlier grounded proposal in the immutable event history. The read path also verifies the proposal digest, reviewed inference claim digest, and supporting-claim lineage, so recomputing payload/envelope digests cannot hide a rebound proposal reference. Regression: `test_get_event_rejects_semantic_review_referencing_another_proposal_event`. Hosted CI and user-local Windows verification are pending.
+
+
+Follow-up verification: hosted GitHub Actions run #385 passed on Ubuntu and Windows with **353 tests per platform**, including the new decision-history and semantic-review provenance regressions. The same run also verified that historical motivation proposals remain readable after later signal lifecycle changes. This does not replace the user's own Windows 11 / Python 3.12.14 test, which remains deferred until the project is ready to clone.
