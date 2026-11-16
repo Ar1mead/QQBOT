@@ -798,36 +798,36 @@ class CSDGoalActivationTests(unittest.TestCase):
             "projection-scan-dedup-goal", [signal_id], state_version=version
         ))
 
-        def count_motivation_scans(operation):
-            statements = []
-            self.store._db.set_trace_callback(statements.append)
-            try:
-                operation()
-            finally:
-                self.store._db.set_trace_callback(None)
-            return [
-                sql for sql in statements
-                if sql.lstrip().lower().startswith(
-                    "select e.event_id,e.event_type,e.sequence from events e"
-                )
-                and "where e.event_type in" in sql.lower()
-                and "order by e.sequence" in sql.lower()
-            ]
+        original = self.store._assert_motivation_projection_consistent
+        calls = []
 
-        scans = count_motivation_scans(
-            lambda: self.store.evaluate_goal_batch_proposal("projection-scan-dedup-goal")
-        )
-        self.assertEqual(len(scans), 1)
-        self.assertEqual(
-            self.store.get_goal("goal-projection-scan-dedup-goal")["status"],
-            "candidate",
-        )
+        def counted_validation():
+            calls.append(True)
+            return original()
 
-        scans = count_motivation_scans(self.store.get_life_signal_snapshot)
-        self.assertEqual(len(scans), 1)
+        self.store._assert_motivation_projection_consistent = counted_validation
+        try:
+            self.store.evaluate_goal_batch_proposal("projection-scan-dedup-goal")
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(
+                self.store.get_goal("goal-projection-scan-dedup-goal")["status"],
+                "candidate",
+            )
 
-        scans = count_motivation_scans(self.store.get_state_snapshot)
-        self.assertEqual(len(scans), 1)
+            calls.clear()
+            self.store.get_life_signal_snapshot()
+            self.assertEqual(len(calls), 1)
+
+            calls.clear()
+            self.store.get_state_snapshot()
+            self.assertEqual(len(calls), 1)
+        finally:
+            self.store._assert_motivation_projection_consistent = original
+
+        with self.assertRaisesRegex(RuntimeError, "active transaction"):
+            self.store._assert_goal_projection_consistent(
+                _motivation_already_validated=True
+            )
 
     def test_mixed_decision_history_uses_one_verified_prefix_scan_per_read_transaction(self):
         creation_statements = []
