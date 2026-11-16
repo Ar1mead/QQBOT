@@ -7,6 +7,7 @@ It is not a security boundary against hostile code in the same Python process.
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
@@ -80,6 +81,18 @@ class CognitiveEvent:
     payload: Mapping[str, Any]
 
 
+@dataclass(frozen=True)
+class _DecisionReplayContext:
+    """Accepted-decision prefix index scoped to one SQLite transaction."""
+
+    accepted_sequences: tuple[int, ...]
+
+    def state_version_at(self, through_sequence: int | None = None) -> int:
+        if through_sequence is None:
+            return len(self.accepted_sequences)
+        return bisect_right(self.accepted_sequences, through_sequence)
+
+
 def _canonical(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True,
                       separators=(",", ":"), allow_nan=False)
@@ -135,6 +148,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             isolation_level=None,
         )
         self._db.row_factory = sqlite3.Row
+        self._active_decision_replay_context: _DecisionReplayContext | None = None
         self._db.execute("PRAGMA foreign_keys = ON")
         self._db.execute(f"PRAGMA busy_timeout = {int(busy_timeout_ms)}")
         self._db.execute(f"PRAGMA journal_mode = {journal_mode}")
@@ -359,54 +373,64 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             raise CognitiveIntegrityError(f"unsupported schema version: {version}")
 
     class _Tx:
-        def __init__(self, db: sqlite3.Connection) -> None:
-            self.db = db
+        def __init__(self, store: "CognitiveMemoryStore") -> None:
+            self.store = store
+            self.db = store._db
 
         def __enter__(self) -> sqlite3.Connection:
             self.db.execute("BEGIN IMMEDIATE")
+            self.store._active_decision_replay_context = None
             return self.db
 
         def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> bool:
-            if exc_type is not None:
-                if self.db.in_transaction:
-                    self.db.rollback()
-                return False
             try:
-                self.db.commit()
-            except Exception:
-                # SQLite may leave the transaction active when COMMIT itself fails
-                # (for example, a deferred constraint or a transient lock error).
-                if self.db.in_transaction:
-                    self.db.rollback()
-                raise
-            return False
+                if exc_type is not None:
+                    if self.db.in_transaction:
+                        self.db.rollback()
+                    return False
+                try:
+                    self.db.commit()
+                except Exception:
+                    # SQLite may leave the transaction active when COMMIT itself fails
+                    # (for example, a deferred constraint or a transient lock error).
+                    if self.db.in_transaction:
+                        self.db.rollback()
+                    raise
+                return False
+            finally:
+                self.store._active_decision_replay_context = None
 
     class _ReadTx:
-        def __init__(self, db: sqlite3.Connection) -> None:
-            self.db = db
+        def __init__(self, store: "CognitiveMemoryStore") -> None:
+            self.store = store
+            self.db = store._db
 
         def __enter__(self) -> sqlite3.Connection:
             self.db.execute("BEGIN")
+            self.store._active_decision_replay_context = None
             return self.db
 
         def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> bool:
-            if exc_type is not None:
-                if self.db.in_transaction:
-                    self.db.rollback()
-                return False
             try:
-                self.db.commit()
-            except Exception:
-                if self.db.in_transaction:
-                    self.db.rollback()
-                raise
-            return False
+                if exc_type is not None:
+                    if self.db.in_transaction:
+                        self.db.rollback()
+                    return False
+                try:
+                    self.db.commit()
+                except Exception:
+                    if self.db.in_transaction:
+                        self.db.rollback()
+                    raise
+                return False
+            finally:
+                self.store._active_decision_replay_context = None
 
     def _tx(self) -> "CognitiveMemoryStore._Tx":
-        return self._Tx(self._db)
+        return self._Tx(self)
 
     def _read_tx(self) -> "CognitiveMemoryStore._ReadTx":
-        return self._ReadTx(self._db)
+        return self._ReadTx(self)
 
     @staticmethod
     def _event_digest(
@@ -982,6 +1006,10 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
              event.event_type, event.source, payload_ref, event_digest),
         )
         sequence = int(cursor.lastrowid)
+        # A transaction may have built a replay context before this append.
+        # Invalidate it so subsequent reads see the newly appended decision if
+        # its sequence falls inside their requested prefix.
+        self._active_decision_replay_context = None
         self._validate_proposal_snapshot_chronology(db, event, sequence)
         self._apply_projection_event(db, event, sequence, internal=internal)
         return {
@@ -1538,34 +1566,68 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             return
         raise CognitiveIntegrityError(f"unhandled event type at sequence {sequence}")
 
-    def _authoritative_state_version(
-        self, db: sqlite3.Connection, *, through_sequence: int | None = None
-    ) -> int:
-        query = (
-            "SELECT e.event_id FROM events e "
-            "WHERE e.event_type IN (?,?,?,?,?)"
+    def _build_decision_replay_context(
+        self, db: sqlite3.Connection
+    ) -> _DecisionReplayContext:
+        """Verify the decision event stream once and index accepted prefixes.
+
+        Callers must hold a read or write transaction for the full operation.
+        Every decision still passes through get_event's payload, envelope, and
+        event-local validation; only the repeated prefix aggregation is removed.
+        """
+        if not db.in_transaction:
+            raise RuntimeError("decision replay context requires an active SQLite transaction")
+        event_types = (
+            DECISION_EVENT,
+            MOTIVATION_DECISION_EVENT,
+            GOAL_BATCH_DECISION_EVENT,
+            GOAL_ACTIVATION_DECISION_EVENT,
+            GOAL_PAUSE_RESUME_DECISION_EVENT,
         )
-        params: list[Any] = [DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT]
-        if through_sequence is not None:
-            if not isinstance(through_sequence, int) or isinstance(through_sequence, bool):
-                raise ValueError("through_sequence must be an integer or None")
-            query += " AND e.sequence<=?"
-            params.append(through_sequence)
-        query += " ORDER BY e.sequence"
-        version = 0
-        for row in db.execute(query, params).fetchall():
-            # State-version reads must not trust raw decision payload JSON:
-            # verify its content and envelope digests before counting it.
+        placeholders = ",".join("?" for _ in event_types)
+        rows = db.execute(
+            f"SELECT e.sequence,e.event_id FROM events e "
+            f"WHERE e.event_type IN ({placeholders}) ORDER BY e.sequence",
+            event_types,
+        ).fetchall()
+        accepted_sequences: list[int] = []
+        prior_sequence = 0
+        for row in rows:
+            sequence = int(row["sequence"])
+            if sequence <= prior_sequence:
+                raise CognitiveIntegrityError("decision event sequence is not strictly increasing")
+            prior_sequence = sequence
+            # Internal scan suppresses only recursive decision-context checks.
+            # Payload/envelope digests and the event-local schema remain checked.
             decision_event = self.get_event(
                 row["event_id"], _validate_decision_context=False
             )
-            decision = decision_event["payload"]
-            outcome = decision.get("outcome")
+            if int(decision_event["sequence"]) != sequence:
+                raise CognitiveIntegrityError("decision replay sequence changed within snapshot")
+            outcome = decision_event["payload"].get("outcome")
             if outcome not in {"accepted", "rejected", "deferred", "needs_more_evidence"}:
                 raise CognitiveIntegrityError("invalid durable decision outcome")
             if outcome == "accepted":
-                version += 1
-        return version
+                accepted_sequences.append(sequence)
+        return _DecisionReplayContext(tuple(accepted_sequences))
+
+    def _authoritative_state_version(
+        self, db: sqlite3.Connection, *, through_sequence: int | None = None
+    ) -> int:
+        if through_sequence is not None and (
+            not isinstance(through_sequence, int) or isinstance(through_sequence, bool)
+        ):
+            raise ValueError("through_sequence must be an integer or None")
+        if not db.in_transaction:
+            with self._read_tx():
+                return self._authoritative_state_version(
+                    db, through_sequence=through_sequence
+                )
+        context = self._active_decision_replay_context
+        if context is None:
+            context = self._build_decision_replay_context(db)
+            self._active_decision_replay_context = context
+        return context.state_version_at(through_sequence)
 
     def _apply_decision(self, db: sqlite3.Connection, event: CognitiveEvent) -> None:
         payload = event.payload
@@ -2033,6 +2095,11 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
     ) -> dict[str, Any]:
         """Read one immutable event with its content-addressed payload."""
         _nonempty(event_id, "event_id")
+        if not self._db.in_transaction:
+            with self._read_tx():
+                return self.get_event(
+                    event_id, _validate_decision_context=_validate_decision_context
+                )
         row = self._db.execute(
             "SELECT e.sequence,e.event_id,e.occurred_at,e.received_at,e.correlation_id,"
             "e.event_type,e.source,e.payload_ref,e.event_digest,p.payload_json "
@@ -2210,6 +2277,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         dict[str, dict[str, Any]],
         dict[str, tuple[dict[str, Any], dict[str, Any]]],
     ]:
+        if not self._db.in_transaction:
+            with self._read_tx():
+                return self._memory_projection_sources()
         proposal_rows = self._db.execute(
             "SELECT event_id FROM events WHERE event_type IN (?,?) ORDER BY sequence",
             (PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT),
@@ -2275,6 +2345,10 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         self._memory_projection_sources()
 
     def _assert_accepted_projection_consistent(self) -> None:
+        if not self._db.in_transaction:
+            with self._read_tx():
+                self._assert_accepted_projection_consistent()
+            return
         # Validate accepted-memory content against the durable decision history.
         expected_proposals, expected_decisions = self._memory_projection_sources()
         expected_memories: dict[str, dict[str, Any]] = {}
