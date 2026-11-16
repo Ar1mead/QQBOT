@@ -183,3 +183,10 @@ A focused regression counts invocations of the motivation validator for goal dec
 ### Verification status update
 
 The first test implementation for cross-projection deduplication used SQLite trace-string matching and failed in hosted run #503 on both operating systems. The test was replaced with direct invocation-count assertions for the motivation validator. The latest code/test branch head `5ae72133d46833a6d6b161c5c001d9fa913d81fa` has no passing workflow result visible through the available PR-run/status lookup. Treat the optimization as implemented but **not yet CI-verified**. No local test or performance benchmark is claimed.
+
+### Deterministic adapter fake and digest verification
+
+- Added reusable in-memory `FakeObservationAdapter` under `adapters/testing/`; it records requests and returns a configured immutable observation result without network, filesystem, account, or external side effects.
+- Adapter contract tests now exercise the fake adapter and verify repeated calls return the configured result while preserving untrusted evidence.
+- Observation content digests are checked against SHA-256 of normalized UTF-8 content; a correctly shaped but incorrect digest is rejected.
+- Latest code/test head at this checkpoint: `d3d4dfc772859e1604607e8b9f9c83bbe2fd5797`. The available PR-workflow lookup still shows no run for the new head; the CSD and Stage 0 changes remain unverified by a fresh hosted run.
