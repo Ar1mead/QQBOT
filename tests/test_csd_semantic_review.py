@@ -289,6 +289,65 @@ class SemanticReviewStoreTests(unittest.TestCase):
             1,
         )
 
+    def test_duplicate_review_rejects_noncanonical_prior_payload_even_with_matching_digests(self):
+        self.submit_proposal()
+        original = self.make_review(review_id="review-noncanonical-retry")
+        self.store.submit_event(original)
+
+        row = self.store._db.execute(
+            "SELECT payload_ref,p.payload_json,e.received_at FROM events e "
+            "JOIN payloads p ON p.payload_ref=e.payload_ref WHERE e.event_id=?",
+            (original.event_id,),
+        ).fetchone()
+        noncanonical_json = json.dumps(
+            json.loads(row["payload_json"]), ensure_ascii=False, indent=2
+        )
+        new_payload_ref = "sha256:" + hashlib.sha256(
+            noncanonical_json.encode("utf-8")
+        ).hexdigest()
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute("DROP TRIGGER payloads_no_update")
+        self.store._db.execute(
+            "UPDATE payloads SET payload_json=? WHERE payload_ref=?",
+            (noncanonical_json, row["payload_ref"]),
+        )
+        corrupted_event = CognitiveEvent(
+            event_id=original.event_id,
+            occurred_at=original.occurred_at,
+            correlation_id=original.correlation_id,
+            event_type=original.event_type,
+            source=original.source,
+            payload=original.payload,
+        )
+        event_digest = self.store._event_digest(
+            corrupted_event, new_payload_ref, row["received_at"]
+        )
+        self.store._db.execute(
+            "UPDATE events SET payload_ref=?,event_digest=? WHERE event_id=?",
+            (new_payload_ref, event_digest, original.event_id),
+        )
+
+        retry = CognitiveEvent(
+            event_id="evt-review-noncanonical-retry-delivery",
+            occurred_at="2026-11-14T10:03:00+00:00",
+            correlation_id=original.correlation_id,
+            event_type=original.event_type,
+            source=original.source,
+            payload=dict(original.payload),
+        )
+        from core.csd.cognitive import CognitiveIntegrityError
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "not canonically serialized"
+        ):
+            self.store.submit_event(retry)
+        self.assertEqual(
+            self.store._db.execute(
+                "SELECT COUNT(*) FROM events WHERE event_type=?",
+                (SEMANTIC_REVIEW_EVENT,),
+            ).fetchone()[0],
+            1,
+        )
+
     def test_same_review_id_with_changed_content_conflicts(self):
         self.submit_proposal()
         first = self.make_review(review_id="review-conflict")
