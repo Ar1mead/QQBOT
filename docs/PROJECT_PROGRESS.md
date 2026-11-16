@@ -430,3 +430,16 @@ At the time of this update:
 - First external integration remains read-only Bilibili perception. QQ begins receive-only; sends and account mutations are later ASM-governed actions. Web begins read-only; desktop begins with selected observation before narrowly scoped local actions.
 - Previously discussed Bilibili tools and desktop/security candidates are research candidates only. No plugin was newly installed, no local application/account was modified, and no credentials or permissions were changed.
 - Next: inspect whether remaining replay and cross-projection paths still perform repeated scans; strengthen long-history and Recovery/concurrency tests; then build contract/fake-adapter tests before choosing and pinning a real Bilibili connector. Do not expand to real platform actions yet.
+
+
+### 2026-11-16 second-round CSD optimization — decision ordinals and accepted-prefix indexes
+
+- Extended the transaction-scoped `_DecisionReplayContext` beyond shared state-version prefixes. It now indexes all durable decision sequence numbers by event family and accepted decision sequences by family.
+- Memory and motivation decision IDs are allocated from the verified per-family sequence index. Motivation accepted-transition counts now use the accepted-sequence index rather than re-counting decision prefixes.
+- Expanded `test_mixed_decision_history_uses_one_verified_prefix_scan_per_read_transaction`: it now creates and accepts a second memory proposal and a second motivation proposal, verifies both family ordinals advance to `:2`, and exercises a second goal-batch decision. The second motivation proposal is created and evaluated by `add_internal_signal("replay-context-two")` before its projection is queried.
+- The regression asserts no decision-family `SELECT COUNT(*)` prefix query during decision creation, combined projection reads, or Recovery; exactly one shared five-family prefix selection during the combined read operation and one during Recovery; transaction-context cleanup; and state version 8 after replay.
+- Latest branch head checked through GitHub: `20ef3c5f021c2ff1d6010d993a18be024947ef5c`. PR workflow run #481 completed successfully on Ubuntu and Windows; full unittest discovery reported **365 tests passed on each platform**, and all compile/focused test steps passed.
+- Run #480 (push-triggered) was not independently exposed by the available GitHub workflow-run lookup, so it is not recorded as verified here. Run #479 is an older intermediate result and is not used as evidence for the latest head.
+- This is hosted CI only. User-local Windows 11 / Python 3.12.14 testing remains deferred until the project is ready to clone.
+- Remaining limits: query-count regression is not a long-history wall-clock benchmark and does not prove every CSD projection or validator has linear scaling. Continue auditing cross-projection scans and Recovery behavior before declaring CSD stable.
+
