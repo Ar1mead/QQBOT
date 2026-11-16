@@ -88,3 +88,6 @@ Memory decision event reads now verify that `evidence_event_ids` exactly matches
 
 
 For grounded-memory decisions using semantic review policy v0.2, direct reads now recompute the review summary from immutable review events strictly before the decision sequence. The recorded review IDs/status, policy version, applied flag, and outcome must match that history; later reviews cannot retroactively justify an earlier decision. Hosted run #411 passed on Ubuntu and Windows with **357 tests per platform**.
+
+
+Motivation decision reads now bind their ordered evidence list to the historical motivation proposal's supporting and counter-evidence lists. The referenced proposal is revalidated through the durable event path, which in turn validates the interaction evidence and chronology. Hosted run #419 passed on Ubuntu and Windows with **359 tests per platform**.
