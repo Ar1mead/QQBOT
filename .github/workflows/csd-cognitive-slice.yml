@@ -9,6 +9,7 @@ on:
       - "core/life_engine/**"
       - "adapters/**"
       - "tests/test_adapter_observation_contract.py"
+      - "tests/test_csd_observation_v2.py"
       - "tests/test_bilibili_target.py"
       - "tests/test_life_engine.py"
       - "tests/test_motivation_synthesis.py"
@@ -73,6 +74,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_csd_goals.py" -v
       - name: Run adapter observation contract tests
         run: python -m unittest discover -s tests -p "test_adapter_observation_contract.py" -v
+      - name: Run CSD observation v2 integration tests
+        run: python -m unittest discover -s tests -p "test_csd_observation_v2.py" -v
       - name: Run Bilibili target allowlist tests
         run: python -m unittest discover -s tests -p "test_bilibili_target.py" -v
       - name: Run provider-neutral proposal pipeline tests
