@@ -1481,6 +1481,8 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             payload_json = row["payload_json"]
             if payload_json is None:
                 raise CognitiveIntegrityError(f"event payload is missing: {event_id}")
+            if not isinstance(payload_json, str):
+                raise CognitiveIntegrityError(f"event payload is not stored as text: {event_id}")
             _nonempty(row["event_id"], "event_id")
             _nonempty(row["correlation_id"], "correlation_id")
             _nonempty(row["event_type"], "event_type")
@@ -1941,11 +1943,17 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     raise CognitiveIntegrityError("event sequence gap")
                 expected += 1
                 payload_json = row["payload_json"]
-                if payload_json is None or "sha256:" + _digest(payload_json) != row["payload_ref"]:
+                if payload_json is None:
+                    raise CognitiveIntegrityError(f"missing event payload: {row['event_id']}")
+                if not isinstance(payload_json, str):
+                    raise CognitiveIntegrityError(
+                        f"event payload is not stored as text: {row['event_id']}"
+                    )
+                if "sha256:" + _digest(payload_json) != row["payload_ref"]:
                     raise CognitiveIntegrityError(f"payload integrity failure: {row['event_id']}")
                 try:
                     payload = json.loads(payload_json)
-                except json.JSONDecodeError as exc:
+                except (TypeError, ValueError, RecursionError, OverflowError) as exc:
                     raise CognitiveIntegrityError("invalid payload JSON") from exc
                 if not isinstance(payload, dict):
                     raise CognitiveIntegrityError("event payload must be an object")
@@ -1989,7 +1997,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     canonical_payload_json = self._validate_event(
                         event, internal=internal
                     )
-                except (TypeError, ValueError) as exc:
+                except (TypeError, ValueError, RecursionError, OverflowError) as exc:
                     raise CognitiveIntegrityError(
                         f"invalid durable event envelope: {event.event_id}"
                     ) from exc
