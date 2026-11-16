@@ -96,3 +96,6 @@ Semantic-review idempotency verification: a repeated `review_id` now validates t
 
 
 Canonical event payload read validation: `get_event()` now rejects parseable but non-canonical stored JSON even if both payload and event-envelope digests have been recomputed. This protects event-ID and semantic-review duplicate acknowledgements from accepting such a damaged prior event. Regression: `test_duplicate_review_rejects_noncanonical_prior_payload_even_with_matching_digests`; see [canonical event payload read validation report](../reports/csd-canonical-event-payload-read-validation-test-report-001.md). Hosted CI is pending. This does not authenticate the writer or replace Recovery's event-family schema and replay checks.
+
+
+Malformed durable event read error normalization: `CognitiveMemoryStore.get_event()` now preserves explicit integrity failures and converts malformed persisted fields, timestamps, and validation exceptions into `CognitiveIntegrityError`. A regression corrupts an existing event timestamp and confirms duplicate delivery cannot acknowledge it or append another event. Test: `test_duplicate_event_rejects_prior_event_with_invalid_timestamp_as_integrity_error`; see [report](../reports/csd-malformed-durable-event-read-error-normalization-report-001.md). Hosted CI is pending.
