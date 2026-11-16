@@ -91,3 +91,6 @@ For grounded-memory decisions using semantic review policy v0.2, direct reads no
 
 
 Motivation decision reads now bind their ordered evidence list to the historical motivation proposal's supporting and counter-evidence lists. The referenced proposal is revalidated through the durable event path, which in turn validates the interaction evidence and chronology. Hosted run #419 passed on Ubuntu and Windows with **359 tests per platform**.
+
+
+Goal batch, activation, and pause/resume decision direct reads now trigger the goal subsystem's event-history replay and projection reconciliation. The replay validates every decision against its earlier proposal and the goal versions/status that existed at that point in the log. Three digest-recomputed tamper regressions cover all goal decision families. Hosted run #428 passed on Ubuntu and Windows with **362 tests per platform**.
