@@ -367,7 +367,7 @@ class SemanticReviewStoreTests(unittest.TestCase):
         self.store.submit_event(original)
 
         row = self.store._db.execute(
-            "SELECT payload_ref,p.payload_json,e.received_at FROM events e "
+            "SELECT e.payload_ref,p.payload_json,e.received_at FROM events e "
             "JOIN payloads p ON p.payload_ref=e.payload_ref WHERE e.event_id=?",
             (original.event_id,),
         ).fetchone()
