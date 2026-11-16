@@ -160,3 +160,12 @@ The identified repeated decision-family prefix counts and accepted-transition re
 
 This is not a long-history wall-clock benchmark. It does not prove that every cross-projection scan, event validator, or future replay path scales linearly. Continue static review and add targeted tests where a repeated full-history scan is found before making a broader performance claim.
 
+
+
+## Additional static review — duplicated motivation projection validation
+
+A follow-up call-path scan found no additional decision-family prefix COUNT query beyond the operations now covered by the second-round regression.
+
+It did identify a separate redundant scan: the goal projection validator invokes the motivation projection validator, while several callers validate motivation immediately before invoking goal projection validation. The state-snapshot path also performs a standalone motivation consistency check before the goal check. These paths can therefore scan the motivation proposal/decision history more than once in one SQLite transaction.
+
+This is not another accepted-decision prefix-count defect and does not undermine the second-round ordinal/prefix optimization. It is a separate projection-validation deduplication opportunity. Any future change should preserve standalone goal-validation safety, avoid cross-transaction caching, and add query-count plus tamper-detection regressions before removing redundant calls.
