@@ -17,6 +17,7 @@ As a result, a direct SQL rewrite that also recomputed the payload reference and
 - `get_event()` now invokes the same event-local schema validator used by the same-event-ID duplicate path.
 - The validator checks the event family shape and applicable earlier-event references.
 - Contextual checks remain bounded by the event's original sequence; later lifecycle changes do not invalidate an otherwise valid historical event.
+- Proposal `based_on.state_version` claims are checked against the authoritative decision history immediately before the proposal's own sequence. A future-version claim is rejected on direct read even if its payload and envelope digests have been recomputed.
 - Earlier evidence references are followed recursively through `get_event()`, with event ordering rules requiring references to point backward.
 - Decision event read checks remain in place and are also covered by the shared validator.
 
@@ -33,9 +34,9 @@ The test:
 
 ## Verification
 
-- Implementation commits: `68956b4092742fb8aa9c2c31e37204c01134b63c` (shared validation on reads), `aa5c13fca447bf7cd64669c8df98890fe9932122` (helper naming and avoid duplicate decision checks), and `c61677c04980cdafb0d51b34efd60588f3fa825d` (generalized error wording).
-- Regression test commits: `12c059db63443bb9a848fcd0df4f1c70555cf187` and `f7698e1e0726375211a1dcd73fe99f96007a6edf` (assertion wording aligned with the generalized integrity error).
-- Hosted CI: pending.
+- Implementation commits: `68956b4092742fb8aa9c2c31e37204c01134b63c` (shared validation on reads), `aa5c13fca447bf7cd64669c8df98890fe9932122` (helper naming and avoid duplicate decision checks), and `c61677c04980cdafb0d51b34efd60588f3fa825d` (generalized error wording), and `dbfa9af2a703283249c440efa4efc6a84e322c77` (proposal chronology on reads).
+- Regression test commits: `12c059db63443bb9a848fcd0df4f1c70555cf187` and `f7698e1e0726375211a1dcd73fe99f96007a6edf` (observation schema), plus `559494e1433257bb6501f84db26a9299ea966c5b` (future proposal snapshot).
+- Hosted CI: pending; the GitHub connector currently reports no associated workflow run or commit status for this follow-up. Run #350 predates this change.
 - User-local Windows 11 / Python 3.12.14 verification: pending.
 
 ## Security boundary
