@@ -547,8 +547,8 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             "SELECT e.event_id,e.sequence FROM events e "
             "JOIN payloads p ON p.payload_ref=e.payload_ref "
             f"WHERE e.event_type IN ({placeholders}) AND e.sequence<? "
-            "AND json_valid(p.payload_json) "
-            "AND json_extract(p.payload_json,'$.proposal_id')=? "
+            "AND CASE WHEN json_valid(p.payload_json) "
+            "THEN json_extract(p.payload_json,'$.proposal_id') END=? "
             "ORDER BY e.sequence",
             params,
         ).fetchall()
