@@ -409,3 +409,24 @@ At the time of this update:
 - The adapter document is an architecture proposal, not a frozen API or an installation instruction. No local application, platform account, credentials, or permissions were changed.
 - Current CSD status remains unchanged: schema v6/index optimization is hosted-tested; repeated decision-prefix scanning remains unresolved and is the next runtime engineering task. PR #1 remains open, draft, and unmerged. The latest PR run #445 succeeded on Ubuntu and Windows; it validates the existing 364-test code state, not the new documentation's runtime behavior.
 - Next: implement operation-scoped, sequence-ordered decision replay context without weakening payload/envelope validation or changing Recovery's no-external-replay rule; then add mixed-family chronology and query-count regressions. After that, add fake adapter contract tests before selecting a real Bilibili connector.
+
+
+### 2026-11-16 follow-up — transaction-scoped historical replay
+
+- Replaced repeated accepted-decision prefix scans with an immutable `_DecisionReplayContext` scoped to one SQLite transaction. It selects the five durable decision families in sequence order, verifies each event through the existing payload/envelope/local-schema read path, and stores accepted decision sequence numbers for binary-search prefix lookups.
+- Memory, motivation, goal, direct-event, and Recovery validation share the context while they remain in the same read/write transaction. Standalone projection reads establish a read transaction; Recovery retains its existing writer transaction. The context is cleared on transaction exit and invalidated after every append. It is never reused across snapshots.
+- Historical integrity checks were not removed. The inner scan suppresses only recursive decision-context validation; payload hashes, canonical serialization, envelope digests, local event schema, and source/identity checks remain active. Goal/motivation semantic replay and projection reconciliation remain in place.
+- Added `test_mixed_decision_history_uses_one_verified_prefix_scan_per_read_transaction`. It creates accepted memory, motivation, goal-batch, activation, and pause/resume decisions, verifies the shared state version, counts one decision-family prefix selection for combined read projection validation and one for Recovery, and verifies that the context is cleared after both operations.
+- Implementation commits: `3941c5f4712c148a6eaaec66ff2ddc17d9614896` (context builder and transaction cache), `d4c20fc8fe809ff31c574743a8a6d59deabd4b25` (motivation read snapshot), `8d44f4c3ab62a6242742d70fdf0086824f30e480` (goal read snapshot), `388d34d102a6d5c363f9131387e3204e64f5d432` (mixed-family regression), `e0d1a374784e6e9aaf66b956a1b96718001cb4fb` (Recovery query-count and cache-scope assertions).
+- PR workflow run #458 passed on Ubuntu and Windows: **365 tests per platform**. `python -m compileall -q core tests`, focused suites, and full unittest discovery passed. This is hosted CI; owner-local Windows 11 / Python 3.12.14 verification remains deferred.
+- Report: `docs/reports/csd-historical-replay-cost-audit-report-001.md`.
+- The one-query-per-operation regression does not replace a long-history timing benchmark or prove all CSD replay paths are now linear. Further profiling must check other event validators and projection builders before making broader scaling claims.
+
+### Platform integration plan established
+
+- Added `docs/architecture/platform-and-runtime-adapter-contract.md` and linked it from the root README.
+- The selected approach is to define contracts now and defer real platform integration until the relevant core permissions and event schemas are ready.
+- DSH runtime integration, SurfCore capability wrappers, model-provider adapters, and environment adapters are explicitly separate layers.
+- First external integration remains read-only Bilibili perception. QQ begins receive-only; sends and account mutations are later ASM-governed actions. Web begins read-only; desktop begins with selected observation before narrowly scoped local actions.
+- Previously discussed Bilibili tools and desktop/security candidates are research candidates only. No plugin was newly installed, no local application/account was modified, and no credentials or permissions were changed.
+- Next: inspect whether remaining replay and cross-projection paths still perform repeated scans; strengthen long-history and Recovery/concurrency tests; then build contract/fake-adapter tests before choosing and pinning a real Bilibili connector. Do not expand to real platform actions yet.
