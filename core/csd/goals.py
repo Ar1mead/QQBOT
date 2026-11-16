@@ -1269,7 +1269,12 @@ def _assert_goal_projection_consistent_v2(self: CognitiveGoalMixin) -> None:
     expected_versions: dict[tuple[str, int], tuple[str, str, str]] = {}
 
     for row in rows:
-        record = self.get_event(row["event_id"])
+        # This replay validates every goal decision against the accumulated
+        # event-derived state below. Suppress the per-event contextual callback
+        # here to avoid recursively replaying the same complete history.
+        record = self.get_event(
+            row["event_id"], _validate_decision_context=False
+        )
         payload = record["payload"]
         event_type = row["event_type"]
         if event_type == GOAL_BATCH_PROPOSAL_EVENT:
