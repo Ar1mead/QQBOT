@@ -99,3 +99,6 @@ Canonical event payload read validation: `get_event()` now rejects parseable but
 
 
 Malformed durable event read error normalization: `CognitiveMemoryStore.get_event()` now preserves explicit integrity failures and converts malformed persisted fields, timestamps, and validation exceptions into `CognitiveIntegrityError`. A regression corrupts an existing event timestamp and confirms duplicate delivery cannot acknowledge it or append another event. Test: `test_duplicate_event_rejects_prior_event_with_invalid_timestamp_as_integrity_error`; see [report](../reports/csd-malformed-durable-event-read-error-normalization-report-001.md). Hosted CI is pending.
+
+
+Authoritative decision identity replay validation: Recovery now checks memory and motivation decision event IDs against their proposal-scoped decision sequence and requires the corresponding proposal correlation ID. Regressions rebind correlation IDs while recomputing valid envelope digests and verify Recovery rejects both histories. See [report](../reports/csd-authoritative-decision-event-identity-validation-report-001.md). Hosted CI is pending.
