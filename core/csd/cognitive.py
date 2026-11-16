@@ -620,6 +620,39 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                 "decision proposal-event reference does not identify its historical proposal"
             )
 
+        if event.event_type == DECISION_EVENT:
+            proposal_payload = proposal_event["payload"]
+            expected_evidence_ids = (
+                self._grounded_evidence_event_ids(proposal_payload)
+                if proposal_event["event_type"] == GROUNDED_PROPOSAL_EVENT
+                else proposal_payload["evidence_event_ids"]
+            )
+            if event.payload.get("evidence_event_ids") != expected_evidence_ids:
+                raise CognitiveIntegrityError(
+                    "decision evidence references do not match historical proposal"
+                )
+
+            outcome = event.payload["outcome"]
+            for evidence_event_id in expected_evidence_ids:
+                evidence_row = db.execute(
+                    "SELECT sequence,event_type FROM events WHERE event_id=?",
+                    (evidence_event_id,),
+                ).fetchone()
+                if evidence_row is None:
+                    if outcome not in {"needs_more_evidence", "rejected"}:
+                        raise CognitiveIntegrityError(
+                            "decision references missing historical evidence"
+                        )
+                    continue
+                if int(evidence_row["sequence"]) >= sequence:
+                    raise CognitiveIntegrityError(
+                        "decision evidence must precede its decision event"
+                    )
+                if evidence_row["event_type"] != OBSERVATION_EVENT and outcome != "rejected":
+                    raise CognitiveIntegrityError(
+                        "decision references disallowed historical evidence type"
+                    )
+
     def _validate_semantic_review_event_history(
         self,
         db: sqlite3.Connection,
