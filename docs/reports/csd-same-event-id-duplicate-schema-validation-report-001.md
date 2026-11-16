@@ -17,6 +17,7 @@ Consequently, a previously accepted event whose payload and envelope were both m
 - Added `_validate_duplicate_event_shape()` and invoke it on the stored event before acknowledging a same-event-ID retry.
 - Revalidate the immutable event-local contract at the event's original sequence.
 - Preserve internal decision-event retry idempotency while checking authority source, allowed outcome, proposal-scoped event ID, and correlation ID for each decision family. Memory/motivation decision sequence numbering is checked by `get_event()` and repeated at the duplicate boundary; goal decision IDs are checked against their family-specific proposal identity.
+- Enforce exact decision payload field sets for all five decision families. `_apply_decision()` now rejects unknown/missing fields during Recovery as well as duplicate retry validation; motivation and goal decision reducers already enforce their corresponding exact field sets.
 - Covered observation, memory proposal, grounded-memory proposal, semantic review, interaction, motivation proposal, goal batch proposal, goal activation proposal, and goal pause/resume proposal event families.
 - Keep the existing generic envelope verification and idempotency-conflict comparison.
 - Convert malformed prior event schema errors to `CognitiveIntegrityError`.
@@ -29,6 +30,7 @@ Added:
 
 - `tests/test_csd_semantic_review.py::test_same_event_id_duplicate_rejects_prior_event_with_invalid_review_schema`
 - `tests/test_csd_semantic_review.py::test_same_event_id_internal_decision_retry_remains_idempotent`
+- `tests/test_csd_semantic_review.py::test_same_event_id_duplicate_rejects_decision_with_extra_payload_field`
 
 The test:
 1. Persists a valid semantic-review event.
@@ -43,11 +45,13 @@ The test:
 - Decision-retry compatibility implementation commit: `6492fa8e94c8e8cb487ee163b8e8d1380537aa52`.
 - Same-event-ID schema regression commit: `6ca4e4a479d560569e8855dc646767fa0b7d6cba`.
 - Internal-decision retry test was first added with an incomplete fixture; run #341 exposed that the fixture had not supplied the required semantic review. The fixture was corrected in commit `1b37d53061b0dd397792f7b06d353338e88f46d9`.
-- GitHub Actions run #342: **passed** on Ubuntu and Windows.
-- Full test discovery: **346 tests passed** on each platform.
+- Exact decision-schema implementation commit: `2c48338ac9ed46e868f059f8fcf8d265fe3c1fcf`; extra-field regression and assertion correction commit: `2c967b49ee766a52e27423ffbba02728c9f20292`.
+- Run #344 exposed an overly specific test assertion expecting the inner validation message instead of the normalized `CognitiveIntegrityError`; the assertion was corrected. Neither failure indicated a production-code regression.
+- GitHub Actions run #345: **passed** on Ubuntu and Windows.
+- Full test discovery: **347 tests passed** on each platform.
 - `compileall` and all workflow test steps passed.
 - Hosted Windows CI is not a substitute for the user's own Windows 11 / Python 3.12.14 verification.
 
 ## Remaining audit boundary
 
-This closes the event-local schema gap for the listed public event families on the same-event-ID duplicate path. Continue auditing decision payload field schemas and cross-family event ordering, plus coordinated corruption of projections versus event history. No real model provider or external action execution is introduced by this change.
+This closes the event-local schema gap for the listed public event families on the same-event-ID duplicate path and enforces exact field sets for all decision event families. Continue auditing deeper decision semantic/context validation, cross-family event ordering, and coordinated corruption of projections versus event history. No real model provider or external action execution is introduced by this change.
