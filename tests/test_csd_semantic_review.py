@@ -420,6 +420,50 @@ class SemanticReviewStoreTests(unittest.TestCase):
             1,
         )
 
+    def test_same_event_id_duplicate_rejects_decision_with_extra_payload_field(self):
+        self.submit_proposal()
+        self.store.submit_event(self.make_review())
+        decision = self.store.evaluate_proposal("proposal-review-1")
+        stored = self.store.get_event(decision["decision_event_id"])
+        row = self.store._db.execute(
+            "SELECT received_at FROM events WHERE event_id=?",
+            (stored["event_id"],),
+        ).fetchone()
+        malformed_payload = dict(stored["payload"])
+        malformed_payload["unexpected"] = "tampered"
+        malformed_json = canonical(malformed_payload)
+        new_payload_ref = "sha256:" + hashlib.sha256(
+            malformed_json.encode("utf-8")
+        ).hexdigest()
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute("DROP TRIGGER payloads_no_update")
+        self.store._db.execute(
+            "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (new_payload_ref, malformed_json),
+        )
+        corrupted_event = CognitiveEvent(
+            event_id=stored["event_id"],
+            occurred_at=stored["occurred_at"],
+            correlation_id=stored["correlation_id"],
+            event_type=stored["event_type"],
+            source=stored["source"],
+            payload=malformed_payload,
+        )
+        event_digest = self.store._event_digest(
+            corrupted_event, new_payload_ref, row["received_at"]
+        )
+        self.store._db.execute(
+            "UPDATE events SET payload_ref=?,event_digest=? WHERE event_id=?",
+            (new_payload_ref, event_digest, stored["event_id"]),
+        )
+        from core.csd.cognitive import CognitiveIntegrityError
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "durable decision contains missing or unsupported fields"
+        ):
+            self.store._append_event(
+                corrupted_event, malformed_json, internal=True
+            )
+
     def test_same_event_id_internal_decision_retry_remains_idempotent(self):
         self.submit_proposal()
         self.store.submit_event(self.make_review())
