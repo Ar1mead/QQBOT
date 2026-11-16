@@ -49,3 +49,6 @@ Persisted event reads now normalize malformed event fields, timestamps, and unex
 
 
 Durable event reads and Recovery bind memory and motivation decision event IDs and correlation IDs to the proposal identity and decision-family replay order. This aligns their replay checks with the goal decision families. Regression and scope: [authoritative decision event identity validation report](../../docs/reports/csd-authoritative-decision-event-identity-validation-report-001.md). Hosted CI is pending.
+
+
+Recovery now rejects SQLite BLOB values stored in the event payload text column and normalizes deeply nested JSON parser/validation failures to `CognitiveIntegrityError`. Regressions exercise both ordinary event reads and Recovery with malformed storage. See [malformed payload storage and deep JSON recovery report](../../docs/reports/csd-malformed-payload-storage-recovery-report-001.md). Hosted CI and Windows-local verification are pending.
