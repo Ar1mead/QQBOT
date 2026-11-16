@@ -115,3 +115,12 @@ Hosted GitHub Actions run #385 passed on both Ubuntu and Windows. `python -m com
 - Regression: `tests/test_csd_semantic_review.py::test_get_event_rejects_legacy_memory_proposal_referencing_later_observation`, which rebinds a legacy proposal to a later observation and recomputes payload and envelope digests.
 - Implementation commit: `95e43fcda22f84bbbca1100c477434dabe6a8935`; regression commit: `ce26413e331e3f8910004b403a0774d5361b6ffe`.
 - Hosted GitHub Actions run #400 passed on Ubuntu and Windows. Compileall and all focused test groups passed; complete unittest discovery passed **356 tests per platform**. Local Windows 11 / Python 3.12.14 verification remains pending.
+
+
+## Follow-up: memory decision evidence binding on direct reads
+
+- Direct reads of CSD memory decision events now compare `evidence_event_ids` with the exact evidence set in the uniquely referenced earlier proposal event. Legacy proposals use their `evidence_event_ids`; grounded-memory v2 proposals derive the ordered unique list from source-assertion claims.
+- Direct read validation also enforces the decision replay rules for these evidence references: a missing source is only compatible with `needs_more_evidence` or `rejected`; an existing source must precede the decision; and a non-observation source is only compatible with a rejected outcome.
+- Regression: `tests/test_csd_semantic_review.py::test_get_event_rejects_memory_decision_with_rebound_evidence_ids` changes the decision's evidence list, recomputes the payload and envelope digests, then confirms `get_event()` fails closed.
+- Implementation commit: `ef043337c610603e6065a7bfdf48acb2944c919e`; regression commit: `bdb52b9f794776efc7bee9fbba7911fd06ea2e68`.
+- Hosted GitHub Actions run #405 passed on Ubuntu and Windows. Compileall and all focused workflow groups passed; complete unittest discovery passed **356 tests per platform**. User-local Windows 11 / Python 3.12.14 verification remains pending.
