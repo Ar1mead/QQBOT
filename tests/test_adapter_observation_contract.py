@@ -1,12 +1,14 @@
 import hashlib
 import unittest
 
+from adapters.testing import FakeObservationAdapter
 from adapters.contracts.observation import (
     AdapterManifest,
     Capability,
     CapabilityMode,
     ObservationCoverage,
     ObservationEvidence,
+    ObservationRequest,
     ObservationResult,
     ObservationStatus,
 )
@@ -36,6 +38,35 @@ class ObservationContractTests(unittest.TestCase):
             ),
             untrusted=untrusted,
         )
+
+    def test_fake_adapter_implements_deterministic_observation_contract(self):
+        manifest = AdapterManifest(
+            adapter_id="bilibili.fake",
+            adapter_version="0.1.0",
+            platform="bilibili",
+            capabilities=(
+                Capability("video.read", CapabilityMode.OBSERVE, "Read fixture evidence"),
+            ),
+        )
+        result = ObservationResult(
+            ObservationStatus.PARTIAL,
+            evidence=(self.make_evidence(complete=False),),
+        )
+        adapter = FakeObservationAdapter(manifest=manifest, result=result)
+        request = ObservationRequest(
+            request_id="request-001",
+            target_ref="BV1EPnG6DEJC",
+            modalities=("text", "comments"),
+        )
+
+        first = adapter.observe(request)
+        second = adapter.observe(request)
+
+        self.assertIs(first, result)
+        self.assertIs(second, result)
+        self.assertEqual(adapter.requests, [request, request])
+        self.assertTrue(adapter.manifest.observation_only)
+        self.assertTrue(first.evidence[0].untrusted)
 
     def test_manifest_reports_observation_only_capability_surface(self):
         manifest = AdapterManifest(
