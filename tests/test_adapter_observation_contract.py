@@ -6,6 +6,7 @@ from adapters.contracts.observation import (
     AdapterManifest,
     Capability,
     CapabilityMode,
+    ContentOrigin,
     ObservationCoverage,
     ObservationEvidence,
     ObservationRequest,
@@ -23,6 +24,7 @@ class ObservationContractTests(unittest.TestCase):
             platform="test",
             external_ref="item:123",
             observation_kind="caption",
+            content_origin=ContentOrigin.SOURCE_PROVIDED,
             modality="text",
             content="sample text from an untrusted source",
             source_ref="https://example.invalid/item/123",
@@ -114,7 +116,7 @@ class ObservationContractTests(unittest.TestCase):
 
     def test_digest_must_match_normalized_content(self):
         evidence = self.make_evidence()
-        with self.assertRaisesRegex(ValueError, "does not match normalized content"):
+        with self.assertRaisesRegex(ValueError, "does not match the UTF-8 bytes of content"):
             ObservationEvidence(
                 **{**evidence.__dict__, "content_digest": "sha256:" + "b" * 64}
             )
