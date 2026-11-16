@@ -525,3 +525,13 @@ At the time of this update:
 - Adapter and CSD coverage validators both enforce sorted, non-overlapping missing ranges contained within any declared observation interval.
 - The workflow's push and pull-request path filters both include the v2 integration test; the focused suite and full unittest discovery both run in the Ubuntu/Windows matrix.
 - Latest code checkpoint: `378cafdb917a388b8ea602785708aa4079909071`. Hosted verification of this latest revision is pending confirmation. The GitHub run lookup available here does not expose the push-triggered run shown in the Actions UI; no green result for this checkpoint is claimed.
+
+
+### 2026-11-16 — Observation v2 CI failure analysis and compatibility fix
+
+- Inspected Actions run #545 on both Ubuntu and Windows. The adapter contract tests passed; the focused CSD observation v2 suite exposed three compatibility defects.
+- Added v2 to the legacy memory-decision evidence allowlist at proposal evaluation, decision projection, and historical decision chronology validation. This preserves the same observation-only evidence restriction; it does not admit arbitrary event types.
+- Added v2 to Recovery's durable event allowlist so accepted v2 events can be replayed.
+- Corrected the tamper test to assert the actual public integrity error category (`invalid durable event envelope`). The underlying trust invariant remains strict: a recomputed digest cannot make external evidence trusted.
+- Fix commits: `8ee0fbdba4e0ccdfedd83edc1377e365ef0c4ce8` and `902141f1f926c59d6e83b8a3dd48d33ff61dba73`.
+- The new commits trigger fresh hosted runs. Their results must be checked before claiming the v2 slice passes.
