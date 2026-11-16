@@ -134,3 +134,12 @@ Hosted GitHub Actions run #385 passed on both Ubuntu and Windows. `python -m com
 - Regression: `tests/test_csd_semantic_review.py::test_get_event_rejects_memory_decision_with_rebound_semantic_review_ids` removes the review reference from an otherwise accepted decision, recomputes both digests, and confirms direct read rejection.
 - Implementation commit: `312a204a7cf0bd04719cac58e15ccbd83d77aa9a`; regression commit: `b3b450cc01df62a3df6f3bcd8acfbf7720df5043`.
 - Hosted GitHub Actions run #411 passed on Ubuntu and Windows. Compileall and all focused workflow groups passed; complete unittest discovery passed **357 tests per platform**. User-local Windows 11 / Python 3.12.14 verification remains pending.
+
+
+## Follow-up: motivation decision evidence binding on direct reads
+
+- Direct reads of motivation decision events now compare the decision's ordered `evidence_event_ids` with the exact concatenation of the referenced historical proposal's `supporting_event_ids` and `counter_evidence_event_ids`.
+- The proposal is loaded through the normal event-read path. Its evidence is independently checked as prior interaction events with valid interaction schema and grounded subject/origin relationships before the decision's evidence list is trusted.
+- Regression: `tests/test_csd_motivation.py::test_get_event_rejects_motivation_decision_with_rebound_evidence_ids` tampers with an accepted motivation decision's evidence list, recomputes payload and envelope digests, and confirms direct read rejection.
+- Implementation commit: `f4617e1757cfc43cfe5082fca3b916f30cbc2f5d`; regression commit: `1197c1b0ae3cdbfbd560e1e8016b7fb6f1261a68`.
+- Hosted GitHub Actions run #419 passed on Ubuntu and Windows. Compileall and every focused test group passed; complete unittest discovery passed **359 tests per platform**. User-local Windows 11 / Python 3.12.14 verification remains pending.
