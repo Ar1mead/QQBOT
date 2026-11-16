@@ -552,7 +552,7 @@ class CSDGoalStateTests(unittest.TestCase):
             (forged_id, forged_digest, decision_id),
         )
         with self.assertRaisesRegex(
-            CognitiveIntegrityError, "decision event authority, identity"
+            CognitiveIntegrityError, "decision event identity or correlation_id"
         ):
             self.store.get_event(forged_id)
 
