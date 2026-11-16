@@ -58,3 +58,6 @@ Recovery now also normalizes expected event-family schema and projection-applica
 
 
 Semantic-review duplicate delivery now validates the prior event's event-local schema after verifying its canonical payload and envelope. This prevents a digest-consistent but schema-invalid prior review from being acknowledged as a valid duplicate, without rejecting legitimate retries after the proposal later reaches a terminal state. See [semantic-review duplicate schema validation report](../../docs/reports/csd-semantic-review-duplicate-schema-validation-report-001.md). Hosted CI run #336 passed 344 tests on Ubuntu and Windows.
+
+
+Direct event reads through `get_event()` now rerun the event-family schema validator used by duplicate delivery and Recovery, including applicable earlier-event references. This prevents a digest-consistent but schema-invalid observation, proposal, interaction, or other ordinary event from being returned as valid by a direct read. Regression and scope: [direct event schema validation on read report](../../docs/reports/csd-event-schema-validation-on-read-report-001.md). Hosted CI is pending; user-local Windows verification remains pending.
