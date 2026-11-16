@@ -306,3 +306,15 @@ At the time of this update:
 - Semantic-review direct reads now bind the review to the unique earlier grounded proposal, verify proposal and inference-claim digests, and check supporting-claim lineage. Regression: `test_get_event_rejects_semantic_review_referencing_another_proposal_event`.
 - User-local Windows 11 / Python 3.12.14 testing remains intentionally deferred until the project is ready to clone, per user preference. Hosted Windows is not a substitute.
 - Next: continue reviewing grounded proposal evidence references, semantic-review chronology, and motivation interaction provenance; also verify that the decision-event validation path remains bounded for long event histories.
+
+
+### 2026-11-16 follow-up — grounded-memory evidence chronology and source reads
+
+- Direct reads and Recovery now revalidate grounded-memory evidence references against the original event sequence. If a referenced event exists, it must precede the grounded proposal; a later observation cannot be retroactively used as evidence after recomputing payload and envelope digests.
+- Existing observation evidence is loaded through the normal `get_event()` integrity path, so malformed observation schemas/envelopes are rejected when a grounded proposal is read.
+- Missing evidence remains a valid pending-candidate condition and is reported by evaluation as `needs_more_evidence`. Structurally durable but semantically invalid candidates (wrong source event family, mismatched quote, out-of-range text locator) remain available for deterministic rejection rather than being mistaken for corrupt history.
+- Regressions: `tests/test_csd_grounded_memory.py::test_get_event_rejects_grounded_proposal_referencing_later_observation` and `test_get_event_validates_existing_grounded_source_observation`. The future-reference regression recomputes both content and envelope digests.
+- Implementation commit: `03e202ce0d4c5f367cc4d2b84b02aa43dc373a1a`; test commit: `b3f08b6c0704c3d8fd0bfddd2e9c95468144ffc8`.
+- GitHub Actions run #393 passed on Ubuntu and Windows: compileall, all focused workflow test groups, and complete unittest discovery all passed; **355 tests per platform**.
+- User-local Windows 11 / Python 3.12.14 verification remains deferred until the project is ready to clone. Hosted Windows is not a substitute.
+- Next: audit legacy memory proposal `evidence_event_ids` for the same history-order guarantee, then review cross-projection reconstruction and Recovery consistency for both legacy and grounded memory paths.
