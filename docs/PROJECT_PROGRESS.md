@@ -485,3 +485,10 @@ At the time of this update:
 - Added strict Bilibili target parsing in `adapters/platforms/bilibili/target.py`; the first-stage target accepts only a canonical-shaped BV identifier and rejects arbitrary URLs, short links, and local paths before extraction.
 - Added focused tests in `tests/test_adapter_observation_contract.py` and `tests/test_bilibili_target.py`; the CSD workflow now includes both suites on Ubuntu and Windows.
 - This is an initial contract slice, not a completed Stage 0 adapter: no real Bilibili network access, account login, DSH plugin, or external side effect is enabled. A deterministic fake adapter, adapter-to-CSD mapping, richer provenance/claim distinction, and Observation v2 event integration remain to be designed and tested.
+
+### 2026-11-16 Stage 0 contract hardening and CI coverage
+
+- `ObservationEvidence` now verifies that `content_digest` equals the SHA-256 digest of the normalized UTF-8 content, not merely that the field has the right textual shape. Added a mismatch regression and corrected the fixture to use the real digest.
+- The hosted workflow now compiles `adapters`, `core`, and `tests`; it runs the observation-contract and Bilibili target allowlist suites on both operating systems. The PR path filter now includes `tests/test_csd_goals.py`, which had been omitted, as well as the Stage 0 adapter files/tests.
+- Latest code/test head before this documentation entry: `5ae72133d46833a6d6b161c5c001d9fa913d81fa`. The available PR-workflow lookup has not returned a run for the new head. Do not claim the new regression or Stage 0 suites have passed hosted CI yet. The earlier run #503 failed on the first, SQL-trace-based regression implementation; that test was replaced with a direct validator-call counter.
+- PR #1 remains Draft, open, and unmerged. No user-local tests, real Bilibili network access, account login, or plugin installation occurred.
