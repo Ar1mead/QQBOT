@@ -4,6 +4,7 @@ from .observation import (
     AdapterManifest,
     Capability,
     CapabilityMode,
+    ContentOrigin,
     ObservationAdapter,
     ObservationEvidence,
     ObservationRequest,
@@ -13,7 +14,7 @@ from .observation import (
 )
 
 __all__ = [
-    "AdapterManifest", "Capability", "CapabilityMode", "ObservationAdapter",
+    "AdapterManifest", "Capability", "CapabilityMode", "ContentOrigin", "ObservationAdapter",
     "ObservationEvidence", "ObservationRequest", "ObservationResult",
     "ObservationStatus", "ObservationCoverage",
 ]
