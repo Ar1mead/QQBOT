@@ -14,6 +14,7 @@ from adapters.contracts.observation import (
 from adapters.csd_mapping import observation_evidence_to_csd_event
 from core.csd import (
     CognitiveEvent,
+    CognitiveIdempotencyConflict,
     CognitiveMemoryStore,
     GroundedMemoryCandidate,
     GroundedMemoryProposalPipeline,
@@ -127,7 +128,7 @@ class CSDObservationV2Tests(unittest.TestCase):
             changed_payload["content"].encode("utf-8")
         ).hexdigest()
         conflicting = replace(event, payload=changed_payload)
-        with self.assertRaisesRegex(Exception, "observation:"):
+        with self.assertRaises(CognitiveIdempotencyConflict):
             self.store.submit_event(conflicting)
         self.assertEqual(self.store.get_state_snapshot()["event_count"], 1)
 
