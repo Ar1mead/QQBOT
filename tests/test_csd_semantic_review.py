@@ -186,6 +186,10 @@ class SemanticReviewStoreTests(unittest.TestCase):
         with self.assertRaisesRegex(
             CognitiveIntegrityError, "identity or correlation_id mismatch"
         ):
+            self.store.get_memories()
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "identity or correlation_id mismatch"
+        ):
             self.store.recover()
 
     def test_recovery_rejects_memory_decision_with_rebound_wrong_event_id(self):
@@ -215,6 +219,10 @@ class SemanticReviewStoreTests(unittest.TestCase):
             (corrupted.event_id, digest, event_id),
         )
         from core.csd.cognitive import CognitiveIntegrityError
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "identity or correlation_id mismatch"
+        ):
+            self.store.get_memories()
         with self.assertRaisesRegex(
             CognitiveIntegrityError, "identity or correlation_id mismatch"
         ):
