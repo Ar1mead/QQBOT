@@ -450,3 +450,15 @@ At the time of this update:
 - Static call-path review found no additional decision-family SQL prefix COUNT path beyond the ones covered by the second-round query-count regression.
 - A separate, non-prefix duplication remains: the goal projection validator calls the motivation projection validator, while some callers (including the state-snapshot path and goal proposal/decision paths) validate motivation immediately before invoking goal validation. This can repeat a full motivation projection scan inside one transaction.
 - This is not a decision-history ordinal/state-version bug and does not invalidate the second-round result. Track it as a separate projection-validation deduplication candidate; preserve all independent integrity checks and add transaction-scoped regression coverage before changing call paths.
+
+
+### 2026-11-16 platform source-review checkpoint
+
+- Re-checked the official DSH upstream: current main metadata is `0.2.2-rc.3` with Node `>=24.9.0`. The exact DSH Desktop version installed locally is still unconfirmed; a previously inspected Node runtime was 24.21.0, but that alone is not a runtime compatibility test.
+- Re-checked SurfCore upstream: current main is `0.8.9` at `0ce8580048d3dddb21860114edb8b115d5d79d1e`. Its README targets DSH 0.2.1-rc.2+ but says rc.3 is installable without full feature regression. The existing source assessment remains specifically pinned to SurfCore 0.8.8; do not silently generalize it to 0.8.9.
+- Reviewed `Sacredbluedragon/dsh-bili-watch` main package/source: 0.4.12, MIT, Node >=22, declared DSH peer range >=0.2.0-rc.2 <0.3.0-0. Its read endpoints are promising, but its raw plugin surface also includes login/credential writes, cache cleanup, local file processing, mark-seen/output writes, and a generic URL/yt-dlp path without internal-address filtering. It is only a provisional CLI extraction-engine candidate behind a project-owned strict allowlist; do not install the raw plugin.
+- Rejected `Alterssss/dsh-bili-whale` for the first stage: its README describes autonomous scheduled behavior and public/private message writes, and asks for `danger-full-access`.
+- Found a CSD schema gap before real ingestion: current observation v1 is a small fixture-oriented payload and cannot preserve rich media provenance/coverage. Design backward-compatible observation v2 before connecting Bilibili.
+- No plugins were installed, no account credentials were entered, and no local DSH/SurfCore settings or files were modified.
+- Next: implement Stage 0 observation/capability contracts and fake-adapter tests; then define CSD observation v2 and strict Bilibili CLI wrapper tests. Keep all real network/account access disabled until those gates pass.
+
