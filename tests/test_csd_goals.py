@@ -1416,10 +1416,73 @@ class CSDGoalActivationTests(unittest.TestCase):
         db.close()
         self.store = CognitiveMemoryStore(self.path)
         version = int(self.store._db.execute("PRAGMA user_version").fetchone()[0])
-        self.assertEqual(version, 5)
+        self.assertEqual(version, 6)
         self.assertIsNotNone(self.store._db.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='goal_pause_resume_proposals'"
         ).fetchone())
+
+    def test_failed_v5_to_v6_migration_rolls_back_schema_version(self):
+        self.store.close()
+        db = sqlite3.connect(self.path)
+        db.execute("DROP INDEX IF EXISTS idx_events_event_type_sequence")
+        db.execute(
+            "CREATE INDEX idx_events_event_type_sequence ON events(event_id)"
+        )
+        db.execute("PRAGMA user_version = 5")
+        db.commit()
+        db.close()
+        candidate = CognitiveMemoryStore.__new__(CognitiveMemoryStore)
+        candidate._db = sqlite3.connect(str(self.path), isolation_level=None)
+        candidate._db.row_factory = sqlite3.Row
+        self.store = candidate
+        with self.assertRaises(sqlite3.OperationalError):
+            candidate._initialize()
+        self.assertFalse(candidate._db.in_transaction)
+        self.assertEqual(
+            int(candidate._db.execute("PRAGMA user_version").fetchone()[0]), 5
+        )
+        index = candidate._db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='index' "
+            "AND name='idx_events_event_type_sequence'"
+        ).fetchone()
+        self.assertIn("ON events(event_id)", index["sql"])
+
+    def test_v5_database_migrates_to_v6_event_history_index(self):
+        self.store.close()
+        db = sqlite3.connect(self.path)
+        db.execute("DROP INDEX IF EXISTS idx_events_event_type_sequence")
+        db.execute("PRAGMA user_version = 5")
+        db.commit()
+        db.close()
+        self.store = CognitiveMemoryStore(self.path)
+        version = int(self.store._db.execute("PRAGMA user_version").fetchone()[0])
+        self.assertEqual(version, 6)
+        index = self.store._db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='index' "
+            "AND name='idx_events_event_type_sequence'"
+        ).fetchone()
+        self.assertEqual(
+            index["sql"],
+            "CREATE INDEX idx_events_event_type_sequence ON events(event_type, sequence)",
+        )
+        plan = [
+            row["detail"] for row in self.store._db.execute(
+                "EXPLAIN QUERY PLAN SELECT event_id FROM events "
+                "WHERE event_type IN (?,?,?,?,?) AND sequence<=? ORDER BY sequence",
+                (
+                    "cognition.memory_candidate_decided.v1",
+                    "motivation.signal_decided.v1",
+                    "life.goal_batch_decided.v1",
+                    "life.goal_activation_decided.v1",
+                    "life.goal_pause_resume_decided.v1",
+                    100,
+                ),
+            ).fetchall()
+        ]
+        self.assertTrue(
+            any("idx_events_event_type_sequence" in detail for detail in plan),
+            plan,
+        )
 
     def test_v3_database_migrates_to_v4_activation_projection(self):
         self.store.close()
@@ -1431,7 +1494,7 @@ class CSDGoalActivationTests(unittest.TestCase):
         db.close()
         self.store = CognitiveMemoryStore(self.path)
         version = int(self.store._db.execute("PRAGMA user_version").fetchone()[0])
-        self.assertEqual(version, 5)
+        self.assertEqual(version, 6)
         self.assertIsNotNone(self.store._db.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='goal_activation_proposals'"
         ).fetchone())
