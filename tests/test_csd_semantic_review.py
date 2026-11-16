@@ -12,6 +12,7 @@ from core.csd.cognitive import (
     DECISION_EVENT,
     GROUNDED_PROPOSAL_EVENT,
     OBSERVATION_EVENT,
+    PROPOSAL_EVENT,
     SEMANTIC_REVIEW_EVENT,
     SemanticReviewIdentityConflict,
 )
@@ -279,6 +280,53 @@ class SemanticReviewStoreTests(unittest.TestCase):
             CognitiveIntegrityError, "semantic review proposal-event reference"
         ):
             self.store.get_event("evt-review-1")
+
+    def test_get_event_rejects_legacy_memory_proposal_referencing_later_observation(self):
+        legacy = CognitiveEvent(
+            event_id="evt-legacy-memory-proposal",
+            occurred_at="2026-11-14T10:01:00+00:00",
+            correlation_id="corr-review",
+            event_type=PROPOSAL_EVENT,
+            source="test.legacy-memory",
+            payload={
+                "proposal_id": "legacy-memory-proposal",
+                "memory_kind": "episodic_candidate",
+                "candidate_content": "A tentative memory candidate.",
+                "evidence_event_ids": ["evt-review-source"],
+                "origin": {"component": "test.legacy-memory", "version": "0.1"},
+                "uncertainty": {"label": "tentative", "confidence": 0.5},
+                "based_on": {"state_version": 0},
+                "operation": "create",
+            },
+        )
+        self.store.submit_event(legacy)
+        later = CognitiveEvent(
+            event_id="evt-review-later-observation",
+            occurred_at="2026-11-14T10:03:00+00:00",
+            correlation_id="corr-review",
+            event_type=OBSERVATION_EVENT,
+            source="test.observation",
+            payload={
+                "observation_id": "obs-review-later",
+                "observation_kind": "text_fixture",
+                "content": "A second, later observation.",
+                "source_ref": "fixture://semantic-review/later",
+                "observed_at": "2026-11-14T10:02:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+        )
+        self.store.submit_event(later)
+        self.rewrite_event_payload_with_valid_digests(
+            legacy.event_id,
+            lambda payload: payload.__setitem__(
+                "evidence_event_ids", [later.event_id]
+            ),
+        )
+
+        with self.assertRaisesRegex(
+            CognitiveIntegrityError, "memory proposal evidence must reference an earlier event"
+        ):
+            self.store.get_event(legacy.event_id)
 
     def test_get_event_rejects_decision_with_rewritten_evaluated_state_version(self):
         self.submit_proposal()
