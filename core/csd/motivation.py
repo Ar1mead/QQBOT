@@ -99,7 +99,6 @@ class CognitiveMotivationMixin:
         event: Any,
         *,
         current_sequence: int,
-        validate_state: bool = True,
     ) -> None:
         payload = event.payload
         allowed = {
@@ -264,6 +263,7 @@ class CognitiveMotivationMixin:
         event: Any,
         *,
         current_sequence: int,
+        validate_state: bool = True,
     ) -> None:
         payload = event.payload
         allowed = {
