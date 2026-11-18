@@ -11,7 +11,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 import hashlib
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from core.csd.cognitive import CognitiveEvent
 
 from adapters.contracts.observation import (
     AdapterManifest,
@@ -279,7 +282,7 @@ def map_surfcore_record(record: Mapping[str, Any]) -> ObservationEvidence:
     )
 
 
-def map_surfcore_record_to_csd_event(record: Mapping[str, Any]):
+def map_surfcore_record_to_csd_event(record: Mapping[str, Any]) -> "CognitiveEvent":
     """Host-only conversion of one validated DTO into a deterministic CSD event."""
     from adapters.csd_mapping import observation_evidence_to_csd_event
 
@@ -365,7 +368,7 @@ class SurfCoreQQBatch:
     stream_ref: str
     after_cursor: int
     proposed_cursor: int
-    events: tuple[Any, ...]
+    events: tuple["CognitiveEvent", ...]
 
     def __post_init__(self) -> None:
         _nonempty(self.stream_ref, "batch.stream_ref")
@@ -373,6 +376,10 @@ class SurfCoreQQBatch:
         _cursor(self.proposed_cursor, "batch.proposed_cursor")
         if self.proposed_cursor < self.after_cursor:
             raise ValueError("proposed cursor cannot move backwards")
+        from core.csd.cognitive import CognitiveEvent
+
+        if any(not isinstance(event, CognitiveEvent) for event in self.events):
+            raise ValueError("batch events must be CognitiveEvent values")
 
 
 def map_surfcore_qq_batch(batch: Mapping[str, Any]) -> SurfCoreQQBatch:
