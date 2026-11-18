@@ -213,6 +213,20 @@ test("a corrupt complete line fails closed instead of being skipped", async (t) 
   await assert.rejects(() => reopened.open(), /journal_complete_line_corrupt|record_schema_mismatch/);
 });
 
+test("duplicate-key JSON lines are rejected during recovery", async (t) => {
+  const { directory, journal } = await fixture(t);
+  await journal.capture(privateEvent(), { conversationKind: "private" });
+  await journal.close();
+  const file = path.join(directory, "qq-observations-v1.jsonl");
+  const validLine = (await fs.readFile(file, "utf8")).trimEnd();
+  await fs.writeFile(file, validLine.replace("{", '{"schema_version":1,') + "\\n");
+  const reopened = createObservationJournal({
+    directory, accountId: "bot-account-1", hmacKey: Buffer.alloc(32, 7),
+    config: config(), secureDirectory: async () => {},
+  });
+  await assert.rejects(() => reopened.open(), /journal_complete_line_corrupt/);
+});
+
 test("capacity stops new capture without truncating prior records and leaves reads available", async (t) => {
   const { directory, journal } = await fixture(t, { maxBytes: 1600 });
   const first = await journal.capture(privateEvent(), { conversationKind: "private" });
