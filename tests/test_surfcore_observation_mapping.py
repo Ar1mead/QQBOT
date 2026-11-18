@@ -78,6 +78,7 @@ def qq_batch(records, *, after_cursor=0, next_cursor=None):
         next_cursor = records[-1]["cursor"] if records else after_cursor
     return {
         "schema_version": 1,
+        "stream_ref": "qq-account-opaque",
         "after_cursor": after_cursor,
         "next_cursor": next_cursor,
         "records": records,
@@ -216,6 +217,7 @@ class SurfCoreMappingTests(unittest.TestCase):
         first = record(cursor=11, record_id="message:11", external_ref="11")
         second = record(cursor=18, record_id="message:18", external_ref="18")
         result = map_surfcore_qq_batch(qq_batch([first, second], after_cursor=10, next_cursor=20))
+        self.assertEqual(result.stream_ref, "qq-account-opaque")
         self.assertEqual(result.after_cursor, 10)
         self.assertEqual(result.proposed_cursor, 20)
         self.assertEqual(len(result.events), 2)
@@ -238,6 +240,22 @@ class SurfCoreMappingTests(unittest.TestCase):
         )
         self.assertEqual(original.event_id, changed.event_id)
         self.assertNotEqual(dict(original.payload), dict(changed.payload))
+
+    def test_qq_batch_rejects_record_from_another_account_stream(self):
+        source = record(cursor=11, record_id="message:11")
+        source["account_ref"] = "different-qq-account"
+        with self.assertRaisesRegex(ValueError, "must match batch stream_ref"):
+            map_surfcore_qq_batch(qq_batch([source], after_cursor=10, next_cursor=11))
+
+    def test_qq_batch_requires_opaque_stream_reference(self):
+        page = qq_batch([], after_cursor=0, next_cursor=0)
+        del page["stream_ref"]
+        with self.assertRaisesRegex(ValueError, "batch fields"):
+            map_surfcore_qq_batch(page)
+        page = qq_batch([], after_cursor=0, next_cursor=0)
+        page["stream_ref"] = " "
+        with self.assertRaisesRegex(ValueError, "stream_ref"):
+            map_surfcore_qq_batch(page)
 
     def test_qq_batch_replay_produces_same_event_ids_and_payloads(self):
         page = qq_batch([record(cursor=11, record_id="message:11", external_ref="11")],
