@@ -1303,3 +1303,11 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Current implementation boundary: no production Windows `WorkerExecutor` yet. Low-level AppContainer profile, ACL, process, Job Object, startup handle allowlist, pipes, bounded stdio, and Python runtime/network tests exist, but they are not composed into one executor. There is also no worker-side adapter dispatch/entrypoint yet.
 - Next implementation work: define a trusted, host-owned worker runtime bundle and fixed worker entrypoint/adapter allowlist; then compose the Windows executor around the existing low-level primitives. The worker must only process host-supplied DTO bytes, must not import arbitrary paths from the host, and must not receive credentials or network access.
 - Linux Bubblewrap remains after the Windows production executor and adversarial acceptance suite. No local Windows/DSH verification; no live SurfCore ingress. PR #1 remains Draft/Open/Unmerged.
+
+
+## Worker runtime bundle and fixed dispatch design — 2026-11-18
+
+- Added docs/design/worker-runtime-bundle-v1.md as the design gate before composing the production Windows executor.
+- The document specifies a host-owned immutable runtime bundle, manifest/digest verification, no reparse points/path traversal, fixed Python entrypoint, static adapter ID/version/operation allowlist, and per-invocation runtime staging.
+- It records a second integration gap: protocol-v2 WorkerResponse has no result metadata, but SurfCore QQ batch mapping needs to return proposed_cursor. A dedicated bounded/typed metadata contract is required; cursor values must not be hidden in evidence or warnings.
+- This is a design artifact only. No runtime bundle verifier, worker entrypoint, metadata protocol, production executor, Linux backend, or live SurfCore connection has been implemented.

@@ -418,3 +418,12 @@ Run #645 passed on Ubuntu and Windows for head `16e027b89e60717040e54e273b1d2f8c
 ### 3.17 Next design gate — trusted worker runtime bundle and fixed dispatch
 
 Before composing the production Windows executor, define how a worker process resolves the adapter implementation without accepting arbitrary host paths or plugin-provided commands. The executor should be configured with a host-owned, immutable runtime bundle and a fixed entrypoint; the bundle should contain only the pinned Python runtime, protocol decoder, and explicitly allowlisted adapter modules. The worker receives only the versioned request envelope over stdin. It must validate/decode the envelope, dispatch by an exact adapter ID/version/operation allowlist, invoke the offline adapter against the supplied input bytes, and emit one bounded versioned response on stdout. No environment-based dynamic module path, generic command dispatcher, credentials, network, CSD store, or inherited host environment may cross the boundary. Bundle integrity and path/reparse-point checks must be performed by the host before each launch. This is the next design/implementation gate, not yet implemented.
+
+
+### 3.18 Runtime bundle design gate
+
+See worker-runtime-bundle-v1.md. The executor must not accept caller-controlled executable/module/path/command values. It must stage a host-owned immutable manifest-listed runtime and invoke one fixed entrypoint with a static adapter allowlist.
+
+### 3.19 Result metadata required before SurfCore QQ dispatch
+
+Protocol v2 currently returns evidence but not adapter-specific result metadata. SurfCore QQ batch mapping produces a proposed cursor that must reach the trusted host, and the host must persist it only after durable CSD submission. A bounded typed result-metadata contract and host result API must be implemented before QQ worker dispatch. The runtime bundle design document specifies the exact initial cursor metadata shape.
