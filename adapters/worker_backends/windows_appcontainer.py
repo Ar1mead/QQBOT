@@ -265,3 +265,51 @@ def ensure_appcontainer_profile_sid(profile_name: str) -> str:
             local_free(ctypes.cast(sid_text, HANDLE))
         if sid:
             free_sid(sid)
+
+
+class EmptyAppContainerCapabilities:
+    """Own a SECURITY_CAPABILITIES value with zero network capabilities.
+
+    Keep this object alive through CreateProcessW: the native SID and structure
+    must remain valid while PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES is used.
+    """
+
+    def __init__(self, appcontainer_sid: str) -> None:
+        require_win64()
+        if not isinstance(appcontainer_sid, str) or not appcontainer_sid.startswith("S-1-15-2-"):
+            raise ValueError("appcontainer_sid must be an AppContainer package SID")
+
+        self._kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        self._advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+        convert = self._advapi32.ConvertStringSidToSidW
+        convert.argtypes = [ctypes.c_wchar_p, ctypes.POINTER(LPVOID)]
+        convert.restype = BOOL
+        self._local_free = self._kernel32.LocalFree
+        self._local_free.argtypes = [HANDLE]
+        self._local_free.restype = HANDLE
+
+        self._sid = LPVOID()
+        if not convert(appcontainer_sid, ctypes.byref(self._sid)):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+        self.value = SECURITY_CAPABILITIES()
+        self.value.AppContainerSid = self._sid
+        self.value.Capabilities = None
+        self.value.CapabilityCount = 0
+        self.value.Reserved = 0
+        self._closed = False
+
+    def close(self) -> None:
+        if not self._closed:
+            if self._sid:
+                self._local_free(self._sid)
+                self._sid = LPVOID()
+            self._closed = True
+
+    def __enter__(self) -> "EmptyAppContainerCapabilities":
+        if self._closed:
+            raise RuntimeError("AppContainer capabilities lease is already closed")
+        return self
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        self.close()
