@@ -324,3 +324,7 @@ Production worker invocations should use a fresh AppContainer profile rather tha
 Run #637 passed the ephemeral profile lifecycle test on Windows: unique profile/SID creation, LocalAppData resolution, profile deletion, folder removal, and closed-owner behavior. The existing process integration still uses the persistent CI profile; switching it to the ephemeral owner is the next integration step.
 
 The Windows process integration now uses `EphemeralAppContainerProfile` for each worker session and closes it only after the process/job/startup/pipe owners have unwound. This replaces the persistent CI profile in the process-launch tests; the integrated lifecycle is pending CI.
+
+### 3.12.1 Ephemeral profile integrated into process tests
+
+Run #638 passed the full Windows process integration suite with a fresh AppContainer profile per session. The process, Job Object, startup attributes, and pipes are closed before the profile owner deletes the AppContainer profile and its LocalAppData folder. This validates the cleanup ordering in the test harness, though production WorkerExecutor integration remains future work.

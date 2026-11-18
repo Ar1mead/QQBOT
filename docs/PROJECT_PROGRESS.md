@@ -1169,3 +1169,12 @@ At the time of this update:
 - Updated the Windows process test harness to create one unique AppContainer profile per worker session, use that profile's SID and LocalAppData path, and delete it after the process, Job Object, startup attributes, and pipes have been closed.
 - This exercises profile lifecycle in the actual launch path rather than testing profile creation/deletion separately.
 - The change is pending CI. A failed profile deletion must fail the test rather than leave a persistent per-run profile behind.
+
+
+## Windows process launch with ephemeral profile verified — Run #638
+
+- Run #638 for tested head `4de9553e89adf73c8100d831f1307b402d9b5216` completed successfully on Ubuntu and Windows; both matrix jobs passed all 38 steps.
+- The Windows process integration now creates a unique AppContainer profile for every worker session, uses its SID and OS-managed LocalAppData path, and deletes the profile only after the process, Job Object, startup attributes, and pipes have been closed.
+- The complete Windows process suite passed with this ephemeral lifecycle, including copied runtime execution, runtime write denial/temp write allowance, host file read/write denial, loopback/private network denial, child-process restriction, timeout, output overflow, and kill-on-close.
+- This is still hosted CI, not local Windows/DSH verification. Public and metadata network probes remain outstanding. No production WorkerExecutor or live SurfCore adapter is enabled.
+- PR #1 remains **Draft**, **Open**, and **Unmerged**.
