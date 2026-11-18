@@ -57,7 +57,7 @@ _COVERAGE_FIELDS = {
     "modality", "extraction_method", "complete", "start_ms", "end_ms",
     "missing_ranges_ms", "notes",
 }
-_BATCH_FIELDS = {"schema_version", "after_cursor", "next_cursor", "records"}
+_BATCH_FIELDS = {"schema_version", "stream_ref", "after_cursor", "next_cursor", "records"}
 
 
 def _nonempty(value: Any, field: str) -> str:
@@ -243,11 +243,13 @@ def map_surfcore_record_to_csd_event(record: Mapping[str, Any]) -> CognitiveEven
 class SurfCoreQQBatch:
     """Validated QQ page; proposed_cursor advances only after durable CSD writes."""
 
+    stream_ref: str
     after_cursor: int
     proposed_cursor: int
     events: tuple[CognitiveEvent, ...]
 
     def __post_init__(self) -> None:
+        _nonempty(self.stream_ref, "batch.stream_ref")
         _cursor(self.after_cursor, "batch.after_cursor")
         _cursor(self.proposed_cursor, "batch.proposed_cursor")
         if self.proposed_cursor < self.after_cursor:
@@ -270,6 +272,7 @@ def map_surfcore_qq_batch(batch: Mapping[str, Any]) -> SurfCoreQQBatch:
     if batch["schema_version"] != SCHEMA_VERSION or isinstance(batch["schema_version"], bool):
         raise ValueError("unsupported QQ batch schema_version")
 
+    stream_ref = _nonempty(batch["stream_ref"], "batch.stream_ref")
     after_cursor = _cursor(batch["after_cursor"], "batch.after_cursor")
     next_cursor = _cursor(batch["next_cursor"], "batch.next_cursor")
     if next_cursor < after_cursor:
@@ -296,9 +299,12 @@ def map_surfcore_qq_batch(batch: Mapping[str, Any]) -> SurfCoreQQBatch:
             raise ValueError("QQ batch contains a duplicate record_id")
         seen_ids.add(record_id)
         prior_cursor = current_cursor
+        if record.get("account_ref") != stream_ref:
+            raise ValueError("QQ record account_ref must match batch stream_ref")
         events.append(map_surfcore_record_to_csd_event(record))
 
     return SurfCoreQQBatch(
+        stream_ref=stream_ref,
         after_cursor=after_cursor,
         proposed_cursor=next_cursor,
         events=tuple(events),
