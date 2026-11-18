@@ -79,7 +79,7 @@ class WorkerProtocolTests(unittest.TestCase):
 
     def test_request_rejects_duplicate_json_keys(self):
         raw = (
-            '{"protocol_version":3,"message_type":"observation_request",'
+            '{"protocol_version":4,"message_type":"observation_request",'
             '"request_id":"a","request_id":"b","adapter_id":"x",'
             '"adapter_version":"1","operation":"observe","target_ref":"BV1xx411c7mD",'
             '"modalities":["text"]}'
@@ -177,7 +177,7 @@ class WorkerProtocolTests(unittest.TestCase):
 
     def test_decoder_rejects_nonstandard_json_constants(self):
         raw = (
-            '{"protocol_version":3,"message_type":"observation_response",'
+            '{"protocol_version":4,"message_type":"observation_response",'
             '"request_id":"r","adapter_id":"a","adapter_version":"1",'
             '"status":"unavailable","evidence":[],"warnings":[],"error_code":NaN,"result_metadata":{}}'
         )
@@ -212,6 +212,14 @@ class WorkerProtocolTests(unittest.TestCase):
             },
             "source_artifact_ref": None,
             "account_ref": None,
+            "context_kind": None,
+            "context_ref": None,
+            "actor_ref": None,
+            "actor_role": None,
+            "parent_ref": None,
+            "content_language": None,
+            "source_sequence": None,
+            "historical": False,
             "untrusted": True,
         }
 
@@ -228,6 +236,67 @@ class WorkerProtocolTests(unittest.TestCase):
         self.assertEqual(result.status.value, "complete")
         self.assertEqual(len(result.evidence), 1)
         self.assertIs(result.evidence[0].untrusted, True)
+
+    def test_response_round_trips_all_observation_provenance_fields(self):
+        evidence = self.make_wire_evidence()
+        evidence.update({
+            "context_kind": "group",
+            "context_ref": "qq-group:123",
+            "actor_ref": "qq-user:456",
+            "actor_role": "sender",
+            "parent_ref": "qq-message:789",
+            "content_language": "zh-CN",
+            "source_sequence": 42,
+            "historical": True,
+        })
+        request = WorkerRequest(
+            request_id="req-provenance",
+            adapter_id=self.request.adapter_id,
+            adapter_version=self.request.adapter_version,
+            operation=self.request.operation,
+            target_ref=self.request.target_ref,
+            modalities=("text",),
+        )
+        response = WorkerResponse(
+            request_id=request.request_id,
+            adapter_id=request.adapter_id,
+            adapter_version=request.adapter_version,
+            status="complete",
+            evidence=(evidence,),
+        )
+        result = response_to_observation_result(decode_response(encode_response(response)), request)
+        item = result.evidence[0]
+        self.assertEqual(item.context_kind, "group")
+        self.assertEqual(item.context_ref, "qq-group:123")
+        self.assertEqual(item.actor_ref, "qq-user:456")
+        self.assertEqual(item.actor_role, "sender")
+        self.assertEqual(item.parent_ref, "qq-message:789")
+        self.assertEqual(item.content_language, "zh-CN")
+        self.assertEqual(item.source_sequence, 42)
+        self.assertIs(item.historical, True)
+
+    def test_response_rejects_invalid_optional_provenance_fields(self):
+        invalid = (
+            ("context_kind", "group", "context_ref", None),
+            ("content_language", "not a language tag", None, None),
+            ("source_sequence", True, None, None),
+            ("historical", 1, None, None),
+        )
+        for first, value, second, second_value in invalid:
+            evidence = self.make_wire_evidence()
+            evidence[first] = value
+            if second is not None:
+                evidence[second] = second_value
+            response = WorkerResponse(
+                request_id=self.request.request_id,
+                adapter_id=self.request.adapter_id,
+                adapter_version=self.request.adapter_version,
+                status="complete",
+                evidence=(evidence,),
+            )
+            with self.subTest(field=first):
+                with self.assertRaisesRegex(WorkerProtocolError, "invalid observation evidence"):
+                    response_to_observation_result(response, self.request)
 
     def test_response_rejects_evidence_outside_requested_identity_or_modality(self):
         for field, value in (("adapter_id", "spoofed"), ("modality", "audio")):
@@ -261,7 +330,7 @@ class WorkerProtocolTests(unittest.TestCase):
 
     def test_response_rejects_unknown_fields(self):
         raw = (
-            '{"protocol_version":3,"message_type":"observation_response",'
+            '{"protocol_version":4,"message_type":"observation_response",'
             '"request_id":"r","adapter_id":"a","adapter_version":"1",'
             '"status":"unavailable","evidence":[],"warnings":[],"error_code":null,'
             '"result_metadata":{},"shell_command":"whoami"}'
