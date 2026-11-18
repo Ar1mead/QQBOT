@@ -24,7 +24,7 @@ _WORKER_APP_ROOT = (
 )
 sys.path.insert(0, _WORKER_APP_ROOT)
 
-from adapters.platforms.surfcore.mapping import map_surfcore_qq_batch, map_surfcore_record
+from adapters.platforms.surfcore.mapping import validate_surfcore_qq_batch
 from adapters.worker_protocol import (
     MAX_MESSAGE_BYTES,
     WorkerProtocolError,
@@ -81,13 +81,13 @@ def _dispatch_surfcore_qq_batch(request: WorkerRequest) -> WorkerResponse:
         raise WorkerDispatchError("SurfCore QQ batch supports text modality only")
 
     batch = _decode_payload(request.input_payload)
-    mapped_batch = map_surfcore_qq_batch(batch)
+    mapped_batch = validate_surfcore_qq_batch(batch)
     if request.target_ref != mapped_batch.stream_ref:
         raise WorkerDispatchError("request target_ref does not match the QQ stream_ref")
 
     evidence = tuple(
-        observation_evidence_to_wire(map_surfcore_record(record))
-        for record in batch["records"]
+        observation_evidence_to_wire(item)
+        for item in mapped_batch.evidence
     )
     return WorkerResponse(
         request_id=request.request_id,
