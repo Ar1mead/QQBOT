@@ -651,3 +651,16 @@ At the time of this update:
 - Run #578 and #579 failed on intermediate commits because the mapper had begun requiring QQ cursors before the matching fixture update landed. The logs show only the four QQ fixture tests missing the new cursor field; this was a sequencing failure between separate commits, not an uninvestigated runtime failure. The complete follow-up commit corrected those fixtures.
 - Run #580 ([Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44267399986)) completed successfully on both Ubuntu and Windows, including the cursor batch suite and full test discovery.
 - After adding two additional identity tests (account-scoped source identity and same-ID/changed-payload conflict behavior), run #581 ([Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44267521699)) has Ubuntu completed successfully; Windows is still running at this ledger update.
+
+
+### 2026-11-18 — SurfCore v0.8.8 ingress contract review
+
+- Confirmed Run #581 ([Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44267521699)) completed successfully on both Ubuntu and Windows. It includes the additional account-scoped identity and same-source-ID/changed-payload conflict tests, plus complete test discovery.
+- Re-inspected the pinned SurfCore bridge source at `0deb8261afe4c31b3127759ee4de36a1439cf422`. The existing `state/qq-public-feed.jsonl` is explicitly group-only, only appends selected non-command plain-text messages after bridge policy gates, redacts/truncates content, and contains no stable source message ID/cursor or historical marker. It is not a complete QQ observation API and must not be scraped as one.
+- Confirmed the bridge's normalized QQ event path already has candidate source fields: `message_id` / `msg_id` / `message_seq`, `time`, `user_id`, optional `group_id`, `sender`, and `message` segments. These can support a dedicated projection without exposing raw platform credentials.
+- Confirmed the existing local console is a broad management API protected by `consoleToken`; it includes privileged send/config/session routes. The CSD adapter must not receive or reuse that credential.
+- Added `docs/design/surfcore-readonly-ingress-contract-v1.md`: proposed loopback-only, dedicated-credential, GET-only interface; QQ cursor feed with private/group separation and explicit private opt-in; opaque account/conversation/sender references; source vs receipt timestamps; historical/backfill marker; Bilibili canonical-BV structured read results; explicit coverage; and privacy/security acceptance tests.
+- Linked the detailed contract from `docs/design/surfcore-csd-adapter-integration.md`.
+- Important alignment item: the current Python mapper is still an earlier DTO draft and does not yet carry all conversation/sender/history provenance required by the new contract. The next code step is to extend the generic ObservationEvidence/CSD payload and SurfCore DTO mapper/tests to preserve those fields before any transport implementation.
+- No SurfCore source was modified, no endpoint was implemented, no private message was exported, and no live account/connection was tested. No local user files or credentials were touched.
+- PR #1 remains Draft, Open, and Unmerged.
