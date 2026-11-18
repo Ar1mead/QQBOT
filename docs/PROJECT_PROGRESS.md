@@ -1085,3 +1085,12 @@ At the time of this update:
 
 - Added a test that launches a worker blocked on stdin, closes the Job Object handle while the process is still running, and requires the process handle to become signaled.
 - This verifies the configured kill-on-close policy as an actual process behavior, not just a queried Job Object flag. It is pending the next Windows CI run.
+
+
+## Windows Job Object kill-on-close behavior verified — Run #632
+
+- Run #632 for tested code/test head `8c721e1fa5ac4f291c57dd59910547a9c8130fd1` completed successfully on Ubuntu and Windows; both matrix jobs passed all 38 steps.
+- The Windows AppContainer test launched a worker that remained blocked waiting for stdin, closed the Job Object handle while the worker was still running, and verified that the worker process handle became signaled. This proves the configured kill-on-close behavior against a live process.
+- Run #632 also retained all previously passing Windows adversarial tests: temp write boundary, host marker read denial, loopback denial, child-process limit, timeout, output overflow, and normal stdio.
+- Hosted CI is not local Windows/DSH verification. Private/link-local/metadata/public network probes and broader filesystem coverage remain outstanding.
+- PR #1 remains **Draft**, **Open**, and **Unmerged**.
