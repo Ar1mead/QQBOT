@@ -294,6 +294,7 @@ def decode_response(raw: bytes | str) -> WorkerResponse:
     _require_exact_keys(value, {
         "protocol_version", "message_type", "request_id", "adapter_id",
         "adapter_version", "status", "evidence", "warnings", "error_code",
+        "result_metadata",
     })
     if value["message_type"] != "observation_response":
         raise WorkerProtocolError("unexpected worker message type")

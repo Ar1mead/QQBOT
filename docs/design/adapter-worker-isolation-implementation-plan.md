@@ -432,3 +432,8 @@ Protocol v2 currently returns evidence but not adapter-specific result metadata.
 ### 3.20 Protocol v3 bounded result metadata
 
 WorkerResponse now includes a required exact-key result_metadata object. The protocol layer limits it to 16 immutable scalar entries with bounded keys/string values and signed 64-bit integers; nested arbitrary JSON is rejected. WorkerHost.observe_with_metadata() returns this metadata alongside the validated ObservationResult, while the existing observe() API continues to return ObservationResult only. Adapter-specific metadata must still be validated by the trusted host against the adapter operation and original request. CI pending.
+
+
+### 3.20.1 Run #646 corrections
+
+Run #646 found that the v3 encoder emitted result_metadata but the decoder exact-key set omitted it; it also caught an incorrectly escaped control-character test fixture. Both were corrected. Run #647 pending.

@@ -1320,3 +1320,12 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Added WorkerHost.observe_with_metadata(), returning a WorkerHostResult containing the already-validated ObservationResult plus immutable metadata. Existing WorkerHost.observe() remains backward-compatible at the Python API level and returns only the ObservationResult.
 - Added tests for metadata round-trip, bounds/rejection, and host propagation. This is generic transport validation only; the SurfCore QQ adapter still needs an exact host-side validator binding stream_ref/after_cursor/proposed_cursor to the request checkpoint.
 - CI pending. No production Windows executor or worker-side entrypoint yet.
+
+
+## Run #646 — protocol-v3 result metadata first CI attempt failed; corrected
+
+- Run #646 caught two implementation/test defects in the new metadata field:
+  1. The response encoder emitted result_metadata, but the strict response decoder's exact-key allowlist had not yet been updated, so valid round-trip responses were rejected.
+  2. One test fixture used a literal backslash-n sequence instead of an actual newline when checking control-character rejection.
+- The host API and metadata value bounds were not the cause. Corrected the decoder's exact response key set and the test fixture. Run #647 is required to verify the correction.
+- The Windows job was still running when the Ubuntu failure was first inspected; do not count Run #646 as passing.

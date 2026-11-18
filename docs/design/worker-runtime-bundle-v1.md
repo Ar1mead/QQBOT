@@ -157,3 +157,8 @@ No claim of production-ready sandbox or real SurfCore connection is made by this
 ## Protocol v3 result metadata transport
 
 The generic response now carries a bounded scalar metadata object. This only solves transport and generic shape validation. The host still needs an adapter-operation-specific validator before trusting cursor fields. For QQ, it must check exact key set, stream_ref binding, after_cursor equality with the host checkpoint, and monotonic proposed_cursor. The host must not persist that cursor until all returned events have been durably accepted by CSD.
+
+
+## Protocol-v3 implementation note
+
+The first protocol-v3 CI attempt exposed a decoder exact-key allowlist omission and a test-fixture escaping issue. The decoder now explicitly requires result_metadata in the response schema; the control-character fixture now contains an actual newline. Run #647 is pending. The adapter-specific QQ cursor validator remains unimplemented.

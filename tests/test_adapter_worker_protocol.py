@@ -151,7 +151,7 @@ class WorkerProtocolTests(unittest.TestCase):
         for metadata in (
             (("nested", {"arbitrary": "object"}),),
             tuple((f"k{i}", i) for i in range(17)),
-            (("bad\\nkey", "value"),),
+            (("bad\nkey", "value"),),
         ):
             with self.subTest(metadata=metadata):
                 with self.assertRaises(WorkerProtocolError):
