@@ -55,12 +55,17 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
     def _worker_session(self, arguments, application_name="cmd.exe", runtime_builder=None):
         system_root = os.environ["SystemRoot"]
         system32 = os.path.join(system_root, "System32")
-        temp_parent = os.path.join(system_root, "Temp")
-        os.makedirs(temp_parent, exist_ok=True)
 
-        with tempfile.TemporaryDirectory(prefix="qqbot-worker-", dir=temp_parent) as worker_temp:
-            with tempfile.TemporaryDirectory(prefix="qqbot-runtime-", dir=temp_parent) as runtime_temp:
-                with app.EphemeralAppContainerProfile.create() as profile:
+        # Keep both per-run trees under this ephemeral AppContainer's own
+        # LocalAppData root. This makes ancestor traversal part of the tested
+        # profile boundary instead of relying on ambient access to Windows\Temp.
+        with app.EphemeralAppContainerProfile.create() as profile:
+            with tempfile.TemporaryDirectory(
+                prefix="qqbot-worker-", dir=profile.local_appdata_path
+            ) as worker_temp:
+                with tempfile.TemporaryDirectory(
+                    prefix="qqbot-runtime-", dir=profile.local_appdata_path
+                ) as runtime_temp:
                     sid = profile.appcontainer_sid
                     if runtime_builder is not None:
                         application = runtime_builder(runtime_temp)
@@ -85,7 +90,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
                             "PATH": system32 + os.pathsep + runtime_temp,
                         }
                     )
-        
+
                     with pipes.WorkerPipes.create() as worker_pipes:
                         with app.EmptyAppContainerCapabilities(sid) as capabilities:
                             with startup.WorkerStartupAttributes(
