@@ -48,6 +48,7 @@ on:
       - "tests/test_worker_entrypoint.py"
       - "tests/test_surfcore_worker_result.py"
       - "tests/test_worker_runtime_bundle.py"
+      - "tests/test_worker_windows_launch_plan.py"
       - "tests/test_worker_windows_process.py"
       - "tests/test_adapter_worker_host.py"
       - "tests/test_surfcore_observation_mapping.py"
