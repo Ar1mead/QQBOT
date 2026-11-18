@@ -825,3 +825,13 @@ At the time of this update:
 - This remains a design/implementation plan only. No Windows AppContainer launcher, Linux bubblewrap executor, ACL policy, Job Object policy, or adversarial sandbox test has been implemented yet.
 - Recommended next implementation slice: Windows backend prototype using Python `ctypes`, with all policy setup fail-closed; test AppContainer launch, narrow runtime/temp ACLs, Job Object assignment before resume, bounded pipes, and kill-on-timeout before attempting Linux parity.
 - No SurfCore upstream code, local user files, credentials, accounts, or runtime settings were changed. PR #1 remains Draft/Open/Unmerged.
+
+## Windows AppContainer backend — first code slice (2026-11-18)
+
+- Added `adapters/worker_backends/` and `windows_appcontainer.py` with explicit Win64 ctypes declarations for AppContainer security capabilities, STARTUPINFOEX, process information, security attributes, Job Object limits, and CPU-rate controls.
+- Added an explicit empty-capability representation and constants for suspended process creation, explicit inherited-handle lists, AppContainer security attributes, kill-on-close, active-process limit, and memory limits. No breakaway flag is provided.
+- Added `tests/test_worker_windows_appcontainer_layout.py` to check Win64 structure sizes, the empty-capability default, required Job Object constants, and non-Windows fail-closed platform guard.
+- Wired the layout test into the existing Ubuntu/Windows matrix. The change is expected to trigger hosted CI through the existing `adapters/**` path filter; results must be retrieved before marking it verified.
+- **Strict limitation:** this is only the first ABI/declaration slice. It does not create an AppContainer profile, set DACL/SACL ACLs or the Low Integrity temp label, create pipes, launch a process, assign a Job Object, enforce timeout/output bounds, or prove any isolation. No production `WorkerExecutor` exists and third-party adapter execution remains prohibited.
+- Latest implementation commits: `40bfb4a272bcde3b577bcf1dd655ba6f58afafc4`, `a919dd4459ca65464aa5d748f5a28dea5da58051`, `15f15d38258f432596e4e2c75fc56bda40542c54`; workflow wiring: `eea3ca94e6dda3b67c1280747290ae987fccb534`.
+- Next: retrieve the new Ubuntu/Windows CI results; then implement AppContainer SID/profile lifecycle and ACL/SACL helpers, including Low Integrity labeling only on the per-run temp directory. Do not treat this ABI slice as a sandbox.
