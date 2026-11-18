@@ -731,3 +731,17 @@ At the time of this update:
 - Run #604 completed successfully on both Ubuntu and Windows, 28 steps each, with no failed steps: https://github.com/Ar1mead/QQBOT/actions/runs/44269594358
 - This verifies the Bilibili context allowlist correction together with the QQ/Bilibili provenance mapping and CSD validation present at tested commit `d975b93f4ed565a932f8f389ee9250b13d7009c4`.
 - The latest PR head is documentation-only commit `14edeaf05583fe093f69454f3c7a12b242909daa`; it preserves the tested code. PR #1 remains Draft / Open / Unmerged.
+
+
+### 2026-11-18 — SurfCore source-path audit for real ingress
+
+- Re-reviewed the pinned SurfCore v0.8.8 source (0deb8261afe4c31b3127759ee4de36a1439cf422) at the concrete QQ receive callbacks and Bilibili command implementations.
+- QQ capture point is now grounded: src/bridge.js registers separate bot.onPrivateMessage and bot.onGroupMessage callbacks on the existing SnowLuma OneBot v11 client. Each callback filters self-authored bot messages and calls handleIncoming with the original event. That handler performs SurfCore mode/deny gates, segment-to-text conversion, message-reference extraction, and then its own memory/wake/reply processing.
+- Recommended QQ design is a separate journal tap in those callbacks after self-message filtering, not a second call to handleIncoming. The tap must have independent private-message opt-in and conversation allowlisting; it must not trigger wake/reply, mutate SurfCore sessions, mark messages read, or reuse the broad console token.
+- Source message_seq is a source reference, not a proven globally monotonic feed checkpoint. The feed should allocate its own durable per-stream cursor while preserving source message ID/sequence separately.
+- Bilibili source review confirms candidate read commands but also concrete side effects/format problems: video-content prints human text and can fetch a GitHub README inferred from video description; subtitles writes local artifacts and prunes cache; feed --json still reads local preference/history state and writes selected picks; search prints human text. Do not parse CLI stdout or expose generic command dispatch.
+- Updated docs/design/surfcore-csd-adapter-integration.md with exact source-path findings and a staged implementation decision: QQ journal/feed first, narrow Bilibili JSON read service second, then isolated host transport only after real OS worker isolation.
+- No upstream SurfCore source, user-local files, credentials, accounts, or settings were modified. No live platform connection was tested.
+- Existing adapter DTO mapper and cursor/replay validation remain fake-input-only. No HTTP client was added because no matching SurfCore endpoint exists yet.
+- PR #1 was rechecked: Draft=true, state=open, merged=false. Latest PR head at the time of audit was 4be2882c3c3a40c423ebb376fe5d905e26d08dc0. Run #604 remains the verified two-platform code checkpoint for commit d975b93f4ed565a932f8f389ee9250b13d7009c4; subsequent changes recorded here are documentation-only. Hosted CI is not local Windows/DSH/SurfCore validation.
+- Next: prepare a concrete SurfCore-side QQ observation journal specification against the two callback hooks, including private opt-in, event schema, durable cursor assignment, crash/replay semantics, and independent credential handling. Do not modify upstream SurfCore without a separate review/authorization step.
