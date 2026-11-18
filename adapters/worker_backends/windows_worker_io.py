@@ -82,28 +82,61 @@ def _validate_limits(
 
 
 def _terminate_and_confirm(worker: WorkerProcess, job: WorkerJobObject) -> None:
+    """Stop the worker and prove termination; never hide a failed fallback."""
+    fallback_close_error: Exception | None = None
     try:
         job.terminate(0xE0010002)
     except Exception:
         try:
             # Kill-on-close is the fallback containment mechanism.
             job.close()
-        except Exception:
-            pass
-    if worker.wait(5000):
-        return
+        except Exception as exc:
+            fallback_close_error = exc
+
+    try:
+        if worker.wait(5000):
+            if fallback_close_error is not None:
+                raise WorkerTerminationError(
+                    "worker exited, but the Job Object fallback close failed"
+                ) from fallback_close_error
+            return
+    except WorkerTerminationError:
+        raise
+    except Exception as exc:
+        raise WorkerTerminationError(
+            "could not verify worker termination after Job Object termination"
+        ) from exc
 
     # Last resort: the worker is the Job's only allowed process.
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     terminate = kernel32.TerminateProcess
     terminate.argtypes = [HANDLE, DWORD]
     terminate.restype = BOOL
-    if worker.handle:
-        terminate(worker.handle, 0xE0010003)
-    if not worker.wait(5000):
+    if not worker.handle:
+        raise WorkerTerminationError("worker process handle closed before termination")
+    if not terminate(worker.handle, 0xE0010003):
+        error = ctypes.get_last_error()
+        # The process may have exited between WaitForSingleObject and TerminateProcess.
+        try:
+            if not worker.wait(5000):
+                raise WorkerTerminationError(
+                    f"TerminateProcess failed with Win32 error {error}; process remains active"
+                )
+        except WorkerTerminationError:
+            raise
+        except Exception as exc:
+            raise WorkerTerminationError(
+                f"TerminateProcess failed with Win32 error {error}; exit could not be verified"
+            ) from exc
+    elif not worker.wait(5000):
         raise WorkerTerminationError(
             f"could not confirm worker process {worker.process_id} termination"
         )
+
+    if fallback_close_error is not None:
+        raise WorkerTerminationError(
+            "worker process terminated, but the Job Object handle could not be closed"
+        ) from fallback_close_error
 
 
 def execute_worker_stdio(
@@ -219,10 +252,13 @@ def execute_worker_stdio(
     ]
 
     deadline = time.monotonic() + timeout_ms / 1000.0
-    for thread in threads:
-        thread.start()
+    started_threads: list[threading.Thread] = []
 
     try:
+        for thread in threads:
+            thread.start()
+            started_threads.append(thread)
+
         while len(completed) < 3:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
@@ -286,23 +322,30 @@ def execute_worker_stdio(
             stderr=result_buffers["stderr"],
             exit_code=worker.exit_code(),
         )
-    except Exception:
+    except Exception as primary_error:
         # If the process is still active, stop it before waiting for the readers.
         try:
             if not worker.wait(0):
                 _terminate_and_confirm(worker, job)
-        except Exception:
-            pass
+        except Exception as cleanup_error:
+            raise WorkerTerminationError(
+                "worker I/O failed and process termination could not be confirmed; "
+                f"primary={type(primary_error).__name__}: {primary_error}; "
+                f"cleanup={type(cleanup_error).__name__}: {cleanup_error}"
+            ) from cleanup_error
         raise
     finally:
-        for thread in threads:
+        for thread in started_threads:
             thread.join(timeout=5.0)
-        alive = [thread.name for thread in threads if thread.is_alive()]
+        alive = [thread.name for thread in started_threads if thread.is_alive()]
         if alive:
             try:
                 _terminate_and_confirm(worker, job)
-            except Exception:
-                pass
+            except Exception as cleanup_error:
+                raise WorkerTerminationError(
+                    "worker stdio threads remained active and termination failed: "
+                    + ", ".join(alive)
+                ) from cleanup_error
             raise WorkerTerminationError(
                 "worker stdio threads did not stop: " + ", ".join(alive)
             )
