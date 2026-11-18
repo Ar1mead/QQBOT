@@ -144,3 +144,24 @@ Hosted CI is necessary but does not replace owner-local Windows verification. Th
 - Debian manpages, [bubblewrap(1)](https://manpages.debian.org/trixie/bubblewrap/bwrap.1.en.html): namespace and filesystem construction semantics.
 
 These references describe OS mechanisms; they are not evidence that this repository has implemented or verified them.
+
+## 9. Windows security review addendum — integrity labels and verification
+
+The initial implementation checklist must account for Mandatory Integrity Control (MIC), not only DACLs:
+
+- AppContainer processes run at Low Integrity. A newly-created host temp directory normally inherits the host's Medium Integrity label. Granting the AppContainer package SID write access in its DACL is therefore insufficient: MIC's default no-write-up rule still blocks the worker.
+- The host must set and verify a Low Integrity mandatory label on the dedicated per-invocation temp directory (and only that directory), with the intended no-write-up policy. Do not lower the integrity label of the runtime, project, user profile, or any parent directory.
+- The temp directory DACL must separately grant the exact AppContainer package SID only the minimum create/read/write/delete rights needed for that invocation. The runtime/adapter tree remains read/execute only. Both the DACL and mandatory label must be checked after applying them; any mismatch is a launch failure.
+- Prefer the Windows security APIs for composing and applying ACL/SACL entries while preserving unrelated existing entries. Do not replace a directory's entire DACL/SACL with an incomplete hand-built list.
+- Treat AppContainer network isolation as a capability boundary: the worker receives an empty capability list, with no InternetClient, InternetClientServer, PrivateNetworkClientServer, or other network capability. The worker still must run adversarial socket tests against loopback, private, link-local, metadata, and public destinations; the implementation must not infer denial solely from an empty list.
+- Process creation must use an explicit application path and a writable command-line buffer. Handle inheritance must be restricted to the exact pipe handles via STARTUPINFOEX's handle-list attribute; unrelated host handles must not be inherited.
+- Job Object policy must include kill-on-close, active-process limit 1, no breakaway flags, and a finite memory limit. Timeout and output overflow terminate the job, not just the primary process.
+- Windows CI is useful for API/structure and behavioral regression coverage, but it does not establish compatibility with the user's installed DSH/Python layout or endpoint-security configuration. Do not enable live adapters on CI evidence alone.
+
+Additional Microsoft references:
+- [Mandatory Integrity Control](https://learn.microsoft.com/en-us/windows/win32/secauthz/mandatory-integrity-control): low-integrity processes cannot write to medium-integrity objects even when the DACL grants write access.
+- [SYSTEM_MANDATORY_LABEL_ACE](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-system_mandatory_label_ace): the SACL ACE that carries the integrity label and policy.
+- [AppContainer isolation](https://learn.microsoft.com/en-us/windows/win32/secauthz/appcontainer-isolation): filesystem, network, and process isolation model.
+- [CreateProcessW](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw): explicit application path and inherited-handle controls.
+
+This addendum is a design correction, not an implementation or test result.
