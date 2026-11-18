@@ -600,3 +600,18 @@ At the time of this update:
 
 
 - CI follow-up: run #571 exposed a transient import failure because the adapter class rename and test rename landed in separate sequential commits; the test commit briefly referenced the new symbol before the implementation commit existed. The subsequent run #572 passed Ubuntu with the renamed implementation/tests. Run #573 (latest executor-contract docstring change) has Ubuntu passed and Windows still running at the latest check. Do not treat the full two-platform gate as complete until Windows finishes.
+
+
+### 2026-11-18 — SurfCore ↔ CSD integration route corrected
+
+- Corrected the platform integration direction after rechecking the user's existing SurfCore selection: SurfCore is already the QQ/Bilibili connectivity layer; this project should not build duplicate QQ or Bilibili connectors.
+- Source-reviewed the user's previously audited SurfCore v0.8.8 source at pinned commit `0deb8261afe4c31b3127759ee4de36a1439cf422`. The QQ bridge is a separate Node process consuming OneBot v11 WebSocket events and DSH event-mux output. The Bilibili toolchain has a mixture of read and write commands; some read commands still emit human-oriented console output and/or write local cache artifacts.
+- Identified the integration gap: the pinned source does not yet provide a verified dedicated, read-only, versioned machine-readable feed for CSD. The bridge's broad console token is not an acceptable observation credential; private SurfCore state files are not a stable API; the public QQ feed is group-only; Bilibili CLI output is not a stable normalized event contract.
+- Reviewed `plugins/surfcore/lib/platforms.js`: its capability model includes memory writes/actions and its local extension loader imports code into the DSH process. Neither is equivalent to this project's read-only observation contract or a security sandbox.
+- Added `docs/design/surfcore-csd-adapter-integration.md` with the source findings, required read-only QQ cursor feed, structured Bilibili observation API, dedicated scoped credential, transport limits, implementation sequence, and acceptance gates.
+- Decision: reuse SurfCore for platform connectivity; build a narrow SurfCore→Observation v2→CSD adapter. Keep QQ observation receive-only and Bilibili observation-only. All account mutations remain unavailable until individually authorized through ASM.
+- Security blocker remains: current WorkerHost is orchestration/protocol plus fake executors only; no production subprocess launcher or OS sandbox exists. Do not execute untrusted plugin code through it.
+- Verification: GitHub Actions run #573 (run ID `44265570787`) is now confirmed completed successfully on both Ubuntu and Windows, validating the worker-host/protocol test slice at commit `b5140f8726dcf6454f92c80e25ae31784f579bbe`. This does **not** validate a real worker sandbox or SurfCore integration.
+- No local SurfCore/DSH files, settings, accounts, credentials, or plugins were modified. No live QQ/Bilibili connection was tested.
+- Next implementation step: add fake SurfCore observation DTO fixtures and a deterministic mapper into the existing Observation v2/CSD path; test QQ cursor/idempotency and Bilibili provenance/coverage. Do not add live transport until the scoped read-only SurfCore interface and real worker isolation gates exist.
+- PR #1 remains Draft, Open, and Unmerged; no user-local tests are claimed.
