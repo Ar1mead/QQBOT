@@ -153,11 +153,11 @@ class CSDObservationV2Tests(unittest.TestCase):
                 self.store.submit_event(replace(event, payload=payload))
 
     def test_v2_rejects_invalid_content_language_tag(self):
-        event = observation_evidence_to_csd_event(
-            replace(self.evidence(), content_language="not a language tag!")
-        )
+        event = observation_evidence_to_csd_event(self.evidence())
+        payload = dict(event.payload)
+        payload["content_language"] = "not a language tag!"
         with self.assertRaisesRegex(ValueError, "BCP 47"):
-            self.store.submit_event(event)
+            self.store.submit_event(replace(event, payload=payload))
 
     def test_repeated_v2_delivery_is_idempotent_and_conflicts_are_rejected(self):
         event = observation_evidence_to_csd_event(self.evidence())
