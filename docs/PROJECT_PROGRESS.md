@@ -748,3 +748,15 @@ At the time of this update:
 
 
 - Follow-up documentation commit `d9ccd17a092ea2c93f8771187f4745408ba8df58` adds the exact pinned-source QQ callback placement and Bilibili CLI side-effect cautions to `docs/design/surfcore-readonly-ingress-contract-v1.md`. It clarifies that the QQ feed cursor must be allocated by the new journal, not copied from OneBot message_seq, and that Bilibili CLI commands must not be exposed or parsed as a generic transport.
+
+
+### 2026-11-18 — QQ observation journal implementation specification
+
+- Added `docs/design/surfcore-qq-observation-journal-v1.md`, grounded in the pinned SurfCore v0.8.8 source commit.
+- Identified the exact private/group OneBot callback insertion point, after self-message filtering and before the unchanged `handleIncoming` call. The capture path is independent of DSH mode/wake/reply processing; capture failure must not block normal chat.
+- Explicitly rejected reusing `qq-public-feed.jsonl`: its group-only filtering and capped rotation/truncation semantics cannot provide the required CSD feed guarantees.
+- Specified independent opt-in policy (all disabled by default; private and group allowlists separate), HMAC-derived opaque account/conversation/sender/message references, text-only v1, live-only events, single-writer durable JSONL, cursor recovery, duplicate replay identity, retention-floor/410 handling, and a dedicated loopback GET-only service with its own credential.
+- Specified append+sync before capture success, startup integrity checks, no silent corruption skipping, no acknowledgement endpoint, and consumer ordering: durable CSD events first, checkpoint second.
+- Corrected the success response envelope to exactly match the current Python mapper's strict batch schema; retention-floor metadata belongs only in a separate 410 error response.
+- This is a design document only. No upstream SurfCore files, user-local files, credentials, accounts, or settings were modified. No live QQ connection or local runtime test occurred. No transport client was added because the upstream endpoint does not yet exist.
+- Next gate: prepare a separately reviewed, narrowly scoped upstream SurfCore implementation patch for the journal module and callback tap (disabled by default), with unit tests. Only after that implementation exists should its HTTP listener and the CSD-side client be developed.
