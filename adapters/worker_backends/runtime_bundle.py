@@ -317,13 +317,22 @@ def verify_runtime_bundle(root_path: str, manifest: RuntimeBundleManifest) -> Ve
 
 
 @dataclass(frozen=True)
+class TrustedRuntimeBundle:
+    """A verified bundle whose exact manifest bytes match a host-owned digest pin."""
+
+    verified_bundle: VerifiedRuntimeBundle
+    manifest_sha256: str
+
+
+@dataclass(frozen=True)
 class StagedRuntimeBundle:
-    """Per-invocation copy of a verified bundle; ACL hardening is still required."""
+    """Per-invocation copy of a bundle; trust pin and ACL hardening remain explicit."""
 
     root_path: str
     interpreter_path: str
     entrypoint_path: str
     manifest: RuntimeBundleManifest
+    trusted_manifest_sha256: str | None = None
 
 
 def _hash_regular_file(path: str, expected_size: int, expected_digest: str) -> None:
@@ -434,7 +443,7 @@ def _remove_tree_no_follow(path: str) -> None:
 
 
 def stage_runtime_bundle(
-    bundle: VerifiedRuntimeBundle,
+    bundle: VerifiedRuntimeBundle | TrustedRuntimeBundle,
     destination_root: str,
 ) -> StagedRuntimeBundle:
     """Copy only manifest-listed files into a newly created per-run directory.
@@ -444,11 +453,19 @@ def stage_runtime_bundle(
     tree is not launchable until the caller applies and verifies AppContainer
     read/execute ACLs and Low Integrity scratch policy separately.
     """
-    if not isinstance(bundle, VerifiedRuntimeBundle):
-        raise TypeError("bundle must be a VerifiedRuntimeBundle")
+    if isinstance(bundle, TrustedRuntimeBundle):
+        verified = bundle.verified_bundle
+        trusted_manifest_sha256 = verified.manifest_sha256
+        if not _SHA256_RE.fullmatch(trusted_manifest_sha256):
+            raise RuntimeBundleError("trusted bundle manifest pin is invalid")
+    elif isinstance(bundle, VerifiedRuntimeBundle):
+        verified = bundle
+        trusted_manifest_sha256 = None
+    else:
+        raise TypeError("bundle must be a VerifiedRuntimeBundle or TrustedRuntimeBundle")
     if not isinstance(destination_root, str) or not destination_root:
         raise ValueError("destination_root must be a non-empty path")
-    source_root = os.path.abspath(bundle.root_path)
+    source_root = os.path.abspath(verified.root_path)
     destination = os.path.abspath(destination_root)
     try:
         common = os.path.commonpath((source_root, destination))
@@ -463,11 +480,11 @@ def stage_runtime_bundle(
 
     # Revalidate the source at staging time, then verify every source file again
     # while copying to close the gap between initial verification and use.
-    verify_runtime_bundle(source_root, bundle.manifest)
+    verify_runtime_bundle(source_root, verified.manifest)
     try:
         os.mkdir(destination, 0o700)
         _safe_lstat(destination, directory=True)
-        for entry in bundle.manifest.files:
+        for entry in verified.manifest.files:
             parts = entry.path.split("/")
             current = destination
             for component in parts[:-1]:
@@ -480,10 +497,10 @@ def stage_runtime_bundle(
             _copy_verified_file(source, target, entry)
 
         staged_files = _walk_bundle_files(destination)
-        expected_files = {entry.path for entry in bundle.manifest.files}
+        expected_files = {entry.path for entry in verified.manifest.files}
         if staged_files != expected_files:
             raise RuntimeBundleError("staged runtime file set does not match the manifest")
-        for entry in bundle.manifest.files:
+        for entry in verified.manifest.files:
             _hash_regular_file(
                 os.path.join(destination, *entry.path.split("/")),
                 entry.size,
@@ -491,9 +508,10 @@ def stage_runtime_bundle(
             )
         return StagedRuntimeBundle(
             root_path=destination,
-            interpreter_path=os.path.join(destination, *bundle.manifest.interpreter_path.split("/")),
-            entrypoint_path=os.path.join(destination, *bundle.manifest.entrypoint_path.split("/")),
-            manifest=bundle.manifest,
+            interpreter_path=os.path.join(destination, *verified.manifest.interpreter_path.split("/")),
+            entrypoint_path=os.path.join(destination, *verified.manifest.entrypoint_path.split("/")),
+            manifest=verified.manifest,
+            trusted_manifest_sha256=trusted_manifest_sha256,
         )
     except Exception as exc:
         try:
@@ -575,14 +593,18 @@ def load_runtime_bundle(root_path: str) -> VerifiedRuntimeBundle:
     """Verify manifest/file consistency only; this does not authenticate origin."""
     absolute_root, raw = _read_runtime_manifest_bytes(root_path)
     manifest = parse_runtime_bundle_manifest(raw)
-    return verify_runtime_bundle(absolute_root, manifest)
+    verified = verify_runtime_bundle(absolute_root, manifest)
+    return TrustedRuntimeBundle(
+        verified_bundle=verified,
+        manifest_sha256=actual_digest,
+    )
 
 
 def load_trusted_runtime_bundle(
     root_path: str,
     *,
     expected_manifest_sha256: str,
-) -> VerifiedRuntimeBundle:
+) -> TrustedRuntimeBundle:
     """Load a bundle only when its exact manifest bytes match a host-pinned digest.
 
     The expected digest must come from trusted host configuration, not from the
