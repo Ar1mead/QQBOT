@@ -172,3 +172,12 @@ A pure host-side validator now exists in adapters/platforms/surfcore/worker_resu
 ## CI coverage wiring
 
 The SurfCore QQ result metadata validator test file is now explicitly listed in the CI path filters and has a dedicated Ubuntu/Windows matrix test step. Run #648 predates this change; Run #649 must verify it.
+
+
+## Run #649 verification
+
+Run #649 passed on Ubuntu and Windows. The Windows full test discovery ran 516 tests successfully with 6 expected skips. Protocol-v3 metadata transport, WorkerHost metadata propagation, and the SurfCore QQ exact cursor metadata validator test all passed in the matrix.
+
+## Next implementation gate
+
+The next code slice is a pure runtime bundle manifest parser/file verifier. It must be completed and tested before a production executor accepts runtime paths. Staging and AppContainer ACL application remain separate subsequent steps.

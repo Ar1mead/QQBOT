@@ -447,3 +447,12 @@ Added adapters/platforms/surfcore/worker_result.py with an immutable SurfCoreQQR
 ### 3.21.1 Workflow wiring
 
 The new tests/test_surfcore_worker_result.py test file is now explicitly included in the workflow path filters and has its own test step after the SurfCore observation mapping tests. Run #648 predates this wiring; Run #649 is required to verify the new test.
+
+
+### 3.21.2 Run #649 verified protocol v3 and QQ metadata validation
+
+Run #649 passed on Ubuntu and Windows after the new test file was wired into the matrix. Windows complete test discovery ran 516 tests successfully with 6 expected skips. Run #647 verified protocol-v3 response metadata transport; Run #648 verified the host-side QQ metadata validator code but predated the dedicated test step. Run #649 includes and passes that test step.
+
+### 3.22 Next implementation slice — runtime bundle manifest verifier
+
+Implement a pure, bounded manifest parser and file verifier before any process executor accepts a runtime bundle. It must enforce exact manifest fields, canonical relative POSIX paths, sorted/unique file entries, size and total bundle limits, SHA-256 digests, exact adapter allowlist identity, and rejection of symlinks/reparse points. The verifier must not launch a process or stage files yet. A separate staging step will copy only manifest-listed files into a newly created per-run runtime tree and verify the copied bytes before applying AppContainer ACLs.
