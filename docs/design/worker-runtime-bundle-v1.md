@@ -310,3 +310,17 @@ Synthetic builder tests are present, but Runs #686–#688 did not allocate runne
 
 
 The builder also normalizes a copied `python312._pth` to `python312.zip` (when present), `.`, `DLLs`, and `Lib`, and never enables `import site`. This keeps native extension modules and the copied standard library in the explicit isolated search path. A synthetic test checks the normalized file. Run #690 did not allocate either matrix runner, so this change is CI-pending.
+
+
+## Binding the staged manifest to its host pin
+
+The host pin is now bound to the typed manifest at every transition:
+
+1. `load_trusted_runtime_bundle()` compares the exact raw manifest digest to the host-provided pin and rejects non-canonical JSON bytes.
+2. `stage_runtime_bundle()` recomputes the canonical manifest digest from the typed `VerifiedRuntimeBundle` and rejects a forged `TrustedRuntimeBundle` wrapper whose pin does not match.
+3. `verify_staged_runtime()` recomputes the canonical manifest digest from the staged typed manifest and compares it to the carried pin before hashing staged files.
+4. The Windows launch-plan builder calls `verify_staged_runtime()`, so a modified staged manifest cannot retain an unrelated original pin.
+
+This closes the gap where the staged file hashes could be checked against a replaced in-memory manifest while the original host pin was merely carried as an unrelated string. The launch-plan tests separately cover original-pin tampering rejection, a newly pinned but non-allowlisted dispatch key, and unsupported Python versions.
+
+Runs #692–#695 had no runner allocation or executed steps, so this hardening is still CI-pending.
