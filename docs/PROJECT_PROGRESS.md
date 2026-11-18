@@ -1079,3 +1079,9 @@ At the time of this update:
   - normal bounded stdin/stdout/stderr exchange.
 - Run #631 is hosted CI only, not local Windows/DSH validation. Private/link-local/metadata/public network destinations and broader filesystem probes remain outstanding. The Windows backend is not yet certified for untrusted production adapters.
 - PR #1 remains **Draft**, **Open**, and **Unmerged**.
+
+
+## Windows Job Object kill-on-close adversarial test added — pending CI
+
+- Added a test that launches a worker blocked on stdin, closes the Job Object handle while the process is still running, and requires the process handle to become signaled.
+- This verifies the configured kill-on-close policy as an actual process behavior, not just a queried Job Object flag. It is pending the next Windows CI run.

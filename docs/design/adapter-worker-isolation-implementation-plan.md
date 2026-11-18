@@ -294,3 +294,5 @@ The filesystem adversarial suite now also includes a positive/negative write bou
 ### 3.10.1 Dedicated temp write boundary verified
 
 Run #631 passed the positive/negative write test: the worker created a file in its dedicated temp directory, while the host-user temp target remained absent after the worker's write attempt. This supplements the host-file read denial checks; it does not prove denial for every filesystem namespace or device path.
+
+The Windows Job Object adversarial suite now includes a kill-on-close test: a running worker is left blocked on stdin, the host closes the Job Object handle, and the test requires the worker process handle to become signaled. This is pending CI.

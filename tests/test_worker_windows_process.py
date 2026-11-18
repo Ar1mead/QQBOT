@@ -151,6 +151,17 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
                     pass
 
 
+
+    def test_closing_job_object_kills_the_running_worker(self):
+        command = "set /p _= & for /l %i in (1,1,2147483647) do @rem"
+        with self._worker_session(["/d", "/c", command]) as (
+            worker, worker_pipes, worker_job, worker_temp
+        ):
+            self.assertTrue(worker.handle)
+            worker_job.close()
+            self.assertFalse(worker_job.handle)
+            self.assertTrue(worker.wait(5000), "kill-on-close did not terminate the worker")
+
     def test_worker_can_write_inside_temp_but_not_host_temp(self):
         with tempfile.TemporaryDirectory(prefix="qqbot-host-write-") as host_temp:
             outside_path = os.path.join(host_temp, "blocked-write.txt")
