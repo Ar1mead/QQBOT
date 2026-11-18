@@ -10,6 +10,7 @@ from adapters.worker_backends.runtime_bundle import (
     RuntimeBundleError,
     cleanup_staged_runtime,
     load_runtime_bundle,
+    load_trusted_runtime_bundle,
     parse_runtime_bundle_manifest,
     stage_runtime_bundle,
     verify_runtime_bundle,
@@ -131,6 +132,49 @@ class RuntimeBundleManifestTests(unittest.TestCase):
             Path(root, "unlisted.txt").write_text("extra", encoding="utf-8")
             with self.assertRaisesRegex(RuntimeBundleError, "file set mismatch"):
                 load_runtime_bundle(root)
+
+    def test_trusted_loader_requires_exact_host_pinned_manifest_digest(self):
+        value, file_bytes = self.make_manifest()
+        with tempfile.TemporaryDirectory() as root:
+            self.write_bundle(root, value, file_bytes)
+            manifest_bytes = Path(root, MANIFEST_FILENAME).read_bytes()
+            pinned_digest = hashlib.sha256(manifest_bytes).hexdigest()
+            verified = load_trusted_runtime_bundle(
+                root,
+                expected_manifest_sha256=pinned_digest,
+            )
+            self.assertEqual(verified.manifest.bundle_id, "qqbot-worker-test")
+            with self.assertRaisesRegex(RuntimeBundleError, "host-pinned SHA-256"):
+                load_trusted_runtime_bundle(
+                    root,
+                    expected_manifest_sha256="0" * 64,
+                )
+            with self.assertRaisesRegex(ValueError, "64 lowercase"):
+                load_trusted_runtime_bundle(
+                    root,
+                    expected_manifest_sha256="NOT-A-DIGEST",
+                )
+
+    def test_host_pinned_manifest_rejects_self_consistent_bundle_replacement(self):
+        value, file_bytes = self.make_manifest()
+        with tempfile.TemporaryDirectory() as root:
+            self.write_bundle(root, value, file_bytes)
+            original_manifest = Path(root, MANIFEST_FILENAME).read_bytes()
+            pinned_digest = hashlib.sha256(original_manifest).hexdigest()
+
+            replacement_files = dict(file_bytes)
+            replacement_files["app/worker_entrypoint.py"] = b"replacement worker code"
+            replacement_value, replacement_files = self.make_manifest(files=replacement_files)
+            self.write_bundle(root, replacement_value, replacement_files)
+
+            # Internal hashes alone accept a self-consistent replacement.
+            self.assertEqual(load_runtime_bundle(root).manifest.bundle_id, "qqbot-worker-test")
+            # An independent host pin rejects the replaced manifest and code.
+            with self.assertRaisesRegex(RuntimeBundleError, "host-pinned SHA-256"):
+                load_trusted_runtime_bundle(
+                    root,
+                    expected_manifest_sha256=pinned_digest,
+                )
 
     def test_verify_rejects_digest_and_size_mismatch(self):
         value, file_bytes = self.make_manifest()
