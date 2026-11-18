@@ -53,6 +53,7 @@ The cursor is scoped to one SurfCore account/feed identity. The response contain
       "conversation_kind": "group",
       "conversation_ref": "opaque-stable-conversation-ref",
       "sender_ref": "opaque-stable-sender-ref",
+      "actor_role": "sender",
       "content_origin": "source_provided",
       "modality": "text",
       "content": "normalized text or explicit bounded media placeholder",
