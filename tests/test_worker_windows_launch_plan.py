@@ -153,7 +153,7 @@ class WindowsWorkerLaunchPlanTests(unittest.TestCase):
                 adapters=(replace(wrong, dispatch_key="other_fixed_key"),),
             )
             forged = replace_staged(staged, manifest=forged_manifest)
-            with self.assertRaisesRegex(ValueError, "exactly match"):
+            with self.assertRaisesRegex(RuntimeBundleError, "host-pinned SHA-256"):
                 build_windows_worker_launch_plan(
                     forged,
                     adapter_id="surfcore.qq.readonly",
