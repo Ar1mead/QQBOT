@@ -795,3 +795,10 @@ At the time of this update:
 - Capacity exhaustion is distinct from journal corruption: new capture stops, existing records remain readable, and no data is pruned.
 - Latest reference code/test commit: `21ad837c240fbc524d3614a51ab6260771701ed6`. The GitHub combined-status lookup still returned no check entries; cross-platform Node 22 CI remains pending/unverified.
 - These are reference files only. No SurfCore upstream patch, key provisioning, production ACL implementation, HTTP route, or real QQ connection exists.
+
+### CI wiring and Windows fixture cleanup
+
+- The Node 22 journal reference test was added to the existing Ubuntu/Windows CSD matrix, and both push/PR path filters now include `integrations/surfcore-qq-journal/**`.
+- Removed the separate standalone journal workflow to avoid duplicate CI runs.
+- Updated test fixture cleanup to close open file handles before deleting temporary directories, avoiding Windows file-lock failures.
+- Latest journal test commit: `17b4cb803350a9cbb5b6fd40f70d32bddebbceb1`; CI workflow wiring commit: `8682db9375caa007123af4dda01ae9ea8dc8713d`. No check results are visible from the available status lookup yet; do not claim a pass.
