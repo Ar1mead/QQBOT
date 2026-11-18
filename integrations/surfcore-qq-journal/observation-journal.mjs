@@ -138,11 +138,17 @@ export function createObservationJournal({
       finally { await repair.close(); }
       data = data.subarray(0, safeLength);
     }
+    let decoded;
+    try { decoded = new TextDecoder("utf-8", { fatal: true }).decode(data); }
+    catch { throw new Error("journal_utf8_corrupt"); }
+    const lines = data.length ? decoded.slice(0, -1).split("\n") : [];
     let cursor = 0;
-    const lines = data.toString("utf8").split("\n").filter(Boolean);
     for (const line of lines) {
       let record;
-      try { record = JSON.parse(line); } catch { throw new Error("journal_complete_line_corrupt"); }
+      try {
+        record = JSON.parse(line);
+        if (JSON.stringify(record) !== line) throw new Error("non_canonical_json");
+      } catch { throw new Error("journal_complete_line_corrupt"); }
       validateRecord(record, streamRef, cursor + 1);
       cursor = record.cursor;
     }
