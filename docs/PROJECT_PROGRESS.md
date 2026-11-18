@@ -594,3 +594,6 @@ At the time of this update:
 - Added `tests/test_adapter_worker_host.py` and wired the focused suite into the Ubuntu/Windows CI workflow. Also tightened protocol version validation to reject boolean values (Python treats `True == 1`) and added a regression test.
 - Security boundary: `WorkerExecutor` is only an interface. Tests use an in-memory fake; no real subprocess launcher or OS sandbox is implemented. Production use remains blocked until a host-owned executor proves filesystem, network, secret, process, and resource restrictions on Windows and Linux.
 - Hosted CI for the new host/orchestration code is pending. No local test execution is claimed.
+
+
+- Executor contract clarification: a real backend must kill the worker on timeout and cap output while streaming, not merely after buffering. The host's post-return byte check cannot undo memory already allocated by an executor that ignored the cap.
