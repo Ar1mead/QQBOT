@@ -50,6 +50,7 @@ class WindowsWorkerLaunchPlan:
     operation: str
     dispatch_key: str
     python_version: str
+    manifest_sha256: str
     application_path: str
     arguments: tuple[str, ...]
     current_directory: str
@@ -104,6 +105,13 @@ def build_windows_worker_launch_plan(
     if not isinstance(staged, StagedRuntimeBundle):
         raise TypeError("staged must be a StagedRuntimeBundle")
     verify_staged_runtime(staged)
+    manifest_pin = staged.trusted_manifest_sha256
+    if (
+        not isinstance(manifest_pin, str)
+        or len(manifest_pin) != 64
+        or any(char not in "0123456789abcdef" for char in manifest_pin)
+    ):
+        raise ValueError("staged runtime manifest is not authenticated by a host-pinned digest")
 
     trusted = next(
         (
@@ -165,6 +173,7 @@ def build_windows_worker_launch_plan(
         operation=trusted.operation,
         dispatch_key=trusted.dispatch_key,
         python_version=staged.manifest.python_version,
+        manifest_sha256=manifest_pin,
         application_path=interpreter_path,
         arguments=(
             "-I",
