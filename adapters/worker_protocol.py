@@ -135,7 +135,7 @@ class WorkerResponse:
     protocol_version: int = PROTOCOL_VERSION
 
     def __post_init__(self) -> None:
-        if self.protocol_version != PROTOCOL_VERSION:
+        if type(self.protocol_version) is not int or self.protocol_version != PROTOCOL_VERSION:
             raise WorkerProtocolError("unsupported worker protocol version")
         for name in ("request_id", "adapter_id", "adapter_version"):
             _bounded_string(getattr(self, name), name)
