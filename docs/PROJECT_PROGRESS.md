@@ -546,3 +546,14 @@ At the time of this update:
 - Important limitation: this is a capability-declaration gate, not an operating-system sandbox. It does not by itself prevent a buggy or dishonest adapter implementation from opening a network connection. No live Bilibili client, HTTP transport, cookie/session handling, account access, download, comment/like/follow, or other external action has been implemented.
 - The existing workflow already includes `adapters/**` and the Bilibili target test in its push and pull-request paths; hosted verification of this new policy slice is pending.
 - PR #1 remains Draft, Open, and Unmerged.
+
+
+### 2026-11-18 — Explicit observation adapter registry and dispatch gate
+
+- Added `adapters/registry.py` with an explicit, host-populated adapter allowlist. There is no plugin discovery, auto-import, or automatic registration.
+- Registration requires an adapter manifest and callable observation method, rejects any PRESENT/SIDE_EFFECT capability, and rejects duplicate adapter IDs.
+- Dispatch is denied for unregistered IDs. Each requested modality must be explicitly declared as an `observe:<modality>` capability. The manifest is pinned at registration time so later mutation of an adapter's exposed manifest does not silently widen its admitted identity or scope.
+- Returned evidence is checked against the pinned adapter ID/version/platform, requested modalities, and mandatory `untrusted=true` boundary before being returned to the caller.
+- Added `tests/test_adapter_registry.py` for unregistered dispatch denial, modality scope enforcement, non-observation registration denial, duplicate IDs, manifest pinning, and evidence identity checks. The workflow now runs this focused suite and includes its path in push/PR filters.
+- Security limit: this is a core-controlled application dispatch gate for trusted, host-loaded code. It is **not** a Python sandbox and cannot prevent in-process adapter code from importing sockets, opening files, or bypassing the registry. Untrusted third-party code must not be loaded into this process; actual isolation requires a separate process/container plus OS/network policy, which remains a later design task.
+- Latest code/test commits for this slice: `e96b6e2b16aefe0506f969f9f88c96d490d0b412`, `2fb8a769c31894c5c01b093277438d2462dd2b0b`, `8917dc4b2b24e75b131d6d94fa231485b5d8199c`, and `761322e92ced476a9d4c18c449ab701f96438c22`. Hosted CI is pending; no local tests are claimed.
