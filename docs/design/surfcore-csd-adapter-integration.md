@@ -115,3 +115,37 @@ The concrete proposed transport and DTO schema are specified in [SurfCore Read-o
 ## 7. Explicit non-claims
 
 This assessment is source review at the pinned SurfCore commit, not a live connection test. It does not establish that the user's currently installed SurfCore is still v0.8.8, that QQ/Bilibili accounts are logged in, or that any API endpoint is enabled in the user's local environment. No local files, settings, credentials, plugins, or accounts were changed.
+
+
+## 4.2 Pinned-source ingress tap audit — 2026-11-18
+
+A focused line-level review of the pinned v0.8.8 source identified the concrete QQ capture point and clarified why the existing Bilibili CLI is not the transport.
+
+### QQ: exact receive path
+
+- src/bridge.js registers bot.onPrivateMessage(async (event) => ...) and bot.onGroupMessage(async (event) => ...) on the existing SnowLumaWebSocketClient. Both callbacks discard the bot's own messages and then call handleIncoming('private'|'group', ..., event, cfg).
+- Inside handleIncoming, the bridge derives the conversation key, applies SurfCore mode/session and sender-deny policy, converts OneBot segments to text, extracts media metadata, and derives the source reference from message_id ?? msg_id ?? message_seq. It also stores message/sequence references and continues into SurfCore memory, pending-question, wake, and response paths.
+- This confirms a source-side tap can be attached to the two receive callbacks without creating another QQ connection. It must be a separate projection, not a second call to handleIncoming and not an adapter that depends on SurfCore's DSH session side effects.
+- Do not treat message_seq as a guaranteed globally monotonic feed cursor. It is a source-provided sequence/reference. The read-only feed should allocate its own durable per-stream cursor and retain the source message reference separately.
+- The existing qq-public-feed.jsonl remains unsuitable: it is group-only, filtered/redacted, and lacks the stable cursor/history semantics required by the CSD adapter.
+- Recommended implementation point for a separately reviewed SurfCore change: in each private/group callback, after rejecting self-authored bot events, pass a minimal normalized record to a dedicated observation journal. The journal must have its own explicit private-chat opt-in and conversation allowlist; it must not inherit broad management credentials or automatically export every private message. It must not call wake, prompt, send, mark-read, or modify SurfCore session state.
+- A dedicated loopback GET-only feed can page the journal by its own cursor. It needs a separate observation credential, strict route/method allowlist, bounded pages/response bytes, no generic command/path/URL proxy, and no access to the console or agent tokens. The existing management HTTP server is not an acceptable credential boundary without an independently authenticated route and strict separation.
+- The feed should preserve source message ID, source timestamp, local receipt timestamp, account/conversation/sender opaque refs, private/group kind, historical/backfill status, and normalized text. Non-text OneBot segments must be represented as typed bounded placeholders or explicitly marked omitted/partial; the current first adapter slice remains text-only.
+
+### Bilibili: command-level read/write separation
+
+- The pinned plugins/surfcore/tools/bili.mjs command map clearly separates candidate read paths such as video, subtitles, feed, prefs, and search from mutation commands such as fav, dm, comment, dynamic, and danmaku. This is useful source evidence for an explicit allowlist, not permission to expose the entire CLI.
+- video-content.mjs fetches metadata, subtitle tracks, and danmaku, but prints human-oriented console text and can additionally fetch an arbitrary GitHub repository/README inferred from the video description. It is therefore not a narrow structured observation endpoint.
+- subtitles.mjs retrieves timestamped subtitle content but also writes JSON/TXT artifacts into SurfCore's local shots/cache area and prunes cache data. A CSD read request must not silently inherit those filesystem mutations.
+- feed.mjs has a --json output mode, but the inspected implementation also reads preference/history state and writes the selected feed picks to a local state file. It is not a pure, stateless video-observation API.
+- search.mjs emits human-oriented text rather than a versioned result envelope. Human stdout parsing remains prohibited.
+- Recommended direction: add a small SurfCore-owned read-only service/library that returns versioned JSON for one canonical BV target at a time (metadata, subtitle tracks/content, comments, danmaku), with explicit extraction coverage and source provenance. Refactor or call the underlying read functions without CLI presentation output and without implicit cache/picks writes. Keep feed/search/recommendation state out of the first CSD ingress slice.
+- The CSD-facing capability allowlist should expose only these individually reviewed read methods. The existing CLI command map must never be forwarded as generic tool dispatch, and no account mutation command may be reachable through this interface.
+
+### Implementation decision after this audit
+
+1. Implement the QQ journal/feed on the SurfCore side first, because the receive callbacks are concrete and the source message envelope already contains the required identifiers.
+2. Keep the current Python mapper as the consumer-side validator; do not add a guessed HTTP client until the route, authentication, pagination, and response schemas exist in SurfCore.
+3. Implement the Bilibili JSON service second, initially for one canonical BV target and a small, explicit set of read methods.
+4. Only connect either transport through WorkerHost after a host-owned subprocess executor and Windows/Linux OS isolation have been implemented and tested.
+5. No upstream SurfCore files were changed. This audit is pinned-source review only; it does not prove a live QQ/Bilibili account connection or local runtime behavior.
