@@ -1235,14 +1235,17 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
     @staticmethod
     def _validate_observation_v2(payload: Mapping[str, Any]) -> None:
         """Validate a provenance-complete, still-untrusted observation envelope."""
-        allowed = {
+        required = {
             "observation_id", "adapter_id", "adapter_version", "platform",
             "account_ref", "external_ref", "observation_kind", "content_origin",
             "modality", "content", "source_ref", "source_artifact_ref",
             "observed_at", "received_at", "extraction_method", "content_digest",
             "coverage", "untrusted",
         }
-        if set(payload) != allowed:
+        provenance_fields = {
+            "context_kind", "context_ref", "actor_ref", "source_sequence", "historical",
+        }
+        if not required.issubset(payload) or set(payload) - required - provenance_fields:
             raise ValueError("observation v2 payload contains missing or unsupported fields")
         for field in (
             "observation_id", "adapter_id", "adapter_version", "platform",
@@ -1252,10 +1255,21 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             _nonempty(payload.get(field), f"observation.{field}")
         if payload.get("content_origin") not in {"source_provided", "adapter_extracted"}:
             raise ValueError("observation.content_origin is unsupported")
-        for field in ("account_ref", "source_artifact_ref"):
+        for field in ("account_ref", "source_artifact_ref", "context_kind", "context_ref", "actor_ref"):
             value = payload.get(field)
             if value is not None:
                 _nonempty(value, f"observation.{field}")
+        if (payload.get("context_kind") is None) != (payload.get("context_ref") is None):
+            raise ValueError("observation context_kind and context_ref must be provided together")
+        source_sequence = payload.get("source_sequence")
+        if source_sequence is not None and (
+            not isinstance(source_sequence, int)
+            or isinstance(source_sequence, bool)
+            or source_sequence < 0
+        ):
+            raise ValueError("observation source_sequence must be a non-negative integer or None")
+        if "historical" in payload and not isinstance(payload["historical"], bool):
+            raise ValueError("observation historical must be boolean")
         _timestamp(payload.get("observed_at"), "observed_at")
         _timestamp(payload.get("received_at"), "received_at")
         expected_digest = "sha256:" + hashlib.sha256(
