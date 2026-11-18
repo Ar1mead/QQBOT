@@ -615,3 +615,15 @@ At the time of this update:
 - No local SurfCore/DSH files, settings, accounts, credentials, or plugins were modified. No live QQ/Bilibili connection was tested.
 - Next implementation step: add fake SurfCore observation DTO fixtures and a deterministic mapper into the existing Observation v2/CSD path; test QQ cursor/idempotency and Bilibili provenance/coverage. Do not add live transport until the scoped read-only SurfCore interface and real worker isolation gates exist.
 - PR #1 remains Draft, Open, and Unmerged; no user-local tests are claimed.
+
+
+### 2026-11-18 — SurfCore DTO mapper (fake-input Stage 0 slice)
+
+- Added `adapters/platforms/surfcore/mapping.py` and package exports. This is a pure mapper only: it accepts already-normalized, versioned SurfCore observation DTOs and converts them into the existing immutable `ObservationEvidence` contract and deterministic CSD Observation v2 events.
+- Added separate receive-only/read-only manifests for QQ and Bilibili. Both expose only `observe:text`; no presentation or side-effect capability is declared.
+- DTO validation is fail-closed: exact schema version and field set, platform-specific observation-kind allowlist, text-only first slice, content-size bound, source/receipt timestamps, coverage shape, and optional opaque account/artifact references. Unknown fields (including accidental credential fields) are rejected. The mapper computes the content digest and forces `untrusted=true`.
+- Stable observation identity is derived from platform + SurfCore record ID. Re-delivery maps to the same CSD event identity; CSD remains responsible for durable idempotency/conflict detection.
+- Added `tests/test_surfcore_observation_mapping.py` for QQ incoming/historical messages, Bilibili subtitle partial coverage, observation-only manifests, schema/kind/modality rejection, unknown-field rejection, and stable CSD event mapping.
+- Updated the Ubuntu/Windows workflow path filters and added a dedicated focused test step for the SurfCore mapper. Hosted CI is pending for this new code; do not claim it passes until the new run completes.
+- This does **not** connect to a running SurfCore instance, open a socket, read private SurfCore files, use credentials, or perform QQ/Bilibili actions. The fake DTO boundary is implemented; the actual scoped read-only transport is not.
+- Next: use hosted CI to validate the mapper, then extend the fake DTO contract with explicit cursor replay/duplicate-conflict cases and add the eventual SurfCore read-only feed only after its separate credential and process-isolation requirements are met.
