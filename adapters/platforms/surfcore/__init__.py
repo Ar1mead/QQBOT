@@ -3,7 +3,9 @@
 from .mapping import (
     ADAPTER_VERSION,
     SCHEMA_VERSION,
+    SurfCoreQQBatch,
     bilibili_manifest,
+    map_surfcore_qq_batch,
     map_surfcore_record,
     map_surfcore_record_to_csd_event,
     qq_manifest,
@@ -12,7 +14,9 @@ from .mapping import (
 __all__ = [
     "ADAPTER_VERSION",
     "SCHEMA_VERSION",
+    "SurfCoreQQBatch",
     "bilibili_manifest",
+    "map_surfcore_qq_batch",
     "map_surfcore_record",
     "map_surfcore_record_to_csd_event",
     "qq_manifest",
