@@ -269,6 +269,24 @@ def ensure_appcontainer_profile_sid(profile_name: str) -> str:
 
 
 
+
+def _delete_appcontainer_profile(profile_name: str) -> None:
+    """Delete a profile, retrying once because Windows documents indeterminate failure."""
+    userenv = _windows_userenv()
+    delete = userenv.DeleteAppContainerProfile
+    delete.argtypes = [ctypes.c_wchar_p]
+    delete.restype = ctypes.c_long
+    first = int(delete(profile_name)) & 0xFFFFFFFF
+    if first == 0:
+        return
+    second = int(delete(profile_name)) & 0xFFFFFFFF
+    if second == 0:
+        return
+    raise OSError(
+        f"DeleteAppContainerProfile failed twice: HRESULTs 0x{first:08X}, 0x{second:08X}"
+    )
+
+
 class EphemeralAppContainerProfile:
     """Own a uniquely named AppContainer profile and delete it on close.
 
@@ -334,10 +352,7 @@ class EphemeralAppContainerProfile:
                 raise OSError("AppContainer profile returned a non-AppContainer SID")
         except Exception:
             # The profile was newly created by this call; do not leave it behind.
-            delete = userenv.DeleteAppContainerProfile
-            delete.argtypes = [ctypes.c_wchar_p]
-            delete.restype = ctypes.c_long
-            delete(profile_name)
+            _delete_appcontainer_profile(profile_name)
             raise
         finally:
             if sid_text:
@@ -360,13 +375,7 @@ class EphemeralAppContainerProfile:
     def close(self) -> None:
         if self._closed:
             return
-        userenv = _windows_userenv()
-        delete = userenv.DeleteAppContainerProfile
-        delete.argtypes = [ctypes.c_wchar_p]
-        delete.restype = ctypes.c_long
-        hr = int(delete(self.profile_name)) & 0xFFFFFFFF
-        if hr != 0:
-            raise OSError(f"DeleteAppContainerProfile failed: HRESULT 0x{hr:08X}")
+        _delete_appcontainer_profile(self.profile_name)
         self._closed = True
 
     def __enter__(self) -> "EphemeralAppContainerProfile":

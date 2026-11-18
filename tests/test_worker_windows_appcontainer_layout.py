@@ -1,6 +1,7 @@
 import ctypes
 import os
 import unittest
+from unittest.mock import patch
 
 from adapters.worker_backends import windows_appcontainer as win
 
@@ -56,6 +57,47 @@ class WindowsAppContainerLayoutTests(unittest.TestCase):
         self.assertTrue(os.path.isabs(path))
         self.assertTrue(os.path.isdir(path))
 
+
+
+    def test_delete_profile_retries_once_after_documented_indeterminate_failure(self):
+        class FakeDelete:
+            def __init__(self, results):
+                self.results = list(results)
+                self.calls = []
+
+            def __call__(self, name):
+                self.calls.append(name)
+                return self.results.pop(0)
+
+        class FakeUserEnv:
+            pass
+
+        fake_delete = FakeDelete([0x80004005, 0])
+        fake_userenv = FakeUserEnv()
+        fake_userenv.DeleteAppContainerProfile = fake_delete
+        with patch.object(win, "_windows_userenv", return_value=fake_userenv):
+            win._delete_appcontainer_profile("QQBOT.Worker.test")
+        self.assertEqual(fake_delete.calls, ["QQBOT.Worker.test", "QQBOT.Worker.test"])
+
+    def test_delete_profile_fails_closed_after_two_failed_attempts(self):
+        class FakeDelete:
+            def __init__(self):
+                self.calls = 0
+
+            def __call__(self, name):
+                self.calls += 1
+                return 0x80004005
+
+        class FakeUserEnv:
+            pass
+
+        fake_delete = FakeDelete()
+        fake_userenv = FakeUserEnv()
+        fake_userenv.DeleteAppContainerProfile = fake_delete
+        with patch.object(win, "_windows_userenv", return_value=fake_userenv):
+            with self.assertRaisesRegex(OSError, "failed twice"):
+                win._delete_appcontainer_profile("QQBOT.Worker.test")
+        self.assertEqual(fake_delete.calls, 2)
 
     @unittest.skipUnless(os.name == "nt", "Windows AppContainer profile lifecycle")
     def test_ephemeral_profile_is_unique_and_deleted_on_close(self):

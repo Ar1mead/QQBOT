@@ -1192,3 +1192,10 @@ The Windows backend has a verified process launch and bounded stdio path, but it
 6. Only after both backends pass should live SurfCore QQ ingress be resumed; Bilibili remains later.
 
 Current hard boundary: no production WorkerExecutor, no untrusted adapter execution, no live SurfCore connection, and no local Windows/DSH verification. PR #1 remains Draft/Open/Unmerged.
+
+
+## AppContainer profile deletion retry hardening — pending CI
+
+- Microsoft documents that a failed `DeleteAppContainerProfile` call leaves profile state indeterminate and recommends calling it again to complete deletion.
+- Updated the ephemeral profile owner to retry deletion once after a failed HRESULT. It marks the profile closed only after a successful deletion; two failures raise and fail the worker cleanup path.
+- Added unit tests for retry-success and fail-closed-after-two-failures behavior. Pending CI.
