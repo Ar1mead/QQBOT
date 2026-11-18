@@ -161,6 +161,20 @@ def _validate_launch_spec(
     )
 
 
+def _close_owned_process_handles(info: PROCESS_INFORMATION, close_handle) -> tuple[tuple[str, int], ...]:
+    """Attempt every owned PROCESS_INFORMATION handle and retain failed ones."""
+    failures: list[tuple[str, int]] = []
+    for handle_name in ("hThread", "hProcess"):
+        handle = getattr(info, handle_name)
+        if not handle:
+            continue
+        if close_handle(handle):
+            setattr(info, handle_name, None)
+        else:
+            failures.append((handle_name, ctypes.get_last_error()))
+    return tuple(failures)
+
+
 def launch_appcontainer_worker(
     *,
     application_path: str,
@@ -328,15 +342,7 @@ def launch_appcontainer_worker(
                 f"could not confirm termination of failed worker process {int(info.dwProcessId)}"
             ) from launch_error
 
-        close_failures: list[tuple[str, int]] = []
-        for handle_name in ("hThread", "hProcess"):
-            handle = getattr(info, handle_name)
-            if not handle:
-                continue
-            if close_handle(handle):
-                setattr(info, handle_name, None)
-            else:
-                close_failures.append((handle_name, ctypes.get_last_error()))
+        close_failures = _close_owned_process_handles(info, close_handle)
         if close_failures:
             details = ", ".join(
                 f"{name}=Win32 error {error}" for name, error in close_failures
