@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from adapters.worker_backends import windows_job, windows_pipes, windows_process
+from adapters.worker_backends import windows_acl, windows_appcontainer, windows_job, windows_pipes, windows_process
 
 
 class _CloseSequence:
