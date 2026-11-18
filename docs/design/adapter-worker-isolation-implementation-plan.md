@@ -282,3 +282,9 @@ Additional Microsoft references:
 This addendum is a design correction, not an implementation or test result.
 
 The command-based probes consume the bounded request line before attempting their operation. This keeps them aligned with the worker protocol and avoids confusing an intentional early stdin close with a filesystem/network denial result.
+
+### 3.10 First Windows adversarial results
+
+Run #630 passed the current adversarial cases on GitHub's Windows runner: host-user-temp and repository-root marker reads were denied, a host loopback listener was unreachable, child process creation was blocked by the active-process limit, and a bounded wall-clock timeout terminated the worker. Stdout overflow and the positive stdio round trip also passed.
+
+These are important initial results, not a complete isolation certification. Explicit private/link-local/metadata/public network attempts, broader filesystem traversal checks, and verification on the actual target Windows/DSH environment remain outstanding. The Linux backend has not yet been implemented.

@@ -1040,3 +1040,19 @@ At the time of this update:
 - This is a test-fixture protocol mismatch, not evidence that the host files were readable. The supervisor intentionally treats an early stdin close as an I/O failure rather than silently accepting an unconsumed request.
 - Updated command probes to consume one input line with `set /p` before running the target operation. The curl probe now uses `--data-binary @-` so it also consumes the request body.
 - Run #629 remains failed on Windows due to this fixture error. A new run is required before marking the adversarial cases passed.
+
+
+## Windows AppContainer adversarial suite hosted verification — Run #630
+
+- Run #630 for tested code/test head `89e3f79965984f6d5872bd3b40787cccb89a826f` completed with **Success** on both Ubuntu and Windows; each matrix job passed all 38 steps.
+- The focused Windows AppContainer suite passed the new adversarial cases:
+  - a worker could not read the host-user-temp secret marker or repository-root CSD marker;
+  - a worker could not connect to a host-owned loopback TCP listener;
+  - a worker could not launch a child `cmd.exe` under the Job Object's active-process limit of one;
+  - the worker timeout terminated the Job Object and the process handle became signaled;
+  - the prior stdout-overflow termination test continued to pass;
+  - the normal bounded stdin/stdout/stderr round trip continued to pass.
+- Run #629 remains a failed earlier attempt. Its host-file test fixture exited before consuming stdin; Run #630 verifies the corrected fixture that reads the request line before attempting file access.
+- Scope limitation: loopback denial is not exhaustive network proof. Private, link-local, cloud metadata, and public destinations still need explicit tests. Host-file marker tests cover two representative paths, not every possible host resource.
+- This is hosted CI evidence only, not local Windows/DSH verification. No production WorkerExecutor or real platform adapter is enabled.
+- PR #1 remains **Draft**, **Open**, and **Unmerged**.
