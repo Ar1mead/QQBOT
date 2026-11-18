@@ -167,3 +167,8 @@ The first protocol-v3 CI attempt exposed a decoder exact-key allowlist omission 
 ## Host-side QQ metadata validator slice
 
 A pure host-side validator now exists in adapters/platforms/surfcore/worker_result.py. It enforces the exact three-key metadata schema and binds stream_ref/after_cursor to values supplied by the host. It rejects cursor booleans, negative values, backward movement, unknown fields, and duplicate tuple keys. It does not persist the cursor or guarantee exactly-once processing; durable CSD submission must happen first. CI pending.
+
+
+## CI coverage wiring
+
+The SurfCore QQ result metadata validator test file is now explicitly listed in the CI path filters and has a dedicated Ubuntu/Windows matrix test step. Run #648 predates this change; Run #649 must verify it.

@@ -1338,3 +1338,11 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - It returns an immutable SurfCoreQQResultMetadata value. It does not persist cursors or submit events to CSD; the caller must first durably accept all returned observations.
 - Added unit tests for valid metadata, empty-page cursor advance, stream/checkpoint mismatch, invalid cursor types/ranges, unknown fields, and duplicate keys.
 - This validator is a building block only. It is not yet wired into a live QQ adapter or production Windows executor. Protocol v3 CI Run #646 failed on an exact-key decoder omission and one test fixture; those corrections are in Run #647. The QQ metadata validator is being added as the next CI slice.
+
+
+## Protocol v3 and QQ metadata validation — current CI checkpoint
+
+- Run #647 completed successfully on Ubuntu and Windows, validating the corrected protocol-v3 exact response schema and bounded scalar result_metadata round-trip.
+- The SurfCore QQ metadata validator and its unit tests have been added. A workflow audit found that the new test file was not yet explicitly invoked by the matrix workflow; the workflow now includes both a path trigger and a dedicated test step.
+- Run #648 was triggered before that workflow wiring change and therefore does not yet execute the new SurfCore metadata test. Run #649 will validate the complete slice.
+- No production executor, worker entrypoint, bundle verifier, live QQ connection, or local Windows/DSH test exists yet.

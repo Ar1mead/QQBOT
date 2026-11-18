@@ -442,3 +442,8 @@ Run #646 found that the v3 encoder emitted result_metadata but the decoder exact
 ### 3.21 Host-side SurfCore QQ cursor metadata validator
 
 Added adapters/platforms/surfcore/worker_result.py with an immutable SurfCoreQQResultMetadata value and exact validator. It binds the returned stream reference and prior cursor to the host request checkpoint, rejects boolean/negative/backward cursors and unknown/duplicate fields, and returns the proposed cursor only as validated data. It performs no persistence. The caller must submit all observations durably to CSD before storing proposed_cursor. CI pending.
+
+
+### 3.21.1 Workflow wiring
+
+The new tests/test_surfcore_worker_result.py test file is now explicitly included in the workflow path filters and has its own test step after the SurfCore observation mapping tests. Run #648 predates this wiring; Run #649 is required to verify the new test.
