@@ -1162,3 +1162,10 @@ At the time of this update:
 - The process-launch integration suite and all previous Windows adversarial tests also passed.
 - The current process integration fixture still uses the persistent CI profile; next it will be switched to the ephemeral owner so the full launch lifecycle proves profile deletion after process/job/pipe cleanup.
 - Hosted CI only; no local Windows/DSH verification. PR #1 remains Draft/Open/Unmerged.
+
+
+## Windows process integration switched to ephemeral profiles — pending CI
+
+- Updated the Windows process test harness to create one unique AppContainer profile per worker session, use that profile's SID and LocalAppData path, and delete it after the process, Job Object, startup attributes, and pipes have been closed.
+- This exercises profile lifecycle in the actual launch path rather than testing profile creation/deletion separately.
+- The change is pending CI. A failed profile deletion must fail the test rather than leave a persistent per-run profile behind.

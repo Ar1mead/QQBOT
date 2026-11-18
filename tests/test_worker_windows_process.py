@@ -58,44 +58,45 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory(prefix="qqbot-worker-", dir=temp_parent) as worker_temp:
             with tempfile.TemporaryDirectory(prefix="qqbot-runtime-", dir=temp_parent) as runtime_temp:
-                sid = app.ensure_appcontainer_profile_sid("Ar1mead.QQBOT.Worker.CI")
-                if application_name == "cmd.exe":
-                    application = os.path.join(runtime_temp, application_name)
-                    shutil.copy2(os.path.join(system32, application_name), application)
-                    acl.grant_runtime_read_execute(runtime_temp, sid)
-                else:
-                    application = os.path.join(system32, application_name)
-                if callable(arguments):
-                    arguments = arguments(worker_temp, runtime_temp)
-                acl.grant_temp_read_write(worker_temp, sid)
-                acl.apply_low_integrity_no_write_up(worker_temp)
-                worker_env = environment.build_worker_environment(
-                    {
-                        "SystemRoot": system_root,
-                        "WINDIR": system_root,
-                        "LOCALAPPDATA": app.get_appcontainer_folder_path(sid),
-                        "TEMP": worker_temp,
-                        "TMP": worker_temp,
-                        "PATH": system32,
-                    }
-                )
-    
-                with pipes.WorkerPipes.create() as worker_pipes:
-                    with app.EmptyAppContainerCapabilities(sid) as capabilities:
-                        with startup.WorkerStartupAttributes(
-                            capabilities, worker_pipes.child_handles_for_startup()
-                        ) as startup_attributes:
-                            with job.create_worker_job(128 * 1024 * 1024, 10000) as worker_job:
-                                with process.launch_appcontainer_worker(
-                                    application_path=application,
-                                    arguments=arguments,
-                                    current_directory=worker_temp,
-                                    environment=worker_env,
-                                    pipes=worker_pipes,
-                                    startup=startup_attributes,
-                                    job=worker_job,
-                                ) as worker:
-                                    yield worker, worker_pipes, worker_job, worker_temp, runtime_temp
+                with app.EphemeralAppContainerProfile.create() as profile:
+                    sid = profile.appcontainer_sid
+                    if application_name == "cmd.exe":
+                        application = os.path.join(runtime_temp, application_name)
+                        shutil.copy2(os.path.join(system32, application_name), application)
+                        acl.grant_runtime_read_execute(runtime_temp, sid)
+                    else:
+                        application = os.path.join(system32, application_name)
+                    if callable(arguments):
+                        arguments = arguments(worker_temp, runtime_temp)
+                    acl.grant_temp_read_write(worker_temp, sid)
+                    acl.apply_low_integrity_no_write_up(worker_temp)
+                    worker_env = environment.build_worker_environment(
+                        {
+                            "SystemRoot": system_root,
+                            "WINDIR": system_root,
+                            "LOCALAPPDATA": profile.local_appdata_path,
+                            "TEMP": worker_temp,
+                            "TMP": worker_temp,
+                            "PATH": system32,
+                        }
+                    )
+        
+                    with pipes.WorkerPipes.create() as worker_pipes:
+                        with app.EmptyAppContainerCapabilities(sid) as capabilities:
+                            with startup.WorkerStartupAttributes(
+                                capabilities, worker_pipes.child_handles_for_startup()
+                            ) as startup_attributes:
+                                with job.create_worker_job(128 * 1024 * 1024, 10000) as worker_job:
+                                    with process.launch_appcontainer_worker(
+                                        application_path=application,
+                                        arguments=arguments,
+                                        current_directory=worker_temp,
+                                        environment=worker_env,
+                                        pipes=worker_pipes,
+                                        startup=startup_attributes,
+                                        job=worker_job,
+                                    ) as worker:
+                                        yield worker, worker_pipes, worker_job, worker_temp, runtime_temp
 
     def _execute(self, worker, worker_pipes, worker_job, timeout_ms=10000, stdout_limit=4096):
         return worker_io.execute_worker_stdio(
