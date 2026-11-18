@@ -218,3 +218,17 @@ This section supersedes earlier protocol-v3 references in this document. The wir
 The host reconstructs the typed ObservationEvidence object and relies on its validation for paired context fields, BCP 47 language tags, non-negative integer source sequence (booleans rejected), boolean historical flag, content digest integrity, and mandatory untrusted=true. The worker is not permitted to omit provenance by relying on host defaults: all fields are explicit in the v4 wire schema.
 
 The v4 implementation and provenance round-trip tests are present in the branch; hosted CI verification is pending. All worker entrypoint implementations must import the pinned protocol implementation from the same reviewed bundle and reject other protocol versions.
+
+
+## Protocol v4 and fixed entrypoint implementation status (2026-11-18)
+
+The implementation has advanced beyond the earlier status notes above:
+
+- Worker wire protocol is v4 and explicitly carries all ObservationEvidence provenance fields.
+- `adapters/worker_entrypoint.py` now implements one bounded request per process, a static dispatch table, strict JSON payload parsing (duplicate keys and non-standard constants rejected), fixed SurfCore QQ batch mapping, target/stream binding, v4 evidence serialization, and proposed-cursor metadata return.
+- The entrypoint supports both repository source layout (`adapters/worker_entrypoint.py`) and the staged bundle layout (`app/worker_entrypoint.py`) while running with `-I -S -B`. It adds only the resolved, host-staged app root to `sys.path`.
+- `tests/test_worker_entrypoint.py` covers the dispatch contract and a real subprocess invocation under isolated Python flags.
+- Runs #656, #661, #663, and #664 passed on Ubuntu and Windows. Run #664 includes the isolated-mode subprocess test and complete test discovery.
+- The workflow PR path filters have been reconciled to include the worker entrypoint, runtime bundle, protocol, SurfCore mapping/result, host, and Windows backend test files. The workflow-only follow-up commit is awaiting its own CI run.
+- Still not implemented: a production Windows AppContainer executor that composes bundle verification/staging, AppContainer profile, ACLs, explicit environment, inherited pipes, Job Object, suspended launch/resume, bounded concurrent I/O, response validation, and mandatory cleanup into one fail-closed lifecycle.
+- The entrypoint is not a network client and does not connect to QQ/Bilibili. Live platform ingestion remains outside this slice.
