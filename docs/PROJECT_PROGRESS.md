@@ -675,3 +675,12 @@ At the time of this update:
 - This aligns the Python fake-input mapper with the newly documented SurfCore ingress proposal. It does not yet add the proposed `stream_ref` envelope or a transport client/server; those remain separate integration work.
 - Hosted CI for these latest contract/mapper changes has been triggered by the code commits and is pending. No pass is claimed until the latest run completes on both OSes.
 - Run #581 is confirmed completed successfully on Ubuntu and Windows before these new provenance-field changes.
+
+
+### CI reconciliation — provenance contract changes (2026-11-18)
+
+- Run #581 is confirmed fully successful on both platforms.
+- Runs #583–#585 exposed a compatibility gap: the CSD v2 validator had an exact fixed payload-key set and did not yet permit the new optional provenance fields. This was fixed by allowing only the five explicitly named optional fields while preserving the original required v2 envelope and validating each optional value. Existing v2 payloads remain valid.
+- Run #586 then caught an intermediate commit ordering issue: the mapper required QQ provenance before the matching fixture update landed. Run #587 caught two outdated assertion-message expectations after the validation became stricter. The fixtures/assertions have now been corrected.
+- The latest complete mapper/test state is commit `d50a631f3916647a6e67cfe99f88df58f23f968e`, with Run #590 queued at the time of this update. Runs #588/#589 are older intermediate commits and should not be used as final verification. Await #590 for the authoritative result.
+- The QQ batch now carries `stream_ref`; every record's opaque `account_ref` must match it. This prevents records from another QQ account/feed being accidentally mixed into a page. Added tests for missing/blank stream references and cross-stream records.
