@@ -1292,3 +1292,14 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Ubuntu failed in the new ObservationRequest contract test because the first committed contract blob contained the validation logic but omitted the dataclass field declaration. The resulting constructor rejected the input_payload keyword.
 - The protocol and WorkerHost code already referenced the payload field. This was a code assembly omission, not a design rejection.
 - Corrected the contract source from the reviewed payload-enabled version and centralized the 512 KiB limit as MAX_OBSERVATION_INPUT_BYTES. The corrected commit is pending CI.
+
+
+## Run #645 — Worker protocol v2 host-to-worker payload path verified
+
+- Run #645 tested head `16e027b89e60717040e54e273b1d2f8cd6a01fe8` and completed successfully on both `ubuntu-latest` and `windows-latest`; both matrix jobs passed.
+- The protocol-v2 request now carries immutable host-supplied input bytes (maximum 512 KiB) as canonical base64 plus SHA-256. Decoder validation enforces exact message fields, canonical base64, payload length, and digest equality.
+- `ObservationRequest` now declares the immutable `input_payload` field and shares its size bound through `MAX_OBSERVATION_INPUT_BYTES`. `WorkerHost.observe()` forwards those bytes unchanged into the versioned request envelope.
+- Run #644 is retained as a failed assembly attempt: it caught the missing dataclass field. Run #645 verifies the corrected contract.
+- Current implementation boundary: no production Windows `WorkerExecutor` yet. Low-level AppContainer profile, ACL, process, Job Object, startup handle allowlist, pipes, bounded stdio, and Python runtime/network tests exist, but they are not composed into one executor. There is also no worker-side adapter dispatch/entrypoint yet.
+- Next implementation work: define a trusted, host-owned worker runtime bundle and fixed worker entrypoint/adapter allowlist; then compose the Windows executor around the existing low-level primitives. The worker must only process host-supplied DTO bytes, must not import arbitrary paths from the host, and must not receive credentials or network access.
+- Linux Bubblewrap remains after the Windows production executor and adversarial acceptance suite. No local Windows/DSH verification; no live SurfCore ingress. PR #1 remains Draft/Open/Unmerged.

@@ -409,3 +409,12 @@ This provides the bounded host-to-worker data plane required by the design. It d
 ### 3.16.1 Run #644 contract-field assembly correction
 
 Run #644 caught that the ObservationRequest validation referenced input_payload but the dataclass field declaration had not made it into the first assembled commit. The contract source now declares the immutable bytes field and uses a shared MAX_OBSERVATION_INPUT_BYTES constant. Run #645 must validate the full protocol-v2 request path.
+
+
+### 3.16.2 Run #645 verified protocol-v2 input transport
+
+Run #645 passed on Ubuntu and Windows for head `16e027b89e60717040e54e273b1d2f8cd6a01fe8`. It verifies the corrected `ObservationRequest.input_payload` dataclass field, the shared 512 KiB bound, protocol-v2 canonical base64 plus SHA-256 serialization/validation, and WorkerHost propagation. Run #644 remains the failed first assembly attempt.
+
+### 3.17 Next design gate — trusted worker runtime bundle and fixed dispatch
+
+Before composing the production Windows executor, define how a worker process resolves the adapter implementation without accepting arbitrary host paths or plugin-provided commands. The executor should be configured with a host-owned, immutable runtime bundle and a fixed entrypoint; the bundle should contain only the pinned Python runtime, protocol decoder, and explicitly allowlisted adapter modules. The worker receives only the versioned request envelope over stdin. It must validate/decode the envelope, dispatch by an exact adapter ID/version/operation allowlist, invoke the offline adapter against the supplied input bytes, and emit one bounded versioned response on stdout. No environment-based dynamic module path, generic command dispatcher, credentials, network, CSD store, or inherited host environment may cross the boundary. Bundle integrity and path/reparse-point checks must be performed by the host before each launch. This is the next design/implementation gate, not yet implemented.
