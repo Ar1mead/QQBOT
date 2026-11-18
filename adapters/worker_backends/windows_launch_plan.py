@@ -10,7 +10,11 @@ from dataclasses import dataclass
 import os
 import stat
 
-from .runtime_bundle import RuntimeAdapterBinding, StagedRuntimeBundle
+from .runtime_bundle import (
+    RuntimeAdapterBinding,
+    StagedRuntimeBundle,
+    verify_staged_runtime,
+)
 
 
 SUPPORTED_PYTHON_IMPLEMENTATION = "CPython"
@@ -99,6 +103,7 @@ def build_windows_worker_launch_plan(
     """Return fixed interpreter/entrypoint/dispatch arguments for one allowlisted operation."""
     if not isinstance(staged, StagedRuntimeBundle):
         raise TypeError("staged must be a StagedRuntimeBundle")
+    verify_staged_runtime(staged)
 
     trusted = next(
         (
