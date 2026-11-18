@@ -44,11 +44,18 @@ def _decode_object(raw: bytes | str) -> dict[str, Any]:
             raise WorkerProtocolError("worker message exceeds maximum size")
     else:
         raise TypeError("worker message must be bytes or str")
+    def reject_nonstandard_constant(value: str) -> None:
+        raise WorkerProtocolError(f"non-standard JSON constant is not allowed: {value}")
+
     try:
-        value = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
+        value = json.loads(
+            raw,
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=reject_nonstandard_constant,
+        )
     except WorkerProtocolError:
         raise
-    except (json.JSONDecodeError, UnicodeError) as exc:
+    except (json.JSONDecodeError, UnicodeError, RecursionError) as exc:
         raise WorkerProtocolError("worker message is not valid JSON") from exc
     if not isinstance(value, dict):
         raise WorkerProtocolError("worker message root must be an object")
