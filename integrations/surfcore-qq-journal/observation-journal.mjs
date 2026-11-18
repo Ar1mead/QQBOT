@@ -235,21 +235,24 @@ export function createObservationJournal({
     return operation;
   }
 
-  async function readPage({ afterCursor = 0, limit = 100 } = {}) {
-    if (!state.opened || !state.healthy) throw new Error("journal_unavailable");
+  function readPage({ afterCursor = 0, limit = 100 } = {}) {
     if (!Number.isSafeInteger(afterCursor) || afterCursor < 0) throw new TypeError("afterCursor must be a non-negative integer");
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new RangeError("limit must be from 1 to 500");
-    if (afterCursor > state.latestCursor) throw new RangeError("afterCursor exceeds latest cursor");
-    await queue;
-    const data = await fs.readFile(filePath, "utf8");
-    const records = [];
-    for (const line of data.split("\n")) {
-      if (!line) continue;
-      const record = JSON.parse(line);
-      if (record.cursor > afterCursor && records.length < limit) records.push(record);
-    }
-    const nextCursor = records.length ? records[records.length - 1].cursor : afterCursor;
-    return { schema_version: 1, stream_ref: streamRef, after_cursor: afterCursor, next_cursor: nextCursor, records };
+    const operation = queue.then(async () => {
+      if (!state.opened || !state.healthy) throw new Error("journal_unavailable");
+      if (afterCursor > state.latestCursor) throw new RangeError("afterCursor exceeds latest cursor");
+      const data = await fs.readFile(filePath, "utf8");
+      const records = [];
+      for (const line of data.split("\n")) {
+        if (!line) continue;
+        const record = JSON.parse(line);
+        if (record.cursor > afterCursor && records.length < limit) records.push(record);
+      }
+      const nextCursor = records.length ? records[records.length - 1].cursor : afterCursor;
+      return { schema_version: 1, stream_ref: streamRef, after_cursor: afterCursor, next_cursor: nextCursor, records };
+    });
+    queue = operation.catch(() => {});
+    return operation;
   }
 
   async function close() {
