@@ -575,3 +575,12 @@ At the time of this update:
 - Wired the focused protocol suite into the hosted Ubuntu/Windows workflow and added both registry/protocol test paths to the pull-request filter.
 - Important limitation: this is only a bounded transport-envelope layer. It does not launch/authenticate a worker, provide a secure channel, semantically reconstruct/validate evidence objects, or enforce OS filesystem/network/resource restrictions. Valid JSON is not trusted evidence; host-side ObservationEvidence validation remains mandatory before CSD mapping.
 - CI for this new protocol slice is pending. No local test execution is claimed.
+
+
+### 2026-11-18 — Worker response evidence reconstruction
+
+- Extended protocol handling with `response_to_observation_result`: it reconstructs wire evidence into the existing immutable observation dataclasses rather than passing arbitrary JSON dictionaries deeper into the core.
+- The decoder enforces exact evidence/coverage fields, enum values, timestamp format/timezone, content SHA-256, coverage consistency, and mandatory `untrusted=true` through the observation contract constructors.
+- It additionally binds each evidence item's adapter ID/version to the pinned request and rejects modalities that were not requested.
+- Added tests for valid reconstruction, tampered digest, attempted trusted evidence, spoofed adapter identity, and unrequested modality.
+- CI for the latest protocol/evidence changes is pending. No local test execution is claimed.
