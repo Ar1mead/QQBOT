@@ -633,3 +633,14 @@ At the time of this update:
 
 - Workflow run #577: [GitHub Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44267016747). Ubuntu completed successfully, including the dedicated SurfCore mapper suite and full test discovery. Windows was still running at the time of this ledger update; the two-platform gate is therefore **not yet complete**.
 - Run #577 checks code/workflow commit `1c0eb4d8f8caacec07597898733ad7ab15c8c93f`. Later commits in this sequence only refreshed this progress ledger; no later runtime code change is claimed.
+
+
+### 2026-11-18 — QQ cursor-page validation and replay semantics
+
+- Extended the SurfCore DTO mapper with a bounded QQ batch envelope (`schema_version`, `after_cursor`, `next_cursor`, `records`) and per-record non-negative integer cursors. Bilibili DTOs cannot carry QQ cursors.
+- Added strict ordering and page-bound checks: records must be strictly increasing after the supplied checkpoint, no record may exceed `next_cursor`, duplicate record IDs are rejected, and a page is capped at 500 records. Empty pages may advance across filtered feed entries.
+- Added `SurfCoreQQBatch` and `map_surfcore_qq_batch()`. They return CSD events plus a **proposed** checkpoint only; this adapter does not persist cursor state. The caller must first durably submit every event to CSD and only then persist the proposed cursor. If interrupted before checkpoint persistence, replay produces the same event IDs/payloads and CSD idempotency handles redelivery.
+- Observation identity now includes platform + opaque account reference + source record ID, avoiding accidental cross-account collisions while remaining stable across replay.
+- Added tests for valid ordered pages, repeated-page replay, out-of-order and duplicate cursors, duplicate record IDs, cursor regression, records beyond the page bound, foreign-platform records, invalid cursor types, and empty-page advancement.
+- Hosted CI runs #578–#580 were triggered by the sequential commits; run #580 targets the complete mapper + test changes. Results are pending at the time of this update. No passing result is claimed yet.
+- Still no live SurfCore connection, cursor persistence/checkpoint transaction, transport implementation, or local user test. This slice defines and tests the boundary semantics only.
