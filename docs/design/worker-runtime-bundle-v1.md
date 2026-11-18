@@ -181,3 +181,8 @@ Run #649 passed on Ubuntu and Windows. The Windows full test discovery ran 516 t
 ## Next implementation gate
 
 The next code slice is a pure runtime bundle manifest parser/file verifier. It must be completed and tested before a production executor accepts runtime paths. Staging and AppContainer ACL application remain separate subsequent steps.
+
+
+## Runtime bundle verifier implementation slice
+
+A pure manifest parser and on-disk verifier now exist. It enforces exact fields, canonical relative POSIX paths, sorted unique file entries, size and total-size bounds, SHA-256 digests, exact adapter bindings, and static dispatch-key identifier syntax. Disk verification rejects extra/missing files, symlinks/reparse points, and non-regular files, and hashes each listed file. The source bundle must be host-owned and protected from untrusted concurrent writers. No staging or process launch is implemented. CI pending.

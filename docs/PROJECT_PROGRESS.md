@@ -1357,3 +1357,12 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - The protocol metadata transport is generic; the QQ-specific validator is the host-side semantic check. The caller still must durably submit all evidence/events to CSD before persisting proposed_cursor.
 - Documentation reconciliation commit follows this entry; the current branch head is verified separately at the end of this work session. PR #1 remains Draft/Open/Unmerged.
 - Next: implement the host-owned runtime bundle manifest verifier and immutable staging primitives, then the fixed worker entrypoint and WindowsAppContainerWorkerExecutor. Linux Bubblewrap remains after Windows acceptance. No local Windows/DSH verification and no live SurfCore ingress.
+
+
+## Runtime bundle manifest verifier added — CI pending
+
+- Added adapters/worker_backends/runtime_bundle.py: exact-schema bounded manifest parser, canonical relative POSIX paths, sorted/unique file entries, file/total size limits, SHA-256 format validation, exact adapter binding schema, fixed dispatch-key identifier validation, and mandatory interpreter/entrypoint membership.
+- Added on-disk verification: exact file set (no unlisted files), regular-file-only checks, symlink/reparse-point rejection, file size and SHA-256 verification, and before/open/after file identity checks.
+- Added tests covering valid bundles, duplicate JSON keys, unknown fields, path traversal/absolute/backslash paths, unsorted/duplicate paths, missing entrypoint, invalid dispatch keys, invalid sizes/digests, tampering, extra files, symlinks, and missing/oversized manifests.
+- The verifier deliberately does not stage files or launch processes. The source bundle directory must be host-owned and protected from untrusted concurrent writers; a separate staging implementation is still required.
+- Added a dedicated workflow path trigger and Ubuntu/Windows test step. CI pending.
