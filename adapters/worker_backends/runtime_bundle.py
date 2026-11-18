@@ -1,8 +1,9 @@
-"""Bounded, fail-closed manifest parsing and verification for worker runtime bundles.
+"""Bounded verification and per-invocation staging for worker runtime bundles.
 
-This module does not stage files or launch processes. The bundle root must be
-owned and protected by the trusted host; a later staging layer copies only the
-verified manifest-listed files into a per-invocation runtime tree.
+The bundle root must be owned and protected by the trusted host. This module
+verifies the exact manifest-listed file set, stages only those files into a
+fresh per-invocation runtime tree, and verifies the staged bytes. It does not
+apply AppContainer ACLs or launch a process.
 """
 from __future__ import annotations
 
