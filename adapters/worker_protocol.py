@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-import re
 from typing import Any
 
 PROTOCOL_VERSION = 1
@@ -96,7 +95,7 @@ class WorkerRequest:
     protocol_version: int = PROTOCOL_VERSION
 
     def __post_init__(self) -> None:
-        if self.protocol_version != PROTOCOL_VERSION:
+        if type(self.protocol_version) is not int or self.protocol_version != PROTOCOL_VERSION:
             raise WorkerProtocolError("unsupported worker protocol version")
         for name in ("request_id", "adapter_id", "adapter_version", "operation"):
             _bounded_string(getattr(self, name), name)
@@ -125,7 +124,7 @@ class WorkerResponse:
             raise WorkerProtocolError("unsupported worker protocol version")
         for name in ("request_id", "adapter_id", "adapter_version"):
             _bounded_string(getattr(self, name), name)
-        if self.status not in {"complete", "partial", "unavailable", "failed"}:
+        if not isinstance(self.status, str) or self.status not in {"complete", "partial", "unavailable", "failed"}:
             raise WorkerProtocolError("unsupported worker response status")
         if len(self.evidence) > MAX_EVIDENCE_ITEMS:
             raise WorkerProtocolError("evidence count exceeds protocol bounds")
