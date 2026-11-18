@@ -307,3 +307,6 @@ The CLI probes the supplied `python.exe` with isolated `-I -S -B` flags and acce
 The output manifest is canonical sorted JSON with a fixed bundle ID, CPython version, pinned interpreter/entrypoint paths, sorted per-file sizes and SHA-256 digests, and exactly one host-approved SurfCore QQ read-only dispatch binding. The builder verifies its output and reports the manifest SHA-256. That digest must be copied into trusted host configuration through a separately reviewed deployment step; it must never be read from the bundle itself.
 
 Synthetic builder tests are present, but Runs #686–#688 did not allocate runners. No real CPython 3.12 runtime bundle has yet been built or launched. The dependency closure and actual isolated runtime startup remain pending Windows execution.
+
+
+The builder also normalizes a copied `python312._pth` to `python312.zip` (when present), `.`, `DLLs`, and `Lib`, and never enables `import site`. This keeps native extension modules and the copied standard library in the explicit isolated search path. A synthetic test checks the normalized file. Run #690 did not allocate either matrix runner, so this change is CI-pending.
