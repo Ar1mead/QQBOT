@@ -423,7 +423,8 @@ class EmptyAppContainerCapabilities:
     def close(self) -> None:
         if not self._closed:
             if self._sid:
-                self._local_free(self._sid)
+                if self._local_free(self._sid):
+                    raise ctypes.WinError(ctypes.get_last_error())
                 self._sid = LPVOID()
             self._closed = True
 
