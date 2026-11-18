@@ -1006,3 +1006,16 @@ At the time of this update:
 - The supervisor previously treated "all pipe threads reached EOF" plus "process not yet signaled on an immediate zero-time poll" as an I/O failure. This was too strict; it did not wait for process exit within the already-established deadline.
 - Corrected the final phase to continue polling the process in short bounded intervals until it exits or the original wall-clock deadline expires. If the deadline expires, the Job Object is terminated and termination is confirmed before raising a timeout.
 - A new CI run is required. Run #627 remains failed on Windows; its stdout-overflow test passed, but the normal round-trip test failed on this race.
+
+
+## Windows bounded stdio supervisor hosted verification — Run #628
+
+- Run #628 for tested code/test head `d43bed94e739c88f680078776fb670ffd5e5a2e8` completed with **Success** on both `ubuntu-latest` and `windows-latest`; both jobs passed all 38 steps.
+- The Windows focused process suite passed:
+  - bounded stdio round trip: worker input is written, stdin is closed, stdout/stderr are concurrently drained, process exit code is collected, and the expected output is returned;
+  - stdout overflow: an infinite built-in command exceeds the configured 128-byte test limit and the supervisor terminates the worker Job Object; the process handle becomes signaled.
+- Windows complete unittest discovery passed all **491 tests** (6 skipped, no failures). Ubuntu complete discovery and the full workflow also passed.
+- Run #627 remains a failed earlier attempt. It exposed the pipe-EOF/process-exit timing race; Run #628 verifies the correction that waits for process termination until the same wall-clock deadline.
+- This is hosted CI evidence only. It does not replace local Windows/DSH validation.
+- Remaining sandbox proof: host secret/CSD marker denial, network denial, child-process denial, and a dedicated timeout adversarial test. No production WorkerExecutor or live SurfCore adapter is enabled.
+- PR #1 remains **Draft**, **Open**, and **Unmerged**.
