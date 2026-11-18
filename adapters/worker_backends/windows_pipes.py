@@ -237,20 +237,27 @@ class WorkerPipes:
     def close(self) -> None:
         if self._closed:
             return
-        self._closed = True
-        handles = (
-            self.handles.child_stdin,
-            self.handles.child_stdout,
-            self.handles.child_stderr,
-            self.handles.parent_stdin,
-            self.handles.parent_stdout,
-            self.handles.parent_stderr,
+        fields = (
+            "child_stdin",
+            "child_stdout",
+            "child_stderr",
+            "parent_stdin",
+            "parent_stdout",
+            "parent_stderr",
         )
         first_error = None
-        for handle in handles:
-            if handle:
-                if not self._close(handle) and first_error is None:
+        for field in fields:
+            handle = getattr(self.handles, field)
+            if not handle:
+                continue
+            if not self._close(handle):
+                if first_error is None:
                     first_error = ctypes.get_last_error()
+                continue
+            values = {name: getattr(self.handles, name) for name in fields}
+            values[field] = None
+            self.handles = WorkerPipeHandles(**values)
+        self._closed = all(not getattr(self.handles, field) for field in fields)
         if first_error is not None:
             raise ctypes.WinError(first_error)
 
