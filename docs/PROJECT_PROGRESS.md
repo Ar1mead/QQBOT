@@ -1574,3 +1574,13 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - The code/test changes since Run #664 remain unverified. Do not build or enable a production executor based on synthetic tests alone.
 - Next gate: regain an actual hosted CI execution, review all new failures (if any) from executed steps, then run the native Windows AppContainer process suite. Only after those gates should the Windows executor coordinator be implemented and tested with strict reverse-order cleanup and an explicit quarantine path for any process whose termination cannot be confirmed.
 - PR #1 remains Draft, Open, and Unmerged.
+
+
+## Handoff checkpoint — 2026-11-19 (verified branch state)
+
+- Verified current branch head before handoff docs: `165c0da4dcf2e7438643b176b123dba1ad10d185`. PR #1 head matches exactly; PR remains Draft / Open / Unmerged.
+- Correction to the preceding checkpoint: it recorded `b262a722...` as the head before its documentation update. The live branch now resolves to `165c0da4...`; use the live ref, not the older checkpoint hash, as the continuation point.
+- Latest Actions run is #710 (run ID `44353015881`), on commit `ecdf787766f2f4596b61569fbe72ffa685acbf5e`. Both Ubuntu and Windows jobs completed as failures with `runner_id=0`, blank runner name, and zero steps. No test code ran. Runs #703–#710 show the same pre-runner failure pattern. The cause remains unknown; do not attribute it to billing, minutes, or code without evidence.
+- Latest committed source changes include retryable cleanup ownership for Job Object/process/pipe/ACL handles and AppContainer SID memory, stronger Worker termination/error propagation, startup-failure cleanup attempts for both process handles, the AppContainer LocalAppData directory fixture correction, and platform-neutral fake-handle tests.
+- All source/test changes made after the last known full matrix success (#664) remain unverified. New synthetic tests are not native Windows validation. Do not describe the Windows executor or runtime bundle as production-ready.
+- A dedicated continuation brief with exact next actions is in `docs/HANDOFF_2026-11-19.md`.
