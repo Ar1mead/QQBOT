@@ -106,7 +106,7 @@ class WorkerHost:
 
 
 @dataclass
-class WorkerProcessObservationAdapter:
+class WorkerBackedObservationAdapter:
     """ObservationAdapter bridge to a host-injected worker executor.
 
     The executor is a trusted host component, not plugin-provided code. Until a
