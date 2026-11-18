@@ -258,3 +258,18 @@ Runs #665 and #668–#671 failed before runner allocation (no steps and no job l
 
 
 Follow-up Run #672, which included the staged-file tampering regression, also failed before runner allocation on both OS jobs (no steps/no runner assignment/no downloadable logs). This remains an infrastructure/runner availability block, not a test assertion result. No CI pass is claimed for the launch-plan slice.
+
+
+## Runtime bundle provenance and packaging audit (2026-11-19)
+
+A repository tree audit found no runtime-bundle build script or checked-in package-generation tool. The current fixed launch plan expects `python/python.exe` and `app/worker_entrypoint.py`, but the repository currently provides only manifest parsing/verification, staging, and cleanup code plus synthetic test fixtures.
+
+Security distinction:
+
+- The manifest's per-file SHA-256 values establish that files match the manifest.
+- They do **not** establish who created the manifest. If an attacker can replace both a file and its manifest entry, internal digest verification alone accepts the self-consistent replacement.
+- The production executor must therefore be configured with an independently trusted bundle identity: preferably a pinned manifest SHA-256 or a verified signature/public-key trust root, and the source bundle directory must be protected from untrusted writes. The exact choice needs an explicit design decision and tests.
+- Packaging must be deterministic and include the full reviewed import/dependency closure for the fixed entrypoint, not merely the interpreter and entrypoint files. It must also define the Python 3.12 runtime layout required by isolated `-I -S -B` startup.
+- Until a real package builder and provenance verification exist, the launch-plan fixture tests do not prove that a production bundle can start.
+
+This audit is a release gate before composing `WindowsAppContainerWorkerExecutor`; do not weaken it by accepting a self-authenticating manifest.
