@@ -893,3 +893,12 @@ At the time of this update:
 - Added `tests/test_worker_windows_job.py` for configuration validation, no-breakaway constants, native read-back on Windows, and non-Windows fail-closed behavior. Wired the test into the existing Ubuntu/Windows workflow.
 - **Not yet a process sandbox:** no process is created or assigned to this Job Object yet. Kill-on-close has not yet been proven against a real worker; timeout supervision, suspended launch, pipe handles, and output bounds remain next.
 - Hosted CI for this Job Object slice is pending. The preceding directory ACL slice passed Run #620 on both Ubuntu and Windows; see the verification section above. PR #1 remains Draft/Open/Unmerged.
+
+
+## Windows Job Object policy hosted verification — Run #621
+
+- Run #621 for code/test head `b6ce37cbbb35e8ba733af727002238eaa45cfd6a` completed with **Success** on both `ubuntu-latest` and `windows-latest`.
+- Both matrix jobs completed all 34 steps successfully, including the Job Object policy test, the previously verified AppContainer ACL descriptor suite, focused CSD/adapter suites, and complete unittest discovery.
+- Windows CI successfully created an unnamed Job Object, applied kill-on-close, active-process limit 1, matching finite process/job memory limits, and the requested CPU hard cap, then queried the settings back and verified them.
+- This verifies Job Object configuration only. No process has yet been assigned; kill-on-close, timeout, and whole-worker termination have not yet been exercised against a real process.
+- Hosted CI is not local Windows/DSH verification. PR #1 remains **Draft**, **Open**, and **Unmerged**.
