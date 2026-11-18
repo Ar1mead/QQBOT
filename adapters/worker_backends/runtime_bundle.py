@@ -508,6 +508,36 @@ def stage_runtime_bundle(
         raise RuntimeBundleError(f"runtime bundle staging failed: {type(exc).__name__}") from exc
 
 
+def verify_staged_runtime(staged: StagedRuntimeBundle) -> StagedRuntimeBundle:
+    """Recheck the exact staged file set and every digest immediately before launch."""
+    if not isinstance(staged, StagedRuntimeBundle):
+        raise TypeError("staged must be a StagedRuntimeBundle")
+    root = os.path.abspath(staged.root_path)
+    _safe_lstat(root, directory=True)
+    expected_files = {entry.path for entry in staged.manifest.files}
+    actual_files = _walk_bundle_files(root)
+    if actual_files != expected_files:
+        raise RuntimeBundleError("staged runtime file set does not match the manifest")
+    for entry in staged.manifest.files:
+        _hash_regular_file(
+            os.path.join(root, *entry.path.split("/")),
+            entry.size,
+            entry.sha256,
+        )
+    expected_interpreter = os.path.abspath(
+        os.path.join(root, *staged.manifest.interpreter_path.split("/"))
+    )
+    expected_entrypoint = os.path.abspath(
+        os.path.join(root, *staged.manifest.entrypoint_path.split("/"))
+    )
+    if (
+        os.path.abspath(staged.interpreter_path) != expected_interpreter
+        or os.path.abspath(staged.entrypoint_path) != expected_entrypoint
+    ):
+        raise RuntimeBundleError("staged runtime executable metadata does not match the manifest")
+    return staged
+
+
 def cleanup_staged_runtime(staged: StagedRuntimeBundle) -> None:
     """Remove a staged runtime without following links or reparse points."""
     if not isinstance(staged, StagedRuntimeBundle):
