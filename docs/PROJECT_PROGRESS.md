@@ -724,3 +724,10 @@ At the time of this update:
 - Run #604 ([Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44269594358)) is testing the mapper allowlist fix at commit `d975b93f4ed565a932f8f389ee9250b13d7009c4`. Ubuntu completed successfully; Windows reached complete test discovery with 24 prior steps successful and no failures at the last check.
 - Documentation-only commits after that code commit update the integration assessment and detailed ingress contract; they do not alter the tested code.
 - Do not claim the Bilibili provenance slice is fully verified until the Windows job completes successfully.
+
+
+### Verification complete — Run #604
+
+- Run #604 completed successfully on both Ubuntu and Windows, 28 steps each, with no failed steps: https://github.com/Ar1mead/QQBOT/actions/runs/44269594358
+- This verifies the Bilibili context allowlist correction together with the QQ/Bilibili provenance mapping and CSD validation present at tested commit `d975b93f4ed565a932f8f389ee9250b13d7009c4`.
+- The latest PR head is documentation-only commit `14edeaf05583fe093f69454f3c7a12b242909daa`; it preserves the tested code. PR #1 remains Draft / Open / Unmerged.
