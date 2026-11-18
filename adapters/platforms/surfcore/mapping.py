@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 import hashlib
+import re
 from typing import Any
 
 from adapters.contracts.observation import (
@@ -231,7 +232,6 @@ def map_surfcore_record(record: Mapping[str, Any]) -> ObservationEvidence:
             if kind != "bilibili.video.subtitle":
                 raise ValueError("content_language is only valid for Bilibili subtitles")
             content_language = _nonempty(content_language, "content_language")
-            import re
             if re.fullmatch(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*", content_language) is None:
                 raise ValueError("content_language must be a BCP 47 language tag")
 
