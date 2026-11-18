@@ -1199,3 +1199,13 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Microsoft documents that a failed `DeleteAppContainerProfile` call leaves profile state indeterminate and recommends calling it again to complete deletion.
 - Updated the ephemeral profile owner to retry deletion once after a failed HRESULT. It marks the profile closed only after a successful deletion; two failures raise and fail the worker cleanup path.
 - Added unit tests for retry-success and fail-closed-after-two-failures behavior. Pending CI.
+
+
+## AppContainer profile deletion retry verified — Run #639
+
+- Run #639 for tested head `1a177d2ef73a5b32b0900fa115d922366d3f33be` completed successfully on both Windows and Ubuntu; each matrix job passed all 38 steps.
+- The new unit tests verified that a failed `DeleteAppContainerProfile` HRESULT triggers one retry, that a successful retry completes cleanup, and that two failed attempts raise rather than falsely marking the profile closed.
+- The Windows ephemeral profile layout and process integration tests also passed. The process tests continue to create a fresh profile per worker and delete it after all process/job/pipe handles close.
+- Microsoft documents that failed profile deletion leaves state indeterminate and should be retried; see [DeleteAppContainerProfile](https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-deleteappcontainerprofile).
+- This remains hosted CI only, not local Windows/DSH verification. The backend still has no production WorkerExecutor; full Python runtime and remaining network destination probes are outstanding.
+- PR #1 remains **Draft**, **Open**, and **Unmerged**.
