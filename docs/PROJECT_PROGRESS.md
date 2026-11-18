@@ -1431,3 +1431,17 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Added the entrypoint test as an explicit CI step and included its path in push/PR filters.
 - Run #657 for entrypoint commit `78565bc59edc1a49e74ab125fd5cf307a8ad3eb2` was in progress at the last status check; it includes the full test-discovery step, which discovers the new test module. A subsequent workflow update adds an explicit entrypoint test step; wait for that run before calling the entrypoint verified.
 - No production Windows executor has been composed yet. The current Windows modules remain low-level pieces; do not enable third-party adapters. Next: finish entrypoint CI, then define and test the host-side executor lifecycle, especially bundle-to-dispatch binding, protected staging roots, profile/temp cleanup, and termination/pipe cleanup guarantees.
+
+
+## Fixed Worker entrypoint verified; CI and documentation reconciled (2026-11-18)
+
+- Run #656 passed Ubuntu and Windows for the protocol-v4 WorkerHost fixture repair.
+- Run #661 passed Ubuntu and Windows for the initial fixed Worker entrypoint/static SurfCore QQ dispatch slice.
+- Added isolated-mode startup coverage for `python -I -S -B`. The source-tree and staged-bundle layouts now resolve the pinned application root without relying on Python's script-directory injection.
+- Run #663 passed Ubuntu and Windows for the isolated-mode application-root correction.
+- Run #664 passed Ubuntu and Windows for commit `a352e44de6243e2998bb480231c7d968d44050a6`; the dedicated Worker entrypoint test step and complete test discovery both passed on both operating systems.
+- Reconciled the PR workflow path filters so changes to the Worker entrypoint, protocol, runtime bundle, SurfCore mapping/result validator, host, and Windows backend tests trigger the matrix. Previously the pull-request path list was incomplete and contained duplicated/messily separated entries.
+- Current branch head after workflow path-filter reconciliation: `11e22333d63c0df16c5a41835598f3174a1518e3`. The workflow-only commit will trigger a fresh matrix; await that result.
+- PR #1 remains Draft/Open/Unmerged. No local Windows/DSH verification or live QQ/Bilibili connection has occurred.
+- Fixed entrypoint status: implemented and CI-tested as an isolated Python process, but not yet launched through the production Windows AppContainer lifecycle. The current static binding supports only SurfCore QQ text batches. No other platform adapter is enabled.
+- Next implementation gate: define a typed, fail-closed Windows executor orchestration API that binds the verified manifest's exact interpreter, entrypoint, and dispatch key to the fixed launch spec; then add lifecycle tests with injected OS-boundary fakes before wiring real Windows handles. Do not yet call the sandbox production-ready.
