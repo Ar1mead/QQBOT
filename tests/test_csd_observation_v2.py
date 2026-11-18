@@ -121,6 +121,9 @@ class CSDObservationV2Tests(unittest.TestCase):
             context_kind="private",
             context_ref="conversation-opaque",
             actor_ref="sender-opaque",
+            actor_role="comment_author",
+            parent_ref="root-comment-opaque",
+            content_language="zh-CN",
             source_sequence=77,
             historical=True,
         )
@@ -130,6 +133,9 @@ class CSDObservationV2Tests(unittest.TestCase):
         self.assertEqual(payload["context_kind"], "private")
         self.assertEqual(payload["context_ref"], "conversation-opaque")
         self.assertEqual(payload["actor_ref"], "sender-opaque")
+        self.assertEqual(payload["actor_role"], "comment_author")
+        self.assertEqual(payload["parent_ref"], "root-comment-opaque")
+        self.assertEqual(payload["content_language"], "zh-CN")
         self.assertEqual(payload["source_sequence"], 77)
         self.assertTrue(payload["historical"])
 
@@ -145,6 +151,13 @@ class CSDObservationV2Tests(unittest.TestCase):
             payload.update(changes)
             with self.subTest(name=name), self.assertRaises(ValueError):
                 self.store.submit_event(replace(event, payload=payload))
+
+    def test_v2_rejects_invalid_content_language_tag(self):
+        event = observation_evidence_to_csd_event(
+            replace(self.evidence(), content_language="not a language tag!")
+        )
+        with self.assertRaisesRegex(ValueError, "BCP 47"):
+            self.store.submit_event(event)
 
     def test_repeated_v2_delivery_is_idempotent_and_conflicts_are_rejected(self):
         event = observation_evidence_to_csd_event(self.evidence())
