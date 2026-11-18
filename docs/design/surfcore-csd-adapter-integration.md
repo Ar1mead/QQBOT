@@ -79,6 +79,8 @@ Expose only individually allowlisted read operations initially, using canonical 
 
 A missing subtitle, inaccessible comment page, sampled frame set, or failed extraction must be represented as partial/unavailable rather than silently described as complete viewing. Do not expose like/favorite/follow/comment/reply/publish/danmaku-send/private-message operations through this interface.
 
+The current fake DTO mapper now enforces the per-record provenance shape: every Bilibili record is attached to its canonical video reference and declares the relevant actor role; a stable actor reference is preserved only when the source supplies one. Subtitle language and comment parent/thread references are typed fields, not text conventions. See the detailed v1 contract for exact allowlists and validation rules.
+
 ### Authentication and transport
 
 - Use a dedicated observation-only credential/scope, distinct from `consoleToken` and agent tokens.
