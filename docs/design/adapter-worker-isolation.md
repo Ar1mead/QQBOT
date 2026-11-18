@@ -81,6 +81,19 @@ Windows and Linux require different enforcement mechanisms. The project must ver
 8. Recovery tests confirming worker failures never replay external side effects or create accepted memories.
 9. Separate owner-local verification of the actual runtime and OS policy before enabling a real platform connector.
 
+## 6.1 Initial transport protocol slice
+
+Implemented in `adapters/worker_protocol.py`:
+
+- protocol version 1 with distinct observation-request and observation-response message types;
+- exact envelope field allowlists (unknown fields are rejected);
+- duplicate JSON key rejection and strict UTF-8 decoding;
+- a 1 MiB encoded-message ceiling, bounded identifiers/target references, and bounded modality/evidence/warning counts;
+- request/response binding checks for request ID and pinned adapter ID/version;
+- response status shape checks for complete, partial, unavailable, and failed outcomes.
+
+This is only a transport-envelope implementation. It does not launch a worker, validate the full semantic schema of each evidence object, establish a secure channel, authenticate a worker process, or impose OS permissions. The host must still reconstruct and validate every evidence object using the observation contract before CSD mapping. Do not treat a valid JSON envelope as trustworthy evidence.
+
 ## 7. Current status
 
 Implemented:
@@ -90,7 +103,7 @@ Implemented:
 - tests for registration, dispatch scope, and returned evidence identity.
 
 Not implemented:
-- worker process protocol;
+- worker process launcher and OS sandbox;
 - Windows/Linux sandbox launchers;
 - filesystem/network/resource enforcement;
 - real Bilibili network access or account integration.
