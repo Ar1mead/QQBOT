@@ -255,3 +255,6 @@ A host-side launch-plan builder now exists at `adapters/worker_backends/windows_
 The launch-plan builder calls this verification and then binds the manifest to a host-compiled adapter allowlist. The manifest cannot supply a new adapter, dispatch key, interpreter path, entrypoint path, shell command, or arbitrary module. The currently enabled host binding is only SurfCore QQ read-only batch observation.
 
 Runs #665 and #668–#671 failed before runner allocation (no steps and no job logs), so the launch-plan and staged re-verification slices remain CI-pending. The last confirmed full matrix is #664, before these changes.
+
+
+Follow-up Run #672, which included the staged-file tampering regression, also failed before runner allocation on both OS jobs (no steps/no runner assignment/no downloadable logs). This remains an infrastructure/runner availability block, not a test assertion result. No CI pass is claimed for the launch-plan slice.
