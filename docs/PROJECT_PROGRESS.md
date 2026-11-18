@@ -664,3 +664,14 @@ At the time of this update:
 - Important alignment item: the current Python mapper is still an earlier DTO draft and does not yet carry all conversation/sender/history provenance required by the new contract. The next code step is to extend the generic ObservationEvidence/CSD payload and SurfCore DTO mapper/tests to preserve those fields before any transport implementation.
 - No SurfCore source was modified, no endpoint was implemented, no private message was exported, and no live account/connection was tested. No local user files or credentials were touched.
 - PR #1 remains Draft, Open, and Unmerged.
+
+
+### 2026-11-18 — Preserve QQ conversation, sender, and history provenance
+
+- Extended the platform-neutral `ObservationEvidence` contract with optional `context_kind`, `context_ref`, `actor_ref`, `source_sequence`, and `historical` fields, including type/pair/range validation.
+- Extended CSD Observation v2 mapping to persist those provenance fields as structured payload properties, never concatenated into free-form message content.
+- Tightened the SurfCore QQ DTO: it now requires an opaque `account_ref`, a `private|group` conversation kind, opaque conversation and sender references, a non-negative cursor, and an explicit boolean historical/backfill marker. Bilibili DTOs reject QQ-only fields.
+- Added tests that verify private/group and historical provenance survives into the CSD event, and reject missing/invalid QQ provenance and QQ-specific fields on Bilibili records.
+- This aligns the Python fake-input mapper with the newly documented SurfCore ingress proposal. It does not yet add the proposed `stream_ref` envelope or a transport client/server; those remain separate integration work.
+- Hosted CI for these latest contract/mapper changes has been triggered by the code commits and is pending. No pass is claimed until the latest run completes on both OSes.
+- Run #581 is confirmed completed successfully on Ubuntu and Windows before these new provenance-field changes.
