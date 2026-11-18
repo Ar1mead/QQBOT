@@ -151,13 +151,25 @@ import json, os, pathlib, sqlite3, ssl, sys
 request = sys.stdin.buffer.readline()
 runtime_root = pathlib.Path(sys.executable).resolve().parent
 runtime_probe = runtime_root / "_worker_runtime_write_probe"
-temp_probe = pathlib.Path(os.environ["TEMP"]) / "python-worker-temp-probe.txt"
+worker_temp = pathlib.Path(sys.argv[1])
+worker_temp_probe = worker_temp / "python-worker-temp-probe.txt"
+temp_env_root = pathlib.Path(os.environ["TEMP"])
+local_appdata_root = pathlib.Path(os.environ["LOCALAPPDATA"])
+temp_env_root.mkdir(parents=True, exist_ok=True)
+temp_env_probe = temp_env_root / "python-appcontainer-temp-probe.txt"
 try:
     runtime_probe.write_text("must not be writable", encoding="utf-8")
     runtime_write_denied = False
 except OSError:
     runtime_write_denied = True
-temp_probe.write_text("TEMP_WRITE_OK", encoding="utf-8")
+worker_temp_probe.write_text("WORKER_TEMP_WRITE_OK", encoding="utf-8")
+temp_env_probe.write_text("APP_CONTAINER_TEMP_WRITE_OK", encoding="utf-8")
+temp_env_norm = os.path.normcase(os.path.realpath(str(temp_env_root)))
+local_appdata_norm = os.path.normcase(os.path.realpath(str(local_appdata_root)))
+try:
+    temp_env_within_localappdata = os.path.commonpath((local_appdata_norm, temp_env_norm)) == local_appdata_norm
+except ValueError:
+    temp_env_within_localappdata = False
 with sqlite3.connect(":memory:") as connection:
     connection.execute("select 1").fetchone()
 root = os.path.normcase(os.path.realpath(str(runtime_root)))
@@ -173,7 +185,7 @@ for item in sys.path:
     except ValueError:
         outside_paths.append(item)
 print(json.dumps({
-    "request_ok": request == b"bounded worker probe input\\r\\n",
+    "request_ok": request == b"bounded worker probe input\r\n",
     "python_version": list(sys.version_info[:3]),
     "isolated": sys.flags.isolated,
     "no_site": sys.flags.no_site,
@@ -182,7 +194,9 @@ print(json.dumps({
     "ssl_available": bool(ssl.OPENSSL_VERSION),
     "sqlite_available": True,
     "runtime_write_denied": runtime_write_denied,
-    "temp_write_ok": temp_probe.read_text(encoding="utf-8") == "TEMP_WRITE_OK",
+    "worker_temp_write_ok": worker_temp_probe.read_text(encoding="utf-8") == "WORKER_TEMP_WRITE_OK",
+    "temp_env_write_ok": temp_env_probe.read_text(encoding="utf-8") == "APP_CONTAINER_TEMP_WRITE_OK",
+    "temp_env_within_localappdata": temp_env_within_localappdata,
     "parent_secret_absent": os.environ.get("QQBOT_PARENT_SECRET") is None,
     "outside_sys_path": outside_paths,
 }, sort_keys=True))
@@ -192,7 +206,7 @@ print(json.dumps({
         os.environ[secret_name] = "HOST_ONLY_SECRET_MARKER"
         try:
             with self._worker_session(
-                ["-I", "-S", "-B", "-c", script],
+                lambda worker_temp, runtime_temp: ["-I", "-S", "-B", "-c", script, worker_temp],
                 runtime_builder=build_runtime,
             ) as (worker, worker_pipes, worker_job, worker_temp, runtime_temp):
                 result = self._execute(worker, worker_pipes, worker_job, timeout_ms=30000)
@@ -207,12 +221,14 @@ print(json.dumps({
                 self.assertTrue(payload["ssl_available"])
                 self.assertTrue(payload["sqlite_available"])
                 self.assertTrue(payload["runtime_write_denied"])
-                self.assertTrue(payload["temp_write_ok"])
+                self.assertTrue(payload["worker_temp_write_ok"])
+                self.assertTrue(payload["temp_env_write_ok"])
+                self.assertTrue(payload["temp_env_within_localappdata"])
                 self.assertTrue(payload["parent_secret_absent"])
                 self.assertEqual(payload["outside_sys_path"], [])
                 self.assertFalse(os.path.exists(os.path.join(runtime_temp, "_worker_runtime_write_probe")))
                 with open(os.path.join(worker_temp, "python-worker-temp-probe.txt"), "r", encoding="utf-8") as stream:
-                    self.assertEqual(stream.read(), "TEMP_WRITE_OK")
+                    self.assertEqual(stream.read(), "WORKER_TEMP_WRITE_OK")
         finally:
             if previous_secret is None:
                 os.environ.pop(secret_name, None)

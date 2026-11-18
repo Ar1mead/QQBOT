@@ -1229,3 +1229,12 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Added a real Python worker probe launched with `-I -S -B`. It reads the bounded request from stdin; imports `json`, `pathlib`, `ssl`, and `sqlite3`; checks isolated/no-site/no-bytecode flags; checks that `sys.path` stays within the copied runtime; confirms a parent-only secret is absent; proves runtime writes fail while temp writes succeed.
 - This is an integration test of the copied Python runtime under the existing AppContainer controls, not yet a production executor or a complete adapter protocol run. CI is pending.
 - Added the Windows backend test files to the workflow's pull-request path filters so test-only changes also trigger the matrix.
+
+
+## Run #640 — Python runtime test exposed AppContainer TEMP redirection
+
+- Ubuntu completed successfully. Windows process integration failed only in the new Python runtime test; the other Windows process tests passed.
+- The copied CPython 3.12 executable started inside the AppContainer and imported `json`, `pathlib`, `ssl`, and `sqlite3`. The traceback occurred when the probe tried to write to the process's `TEMP` path: Windows exposed an AppContainer-scoped path under the ephemeral profile, but that temp subdirectory had not yet been created.
+- The failure is not evidence that Python or its native extensions cannot run. It revealed that the effective AppContainer `TEMP` path differs from the host-created scratch directory. The test must distinguish the explicitly ACL-granted host temp directory from the OS-managed per-AppContainer temp directory.
+- Updated the probe to create and verify the OS-managed temp path, assert that it remains under the AppContainer's `LOCALAPPDATA`, and separately write to the explicitly provisioned temp directory. Also corrected the worker request CRLF comparison.
+- The correction is pending Run #641; no Python-runtime integration pass is claimed yet.

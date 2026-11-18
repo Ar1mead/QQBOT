@@ -344,3 +344,8 @@ Run #639 passed the profile-deletion retry tests and the full Windows/Ubuntu mat
 The next Windows integration test now copies a minimal CPython runtime into the dedicated worker runtime tree: base executable, top-level DLL dependencies, standard-library `Lib`, extension-module `DLLs`, and optional versioned stdlib zip/`._pth` files. It launches that interpreter with `-I -S -B` inside the existing AppContainer/Job/pipe/ACL harness.
 
 The probe checks request stdin, standard-library and native-extension imports (`ssl`, `sqlite3`), isolated/no-site/no-bytecode flags, `sys.path` containment within the copied runtime, absence of a parent-only environment secret, denied writes to the runtime, and successful writes only to the dedicated temp directory. This is test coverage only; a production `WindowsAppContainerWorkerExecutor` remains unimplemented. CI pending.
+
+
+### 3.13.1 Run #640 finding and correction
+
+The first Python runtime integration run proved that CPython 3.12 and the selected stdlib/native extensions load inside the AppContainer, but the test failed when writing to `TEMP`: Windows exposed an AppContainer-scoped temp path under the ephemeral profile and the directory did not yet exist. The probe now creates that OS-managed temp directory, verifies it is contained within the profile's `LOCALAPPDATA`, and independently tests the host-provisioned ACL-granted temp directory. The request-line CRLF comparison was corrected. Run #641 is required before marking the Python runtime integration as verified.
