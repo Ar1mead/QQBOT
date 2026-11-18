@@ -929,3 +929,12 @@ At the time of this update:
 - PR #1 is still **Draft**, **Open**, and **Unmerged**.
 - Next implementation slice: construct bounded anonymous pipes and an explicit environment block, then call `CreateProcessW` suspended with the two verified startup attributes, assign the process to the configured Job Object, and only then resume it. Any setup/assignment/resume failure must terminate and close the process/job fail-closed.
 - No real process launch, worker I/O, timeout, output cap, or adversarial sandbox behavior is verified yet.
+
+
+## Windows worker pipe and explicit environment preparation — implementation slice
+
+- Added `adapters/worker_backends/windows_pipes.py`: three anonymous pipes for stdin/stdout/stderr, requested pipe buffer bounded to 4 KiB–1 MiB, parent and child endpoint roles explicit, only the three child endpoints inheritable, and all inheritance flags read back before returning.
+- Added `adapters/worker_backends/windows_environment.py`: sorted double-NUL Unicode environment block, strict key allowlist, required absolute Windows system/temp paths, no ambient host environment copy, no NULs/case-colliding keys/oversize blocks, and mandatory Python safe-path/no-user-site/no-bytecode flags.
+- Added focused tests for environment block shape and rejection cases, plus Windows-only pipe endpoint inheritance and cleanup tests. Both test files are wired into the existing Ubuntu/Windows CI workflow.
+- These modules do **not** call `CreateProcessW`; they do not read/write pipe data, cap streamed output, supervise timeouts, assign a process to a Job Object, or resume a thread. They are preparation components, not a functioning sandbox.
+- Hosted CI for these two new test suites is pending. PR #1 remains Draft/Open/Unmerged.

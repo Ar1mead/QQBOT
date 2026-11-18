@@ -115,6 +115,15 @@ Additional Microsoft references:
 - [InitializeProcThreadAttributeList](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-initializeprocthreadattributelist): required size probe, initialization, and deletion lifecycle.
 - [UpdateProcThreadAttribute](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute): explicit handle-list and AppContainer security-capability attributes.
 - [Create processes](https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes): avoid inherited handles except the explicitly enumerated list.
+### 3.7 Pipe-handle and environment preparation slices — no process launch yet
+
+Two preparation modules are now present:
+
+- `adapters/worker_backends/windows_pipes.py` creates three anonymous pipes with a bounded requested buffer size. It retains parent stdin-write/stdout-read/stderr-read ends and child stdin-read/stdout-write/stderr-write ends. All six handles are checked; only the three child ends remain inheritable. The parent ends have `HANDLE_FLAG_INHERIT` cleared and are read back before the object is returned.
+- The pipe owner exposes exactly the three child ends for the startup handle allowlist and provides a one-way close operation for the host copies after a future successful CreateProcess call. It has no read/write implementation yet; a future I/O supervisor must stream and cap bytes rather than buffer unbounded output.
+- `adapters/worker_backends/windows_environment.py` builds a sorted Unicode environment block from a strict allowlist. It requires absolute `SystemRoot`, `WINDIR`, `TEMP`, and `TMP` paths; rejects unknown names, case-colliding names, NULs, empty values, and oversized blocks; and forces Python's no-user-site, no-bytecode, and safe-path flags. It never copies the host's ambient environment.
+- These are resource-preparation helpers only. No process is created, no pipes are read or written, no output limit or timeout is enforced, and no process has been assigned to a Job Object.
+
 ## 4. Linux backend — parity implementation after Windows
 
 Use a host-installed `bubblewrap` executable selected by an absolute, administrator-reviewed path. Do not use a shell.

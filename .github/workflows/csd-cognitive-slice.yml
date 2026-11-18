@@ -108,6 +108,10 @@ jobs:
         run: python -m unittest discover -s tests -p "test_worker_windows_job.py" -v
       - name: Run Windows STARTUPINFOEX attribute-list tests
         run: python -m unittest discover -s tests -p "test_worker_windows_startup.py" -v
+      - name: Run Windows worker pipe handle tests
+        run: python -m unittest discover -s tests -p "test_worker_windows_pipes.py" -v
+      - name: Run Windows worker environment block tests
+        run: python -m unittest discover -s tests -p "test_worker_windows_environment.py" -v
       - name: Run SurfCore observation mapping tests
         run: python -m unittest discover -s tests -p "test_surfcore_observation_mapping.py" -v
       - name: Run provider-neutral proposal pipeline tests
