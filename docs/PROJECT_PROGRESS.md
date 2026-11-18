@@ -1238,3 +1238,14 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - The failure is not evidence that Python or its native extensions cannot run. It revealed that the effective AppContainer `TEMP` path differs from the host-created scratch directory. The test must distinguish the explicitly ACL-granted host temp directory from the OS-managed per-AppContainer temp directory.
 - Updated the probe to create and verify the OS-managed temp path, assert that it remains under the AppContainer's `LOCALAPPDATA`, and separately write to the explicitly provisioned temp directory. Also corrected the worker request CRLF comparison.
 - The correction is pending Run #641; no Python-runtime integration pass is claimed yet.
+
+
+## Python runtime AppContainer integration verified — Run #641
+
+- Run #641 for tested head `2c1ac574647dbd61d8cbff256c5d2010e1fa8daa` completed successfully on Ubuntu and Windows; both matrix jobs passed all 38 steps.
+- The Windows process suite successfully launched a copied CPython 3.12 runtime inside the AppContainer, imported standard-library modules and native extensions (`ssl`, `sqlite3`), and verified isolated mode (`-I`), no site initialization (`-S`), and no bytecode writes (`-B`).
+- The probe verified the interpreter's `sys.path` remains within the copied runtime tree, a parent-only environment secret is absent, writes to the runtime tree are denied, the explicitly provisioned temp directory is writable, and the OS-managed AppContainer temp path is creatable and contained within that ephemeral profile's `LOCALAPPDATA`.
+- Run #640 remains a failed first attempt: it exposed the AppContainer-scoped `TEMP` mapping and prompted the correction validated in Run #641. Do not count #640 as passing.
+- This verifies a real copied Python runtime under the current low-level launcher harness. It does **not** yet implement the production `WindowsAppContainerWorkerExecutor` or run a real adapter protocol module.
+- Next Windows gap: connection-only denial probes for link-local/cloud metadata and public destinations, using host-side positive controls. Then compose the low-level modules into the host-owned executor.
+- Hosted CI only; no local Windows/DSH verification. Linux Bubblewrap and live SurfCore ingress remain unimplemented. PR #1 remains Draft/Open/Unmerged.

@@ -349,3 +349,10 @@ The probe checks request stdin, standard-library and native-extension imports (`
 ### 3.13.1 Run #640 finding and correction
 
 The first Python runtime integration run proved that CPython 3.12 and the selected stdlib/native extensions load inside the AppContainer, but the test failed when writing to `TEMP`: Windows exposed an AppContainer-scoped temp path under the ephemeral profile and the directory did not yet exist. The probe now creates that OS-managed temp directory, verifies it is contained within the profile's `LOCALAPPDATA`, and independently tests the host-provisioned ACL-granted temp directory. The request-line CRLF comparison was corrected. Run #641 is required before marking the Python runtime integration as verified.
+
+
+### 3.13.2 Python runtime integration passed
+
+Run #641 passed on Ubuntu and Windows. The Windows AppContainer process suite copied CPython 3.12 into the isolated read-only runtime, launched it with `-I -S -B`, imported standard-library modules and native extensions (`ssl`, `sqlite3`), confirmed `sys.path` stayed within the runtime tree, confirmed a parent-only secret was absent, denied runtime writes, and allowed writes only to the explicitly provisioned temp directory plus the OS-managed temp path inside the ephemeral AppContainer profile. Run #640 was the failed first attempt and is retained as historical failure evidence.
+
+This validates the Python runtime in the low-level launch harness; it does not constitute a production `WindowsAppContainerWorkerExecutor` or a real adapter protocol execution.
