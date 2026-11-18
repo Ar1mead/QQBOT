@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from adapters.worker_entrypoint import _dispatch_surfcore_qq_batch, process_one_request
+from adapters.worker_entrypoint import process_one_request
 from adapters.worker_protocol import (
     WorkerProtocolError,
     WorkerRequest,
@@ -57,19 +57,22 @@ class WorkerEntrypointTests(unittest.TestCase):
         )
 
     def batch(self, records=None, **changes):
+        normalized_records = [qq_record()] if records is None else records
         value = {
             "schema_version": 1,
             "stream_ref": "qq-account-opaque",
             "after_cursor": 0,
-            "next_cursor": 42 if records else 0,
-            "records": [qq_record()] if records is None else records,
+            "next_cursor": normalized_records[-1]["cursor"] if normalized_records else 0,
+            "records": normalized_records,
         }
         value.update(changes)
         return value
 
     def test_fixed_dispatch_returns_v4_evidence_and_cursor_metadata(self):
         request = self.request(self.batch())
-        response = _dispatch_surfcore_qq_batch(request)
+        response = decode_response(
+            process_one_request(encode_request(request), "surfcore_qq_batch")
+        )
         self.assertEqual(response.status, "complete")
         self.assertEqual(len(response.evidence), 1)
         evidence = response.evidence[0]
