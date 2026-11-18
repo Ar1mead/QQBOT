@@ -644,3 +644,10 @@ At the time of this update:
 - Added tests for valid ordered pages, repeated-page replay, out-of-order and duplicate cursors, duplicate record IDs, cursor regression, records beyond the page bound, foreign-platform records, invalid cursor types, and empty-page advancement.
 - Hosted CI runs #578–#580 were triggered by the sequential commits; run #580 targets the complete mapper + test changes. Results are pending at the time of this update. No passing result is claimed yet.
 - Still no live SurfCore connection, cursor persistence/checkpoint transaction, transport implementation, or local user test. This slice defines and tests the boundary semantics only.
+
+
+### CI follow-up — QQ cursor mapper
+
+- Run #578 and #579 failed on intermediate commits because the mapper had begun requiring QQ cursors before the matching fixture update landed. The logs show only the four QQ fixture tests missing the new cursor field; this was a sequencing failure between separate commits, not an uninvestigated runtime failure. The complete follow-up commit corrected those fixtures.
+- Run #580 ([Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44267399986)) completed successfully on both Ubuntu and Windows, including the cursor batch suite and full test discovery.
+- After adding two additional identity tests (account-scoped source identity and same-ID/changed-payload conflict behavior), run #581 ([Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44267521699)) has Ubuntu completed successfully; Windows is still running at this ledger update.
