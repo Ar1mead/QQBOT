@@ -10,19 +10,19 @@ This is the durable hand-off record for continuing work when conversation contex
 
 ## Current status snapshot — 2026-11-19 00:09 UTC+08:00
 
-- Current branch: `feature/csd-cognitive-memory-slice`; latest code commit at this checkpoint: `511859ce1ce40df78e75093432b1a2501f282f25`.
-- Latest confirmed full CI matrix remains Run #664, which passed Ubuntu and Windows before the later launch-plan, bundle-pinning, and worker-mapping-boundary changes.
-- Runs #665–#685 failed before runner allocation on both matrix jobs: no steps executed and no runner was assigned; no useful job logs were available. The cause remains unknown. Do not describe any changes after Run #664 as CI-passed.
+- Current branch head: `31bdcdf1eccd0fc5550b05c10aac506e3b027a71`; latest code/test checkpoint before documentation-only updates: `caa4dc780eb40641c5828cb624af60876aaf92c4`.
+- Latest confirmed full CI matrix remains Run #664, which passed Ubuntu and Windows before the later launch-plan, bundle-pinning, Worker mapping-boundary, and package-builder changes.
+- Runs #665–#695 failed before runner allocation on both matrix jobs: no steps executed and no runner was assigned; no useful job logs were available. The cause remains unknown. Do not describe any changes after Run #664 as CI-passed.
 - Protocol v4, fixed Worker entrypoint, and isolated Python subprocess test were included in the last confirmed green matrix.
 - Windows low-level primitives already exist: AppContainer profile/capability setup, ACL helpers, explicit environment, Job Object policy, STARTUPINFOEX handle allowlist, anonymous pipes, suspended process launch, and bounded concurrent stdio/timeout/overflow supervision.
-- Windows launch-plan builder now requires a host-pinned runtime manifest digest. A new trusted-bundle loader checks the exact manifest bytes against a host-provided SHA-256 pin; the trust marker is carried through staging and included in the launch plan. This is implemented but CI-unverified.
+- Windows launch-plan builder now requires a host-pinned runtime manifest digest. The loader requires canonical manifest bytes; the pin is checked against the typed manifest when staging and again before launch-plan creation. This is implemented but CI-unverified.
 - SurfCore worker mapping has been separated from host CSD event creation. The Worker-safe QQ batch validator returns untrusted ObservationEvidence only; CSD event construction is lazy and remains host-side. Added an isolated-import regression test to ensure the worker mapping path does not import CSD modules. This is implemented but CI-unverified.
-- A deterministic runtime bundle builder now exists at `adapters/worker_backends/runtime_bundle_builder.py`. It selects a fixed Worker source closure, copies a CPython 3.12 runtime tree, excludes site-packages/tests/bytecode, emits sorted canonical manifest bytes, and reports the manifest SHA-256. Synthetic builder tests were added; no real CPython bundle has yet been built or launched.
+- A deterministic runtime bundle builder now exists at `adapters/worker_backends/runtime_bundle_builder.py`. It selects a fixed Worker source closure, copies a CPython 3.12 runtime tree, excludes site-packages/tests/bytecode, normalizes optional `python312._pth`, emits sorted canonical manifest bytes, and reports the manifest SHA-256. Synthetic builder tests were added; no real CPython bundle has yet been built or launched.
 - Still missing: provision the builder's output digest into trusted host configuration and implement the production executor. The source bundle root must be protected from untrusted writes.
 - No production `WindowsAppContainerWorkerExecutor` composes the primitives. No Linux Bubblewrap backend, live SurfCore ingress, real QQ/Bilibili connection, or owner-local Windows/DSH verification exists.
 - PR #1 remains Draft/Open/Unmerged.
 
-Next gate: finish the reproducible Worker package builder and define how its manifest pin is provisioned to the trusted host. Then restore executable CI, validate the new mapping/pinning slices, and only afterward compose the production Windows executor lifecycle.
+Next gate: obtain an executable CI matrix, validate the builder and pin-binding changes, build and run a real CPython 3.12 bundle on Windows, then define trusted host pin provisioning and compose the production Windows executor lifecycle.
 
 ---
 
