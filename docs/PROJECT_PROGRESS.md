@@ -912,3 +912,11 @@ At the time of this update:
 - Added `tests/test_worker_windows_startup.py` for Windows attribute-list creation using inheritable event handles, rejection of non-inheritable/duplicate handles, invalid handle-list shapes, and non-Windows fail-closed behavior. Wired into the existing workflow.
 - This slice does **not** call `CreateProcessW`, create the worker pipes, construct a minimal environment block, assign a process to the Job Object, or resume a suspended thread. No child process has been started by these tests.
 - Hosted CI for this new attribute-list slice is pending. The previous Job Object slice passed Run #621 on Ubuntu and Windows; see the verification section above. PR #1 remains Draft/Open/Unmerged.
+
+
+## Windows STARTUPINFOEX attribute-list hosted verification — Run #622 (partial)
+
+- Run #622 for head `1deb39b561c9415804dda395b7c6942546ebba4d` is in progress.
+- The focused STARTUPINFOEX attribute-list test completed successfully on both `ubuntu-latest` and `windows-latest`; the full Windows test-discovery step is still running at this checkpoint.
+- No CreateProcessW call or child process is part of this test. The result verifies only attribute-list construction, handle inheritance checks, empty-capability binding, and native buffer lifetime.
+- Do not mark Run #622 fully green until both matrix jobs finish.
