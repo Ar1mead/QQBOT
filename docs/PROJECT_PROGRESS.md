@@ -972,3 +972,19 @@ At the time of this update:
 - Added `LOCALAPPDATA` to the strict environment allowlist/required keys. The launcher now checks that it exactly matches the path returned by `GetAppContainerFolderPath` for the same startup SID and that the directory exists. `TEMP/TMP` remain separate and must match the per-run working directory.
 - Updated the Windows integration test to use the API-returned path and added a Windows test for the path API. The corrected launch attempt is pending CI; do not treat Run #625 as successful.
 - Reference: [Microsoft Launch an AppContainer](https://learn.microsoft.com/en-us/windows/win32/secauthz/implementing-an-appcontainer) and [GetAppContainerFolderPath](https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-getappcontainerfolderpath).
+
+
+## First real Windows AppContainer process launch verified — Run #626
+
+- Run #626 for tested head `ee32ba513407181686dedd3038a29f4783b160b2` completed with **Success** on both `ubuntu-latest` and `windows-latest`; each matrix job completed all 38 steps.
+- The focused Windows process test successfully:
+  - resolved the AppContainer's LocalAppData folder using `GetAppContainerFolderPath`;
+  - created a dedicated temporary working directory, granted the AppContainer SID the intended temp access, and applied the Low Integrity no-write-up label;
+  - built the explicit environment block including the OS-managed AppContainer `LOCALAPPDATA`;
+  - created the three anonymous pipes and restricted handle inheritance to the worker ends;
+  - created the AppContainer process suspended, assigned it to the configured Job Object, then resumed it;
+  - ran `cmd.exe /d /c echo WORKER_OK`, observed exit code 0, and read the expected output.
+- This is the first verified end-to-end process launch in the Windows backend. It proves the launch ordering and a basic stdio round trip on GitHub's Windows runner.
+- It does **not** prove host-file/CSD-marker denial, network denial, child-process denial, output-overflow termination, timeout handling, or robust concurrent stdout/stderr draining. There is still no production `WorkerExecutor` or complete I/O supervisor.
+- Run #625 remains a failed earlier attempt caused by the missing `LOCALAPPDATA`; the correction is verified by Run #626.
+- Hosted CI is not owner-local Windows/DSH verification. PR #1 remains **Draft**, **Open**, and **Unmerged**.
