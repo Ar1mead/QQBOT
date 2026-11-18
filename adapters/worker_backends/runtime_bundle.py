@@ -455,7 +455,7 @@ def stage_runtime_bundle(
     """
     if isinstance(bundle, TrustedRuntimeBundle):
         verified = bundle.verified_bundle
-        trusted_manifest_sha256 = verified.manifest_sha256
+        trusted_manifest_sha256 = bundle.manifest_sha256
         if not _SHA256_RE.fullmatch(trusted_manifest_sha256):
             raise RuntimeBundleError("trusted bundle manifest pin is invalid")
     elif isinstance(bundle, VerifiedRuntimeBundle):
