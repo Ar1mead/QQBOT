@@ -1178,3 +1178,17 @@ At the time of this update:
 - The complete Windows process suite passed with this ephemeral lifecycle, including copied runtime execution, runtime write denial/temp write allowance, host file read/write denial, loopback/private network denial, child-process restriction, timeout, output overflow, and kill-on-close.
 - This is still hosted CI, not local Windows/DSH verification. Public and metadata network probes remain outstanding. No production WorkerExecutor or live SurfCore adapter is enabled.
 - PR #1 remains **Draft**, **Open**, and **Unmerged**.
+
+
+## Current next actions after Run #638
+
+The Windows backend has a verified process launch and bounded stdio path, but it is not yet a production WorkerExecutor. Keep the following order:
+
+1. Extend network denial probes to link-local/cloud metadata and public destinations using connection-only tests and host-side positive controls where available; do not send metadata HTTP requests or application payloads.
+2. Exercise the actual Python runtime tree under recursive read/execute ACLs (not only the copied `cmd.exe` representative). Verify isolated interpreter flags, standard-library imports, explicit environment, and no writes into runtime.
+3. Implement a host-owned `WindowsAppContainerWorkerExecutor` that fulfills the existing `WorkerExecutor` contract using ephemeral profiles, runtime ACLs, low-integrity temp, zero AppContainer capabilities, Job Object, explicit inherited pipes, bounded stdio, timeout, and strict response decoding. It must fail closed on any setup or cleanup failure.
+4. Add adversarial checks for the real Python worker and rerun full Windows/Ubuntu CI.
+5. Implement Linux Bubblewrap parity and its adversarial suite.
+6. Only after both backends pass should live SurfCore QQ ingress be resumed; Bilibili remains later.
+
+Current hard boundary: no production WorkerExecutor, no untrusted adapter execution, no live SurfCore connection, and no local Windows/DSH verification. PR #1 remains Draft/Open/Unmerged.

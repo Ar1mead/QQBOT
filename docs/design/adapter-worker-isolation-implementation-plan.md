@@ -328,3 +328,8 @@ The Windows process integration now uses `EphemeralAppContainerProfile` for each
 ### 3.12.1 Ephemeral profile integrated into process tests
 
 Run #638 passed the full Windows process integration suite with a fresh AppContainer profile per session. The process, Job Object, startup attributes, and pipes are closed before the profile owner deletes the AppContainer profile and its LocalAppData folder. This validates the cleanup ordering in the test harness, though production WorkerExecutor integration remains future work.
+
+
+## Next implementation sequence after the first Windows launch
+
+The first Windows AppContainer process launch is no longer the blocker. The remaining path is: (1) complete safe link-local/metadata/public network probes, (2) verify the actual Python runtime tree and interpreter behavior under recursive read/execute ACLs, (3) implement the host-owned production `WindowsAppContainerWorkerExecutor` against the existing WorkerHost/WorkerExecutor contract, (4) adversarially test that exact Python worker, (5) implement Linux Bubblewrap parity, and only then (6) resume SurfCore live ingress. Do not enable untrusted adapter code or real platform transport before these steps pass.
