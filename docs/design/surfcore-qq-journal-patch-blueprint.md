@@ -179,7 +179,7 @@ A first executable reference slice now exists under `integrations/surfcore-qq-jo
 - `observation-policy.mjs` — disabled-by-default configuration normalization, independent private/group allowlists, deny overrides, strict OneBot message provenance, and text-only segment extraction with explicit partial-coverage notes.
 - `observation-journal.mjs` — injected HMAC key and mandatory host ACL callback, domain-separated opaque references, serialized private/group appends, synced JSONL writes, strict startup recovery, incomplete-final-tail repair, corruption fail-closed behavior, bounded page reads, and a hard capacity ceiling that preserves existing records.
 - `observation-journal.test.mjs` — synthetic fixtures for policy, privacy, cursor ordering, duplicate source identity, restart recovery, corruption, partial media, and capacity behavior.
-- `.github/workflows/surfcore-qq-journal-reference.yml` — Node 22 Ubuntu/Windows test workflow.
+- `.github/workflows/csd-cognitive-slice.yml` — existing Ubuntu/Windows matrix now also sets up Node 22 and runs the journal reference tests when the integration path changes.
 
 This code is a reference implementation in the individual-AI repository, not a SurfCore upstream patch. It is not imported by SurfCore, has no QQ SDK connection, and does not provision or persist the HMAC key. A production SurfCore caller must supply a dedicated random key and a verified Windows/Linux ACL-hardening callback.
 
@@ -193,4 +193,4 @@ The journal record is shaped to match the existing exact-key mapper in `adapters
 - The first reference implementation emits only `qq.message.incoming`, with `historical=false`, `actor_role=sender`, text modality, explicit coverage, and opaque source/account/conversation/sender references.
 - No `stream_ref`, token, raw QQ ID, or unrecognized convenience field is added to an individual record.
 
-The reference test workflow has been added, but no passing result has yet been confirmed through the available status lookup. Treat these files as unverified until the Ubuntu and Windows jobs finish successfully.
+The Node test step has been added to the existing Ubuntu/Windows CSD matrix. The separate standalone workflow was removed to avoid duplicate runs. No passing result has yet been confirmed through the available status lookup; treat these files as unverified until both matrix jobs finish successfully.
