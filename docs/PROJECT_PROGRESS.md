@@ -745,3 +745,6 @@ At the time of this update:
 - Existing adapter DTO mapper and cursor/replay validation remain fake-input-only. No HTTP client was added because no matching SurfCore endpoint exists yet.
 - PR #1 was rechecked: Draft=true, state=open, merged=false. Latest PR head at the time of audit was 4be2882c3c3a40c423ebb376fe5d905e26d08dc0. Run #604 remains the verified two-platform code checkpoint for commit d975b93f4ed565a932f8f389ee9250b13d7009c4; subsequent changes recorded here are documentation-only. Hosted CI is not local Windows/DSH/SurfCore validation.
 - Next: prepare a concrete SurfCore-side QQ observation journal specification against the two callback hooks, including private opt-in, event schema, durable cursor assignment, crash/replay semantics, and independent credential handling. Do not modify upstream SurfCore without a separate review/authorization step.
+
+
+- Follow-up documentation commit `d9ccd17a092ea2c93f8771187f4745408ba8df58` adds the exact pinned-source QQ callback placement and Bilibili CLI side-effect cautions to `docs/design/surfcore-readonly-ingress-contract-v1.md`. It clarifies that the QQ feed cursor must be allocated by the new journal, not copied from OneBot message_seq, and that Bilibili CLI commands must not be exposed or parsed as a generic transport.
