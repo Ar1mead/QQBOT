@@ -684,3 +684,9 @@ At the time of this update:
 - Run #586 then caught an intermediate commit ordering issue: the mapper required QQ provenance before the matching fixture update landed. Run #587 caught two outdated assertion-message expectations after the validation became stricter. The fixtures/assertions have now been corrected.
 - The latest complete mapper/test state is commit `d50a631f3916647a6e67cfe99f88df58f23f968e`, with Run #590 queued at the time of this update. Runs #588/#589 are older intermediate commits and should not be used as final verification. Await #590 for the authoritative result.
 - The QQ batch now carries `stream_ref`; every record's opaque `account_ref` must match it. This prevents records from another QQ account/feed being accidentally mixed into a page. Added tests for missing/blank stream references and cross-stream records.
+
+
+### Latest CI update — 2026-11-18
+
+- Run #590 ([Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44268497654)) is the first run containing the corrected CSD validator, strict QQ provenance fixtures, and QQ stream/account binding. Ubuntu has passed; Windows is still running through the complete suite.
+- Run #591 ([Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44268590651)) includes the final test refinement that a historical QQ event must set both the historical event kind and `historical=true`. Both platform jobs are running. Use #591 as the authoritative latest verification once complete.
