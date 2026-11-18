@@ -11,6 +11,7 @@ from adapters.worker_protocol import (
     decode_response,
     encode_request,
     encode_response,
+    observation_evidence_to_wire,
     response_to_observation_result,
     validate_response_for_request,
 )
@@ -236,6 +237,28 @@ class WorkerProtocolTests(unittest.TestCase):
         self.assertEqual(result.status.value, "complete")
         self.assertEqual(len(result.evidence), 1)
         self.assertIs(result.evidence[0].untrusted, True)
+
+    def test_typed_evidence_serializer_emits_complete_v4_schema(self):
+        evidence = self.make_wire_evidence()
+        evidence.update({
+            "context_kind": "group",
+            "context_ref": "qq-group:123",
+            "actor_ref": "qq-user:456",
+            "actor_role": "sender",
+            "parent_ref": "qq-message:789",
+            "content_language": "zh-CN",
+            "source_sequence": 42,
+            "historical": True,
+        })
+        response = WorkerResponse(
+            request_id=self.request.request_id,
+            adapter_id=self.request.adapter_id,
+            adapter_version=self.request.adapter_version,
+            status="complete",
+            evidence=(evidence,),
+        )
+        typed = response_to_observation_result(decode_response(encode_response(response)), self.request).evidence[0]
+        self.assertEqual(observation_evidence_to_wire(typed), evidence)
 
     def test_response_round_trips_all_observation_provenance_fields(self):
         evidence = self.make_wire_evidence()
