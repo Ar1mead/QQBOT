@@ -914,9 +914,18 @@ At the time of this update:
 - Hosted CI for this new attribute-list slice is pending. The previous Job Object slice passed Run #621 on Ubuntu and Windows; see the verification section above. PR #1 remains Draft/Open/Unmerged.
 
 
-## Windows STARTUPINFOEX attribute-list hosted verification — Run #622 (partial)
+## Windows STARTUPINFOEX attribute-list hosted verification — Run #622
 
-- Run #622 for head `1deb39b561c9415804dda395b7c6942546ebba4d` is in progress.
-- The focused STARTUPINFOEX attribute-list test completed successfully on both `ubuntu-latest` and `windows-latest`; the full Windows test-discovery step is still running at this checkpoint.
-- No CreateProcessW call or child process is part of this test. The result verifies only attribute-list construction, handle inheritance checks, empty-capability binding, and native buffer lifetime.
-- Do not mark Run #622 fully green until both matrix jobs finish.
+- Run #622 for tested code/test head `1deb39b561c9415804dda395b7c6942546ebba4d` completed with **Success** on both `ubuntu-latest` and `windows-latest`.
+- Both matrix jobs completed all 35 steps successfully, including the focused STARTUPINFOEX attribute-list test and complete unittest discovery.
+- The test verifies attribute-list construction, handle inheritance checks, empty-capability binding, and native buffer lifetime. No CreateProcessW call or child process is part of this test.
+- The documentation-only checkpoint after the tested code is recorded in the branch history; hosted CI does not replace local Windows/DSH verification.
+
+
+## STARTUPINFOEX attribute-list hosted verification result — Run #622
+
+- Run #622 completed successfully on Ubuntu and Windows. Both jobs passed all 35 steps, including compileall, the full focused suite sequence, the new startup attribute-list tests, and complete unittest discovery.
+- Verified code/test head: `1deb39b561c9415804dda395b7c6942546ebba4d`. A later docs-only commit records the result.
+- PR #1 is still **Draft**, **Open**, and **Unmerged**.
+- Next implementation slice: construct bounded anonymous pipes and an explicit environment block, then call `CreateProcessW` suspended with the two verified startup attributes, assign the process to the configured Job Object, and only then resume it. Any setup/assignment/resume failure must terminate and close the process/job fail-closed.
+- No real process launch, worker I/O, timeout, output cap, or adversarial sandbox behavior is verified yet.
