@@ -101,7 +101,7 @@ Implemented in `adapters/worker_host.py`:
 - `WorkerHost` builds a typed request, invokes an explicitly injected host-owned `WorkerExecutor`, bounds the timeout and response size, decodes the response, and reconstructs validated observation evidence.
 - `WorkerBackedObservationAdapter` bridges that host to the existing `ObservationAdapter` interface and checks returned platform and target against the registered manifest/request.
 - Missing executor configuration is rejected. There is no fallback that imports or executes adapter code inside the core process.
-- Backend timeout, execution error, malformed response, oversized response, and identity/target mismatches fail closed.
+- Backend timeout, execution error, malformed response, oversized response, and identity/target mismatches fail closed. A production backend must terminate the worker on timeout and cap output while streaming it; the host's post-return size check cannot undo memory already allocated by a backend that buffered an oversized response.
 
 Important: `WorkerExecutor` is an interface, not an OS sandbox. The current tests use an in-memory fake executor. No real subprocess backend or Windows/Linux isolation policy is implemented. A production executor must be host-owned and separately reviewed to prove filesystem, network, secret, process, and resource restrictions. Do not inject third-party executor code.
 
