@@ -246,3 +246,12 @@ A host-side launch-plan builder now exists at `adapters/worker_backends/windows_
 - Tests were added for the allowlist, manifest drift, Python version, path metadata, and symlink rejection. The workflow has a dedicated step and path filters.
 - Runs #665–#667 failed before either OS job acquired a runner (empty step lists and no downloadable logs). This blocks CI verification of the launch-plan slice; it is not a reported test assertion failure.
 - No production executor is implemented yet. The next slice must compose the already-tested native primitives and this fixed launch plan with bounded concurrent stdio and mandatory lifecycle cleanup.
+
+
+## Staged runtime re-verification before launch
+
+`verify_staged_runtime()` now rechecks the staged tree immediately before launch-plan construction. It enforces exact manifest file-set equality, regular files/no reparse points, all file sizes and SHA-256 digests, and the staged interpreter/entrypoint metadata. This is a second check after the staging copy/read-back verification, not a substitute for host-owned protected staging roots or ACL hardening.
+
+The launch-plan builder calls this verification and then binds the manifest to a host-compiled adapter allowlist. The manifest cannot supply a new adapter, dispatch key, interpreter path, entrypoint path, shell command, or arbitrary module. The currently enabled host binding is only SurfCore QQ read-only batch observation.
+
+Runs #665 and #668–#671 failed before runner allocation (no steps and no job logs), so the launch-plan and staged re-verification slices remain CI-pending. The last confirmed full matrix is #664, before these changes.
