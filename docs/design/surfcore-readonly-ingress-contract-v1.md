@@ -79,7 +79,7 @@ Rules:
 
 1. `cursor` is a monotonically increasing integer within `stream_ref`; it is assigned by SurfCore when the normalized record is appended, not copied from QQ message IDs.
 2. `record_id` and `external_ref` are stable opaque identifiers. The same source message redelivered after reconnect must retain its identity.
-3. `conversation_kind` is exactly `private` or `group`. Conversation and sender identifiers are stable opaque references; do not export raw QQ numbers by default.
+3. `account_ref` on every record must equal the response `stream_ref`; the consumer rejects cross-stream records. `conversation_kind` is exactly `private` or `group`. Conversation and sender identifiers are stable opaque references; do not export raw QQ numbers by default.
 4. `observed_at` comes from the source event timestamp when valid; `received_at` is the SurfCore receipt time. If source time is missing/invalid, preserve that fact in coverage notes and use receipt time only as the event's observation time with an explicit fallback note.
 5. `historical` distinguishes backfilled/history-catch-up messages from live events. Do not silently relabel backfill as live.
 6. Text normalization must preserve provenance. Media not yet supported by the adapter must appear as a typed placeholder and make coverage partial; do not pretend an image/audio/video was understood.
@@ -120,7 +120,7 @@ The project-side adapter accepts only the exact versioned DTO fields. It must:
 - reject cursor regression, out-of-page records, duplicate record IDs, and oversized batches;
 - never persist the cursor itself or call SurfCore.
 
-The mapper is being aligned to this DTO contract in staged changes; the transport remains unimplemented.
+The mapper now validates and carries the QQ conversation/sender/history fields and binds every batch record's `account_ref` to the batch `stream_ref`; the transport remains unimplemented.
 
 ## 6. Security and privacy acceptance tests
 
