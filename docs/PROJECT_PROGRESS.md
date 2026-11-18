@@ -1445,3 +1445,17 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - PR #1 remains Draft/Open/Unmerged. No local Windows/DSH verification or live QQ/Bilibili connection has occurred.
 - Fixed entrypoint status: implemented and CI-tested as an isolated Python process, but not yet launched through the production Windows AppContainer lifecycle. The current static binding supports only SurfCore QQ text batches. No other platform adapter is enabled.
 - Next implementation gate: define a typed, fail-closed Windows executor orchestration API that binds the verified manifest's exact interpreter, entrypoint, and dispatch key to the fixed launch spec; then add lifecycle tests with injected OS-boundary fakes before wiring real Windows handles. Do not yet call the sandbox production-ready.
+
+
+## Windows launch-plan slice added; hosted CI runner allocation issue (2026-11-18)
+
+- The workflow-only Run #665 failed on both matrix jobs before runner allocation: both job records had runner_id 0 and no steps; GitHub exposed no downloadable job logs. Re-running failed jobs produced the same pre-run failure. This is not evidence of a Python test failure.
+- Runs #666 and #667, triggered by the launch-plan code and runtime-bundle documentation commits, showed the same immediate pre-run failure on both OS jobs (no steps / no runner assignment). The reason is not exposed by the available GitHub Actions job/log APIs; treat hosted verification as blocked/unknown rather than claiming a code regression or success.
+- Added `adapters/worker_backends/windows_launch_plan.py`. It derives interpreter, entrypoint, working directory, fixed `-I -S -B` arguments, and dispatch key exclusively from a host-compiled allowlist plus the staged bundle manifest. The current allowlist contains only `surfcore.qq.readonly@0.1.0 / observe_batch`.
+- The launch-plan builder rejects unapproved adapter identities, manifest binding drift, unsupported Python implementation/version series, unexpected interpreter/entrypoint paths, staged metadata mismatch, and symlink/reparse points along the selected staged paths.
+- Added `tests/test_worker_windows_launch_plan.py` for the fixed command line, rejected adapter/version/operation, manifest dispatch-key tampering, unsupported Python version, symlinked interpreter, and staged-path metadata escape.
+- Added the new test as a dedicated CI step and to both push and pull-request path filters.
+- Corrected the runtime_bundle.py module description: it now accurately states that manifest verification and per-invocation staging exist, while ACL application and process launch do not.
+- Latest known successful full matrix remains Run #664 (entrypoint + isolated Python mode). The launch-plan slice and the workflow-filter changes are **not yet CI-verified** because the latest workflow jobs did not acquire runners.
+- PR #1 remains Draft/Open/Unmerged. No local Windows/DSH execution or live platform connection has been performed.
+- Next: restore a usable hosted CI run or obtain runner-allocation diagnostics; then validate this launch-plan slice. Only after that should the native executor orchestrator be composed. The executor must concurrently drain bounded stdout/stderr, bound stdin, enforce timeout through Job Object termination, validate host response and adapter-specific cursor metadata, and surface cleanup failures.
