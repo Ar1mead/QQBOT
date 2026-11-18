@@ -20,7 +20,6 @@ import re
 import shutil
 import stat
 import subprocess
-import sys
 from typing import Any
 
 from .runtime_bundle import (
@@ -55,7 +54,7 @@ RUNTIME_REQUIRED_DIRS = ("DLLs", "Lib")
 RUNTIME_ROOT_OPTIONAL_FILES = ("python312.zip", "python312._pth")
 _EXCLUDED_DIRS = frozenset({"__pycache__", "site-packages", "test", "tests"})
 _EXCLUDED_SUFFIXES = frozenset({".pyc", ".pyo"})
-_PYTHON_VERSION_RE = re.compile(r"3\.12\.[0-9]+\\Z")
+_PYTHON_VERSION_RE = re.compile(r"3\.12\.[0-9]+\Z")
 
 
 class RuntimeBundleBuildError(RuntimeError):
