@@ -152,6 +152,21 @@ class WorkerProtocolTests(unittest.TestCase):
         self.assertEqual(len(result.evidence), 1)
         self.assertIs(result.evidence[0].untrusted, True)
 
+    def test_response_rejects_evidence_outside_requested_identity_or_modality(self):
+        for field, value in (("adapter_id", "spoofed"), ("modality", "audio")):
+            evidence = self.make_wire_evidence()
+            evidence[field] = value
+            response = WorkerResponse(
+                request_id=self.request.request_id,
+                adapter_id=self.request.adapter_id,
+                adapter_version=self.request.adapter_version,
+                status="complete",
+                evidence=(evidence,),
+            )
+            with self.subTest(field=field):
+                with self.assertRaises(WorkerProtocolError):
+                    response_to_observation_result(response, self.request)
+
     def test_response_rejects_tampered_digest_and_trusted_evidence(self):
         for field, value in (("content_digest", "sha256:" + "0" * 64), ("untrusted", False)):
             evidence = self.make_wire_evidence()
