@@ -175,6 +175,23 @@ class SurfCoreMappingTests(unittest.TestCase):
         self.assertNotEqual(result.events[0].event_id, result.events[1].event_id)
         self.assertTrue(all(event.payload["untrusted"] for event in result.events))
 
+    def test_same_source_record_id_is_scoped_by_opaque_account_reference(self):
+        first = map_surfcore_record_to_csd_event(
+            record(record_id="message:shared", account_ref="qq-account-a")
+        )
+        second = map_surfcore_record_to_csd_event(
+            record(record_id="message:shared", account_ref="qq-account-b")
+        )
+        self.assertNotEqual(first.event_id, second.event_id)
+
+    def test_changed_content_keeps_source_identity_for_csd_conflict_detection(self):
+        original = map_surfcore_record_to_csd_event(record())
+        changed = map_surfcore_record_to_csd_event(
+            record(content="Different payload for the same source message ID.")
+        )
+        self.assertEqual(original.event_id, changed.event_id)
+        self.assertNotEqual(dict(original.payload), dict(changed.payload))
+
     def test_qq_batch_replay_produces_same_event_ids_and_payloads(self):
         page = qq_batch([record(cursor=11, record_id="message:11", external_ref="11")],
                         after_cursor=10, next_cursor=11)
