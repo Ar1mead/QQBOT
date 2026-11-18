@@ -1,22 +1,26 @@
 # Project Progress Ledger
 
 > Repository: `Ar1mead/QQBOT`  
-> Last updated: 2026-11-18 (UTC+08:00)  
+> Last updated: 2026-11-19 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
 > Default branch: `main`  
 > Merge policy: work remains on feature branches until reviewed; do not assume anything is merged to `main`.
 
 This is the durable hand-off record for continuing work when conversation context is unavailable. Update this file whenever a meaningful work item is completed, its verification status changes, or a decision changes.
 
-## Current status snapshot — 2026-11-18 19:13 UTC+08:00
+## Current status snapshot — 2026-11-19 00:09 UTC+08:00
 
-- Current branch: `feature/csd-cognitive-memory-slice`; last code/test checkpoint: `d36c346ae0b4cc10cbed55814eadde74d74386a7` (Run #643 passed). Subsequent progress-ledger/design updates are documentation-only.
-- Latest verified code/test commit: `d36c346ae0b4cc10cbed55814eadde74d74386a7`; Run #643 completed successfully on Ubuntu and Windows (38 steps per matrix job).
-- Windows backend now contains AppContainer profile/capability helpers, handle-based runtime/temp ACL and Low Integrity label helpers, explicit environment block, Job Object limits, STARTUPINFOEX handle allowlist, suspended process launch, anonymous pipes, and bounded concurrent stdio/timeout termination.
-- Windows process tests now execute both copied `cmd.exe` and copied CPython 3.12. Verified cases include runtime read-only/temp writable, host/CSD marker read denial, loopback/private-interface denial, host-positive link-local metadata and public TCP denial, child-process limit, timeout, output overflow, and Job Object kill-on-close.
-- No production `WindowsAppContainerWorkerExecutor` exists; low-level launcher/stdio modules are not yet composed into the existing `WorkerExecutor` interface. No Linux Bubblewrap backend, live SurfCore ingress, or local Windows/DSH test exists.
-- Python runtime verification is now complete on hosted Windows: copied CPython 3.12 launched with `-I -S -B`, standard-library/native-extension imports passed, `sys.path` stayed inside the copied runtime, parent-only secret was absent, runtime writes were denied, and the explicit plus AppContainer-managed per-profile temp paths behaved as expected.
-- PR #1 remains Draft/Open/Unmerged.
+- Current branch head: `e790bd077059cb7847eb01e5f53c9aa8ea4b0451`.
+- Latest confirmed full CI matrix: Run #664 passed Ubuntu and Windows, including protocol-v4 provenance, fixed Worker entrypoint, isolated Python subprocess, and complete test discovery. This checkpoint predates the Windows launch-plan and staged-byte re-verification commits.
+- Windows launch-plan code now exists and is covered by a dedicated test module, including allowlist enforcement, exact manifest binding, CPython 3.12 pinning, path/reparse checks, and staged-file tampering rejection. **This slice has not passed CI.**
+- Runs #665–#672 failed before runner allocation: both matrix jobs had no executed steps and no runner assignment; no usable job logs were exposed. This is a CI execution/runner-availability block of unknown cause, not evidence that test assertions failed. Do not mark post-#664 changes green.
+- Existing Windows low-level primitives include AppContainer profile/capability setup, ACLs, explicit environment, Job Object limits, STARTUPINFOEX, inherited pipes, suspended launch, and bounded concurrent stdio/timeout/overflow supervision. These remain separate modules; no production `WindowsAppContainerWorkerExecutor` composes them.
+- **New audit finding:** the repository has a runtime bundle manifest verifier/stager but no runtime bundle builder or trusted distribution/pinning flow. The manifest's internal SHA-256 values prove consistency with that manifest, not authenticity if an attacker can replace both the files and manifest. A trusted bundle source, pinned manifest digest or signature, and deterministic packaging process must be designed before production executor wiring.
+- The current fixed bundle layout expects `python/python.exe` and `app/worker_entrypoint.py`; the actual dependency closure/package contents are not yet produced by a repository build tool.
+- No Linux Bubblewrap backend, live SurfCore ingress, real QQ/Bilibili connection, or owner-local Windows/DSH verification exists.
+- PR #1 remains Draft/Open/Unmerged. Do not merge or convert it out of Draft.
+
+Next gate: define a reproducible, allowlisted Worker runtime bundle build and authenticity contract; add manifest pin/signature verification and tests; restore executable CI; only then compose the production Windows executor lifecycle.
 
 ---
 
