@@ -1366,3 +1366,12 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Added tests covering valid bundles, duplicate JSON keys, unknown fields, path traversal/absolute/backslash paths, unsorted/duplicate paths, missing entrypoint, invalid dispatch keys, invalid sizes/digests, tampering, extra files, symlinks, and missing/oversized manifests.
 - The verifier deliberately does not stage files or launch processes. The source bundle directory must be host-owned and protected from untrusted concurrent writers; a separate staging implementation is still required.
 - Added a dedicated workflow path trigger and Ubuntu/Windows test step. CI pending.
+
+
+## Runtime bundle manifest verifier passed — Run #650
+
+- Run #650 for tested code head e1c345b99e8c104eb1bae0a019fc0c14bd386a1a completed successfully on Ubuntu and Windows.
+- The dedicated worker runtime bundle manifest test step passed on both platforms. Full test discovery also passed on Windows.
+- Verified behavior includes exact manifest schema, duplicate-key rejection, canonical relative path rules, sorted/unique manifest entries, adapter dispatch key syntax, file/total size limits, SHA-256 metadata, exact on-disk file-set checks, reparse/symlink rejection, and file tamper detection.
+- This is manifest parsing and source-bundle verification only. No staging/copy-to-per-run runtime tree, ACL application, fixed worker entrypoint, or production executor exists yet.
+- Next: implement a separate per-invocation staging primitive that copies only manifest-listed files, rechecks source bytes during copy, creates files exclusively beneath a new host-controlled directory, and verifies staged digests before ACL hardening.

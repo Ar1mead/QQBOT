@@ -186,3 +186,8 @@ The next code slice is a pure runtime bundle manifest parser/file verifier. It m
 ## Runtime bundle verifier implementation slice
 
 A pure manifest parser and on-disk verifier now exist. It enforces exact fields, canonical relative POSIX paths, sorted unique file entries, size and total-size bounds, SHA-256 digests, exact adapter bindings, and static dispatch-key identifier syntax. Disk verification rejects extra/missing files, symlinks/reparse points, and non-regular files, and hashes each listed file. The source bundle must be host-owned and protected from untrusted concurrent writers. No staging or process launch is implemented. CI pending.
+
+
+## Run #650 verification
+
+The runtime bundle manifest parser and on-disk verifier passed Run #650 on Ubuntu and Windows. This does not verify staging or launch. The next slice is exclusive per-invocation staging of only manifest-listed files, with source re-hashing during copy and destination digest verification before AppContainer ACLs are applied.

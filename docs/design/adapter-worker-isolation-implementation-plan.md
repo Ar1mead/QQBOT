@@ -461,3 +461,8 @@ Implement a pure, bounded manifest parser and file verifier before any process e
 ### 3.22.1 Runtime bundle manifest verifier implementation
 
 Added adapters/worker_backends/runtime_bundle.py and tests/test_worker_runtime_bundle.py. The parser rejects schema drift, duplicate JSON keys, noncanonical/traversing paths, unsorted/duplicate files, invalid sizes/digests, and invalid adapter dispatch identifiers. The verifier checks the exact on-disk file set, rejects symlinks/reparse points/non-regular files, and verifies size/SHA-256 with file identity checks. It does not stage or launch. CI pending.
+
+
+### 3.22.2 Run #650 verified the manifest verifier
+
+Run #650 passed on Ubuntu and Windows. The dedicated runtime bundle manifest test step and full Windows test discovery passed. This verifies parsing and source-tree verification only; per-run staging, ACL hardening, and process launch remain separate.
