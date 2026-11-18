@@ -11,7 +11,7 @@ from adapters.contracts.observation import (
 from adapters.worker_host import (
     WorkerExecutionError,
     WorkerHost,
-    WorkerProcessObservationAdapter,
+    WorkerBackedObservationAdapter,
 )
 from adapters.worker_protocol import WorkerResponse, encode_response
 
@@ -86,7 +86,7 @@ class WorkerHostTests(unittest.TestCase):
 
     def test_adapter_routes_through_injected_executor_and_validates_result(self):
         executor = self.make_executor()
-        adapter = WorkerProcessObservationAdapter(self.manifest, WorkerHost(executor))
+        adapter = WorkerBackedObservationAdapter(self.manifest, WorkerHost(executor))
         result = adapter.observe(self.request)
         self.assertEqual(result.status, ObservationStatus.COMPLETE)
         self.assertEqual(len(result.evidence), 1)
@@ -110,19 +110,19 @@ class WorkerHostTests(unittest.TestCase):
 
     def test_timeout_fails_closed(self):
         executor = FakeWorkerExecutor(error=TimeoutError("late"))
-        adapter = WorkerProcessObservationAdapter(self.manifest, WorkerHost(executor))
+        adapter = WorkerBackedObservationAdapter(self.manifest, WorkerHost(executor))
         with self.assertRaisesRegex(WorkerExecutionError, "timed out"):
             adapter.observe(self.request)
 
     def test_invalid_worker_response_fails_closed(self):
         executor = FakeWorkerExecutor(response=b'{"unexpected":true}')
-        adapter = WorkerProcessObservationAdapter(self.manifest, WorkerHost(executor))
+        adapter = WorkerBackedObservationAdapter(self.manifest, WorkerHost(executor))
         with self.assertRaisesRegex(WorkerExecutionError, "response rejected"):
             adapter.observe(self.request)
 
     def test_host_rejects_response_larger_than_configured_limit(self):
         executor = FakeWorkerExecutor(response=b"x" * 32)
-        adapter = WorkerProcessObservationAdapter(
+        adapter = WorkerBackedObservationAdapter(
             self.manifest,
             WorkerHost(executor, max_response_bytes=16),
         )
@@ -135,7 +135,7 @@ class WorkerHostTests(unittest.TestCase):
             ({"external_ref": "other-target"}, "target"),
         ):
             executor = self.make_executor(self.make_evidence(**changes))
-            adapter = WorkerProcessObservationAdapter(self.manifest, WorkerHost(executor))
+            adapter = WorkerBackedObservationAdapter(self.manifest, WorkerHost(executor))
             with self.subTest(message=message):
                 with self.assertRaisesRegex(WorkerExecutionError, message):
                     adapter.observe(self.request)
