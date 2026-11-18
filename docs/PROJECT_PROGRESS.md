@@ -1153,3 +1153,12 @@ At the time of this update:
 - Unlike the persistent CI profile helper, the ephemeral helper never reuses an existing profile. If creation or path validation fails, it attempts to delete the just-created profile before raising.
 - The caller must close/terminate the worker process and release its process/job/pipe handles before closing the profile. This avoids cross-run AppContainer local-data persistence.
 - Added Windows tests for unique names/SIDs, path existence, deletion, and closed-object behavior. The lifecycle tests are pending CI; the production executor does not use the helper yet.
+
+
+## Ephemeral AppContainer profile lifecycle hosted verification — Run #637
+
+- Run #637 for tested head `76f9b576b5490ba5392df6ec0a0e71a809302fb0` completed successfully on both Ubuntu and Windows; each matrix job passed all 38 steps.
+- The Windows AppContainer layout suite verified that the ephemeral profile helper creates unique profile names and SIDs, returns an existing OS-managed LocalAppData folder, deletes the profile on close, removes the folder, and rejects re-entry after close.
+- The process-launch integration suite and all previous Windows adversarial tests also passed.
+- The current process integration fixture still uses the persistent CI profile; next it will be switched to the ephemeral owner so the full launch lifecycle proves profile deletion after process/job/pipe cleanup.
+- Hosted CI only; no local Windows/DSH verification. PR #1 remains Draft/Open/Unmerged.

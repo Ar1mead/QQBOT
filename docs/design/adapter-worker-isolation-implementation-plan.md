@@ -320,3 +320,5 @@ Run #636 passed an end-to-end test that copied `cmd.exe` into a separate runtime
 ### 3.12 Ephemeral AppContainer profile lifecycle
 
 Production worker invocations should use a fresh AppContainer profile rather than the persistent named CI profile. `EphemeralAppContainerProfile.create()` creates a UUID-backed unique profile, retrieves its AppContainer SID and `GetAppContainerFolderPath` result, and owns `DeleteAppContainerProfile` cleanup. The process/job/pipe owners must be closed before the profile is deleted. This prevents the AppContainer's LocalAppData from becoming persistent cross-run storage. The new lifecycle test is pending CI.
+
+Run #637 passed the ephemeral profile lifecycle test on Windows: unique profile/SID creation, LocalAppData resolution, profile deletion, folder removal, and closed-owner behavior. The existing process integration still uses the persistent CI profile; switching it to the ephemeral owner is the next integration step.
