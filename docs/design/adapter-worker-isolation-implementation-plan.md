@@ -312,3 +312,7 @@ The runtime grant no longer relies on directory inheritance alone. It enumerates
 Run #634 passed the recursive runtime ACL descriptor suite on both matrix platforms. The Windows test used pre-existing nested directories and files. The reparse-point test is conditional on symlink creation being enabled on the runner; do not assume it executed if the test was skipped.
 
 Run #635 exercised the copied runtime executable successfully, including the read/execute-only runtime directory test. Two unrelated tests failed due to stale four-value tuple unpacking after the test helper began returning the runtime directory as a fifth value; this also interrupted cleanup. The fixture has been corrected, but the full test suite must pass in a new run.
+
+### 3.11.1 Runtime executable launched under recursive ACLs
+
+Run #636 passed an end-to-end test that copied `cmd.exe` into a separate runtime directory, applied recursive read/execute ACLs, and launched that copied binary as the AppContainer worker. The worker could execute it, could not create a file in the runtime directory, and could write to the distinct Low-Integrity temp directory. This verifies the runtime ACL path for a representative existing executable; it does not yet verify the full Python runtime or a production WorkerExecutor.

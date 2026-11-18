@@ -1135,3 +1135,13 @@ At the time of this update:
 - Two other tests failed because their context-manager destructuring still expected four yielded values after the helper began returning five (it now also returns the runtime directory path).
 - The resulting fixture exception interrupted normal cleanup and left the copied executable locked, producing a secondary temporary-directory cleanup error. This is a test fixture mismatch; the process launch and runtime directory test passed.
 - Updated the two stale tuple destructuring sites to accept the fifth value. Run #635 remains failed on Windows; a new run is required to verify cleanup and the full suite.
+
+
+## Windows copied runtime executable and recursive ACL integration verified — Run #636
+
+- Run #636 for tested head `1b062b27c36f830007e67206e34c46b67ee4f274` completed with **Success** on both Ubuntu and Windows; each matrix job passed all 38 steps.
+- The Windows process integration helper now copies `cmd.exe` into a separate runtime directory, applies recursive read/execute ACLs to that directory and its existing executable, and launches the copied executable inside the AppContainer.
+- The runtime read/execute-only test passed: the worker executed from the copied runtime directory, could not create a file there, and could still create a file in the separately Low-Integrity-labeled temp directory.
+- All previously passing adversarial cases also passed, including host marker read denial, host temp write denial, loopback/private-interface network denial, child-process limit, timeout, output overflow, and Job Object kill-on-close.
+- Run #635 remains a failed earlier fixture attempt caused by stale tuple unpacking; Run #636 verifies the correction and cleanup.
+- Hosted CI only; no local Windows/DSH verification. Link-local/cloud metadata/public network attempts remain outstanding. PR #1 remains Draft/Open/Unmerged.
