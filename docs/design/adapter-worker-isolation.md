@@ -94,6 +94,17 @@ Implemented in `adapters/worker_protocol.py`:
 
 This is a transport and evidence-reconstruction implementation. It does not launch a worker, establish a secure channel, authenticate a worker process, or impose OS permissions. The host can reconstruct each evidence object through the existing observation dataclasses, which enforce provenance-field shape, timezone-aware timestamps, SHA-256 content digest, coverage consistency, and the untrusted invariant. Do not treat a valid JSON envelope as trustworthy evidence; it must pass this semantic reconstruction and request-binding step before CSD mapping.
 
+## 6.2 Fail-closed host orchestration
+
+Implemented in `adapters/worker_host.py`:
+
+- `WorkerHost` builds a typed request, invokes an explicitly injected host-owned `WorkerExecutor`, bounds the timeout and response size, decodes the response, and reconstructs validated observation evidence.
+- `WorkerProcessObservationAdapter` bridges that host to the existing `ObservationAdapter` interface and checks returned platform and target against the registered manifest/request.
+- Missing executor configuration is rejected. There is no fallback that imports or executes adapter code inside the core process.
+- Backend timeout, execution error, malformed response, oversized response, and identity/target mismatches fail closed.
+
+Important: `WorkerExecutor` is an interface, not an OS sandbox. The current tests use an in-memory fake executor. No real subprocess backend or Windows/Linux isolation policy is implemented. A production executor must be host-owned and separately reviewed to prove filesystem, network, secret, process, and resource restrictions. Do not inject third-party executor code.
+
 ## 7. Current status
 
 Implemented:
@@ -103,7 +114,7 @@ Implemented:
 - tests for registration, dispatch scope, and returned evidence identity.
 
 Not implemented:
-- worker process launcher and OS sandbox;
+- production worker executor / process launcher and OS sandbox;
 - Windows/Linux sandbox launchers;
 - filesystem/network/resource enforcement;
 - real Bilibili network access or account integration.
