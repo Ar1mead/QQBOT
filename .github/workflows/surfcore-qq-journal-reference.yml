@@ -1,0 +1,35 @@
+name: SurfCore QQ journal reference tests
+
+on:
+  push:
+    branches:
+      - feature/csd-cognitive-memory-slice
+    paths:
+      - "integrations/surfcore-qq-journal/**"
+      - ".github/workflows/surfcore-qq-journal-reference.yml"
+  pull_request:
+    paths:
+      - "integrations/surfcore-qq-journal/**"
+      - ".github/workflows/surfcore-qq-journal-reference.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  journal-reference:
+    name: SurfCore QQ journal reference (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run isolated journal and policy tests
+        run: node --test integrations/surfcore-qq-journal/observation-journal.test.mjs
