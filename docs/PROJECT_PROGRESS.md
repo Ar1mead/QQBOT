@@ -589,7 +589,7 @@ At the time of this update:
 ### 2026-11-18 — Fail-closed worker host orchestration
 
 - Added `adapters/worker_host.py`: a host orchestration layer that creates typed requests, invokes an explicitly injected `WorkerExecutor`, enforces configured timeout/response-size bounds, decodes the response, and reconstructs validated observation evidence.
-- Added `WorkerProcessObservationAdapter` to bridge the worker host into the existing observation-adapter contract; it additionally checks evidence platform against the registered manifest and external target against the request.
+- Added `WorkerBackedObservationAdapter` to bridge the worker host into the existing observation-adapter contract; it additionally checks evidence platform against the registered manifest and external target against the request.
 - The host rejects missing executors and has no in-process plugin fallback. Timeout, backend errors, oversized or malformed responses, and platform/target mismatches fail closed.
 - Added `tests/test_adapter_worker_host.py` and wired the focused suite into the Ubuntu/Windows CI workflow. Also tightened protocol version validation to reject boolean values (Python treats `True == 1`) and added a regression test.
 - Security boundary: `WorkerExecutor` is only an interface. Tests use an in-memory fake; no real subprocess launcher or OS sandbox is implemented. Production use remains blocked until a host-owned executor proves filesystem, network, secret, process, and resource restrictions on Windows and Linux.
