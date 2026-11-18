@@ -71,10 +71,10 @@ export function evaluateIncomingObservation({
       || kindConfig.conversationAllowlist.length === 0) {
     return { allowed: false, reason: "kind_not_explicitly_allowed" };
   }
-  if (event?.post_type && event.post_type !== "message") {
+  if (event?.post_type !== "message") {
     return { allowed: false, reason: "not_message_event" };
   }
-  if (event?.message_type && event.message_type !== conversationKind) {
+  if (event?.message_type !== conversationKind) {
     return { allowed: false, reason: "conversation_kind_mismatch" };
   }
   if (conversationId == null || senderId == null || String(conversationId) === "" || String(senderId) === "") {
