@@ -1,8 +1,18 @@
 # Adapter Worker OS Isolation — Implementation Plan
 
-> Status: implementation plan; no production launcher or sandbox is implemented.
+> Status: implementation plan with a hosted-CI-verified low-level Windows AppContainer launch/test harness; no production WindowsAppContainerWorkerExecutor or complete cross-platform sandbox rollout is implemented.
 >
 > Decision: implement and verify Windows first because the intended owner runtime is Windows, then implement Linux parity. Do not enable any untrusted adapter until both the target OS backend and its adversarial tests pass.
+
+## Current implementation status — supersedes earlier point-in-time notes
+
+The detailed subsections below were written incrementally and preserve the implementation history. Where an earlier subsection says that process creation, pipes, Job Object assignment, Python execution, or adversarial tests are "not yet" implemented, read that statement as the status at the time that subsection was written. The current verified state is:
+
+- Low-level Windows AppContainer process creation, Job Object assignment, explicit pipe-handle inheritance, bounded stdio, timeout/overflow termination, and ephemeral profile cleanup are implemented.
+- The Windows harness has passed copied cmd.exe and copied CPython 3.12 runtime tests. Run #643 passed Ubuntu and Windows, 38 steps per matrix job.
+- The Python probe verifies isolated mode, no site initialization, no bytecode writes, standard-library/native-extension imports, runtime write denial, temp-directory boundaries, and parent-environment secret absence.
+- Host-positive TCP probes to public 1.1.1.1:443 and link-local metadata 169.254.169.254:80 were denied from the AppContainer. Separate loopback and host-private-interface probes also passed.
+- No production WindowsAppContainerWorkerExecutor exists. The current ObservationRequest/WorkerRequest contracts do not yet carry host-fetched DTO bytes. Linux Bubblewrap and local Windows/DSH verification remain outstanding.
 
 ## 1. Why this is the next critical path
 
@@ -14,7 +24,7 @@ The repository already has:
 - a `WorkerBackedObservationAdapter` bridge;
 - fake-executor tests on the Ubuntu/Windows CI matrix.
 
-It does not yet have a process launcher or an OS security boundary. The fake executor proves protocol and host validation only. A Python subprocess alone would not close this gap.
+The repository now has low-level Windows AppContainer process-launch and stdio modules plus hosted adversarial tests. These are not yet composed into a production WorkerExecutor; the fake executor still proves only host protocol validation, and the Linux backend remains unimplemented.
 
 The SurfCore QQ journal reference code is separate and remains unconnected. It may continue to be reviewed as a reference artifact, but live QQ/Bilibili data must not be admitted to CSD through an unisolated third-party adapter.
 
