@@ -835,3 +835,14 @@ At the time of this update:
 - **Strict limitation:** this is only the first ABI/declaration slice. It does not create an AppContainer profile, set DACL/SACL ACLs or the Low Integrity temp label, create pipes, launch a process, assign a Job Object, enforce timeout/output bounds, or prove any isolation. No production `WorkerExecutor` exists and third-party adapter execution remains prohibited.
 - Latest implementation commits: `40bfb4a272bcde3b577bcf1dd655ba6f58afafc4`, `a919dd4459ca65464aa5d748f5a28dea5da58051`, `15f15d38258f432596e4e2c75fc56bda40542c54`; workflow wiring: `eea3ca94e6dda3b67c1280747290ae987fccb534`.
 - Next: retrieve the new Ubuntu/Windows CI results; then implement AppContainer SID/profile lifecycle and ACL/SACL helpers, including Low Integrity labeling only on the per-run temp directory. Do not treat this ABI slice as a sandbox.
+
+## AppContainer profile provisioning — 2026-11-18
+
+- Extended `adapters/worker_backends/windows_appcontainer.py` with `ensure_appcontainer_profile_sid()`: validates the documented AppContainer profile-name character/length constraints, calls `CreateAppContainerProfile` with an empty capability list, handles only the documented already-exists HRESULT by deriving the existing profile SID, converts the SID to a canonical string, and releases native SID/string allocations.
+- The profile is intentionally persistent. The helper never deletes a profile, including one that may have existed before this process. A derived SID alone is not treated as proof that profile storage exists.
+- Added a Windows-only CI integration test to create/reuse the dedicated test profile and verify stable SID derivation; added platform-independent profile-name validation tests.
+- The helper does not yet create process tokens, configure filesystem ACLs/SACLs, assign the SID to a process, or launch a worker. It is profile provisioning only.
+- Relevant Microsoft API references: `CreateAppContainerProfile`, `DeriveAppContainerSidFromAppContainerName`, `ConvertSidToStringSidW`, and `FreeSid`.
+- Latest code commits: `25c4d8e4f2d81a685c6f865aa40ece05be48fdf1`, `8957bfd5e3d13ec58ad73838261c08b7047121c3`, `083cc0293123fb861ada32a922ad704731f7e259`.
+- Hosted workflow/status lookup for the new commits returned no run/check entries at this refresh. **No test pass is claimed.**
+- Next: implement and test ACL/SACL operations using handle-based security APIs, preserve existing ACL entries, verify the per-run directory's Low Integrity label, then construct the empty-capability `SECURITY_CAPABILITIES` for suspended process creation.
