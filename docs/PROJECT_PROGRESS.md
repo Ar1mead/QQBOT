@@ -938,3 +938,11 @@ At the time of this update:
 - Added focused tests for environment block shape and rejection cases, plus Windows-only pipe endpoint inheritance and cleanup tests. Both test files are wired into the existing Ubuntu/Windows CI workflow.
 - These modules do **not** call `CreateProcessW`; they do not read/write pipe data, cap streamed output, supervise timeouts, assign a process to a Job Object, or resume a thread. They are preparation components, not a functioning sandbox.
 - Hosted CI for these two new test suites is pending. PR #1 remains Draft/Open/Unmerged.
+
+
+## Windows pipe/environment CI checkpoint — Run #623 and validation-order correction
+
+- Run #623 reached both new focused suites on both operating systems. Windows completed the pipe-handle and environment-block tests successfully.
+- Ubuntu failed the pipe helper's invalid-buffer test because `WorkerPipes.create()` performed the Windows-platform guard before validating the buffer argument. This was a testability/validation-order defect; no native pipe API was called on Ubuntu.
+- Corrected the order so invalid arguments are rejected consistently before the platform guard. Valid arguments still fail closed on non-Windows.
+- A new CI run is required for this correction. Do not mark Run #623 green: its Ubuntu job failed, and the Windows full job was still running at the time this checkpoint was written.

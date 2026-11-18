@@ -50,13 +50,13 @@ class WorkerPipes:
 
     @classmethod
     def create(cls, buffer_bytes: int = DEFAULT_PIPE_BUFFER_BYTES) -> "WorkerPipes":
-        require_win64()
         if (
             isinstance(buffer_bytes, bool)
             or not isinstance(buffer_bytes, int)
             or not 4096 <= buffer_bytes <= MAX_PIPE_BUFFER_BYTES
         ):
             raise ValueError("buffer_bytes must be between 4096 and 1048576")
+        require_win64()
 
         kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         create_pipe = kernel32.CreatePipe
