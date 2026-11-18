@@ -115,6 +115,37 @@ class CSDObservationV2Tests(unittest.TestCase):
         self.assertEqual(stored["payload"]["coverage"]["missing_ranges_ms"], [[20_000, 25_000]])
         self.assertEqual(self.store.get_memories(), [])
 
+    def test_v2_persists_optional_actor_context_sequence_and_history_provenance(self):
+        evidence = replace(
+            self.evidence(),
+            context_kind="private",
+            context_ref="conversation-opaque",
+            actor_ref="sender-opaque",
+            source_sequence=77,
+            historical=True,
+        )
+        event = observation_evidence_to_csd_event(evidence)
+        self.store.submit_event(event)
+        payload = self.store.get_event(event.event_id)["payload"]
+        self.assertEqual(payload["context_kind"], "private")
+        self.assertEqual(payload["context_ref"], "conversation-opaque")
+        self.assertEqual(payload["actor_ref"], "sender-opaque")
+        self.assertEqual(payload["source_sequence"], 77)
+        self.assertTrue(payload["historical"])
+
+    def test_v2_rejects_malformed_optional_provenance(self):
+        event = observation_evidence_to_csd_event(self.evidence())
+        cases = (
+            ("context_pair", {"context_kind": "private", "context_ref": None}),
+            ("source_sequence", {"source_sequence": True}),
+            ("historical", {"historical": "yes"}),
+        )
+        for name, changes in cases:
+            payload = dict(event.payload)
+            payload.update(changes)
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                self.store.submit_event(replace(event, payload=payload))
+
     def test_repeated_v2_delivery_is_idempotent_and_conflicts_are_rejected(self):
         event = observation_evidence_to_csd_event(self.evidence())
         first = self.store.submit_event(event)
