@@ -1547,3 +1547,12 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Next: design the executor coordinator around explicit resource ownership and deterministic reverse-order cleanup. Do not treat the current low-level modules as a production executor.
 
 - Portability follow-up: the fake-handle test now creates the Windows-only `ctypes.get_last_error` symbol when running on non-Windows CI; commit `6fc597d3c8a980498a9169d3c6cf06fdff649e2b`.
+
+
+## AppContainer per-run directory ancestry correction — 2026-11-19
+
+- Reconciled the Windows integration-test fixture with its own assertion that `TEMP` must be inside the AppContainer `LOCALAPPDATA` tree.
+- The fixture previously created worker temp and runtime directories under `Windows\\Temp`, while the worker probe explicitly expected `TEMP` to be within the ephemeral profile's LocalAppData. It now creates both isolated per-run trees beneath the newly created AppContainer profile directory, then applies separate read/execute and read/write/Low-Integrity ACL policies.
+- This also makes ancestor traversal part of the actual Windows integration test rather than relying on ambient access to a system temp directory.
+- Commit: `d61b004392d507c1c9886ed73455cc1d9f7f1f2a`.
+- This is a test-fixture correction only; it has not run on a Windows host yet because hosted Actions jobs are still failing before runner assignment. The native test must pass before the directory layout is accepted.
