@@ -179,3 +179,89 @@ def assert_win64_structure_layouts() -> None:
             raise RuntimeError(
                 f"{structure.__name__} has size {actual}; expected Win64 size {size}"
             )
+
+
+# HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS), returned when the profile exists.
+HRESULT_PROFILE_ALREADY_EXISTS = 0x800700B7
+ERROR_ALREADY_EXISTS = 183
+_PROFILE_NAME_RE = __import__("re").compile(r"[-_. A-Za-z0-9]{1,64}\\Z")
+
+
+def _windows_userenv():
+    require_win64()
+    return ctypes.WinDLL("userenv", use_last_error=True)
+
+
+def ensure_appcontainer_profile_sid(profile_name: str) -> str:
+    """Create the named per-user AppContainer profile or derive its existing SID.
+
+    The profile is deliberately persistent. This function never deletes an
+    existing profile and never treats a derived SID as proof that a profile
+    exists. The returned value is a canonical SID string, not an owned pointer.
+    """
+    if not isinstance(profile_name, str) or not _PROFILE_NAME_RE.fullmatch(profile_name):
+        raise ValueError("profile_name must match [-_. A-Za-z0-9]{1,64}")
+
+    userenv = _windows_userenv()
+    advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    create = userenv.CreateAppContainerProfile
+    create.argtypes = [
+        ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_wchar_p,
+        ctypes.POINTER(SID_AND_ATTRIBUTES), DWORD, ctypes.POINTER(LPVOID),
+    ]
+    create.restype = ctypes.c_long
+
+    derive = userenv.DeriveAppContainerSidFromAppContainerName
+    derive.argtypes = [ctypes.c_wchar_p, ctypes.POINTER(LPVOID)]
+    derive.restype = ctypes.c_long
+
+    convert = advapi32.ConvertSidToStringSidW
+    convert.argtypes = [LPVOID, ctypes.POINTER(ctypes.c_wchar_p)]
+    convert.restype = BOOL
+
+    free_sid = advapi32.FreeSid
+    free_sid.argtypes = [LPVOID]
+    free_sid.restype = LPVOID
+
+    local_free = kernel32.LocalFree
+    local_free.argtypes = [HANDLE]
+    local_free.restype = HANDLE
+
+    sid = LPVOID()
+    hr = int(create(
+        profile_name,
+        "QQBOT Isolated Adapter Worker",
+        "Dedicated low-privilege profile for offline adapter workers",
+        None,
+        0,
+        ctypes.byref(sid),
+    )) & 0xFFFFFFFF
+
+    if hr == 0:
+        if not sid:
+            raise OSError("CreateAppContainerProfile succeeded without returning a SID")
+    elif hr == HRESULT_PROFILE_ALREADY_EXISTS:
+        sid = LPVOID()
+        derive_hr = int(derive(profile_name, ctypes.byref(sid))) & 0xFFFFFFFF
+        if derive_hr != 0 or not sid:
+            raise OSError(
+                f"DeriveAppContainerSidFromAppContainerName failed: HRESULT 0x{derive_hr:08X}"
+            )
+    else:
+        raise OSError(f"CreateAppContainerProfile failed: HRESULT 0x{hr:08X}")
+
+    sid_text = ctypes.c_wchar_p()
+    try:
+        if not convert(sid, ctypes.byref(sid_text)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        value = sid_text.value
+        if not value or not value.startswith("S-1-15-2-"):
+            raise OSError("AppContainer profile returned a non-AppContainer SID")
+        return value
+    finally:
+        if sid_text:
+            local_free(ctypes.cast(sid_text, HANDLE))
+        if sid:
+            free_sid(sid)
