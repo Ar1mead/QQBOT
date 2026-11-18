@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { evaluateIncomingObservation, extractIncomingText } from "./observation-policy.mjs";
+import { evaluateIncomingObservation, extractIncomingText, normalizeObservationIngressConfig } from "./observation-policy.mjs";
 
 const RECORD_FIELDS = new Set([
   "schema_version", "platform", "record_id", "cursor", "external_ref",
@@ -95,6 +95,7 @@ export function createObservationJournal({
   if (typeof secureDirectory !== "function") throw new TypeError("secureDirectory ACL callback is required");
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1024) throw new RangeError("maxBytes must be at least 1024");
   const filePath = path.join(directory, "qq-observations-v1.jsonl");
+  const normalizedConfig = normalizeObservationIngressConfig(config);
   const streamRef = opaqueRef(hmacKey, "qq-account", accountId);
   const state = { opened: false, healthy: true, writable: true, appended: 0, failures: 0, latestCursor: 0, bytes: 0 };
   let handle = null;
@@ -158,7 +159,7 @@ export function createObservationJournal({
       const conversationId = conversationKind === "private" ? event?.user_id : event?.group_id;
       const senderId = conversationKind === "private" ? event?.user_id : event?.sender?.user_id ?? event?.user_id;
       const decision = evaluateIncomingObservation({
-        config, conversationKind, conversationId, senderId, selfId: event?.self_id,
+        config: normalizedConfig, conversationKind, conversationId, senderId, selfId: event?.self_id,
         event, denyUsers, denyConversations,
       });
       if (!decision.allowed) return { captured: false, reason: decision.reason };
@@ -166,7 +167,7 @@ export function createObservationJournal({
       if (sourceMessageId == null || String(sourceMessageId).trim() === "") {
         return { captured: false, reason: "missing_source_message_id" };
       }
-      const extracted = extractIncomingText(event?.message, config.maxRecordChars);
+      const extracted = extractIncomingText(event?.message, normalizedConfig.maxRecordChars);
       if (!extracted.accepted) return { captured: false, reason: extracted.reason };
       const receivedAt = now().toISOString();
       const observedAt = toIsoTime(event?.time, receivedAt);
@@ -209,7 +210,13 @@ export function createObservationJournal({
       validateRecord(record, streamRef, cursor);
       const line = Buffer.from(`${JSON.stringify(record)}\n`, "utf8");
       if (state.bytes + line.length > maxBytes) {
-        reportFailure("journal_capacity_reached");
+        state.failures += 1;
+        state.writable = false;
+        const time = now().getTime();
+        if (time - lastFailureLogAt >= 60000) {
+          lastFailureLogAt = time;
+          try { log("QQ observation journal capacity reached; capture paused without deleting prior records"); } catch { /* diagnostics must not affect QQ */ }
+        }
         return { captured: false, reason: "journal_capacity_reached" };
       }
       try {
