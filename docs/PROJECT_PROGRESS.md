@@ -1470,3 +1470,6 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Do not interpret the empty-job failures as test assertion failures. Also do not claim the new launch-plan code is green until a runner actually executes the dedicated step and full discovery.
 - The PR path filter includes `tests/test_worker_windows_launch_plan.py` and the workflow has a dedicated step.
 - Next: resolve GitHub Actions runner allocation/availability or obtain an actionable diagnostic. Once the launch-plan slice has a real green matrix, continue with bounded Windows stdio and then the production lifecycle coordinator.
+
+
+- Follow-up Run #672 for the staged-byte re-verification regression also failed before runner allocation on both Ubuntu and Windows (no steps/no runner assignment/no downloadable logs). This confirms the launch-plan slice still has no executable CI result; do not infer test success from earlier Run #664.
