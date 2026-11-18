@@ -1394,3 +1394,15 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - The staged runtime is still not launchable until AppContainer read/execute ACLs are applied and verified. The executor, worker entrypoint/static dispatch, and protocol evidence serializer are not yet implemented.
 - Current branch head before the next docs-only reconciliation: 9a2a48bd392c22f412d7a20b5b4575fbae23abb4. PR #1 remains Draft/Open/Unmerged.
 - Next audit: reconcile the current ObservationEvidence provenance fields with the strict worker response schema before writing the worker entrypoint. The SurfCore mapper now includes provenance fields that may not yet be representable by the protocol.
+
+
+
+## Worker protocol v4 — complete ObservationEvidence provenance transport (CI pending)
+
+- Audited the strict worker response evidence schema against the current ObservationEvidence dataclass and SurfCore mapping implementation.
+- Found that protocol v3 omitted context_kind/context_ref, actor_ref/actor_role, parent_ref, content_language, source_sequence, and historical. SurfCore mapping already populates several of these fields, so the worker boundary would have silently lost provenance or rejected a future exact schema.
+- Bumped the wire protocol to v4 because the strict evidence object schema changed. The worker evidence allowlist and reconstruction path now require and restore all provenance fields, including nullable values and explicit historical=false.
+- Added tests for a complete provenance round-trip and rejection of invalid context pairing, malformed language tags, boolean source_sequence, and non-boolean historical values.
+- The existing evidence dataclass remains the authority for semantic validation; external evidence must remain untrusted and its content digest is still recomputed/verified.
+- Code commits: f42f7905736fd2b338887428a71182ce34a53b78 and 13f534e5999741061168cc0a6da7806775fd737e. CI result not yet confirmed. Do not treat protocol v4 as accepted until Ubuntu and Windows matrix plus full discovery pass.
+- Next: inspect CI result, reconcile protocol version references in worker design documentation, then continue the fixed worker entrypoint/static dispatch and Windows executor design.
