@@ -12,7 +12,9 @@ function plainObject(value) {
 function normalizeIds(value, field) {
   if (!Array.isArray(value)) throw new TypeError(`${field} must be an array`);
   const ids = value.map((item) => {
-    if ((typeof item !== "string" && typeof item !== "number") || String(item).trim() === "") {
+    if ((typeof item !== "string" && typeof item !== "number")
+        || (typeof item === "number" && !Number.isSafeInteger(item))
+        || String(item).trim() === "") {
       throw new TypeError(`${field} contains an invalid identifier`);
     }
     return String(item);
