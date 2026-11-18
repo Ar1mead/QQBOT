@@ -9,6 +9,14 @@ from dataclasses import dataclass
 import json
 from typing import Any
 
+from adapters.contracts.observation import (
+    ContentOrigin,
+    ObservationCoverage,
+    ObservationEvidence,
+    ObservationResult,
+    ObservationStatus,
+)
+
 PROTOCOL_VERSION = 1
 MAX_MESSAGE_BYTES = 1_048_576
 MAX_ID_LENGTH = 128
@@ -243,3 +251,72 @@ def validate_response_for_request(response: WorkerResponse, request: WorkerReque
         or response.adapter_version != request.adapter_version
     ):
         raise WorkerProtocolError("worker response adapter identity does not match request")
+
+def response_to_observation_result(response: WorkerResponse, request: WorkerRequest) -> ObservationResult:
+    """Reconstruct and validate worker evidence before it can enter CSD."""
+    validate_response_for_request(response, request)
+    evidence_items = []
+    evidence_keys = {
+        "observation_id", "adapter_id", "adapter_version", "platform",
+        "external_ref", "observation_kind", "content_origin", "modality",
+        "content", "source_ref", "observed_at", "received_at",
+        "extraction_method", "content_digest", "coverage",
+        "source_artifact_ref", "account_ref", "untrusted",
+    }
+    coverage_keys = {
+        "modality", "extraction_method", "complete", "start_ms", "end_ms",
+        "missing_ranges_ms", "notes",
+    }
+    for raw_evidence in response.evidence:
+        _require_exact_keys(raw_evidence, evidence_keys)
+        raw_coverage = raw_evidence["coverage"]
+        if not isinstance(raw_coverage, dict):
+            raise WorkerProtocolError("evidence coverage must be an object")
+        _require_exact_keys(raw_coverage, coverage_keys)
+        missing_ranges = raw_coverage["missing_ranges_ms"]
+        notes = raw_coverage["notes"]
+        if not isinstance(missing_ranges, list) or not isinstance(notes, list):
+            raise WorkerProtocolError("coverage ranges and notes must be arrays")
+        if any(not isinstance(item, list) or len(item) != 2 for item in missing_ranges):
+            raise WorkerProtocolError("coverage missing ranges must be two-item arrays")
+        try:
+            coverage = ObservationCoverage(
+                modality=raw_coverage["modality"],
+                extraction_method=raw_coverage["extraction_method"],
+                complete=raw_coverage["complete"],
+                start_ms=raw_coverage["start_ms"],
+                end_ms=raw_coverage["end_ms"],
+                missing_ranges_ms=tuple(tuple(item) for item in missing_ranges),
+                notes=tuple(notes),
+            )
+            evidence_items.append(ObservationEvidence(
+                observation_id=raw_evidence["observation_id"],
+                adapter_id=raw_evidence["adapter_id"],
+                adapter_version=raw_evidence["adapter_version"],
+                platform=raw_evidence["platform"],
+                external_ref=raw_evidence["external_ref"],
+                observation_kind=raw_evidence["observation_kind"],
+                content_origin=ContentOrigin(raw_evidence["content_origin"]),
+                modality=raw_evidence["modality"],
+                content=raw_evidence["content"],
+                source_ref=raw_evidence["source_ref"],
+                observed_at=raw_evidence["observed_at"],
+                received_at=raw_evidence["received_at"],
+                extraction_method=raw_evidence["extraction_method"],
+                content_digest=raw_evidence["content_digest"],
+                coverage=coverage,
+                source_artifact_ref=raw_evidence["source_artifact_ref"],
+                account_ref=raw_evidence["account_ref"],
+                untrusted=raw_evidence["untrusted"],
+            ))
+        except (TypeError, ValueError, KeyError) as exc:
+            raise WorkerProtocolError(f"invalid observation evidence: {exc}") from exc
+    try:
+        return ObservationResult(
+            status=ObservationStatus(response.status),
+            evidence=tuple(evidence_items),
+            warnings=response.warnings,
+            error_code=response.error_code,
+        )
+    except (TypeError, ValueError) as exc:
+        raise WorkerProtocolError(f"invalid observation result: {exc}") from exc
