@@ -1063,3 +1063,19 @@ At the time of this update:
 - Added a positive/negative filesystem write test to the AppContainer integration suite.
 - The worker must be able to create and read a file in its dedicated low-integrity temp working directory, while a write to a separate host-user temp directory must fail (the host checks that no file was created).
 - This complements the existing host-secret/CSD-marker read denial tests. It is not yet verified; the next Windows CI run must pass before the write boundary is counted as tested.
+
+
+## Windows temp write boundary hosted verification — Run #631
+
+- Run #631 for tested code/test head `ccd838e03b6125a15dc64251f8d170d759fe7a7e` completed with **Success** on both Ubuntu and Windows; each matrix job passed all 38 steps.
+- The focused Windows AppContainer suite now also proves the worker can create/read a file in its dedicated temp directory while an attempted write into a separate host-user temp directory leaves no file behind.
+- Together with Run #630, the currently verified Windows adversarial cases cover:
+  - read denial for a host-user-temp marker and repository-root CSD marker;
+  - write denial to a separate host-user temp directory;
+  - successful write within the dedicated Low Integrity temp directory;
+  - denial of a host loopback TCP connection;
+  - child-process creation blocked by Job Object active-process limit 1;
+  - timeout and stdout-overflow termination with process exit confirmation;
+  - normal bounded stdin/stdout/stderr exchange.
+- Run #631 is hosted CI only, not local Windows/DSH validation. Private/link-local/metadata/public network destinations and broader filesystem probes remain outstanding. The Windows backend is not yet certified for untrusted production adapters.
+- PR #1 remains **Draft**, **Open**, and **Unmerged**.

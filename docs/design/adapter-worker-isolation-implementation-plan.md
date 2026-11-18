@@ -290,3 +290,7 @@ Run #630 passed the current adversarial cases on GitHub's Windows runner: host-u
 These are important initial results, not a complete isolation certification. Explicit private/link-local/metadata/public network attempts, broader filesystem traversal checks, and verification on the actual target Windows/DSH environment remain outstanding. The Linux backend has not yet been implemented.
 
 The filesystem adversarial suite now also includes a positive/negative write boundary: a worker-created file inside the dedicated temp directory must exist and contain its marker, while an attempted write into a separate host-user temp directory must leave no file behind. This test is pending Windows CI.
+
+### 3.10.1 Dedicated temp write boundary verified
+
+Run #631 passed the positive/negative write test: the worker created a file in its dedicated temp directory, while the host-user temp target remained absent after the worker's write attempt. This supplements the host-file read denial checks; it does not prove denial for every filesystem namespace or device path.
