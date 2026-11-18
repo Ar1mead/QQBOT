@@ -1545,3 +1545,5 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Commits: `94e26840cc331c7b11ee70829d5c2f08f51b1deb`, `ef060b0c08db64f9326233c5c697fba13766408f`, `6336b48ecd43f03df7516b3a1ba555de593936ef`, `c1bad981b5d8d5b3fec86f4691fa32974f81002d`, `a7f734d5dd0bca5eac333d5d5f58612c84603957`.
 - CI remains unverified while GitHub Actions jobs fail before runner assignment. These tests exercise ownership-state transitions with fake handles; native Windows handle behavior still requires Windows CI.
 - Next: design the executor coordinator around explicit resource ownership and deterministic reverse-order cleanup. Do not treat the current low-level modules as a production executor.
+
+- Portability follow-up: the fake-handle test now creates the Windows-only `ctypes.get_last_error` symbol when running on non-Windows CI; commit `6fc597d3c8a980498a9169d3c6cf06fdff649e2b`.
