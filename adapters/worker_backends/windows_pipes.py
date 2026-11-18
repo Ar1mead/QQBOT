@@ -149,6 +149,28 @@ class WorkerPipes:
                 close(handle)
             raise
 
+    def validate_inheritance_split(self) -> None:
+        if self._closed or self._child_closed:
+            raise RuntimeError("worker pipe handles are not available for process creation")
+        kernel32 = self._kernel32
+        get_info = kernel32.GetHandleInformation
+        get_info.argtypes = [HANDLE, ctypes.POINTER(DWORD)]
+        get_info.restype = BOOL
+        expected = (
+            (self.handles.child_stdin, True),
+            (self.handles.child_stdout, True),
+            (self.handles.child_stderr, True),
+            (self.handles.parent_stdin, False),
+            (self.handles.parent_stdout, False),
+            (self.handles.parent_stderr, False),
+        )
+        for handle, should_inherit in expected:
+            flags = DWORD()
+            if not get_info(handle, ctypes.byref(flags)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if bool(flags.value & HANDLE_FLAG_INHERIT) is not should_inherit:
+                raise OSError("worker pipe inheritance flags changed after creation")
+
     def child_handles_for_startup(self) -> tuple[HANDLE, HANDLE, HANDLE]:
         if self._closed:
             raise RuntimeError("worker pipes are already closed")

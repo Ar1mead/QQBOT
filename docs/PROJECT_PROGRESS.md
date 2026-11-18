@@ -946,3 +946,19 @@ At the time of this update:
 - Ubuntu failed the pipe helper's invalid-buffer test because `WorkerPipes.create()` performed the Windows-platform guard before validating the buffer argument. This was a testability/validation-order defect; no native pipe API was called on Ubuntu.
 - Corrected the order so invalid arguments are rejected consistently before the platform guard. Valid arguments still fail closed on non-Windows.
 - A new CI run is required for this correction. Do not mark Run #623 green: its Ubuntu job failed, and the Windows full job was still running at the time this checkpoint was written.
+
+
+## Windows pipe/environment hosted verification — Run #624
+
+- Run #624 for correction head `ed2239345e72ee6faa6d2af52ddbfbba99589b86` completed successfully on both Ubuntu and Windows; both jobs passed all 37 steps.
+- The new pipe and environment suites passed on both platforms. Windows exercised native anonymous pipe creation and verified only the three child ends were inheritable; Ubuntu verified argument rejection occurs before the platform guard. Both platforms passed environment block validation and complete unittest discovery.
+- Run #623 is not green: Windows passed its 37 steps, while Ubuntu exposed the validation-order defect described above. Run #624 verifies the corrected behavior.
+- Hosted CI is not local Windows/DSH verification. PR #1 remains Draft/Open/Unmerged.
+
+## Windows suspended AppContainer process launch — implementation slice
+
+- Added `adapters/worker_backends/windows_process.py` with explicit executable/working-directory validation, reparse-point rejection, exact pipe-handle allowlist matching, environment-buffer revalidation, Job Object policy revalidation, standard-handle binding, and `CreateProcessW` suspended launch.
+- The process is assigned to the configured Job Object before any thread is resumed. Only after assignment does the launcher close the host's child-end pipe copies and call `ResumeThread`; it requires a previous suspend count of exactly one.
+- Post-creation failure handling terminates the Job Object or closes its kill-on-close handle, then requires a signaled process handle before declaring cleanup successful. It raises a fatal cleanup error rather than claiming cleanup if termination cannot be confirmed.
+- Added a Windows integration test that attempts to run a harmless `cmd.exe /d /c echo WORKER_OK` inside the AppContainer and checks process exit/output. This test is **pending CI**; it is not yet evidence of successful AppContainer launch.
+- No pipe I/O supervisor, output-size cap, stderr/stdout streaming loop, timeout enforcement, host-file/network/child-process adversarial tests, or production WorkerExecutor exists yet. No real platform adapter may be enabled.

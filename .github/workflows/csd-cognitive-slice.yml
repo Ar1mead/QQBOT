@@ -108,6 +108,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_worker_windows_job.py" -v
       - name: Run Windows STARTUPINFOEX attribute-list tests
         run: python -m unittest discover -s tests -p "test_worker_windows_startup.py" -v
+      - name: Run Windows AppContainer process launch tests
+        run: python -m unittest discover -s tests -p "test_worker_windows_process.py" -v
       - name: Run Windows worker pipe handle tests
         run: python -m unittest discover -s tests -p "test_worker_windows_pipes.py" -v
       - name: Run Windows worker environment block tests

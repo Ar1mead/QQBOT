@@ -94,6 +94,7 @@ class WorkerStartupAttributes:
         self._delete.restype = None
 
         self._capabilities = capabilities
+        self._inherited_handle_values = normalized
         self._handles = (HANDLE * len(normalized))(*(HANDLE(value) for value in normalized))
         required_size = SIZE_T()
         ctypes.set_last_error(0)
@@ -143,6 +144,10 @@ class WorkerStartupAttributes:
         except Exception:
             self.close()
             raise
+
+    @property
+    def inherited_handle_values(self) -> tuple[int, ...]:
+        return self._inherited_handle_values
 
     def validate_live(self) -> None:
         if not self._initialized or not self._attribute_list:

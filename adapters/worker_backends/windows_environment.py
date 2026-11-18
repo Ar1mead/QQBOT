@@ -37,6 +37,14 @@ class WorkerEnvironment:
     def pointer(self):
         return ctypes.cast(self.buffer, ctypes.c_void_p)
 
+    def validate_for_launch(self) -> None:
+        rebuilt = build_worker_environment(dict(self.values))
+        if rebuilt.block_text != self.block_text:
+            raise ValueError("worker environment metadata and text block do not match")
+        actual = ctypes.wstring_at(ctypes.addressof(self.buffer), len(self.block_text))
+        if actual != self.block_text:
+            raise ValueError("worker environment native buffer does not match its validated text")
+
 
 def build_worker_environment(values: Mapping[str, str]) -> WorkerEnvironment:
     """Build a minimal double-NUL-terminated environment block.

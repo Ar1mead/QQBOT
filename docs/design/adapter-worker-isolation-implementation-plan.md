@@ -124,6 +124,25 @@ Two preparation modules are now present:
 - `adapters/worker_backends/windows_environment.py` builds a sorted Unicode environment block from a strict allowlist. It requires absolute `SystemRoot`, `WINDIR`, `TEMP`, and `TMP` paths; rejects unknown names, case-colliding names, NULs, empty values, and oversized blocks; and forces Python's no-user-site, no-bytecode, and safe-path flags. It never copies the host's ambient environment.
 - These are resource-preparation helpers only. No process is created, no pipes are read or written, no output limit or timeout is enforced, and no process has been assigned to a Job Object.
 
+### 3.8 Suspended AppContainer process launch — first end-to-end launch path
+
+The reference module `adapters/worker_backends/windows_process.py` now implements the launch ordering:
+
+1. Validate the executable and working directory as absolute existing paths; resolve them and reject a reparse-point executable or working directory.
+2. Re-verify the worker's three pipe handles and the exact inheritance split; re-verify the environment block's metadata and native buffer; require `TEMP` and `TMP` to match the dedicated worker working directory.
+3. Re-query the Job Object and require kill-on-close, one active process, no breakaway flags, finite matching process/job memory limits, and the configured CPU hard cap.
+4. Bind the three child pipe handles to `STARTF_USESTDHANDLES` and require the STARTUPINFOEX handle allowlist to match those exact three handles.
+5. Call `CreateProcessW` with an explicit application path, writable command-line buffer, explicit Unicode environment, `bInheritHandles=TRUE` (required by the handle-list attribute), and `CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT`.
+6. Assign the still-suspended process to the Job Object.
+7. Close the host's duplicate child pipe endpoints.
+8. Call `ResumeThread` and require the previous suspend count to be exactly one.
+
+Any failure after process creation attempts Job Object termination (or kill-on-close) and then requires the process handle to become signaled before cleanup is considered successful. If termination cannot be confirmed, it raises a distinct fatal cleanup error and deliberately does not pretend the process was cleaned up.
+
+The returned `WorkerProcess` owns the process handle and supports bounded wait/exit-code inspection. The caller retains the Job Object, pipes, startup attribute list, and environment owners.
+
+**This is the first process launch implementation, not a complete WorkerExecutor.** The current Windows integration test launches a harmless `cmd.exe /d /c echo WORKER_OK` process in an AppContainer, assigns it to the configured Job Object while suspended, resumes it, and checks its exit/output. It does not yet prove host-file denial, network denial, child-process denial, whole-job timeout, streaming output limits, or complete pipe-drain behavior. Those adversarial tests and the I/O supervisor remain mandatory before any real adapter is enabled.
+
 ## 4. Linux backend — parity implementation after Windows
 
 Use a host-installed `bubblewrap` executable selected by an absolute, administrator-reviewed path. Do not use a shell.
