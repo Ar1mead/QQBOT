@@ -34,7 +34,8 @@ on:
       - "core/life_engine/**"
       - "adapters/**"
 
-      - "integrations/surfcore-qq-journal/**"      - "tests/test_csd_observation_v2.py"
+      - "integrations/surfcore-qq-journal/**"
+      - "tests/test_csd_observation_v2.py"
       - "tests/test_csd_goals.py"
       - "tests/test_adapter_observation_contract.py"
       - "tests/test_bilibili_target.py"
