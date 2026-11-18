@@ -593,11 +593,7 @@ def load_runtime_bundle(root_path: str) -> VerifiedRuntimeBundle:
     """Verify manifest/file consistency only; this does not authenticate origin."""
     absolute_root, raw = _read_runtime_manifest_bytes(root_path)
     manifest = parse_runtime_bundle_manifest(raw)
-    verified = verify_runtime_bundle(absolute_root, manifest)
-    return TrustedRuntimeBundle(
-        verified_bundle=verified,
-        manifest_sha256=actual_digest,
-    )
+    return verify_runtime_bundle(absolute_root, manifest)
 
 
 def load_trusted_runtime_bundle(
@@ -620,4 +616,8 @@ def load_trusted_runtime_bundle(
     if actual_digest != expected_manifest_sha256:
         raise RuntimeBundleError("runtime bundle manifest does not match the host-pinned SHA-256")
     manifest = parse_runtime_bundle_manifest(raw)
-    return verify_runtime_bundle(absolute_root, manifest)
+    verified = verify_runtime_bundle(absolute_root, manifest)
+    return TrustedRuntimeBundle(
+        verified_bundle=verified,
+        manifest_sha256=actual_digest,
+    )
