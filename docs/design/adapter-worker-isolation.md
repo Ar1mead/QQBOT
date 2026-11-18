@@ -92,7 +92,7 @@ Implemented in `adapters/worker_protocol.py`:
 - request/response binding checks for request ID and pinned adapter ID/version;
 - response status shape checks for complete, partial, unavailable, and failed outcomes.
 
-This is only a transport-envelope implementation. It does not launch a worker, validate the full semantic schema of each evidence object, establish a secure channel, authenticate a worker process, or impose OS permissions. The host must still reconstruct and validate every evidence object using the observation contract before CSD mapping. Do not treat a valid JSON envelope as trustworthy evidence.
+This is a transport and evidence-reconstruction implementation. It does not launch a worker, establish a secure channel, authenticate a worker process, or impose OS permissions. The host can reconstruct each evidence object through the existing observation dataclasses, which enforce provenance-field shape, timezone-aware timestamps, SHA-256 content digest, coverage consistency, and the untrusted invariant. Do not treat a valid JSON envelope as trustworthy evidence; it must pass this semantic reconstruction and request-binding step before CSD mapping.
 
 ## 7. Current status
 
