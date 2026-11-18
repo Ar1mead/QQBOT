@@ -1101,3 +1101,12 @@ At the time of this update:
 - Added a second network denial test that discovers a private IPv4 address assigned to the Windows runner, starts a host TCP listener on that address, and first verifies the host can connect (positive control).
 - The AppContainer worker then attempts the same connection using `curl.exe`; the test requires connection failure and confirms the host listener received no second connection.
 - This supplements loopback denial with a real host-private-interface positive control. It is pending CI; public and metadata destinations remain separate coverage.
+
+
+## Windows private-interface network denial verified — Run #633
+
+- Run #633 for tested code/test head `9789377ca1d2e115a430cf7f1872c5290640835b` completed successfully on both Ubuntu and Windows; each matrix job passed all 38 steps.
+- The new Windows private-network test found a private IPv4 address on the runner, started a TCP listener on that address, and first proved the host itself could connect. The AppContainer worker then attempted the same connection with `curl.exe`; it failed, and the server observed no second connection.
+- This adds a positive-control-backed private-interface denial test to the previously passing loopback denial test. Link-local/cloud metadata and public destination attempts remain untested.
+- Run #632 already verified Job Object kill-on-close against a live process; Run #631 verified the temp write boundary. These remain separate passing runs.
+- Hosted CI only; no local Windows/DSH verification. PR #1 remains Draft/Open/Unmerged.

@@ -300,3 +300,7 @@ The Windows Job Object adversarial suite now includes a kill-on-close test: a ru
 Run #632 verified kill-on-close against a live process: the worker was launched and left waiting on stdin, the host closed the Job Object handle, and the process handle became signaled. This is stronger than the earlier configuration-only read-back test.
 
 A private-interface network probe has been added: the host first proves it can connect to a listener bound to its own private IPv4 address, then the AppContainer worker attempts the same TCP connection. The worker must fail and the server must receive no second connection. This test is pending Windows CI.
+
+### 3.10.2 Private-interface network denial verified
+
+Run #633 passed the private-interface test with a host positive control: the host connected to a listener bound to its own private IPv4 address, while the AppContainer worker could not establish the same connection. Loopback denial remains separately covered. Link-local/cloud metadata and public destinations are still not tested.
