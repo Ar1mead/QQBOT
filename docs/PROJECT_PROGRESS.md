@@ -1534,3 +1534,14 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Commits: `37424e13d6bdcdd769d0bd7e415cfd819a167613`, `28aae2695fbcef7f3e71da33ae20c8b8da1039be`, `ad0dc784dc7b7879eed47cc8620742e848bc791b`.
 - These changes are not yet CI-verified. The test covers lifecycle decision/error propagation with fakes; it does not replace native Windows pipe/Job Object integration testing.
 - Next: audit native handle close semantics and design the host-owned Windows executor coordinator with explicit ownership/cleanup ordering. Keep AppContainer and third-party adapter execution disabled until the complete coordinator passes Windows CI and real Windows runtime-bundle launch verification.
+
+
+## Native Worker handle cleanup made retryable — 2026-11-19
+
+- Audited the close paths for the Job Object, worker process, and six anonymous-pipe handles.
+- Fixed ownership loss on failed `CloseHandle`: Job Object and process owners now clear their handle field only after native close succeeds.
+- Pipe cleanup now attempts every owned endpoint, clears each endpoint only after its close succeeds, retains failed handles for a later retry, and marks the pipe set closed only when every handle is released.
+- Added platform-neutral fake-handle tests for failed-close retention and successful retry, including partial pipe-set cleanup. Added the test to both workflow path filters and a dedicated CI step.
+- Commits: `94e26840cc331c7b11ee70829d5c2f08f51b1deb`, `ef060b0c08db64f9326233c5c697fba13766408f`, `6336b48ecd43f03df7516b3a1ba555de593936ef`, `c1bad981b5d8d5b3fec86f4691fa32974f81002d`, `a7f734d5dd0bca5eac333d5d5f58612c84603957`.
+- CI remains unverified while GitHub Actions jobs fail before runner assignment. These tests exercise ownership-state transitions with fake handles; native Windows handle behavior still requires Windows CI.
+- Next: design the executor coordinator around explicit resource ownership and deterministic reverse-order cleanup. Do not treat the current low-level modules as a production executor.
