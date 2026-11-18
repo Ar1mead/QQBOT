@@ -147,6 +147,7 @@ class WorkerProtocolTests(unittest.TestCase):
             status="complete",
             evidence=(self.make_wire_evidence(),),
         )
+        response = decode_response(encode_response(response))
         result = response_to_observation_result(response, self.request)
         self.assertEqual(result.status.value, "complete")
         self.assertEqual(len(result.evidence), 1)
