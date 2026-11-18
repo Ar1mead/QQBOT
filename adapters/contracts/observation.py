@@ -170,6 +170,11 @@ class ObservationEvidence:
     coverage: ObservationCoverage
     source_artifact_ref: str | None = None
     account_ref: str | None = None
+    context_kind: str | None = None
+    context_ref: str | None = None
+    actor_ref: str | None = None
+    source_sequence: int | None = None
+    historical: bool = False
     untrusted: bool = True
 
     def __post_init__(self) -> None:
@@ -198,6 +203,21 @@ class ObservationEvidence:
             _nonempty(self.source_artifact_ref, "evidence.source_artifact_ref")
         if self.account_ref is not None:
             _nonempty(self.account_ref, "evidence.account_ref")
+        if (self.context_kind is None) != (self.context_ref is None):
+            raise ValueError("evidence.context_kind and context_ref must be provided together")
+        if self.context_kind is not None:
+            _nonempty(self.context_kind, "evidence.context_kind")
+            _nonempty(self.context_ref, "evidence.context_ref")
+        if self.actor_ref is not None:
+            _nonempty(self.actor_ref, "evidence.actor_ref")
+        if self.source_sequence is not None and (
+            not isinstance(self.source_sequence, int)
+            or isinstance(self.source_sequence, bool)
+            or self.source_sequence < 0
+        ):
+            raise ValueError("evidence.source_sequence must be a non-negative integer or None")
+        if not isinstance(self.historical, bool):
+            raise ValueError("evidence.historical must be boolean")
         if self.untrusted is not True:
             raise ValueError("external observation evidence must remain untrusted")
 
