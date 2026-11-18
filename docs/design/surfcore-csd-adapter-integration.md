@@ -59,6 +59,13 @@ The feed should expose bounded, cursor-based records for incoming private/group 
 
 The feed must be read-only: polling must not mark messages read, acknowledge them, trigger a wake, send a reply, or change SurfCore session state. Cursor replay is acceptable because CSD event identity and ingestion are idempotent. The feed must not expose agent tokens, console tokens, cookies, local file paths, or raw credentials.
 
+
+### QQ cursor and replay contract
+
+The adapter's DTO batch envelope is versioned and bounded. Each QQ record has a non-negative integer cursor; records in one page must be strictly increasing, unique by record ID, greater than the caller's last durable cursor, and no greater than the page's proposed next cursor. A page may contain zero records while advancing over feed entries filtered out by SurfCore.
+
+The mapper returns CSD events and a **proposed** next cursor but never persists a checkpoint. The integration host must submit every event durably to CSD before saving that cursor. If the process stops before saving it, it requests the same page again; deterministic event identity and CSD idempotency make replay safe. Do not advance the checkpoint before all event writes complete. This is not an exactly-once transport guarantee; it is at-least-once delivery with idempotent durable ingestion.
+
 ### Bilibili observation API
 
 Expose only individually allowlisted read operations initially, using canonical BV targets rather than arbitrary URLs. Return structured records rather than human-formatted stdout:
