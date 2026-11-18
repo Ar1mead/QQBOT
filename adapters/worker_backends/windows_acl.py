@@ -169,8 +169,10 @@ class _AclObjectHandle:
             raise
 
     def close(self) -> None:
-        if getattr(self, "value", None):
-            self._close_handle(self.value)
+        handle = getattr(self, "value", None)
+        if handle:
+            if not self._close_handle(handle):
+                raise ctypes.WinError(ctypes.get_last_error())
             self.value = None
 
     def __enter__(self) -> "_AclObjectHandle":
