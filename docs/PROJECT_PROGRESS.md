@@ -1019,3 +1019,15 @@ At the time of this update:
 - This is hosted CI evidence only. It does not replace local Windows/DSH validation.
 - Remaining sandbox proof: host secret/CSD marker denial, network denial, child-process denial, and a dedicated timeout adversarial test. No production WorkerExecutor or live SurfCore adapter is enabled.
 - PR #1 remains **Draft**, **Open**, and **Unmerged**.
+
+
+## Windows adversarial sandbox tests added — pending CI
+
+- Expanded `tests/test_worker_windows_process.py` with four AppContainer-internal probes:
+  - read a host-user-temp secret marker and a repository-root CSD marker;
+  - connect to a host-owned loopback TCP listener using `curl.exe`;
+  - start a child `cmd.exe` while the Job Object active-process limit is one;
+  - run a long built-in command and verify the stdio supervisor's timeout kills it.
+- The tests use the actual AppContainer launch path, Job Object, and bounded stdio supervisor; they do not infer isolation from configuration flags alone.
+- The new adversarial tests are **not yet run**. Do not claim filesystem/network/child-process/timeout isolation until Windows CI completes and the assertions pass.
+- Loopback coverage is only one network case; private, link-local, metadata, and public destination attempts remain additional tests.

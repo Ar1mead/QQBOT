@@ -228,6 +228,16 @@ Each OS backend must run tests that attempt the following from inside the worker
 
 Tests must prove the denial from inside the worker, not infer it from launcher flags. Positive controls must prove the worker can still read its pinned runtime, process the bounded input, emit a valid response, and write only to its temporary directory.
 
+The first Windows adversarial integration cases are now authored in `tests/test_worker_windows_process.py`:
+
+- attempt to read host-user-temp and repository-root marker files;
+- attempt a TCP connection to a host loopback listener using the Windows `curl.exe`;
+- attempt to start a child `cmd.exe` while the Job Object active-process limit is one;
+- run a long built-in command and require the wall-clock timeout to terminate it.
+
+These are pending Windows CI and must not be counted as passed until the run is complete. A loopback denial test does not by itself prove all private, link-local, metadata, or public network destinations are blocked; those remain additional coverage.
+
+
 ## 7. Rollout gates
 
 1. Review the Win32 API/ctypes layout and threat model before implementation.

@@ -1,6 +1,9 @@
 import os
+import socket
 import tempfile
+import threading
 import unittest
+from contextlib import contextmanager
 
 from adapters.worker_backends import windows_appcontainer as app
 from adapters.worker_backends import windows_acl as acl
@@ -44,104 +47,153 @@ class WorkerIOValidationTests(unittest.TestCase):
 
 @unittest.skipUnless(os.name == "nt", "Windows AppContainer process launch")
 class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
-    def _prepare(self, worker_temp):
+    @contextmanager
+    def _worker_session(self, arguments, application_name="cmd.exe"):
         system_root = os.environ["SystemRoot"]
-        sid = app.ensure_appcontainer_profile_sid("Ar1mead.QQBOT.Worker.CI")
-        acl.grant_temp_read_write(worker_temp, sid)
-        acl.apply_low_integrity_no_write_up(worker_temp)
-        env = environment.build_worker_environment(
-            {
-                "SystemRoot": system_root,
-                "WINDIR": system_root,
-                "LOCALAPPDATA": app.get_appcontainer_folder_path(sid),
-                "TEMP": worker_temp,
-                "TMP": worker_temp,
-                "PATH": os.path.join(system_root, "System32"),
-            }
-        )
-        return system_root, sid, env
-
-    def _launch(self, worker_temp, arguments):
-        system_root, sid, worker_env = self._prepare(worker_temp)
-        application = os.path.join(system_root, "System32", "cmd.exe")
-        worker_pipes = pipes.WorkerPipes.create()
-        capabilities = app.EmptyAppContainerCapabilities(sid)
-        startup_attributes = startup.WorkerStartupAttributes(
-            capabilities, worker_pipes.child_handles_for_startup()
-        )
-        worker_job = job.create_worker_job(128 * 1024 * 1024, 10000)
-        worker = process.launch_appcontainer_worker(
-            application_path=application,
-            arguments=arguments,
-            current_directory=worker_temp,
-            environment=worker_env,
-            pipes=worker_pipes,
-            startup=startup_attributes,
-            job=worker_job,
-        )
-        return worker_pipes, capabilities, startup_attributes, worker_job, worker
-
-    def test_worker_is_created_suspended_assigned_then_resumed_with_bounded_stdio(self):
-        system_root = os.environ["SystemRoot"]
+        system32 = os.path.join(system_root, "System32")
+        application = os.path.join(system32, application_name)
         temp_parent = os.path.join(system_root, "Temp")
         os.makedirs(temp_parent, exist_ok=True)
 
         with tempfile.TemporaryDirectory(prefix="qqbot-worker-", dir=temp_parent) as worker_temp:
-            worker_pipes, capabilities, startup_attributes, worker_job, worker = self._launch(
-                worker_temp, ["/d", "/c", "echo", "WORKER_OK"]
+            sid = app.ensure_appcontainer_profile_sid("Ar1mead.QQBOT.Worker.CI")
+            acl.grant_temp_read_write(worker_temp, sid)
+            acl.apply_low_integrity_no_write_up(worker_temp)
+            worker_env = environment.build_worker_environment(
+                {
+                    "SystemRoot": system_root,
+                    "WINDIR": system_root,
+                    "LOCALAPPDATA": app.get_appcontainer_folder_path(sid),
+                    "TEMP": worker_temp,
+                    "TMP": worker_temp,
+                    "PATH": system32,
+                }
             )
-            try:
-                with worker:
-                    result = worker_io.execute_worker_stdio(
-                        worker=worker,
-                        pipes=worker_pipes,
-                        job=worker_job,
-                        request_bytes=b"bounded test input\r\n",
-                        timeout_ms=10000,
-                        stdout_limit=4096,
-                        stderr_limit=4096,
-                    )
-                    self.assertEqual(result.exit_code, 0)
-                    self.assertIn(b"WORKER_OK", result.stdout)
-                    self.assertEqual(result.stderr, b"")
-                    self.assertTrue(
-                        worker_job.query_configuration()["limit_flags"]
-                        & job.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-                    )
-            finally:
-                worker_pipes.close()
-                startup_attributes.close()
-                capabilities.close()
-                worker_job.close()
+
+            with pipes.WorkerPipes.create() as worker_pipes:
+                with app.EmptyAppContainerCapabilities(sid) as capabilities:
+                    with startup.WorkerStartupAttributes(
+                        capabilities, worker_pipes.child_handles_for_startup()
+                    ) as startup_attributes:
+                        with job.create_worker_job(128 * 1024 * 1024, 10000) as worker_job:
+                            with process.launch_appcontainer_worker(
+                                application_path=application,
+                                arguments=arguments,
+                                current_directory=worker_temp,
+                                environment=worker_env,
+                                pipes=worker_pipes,
+                                startup=startup_attributes,
+                                job=worker_job,
+                            ) as worker:
+                                yield worker, worker_pipes, worker_job
+
+    def _execute(self, worker, worker_pipes, worker_job, timeout_ms=10000, stdout_limit=4096):
+        return worker_io.execute_worker_stdio(
+            worker=worker,
+            pipes=worker_pipes,
+            job=worker_job,
+            request_bytes=b"bounded worker probe input\r\n",
+            timeout_ms=timeout_ms,
+            stdout_limit=stdout_limit,
+            stderr_limit=4096,
+        )
+
+    def test_worker_is_created_suspended_assigned_then_resumed_with_bounded_stdio(self):
+        with self._worker_session(["/d", "/c", "echo", "WORKER_OK"]) as (worker, worker_pipes, worker_job):
+            result = self._execute(worker, worker_pipes, worker_job)
+            self.assertEqual(result.exit_code, 0)
+            self.assertIn(b"WORKER_OK", result.stdout)
+            self.assertEqual(result.stderr, b"")
+            self.assertTrue(
+                worker_job.query_configuration()["limit_flags"]
+                & job.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            )
 
     def test_stdout_overflow_terminates_the_worker_job(self):
-        system_root = os.environ["SystemRoot"]
-        temp_parent = os.path.join(system_root, "Temp")
-        os.makedirs(temp_parent, exist_ok=True)
+        command = "for /l %i in (1,0,2) do @echo OVERFLOW"
+        with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job):
+            with self.assertRaises(worker_io.WorkerOutputLimitError):
+                self._execute(worker, worker_pipes, worker_job, stdout_limit=128)
+            self.assertTrue(worker.wait(5000), "overflow did not terminate the worker")
 
-        with tempfile.TemporaryDirectory(prefix="qqbot-worker-overflow-", dir=temp_parent) as worker_temp:
-            worker_pipes, capabilities, startup_attributes, worker_job, worker = self._launch(
-                worker_temp,
-                ["/d", "/c", "for /l %i in (1,0,2) do @echo OVERFLOW"],
-            )
+    def test_timeout_terminates_the_worker_job(self):
+        command = "for /l %i in (1,1,2147483647) do @rem"
+        with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job):
+            with self.assertRaises(worker_io.WorkerTimeoutError):
+                self._execute(worker, worker_pipes, worker_job, timeout_ms=250)
+            self.assertTrue(worker.wait(5000), "timeout did not terminate the worker")
+
+    def test_host_secret_and_csd_marker_files_are_not_readable(self):
+        with tempfile.TemporaryDirectory(prefix="qqbot-host-secret-") as host_temp:
+            secret_path = os.path.join(host_temp, "host-secret.txt")
+            fd, csd_path = tempfile.mkstemp(prefix="worker-csd-marker-", suffix=".tmp", dir=os.getcwd())
+            os.close(fd)
+            with open(secret_path, "w", encoding="utf-8") as stream:
+                stream.write("HOST_SECRET_MARKER")
+            with open(csd_path, "w", encoding="utf-8") as stream:
+                stream.write("CSD_DATABASE_MARKER")
             try:
-                with worker:
-                    with self.assertRaises(worker_io.WorkerOutputLimitError):
-                        worker_io.execute_worker_stdio(
-                            worker=worker,
-                            pipes=worker_pipes,
-                            job=worker_job,
-                            request_bytes=b"ignored input\r\n",
-                            timeout_ms=10000,
-                            stdout_limit=128,
-                            stderr_limit=1024,
-                        )
-                    self.assertTrue(worker.wait(5000), "overflow did not terminate the worker")
+                with self._worker_session(
+                    ["/d", "/c", "type", secret_path, csd_path]
+                ) as (worker, worker_pipes, worker_job):
+                    result = self._execute(worker, worker_pipes, worker_job)
+                    self.assertNotIn(b"HOST_SECRET_MARKER", result.stdout)
+                    self.assertNotIn(b"CSD_DATABASE_MARKER", result.stdout)
+                    self.assertNotEqual(result.exit_code, 0)
             finally:
-                worker_pipes.close()
-                startup_attributes.close()
-                capabilities.close()
-                worker_job.close()
+                try:
+                    os.unlink(secret_path)
+                except FileNotFoundError:
+                    pass
+                try:
+                    os.unlink(csd_path)
+                except FileNotFoundError:
+                    pass
+
+    def test_appcontainer_cannot_connect_to_host_loopback_listener(self):
+        system_root = os.environ["SystemRoot"]
+        curl_path = os.path.join(system_root, "System32", "curl.exe")
+        if not os.path.isfile(curl_path):
+            self.skipTest("curl.exe is unavailable on this Windows runner")
+
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        listener.settimeout(3)
+        port = listener.getsockname()[1]
+        accepted = []
+
+        def serve_once():
+            try:
+                connection, _ = listener.accept()
+                with connection:
+                    accepted.append(True)
+                    connection.sendall(b"NETWORK_ALLOWED_MARKER")
+            except OSError:
+                pass
+
+        server = threading.Thread(target=serve_once, name="worker-loopback-test-server", daemon=True)
+        server.start()
+        try:
+            with self._worker_session(
+                ["--max-time", "2", "--silent", "--show-error", f"http://127.0.0.1:{port}/"],
+                application_name="curl.exe",
+            ) as (worker, worker_pipes, worker_job):
+                result = self._execute(worker, worker_pipes, worker_job, timeout_ms=8000)
+                self.assertNotEqual(result.exit_code, 0)
+                self.assertNotIn(b"NETWORK_ALLOWED_MARKER", result.stdout)
+                self.assertNotIn(b"NETWORK_ALLOWED_MARKER", result.stderr)
+        finally:
+            listener.close()
+            server.join(timeout=4)
+        self.assertFalse(accepted, "AppContainer unexpectedly connected to host loopback")
+
+    def test_job_active_process_limit_blocks_child_process_creation(self):
+        command = 'start /b cmd.exe /d /c echo CHILD_PROCESS_MARKER'
+        with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job):
+            result = self._execute(worker, worker_pipes, worker_job)
+            self.assertNotIn(b"CHILD_PROCESS_MARKER", result.stdout)
+            self.assertEqual(worker_job.query_configuration()["active_process_limit"], 1)
 
 
 if __name__ == "__main__":
