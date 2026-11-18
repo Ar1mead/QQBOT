@@ -9,7 +9,7 @@ from adapters.worker_backends.runtime_bundle import (
     MANIFEST_FILENAME,
     RuntimeBundleError,
     StagedRuntimeBundle,
-    load_runtime_bundle,
+    load_trusted_runtime_bundle,
     stage_runtime_bundle,
 )
 from adapters.worker_backends.windows_launch_plan import (
@@ -57,8 +57,12 @@ class WindowsWorkerLaunchPlanTests(unittest.TestCase):
             json.dumps(manifest, sort_keys=True, separators=(",", ":")),
             encoding="utf-8",
         )
-        verified = load_runtime_bundle(source)
-        return stage_runtime_bundle(verified, destination)
+        manifest_bytes = Path(source, MANIFEST_FILENAME).read_bytes()
+        trusted = load_trusted_runtime_bundle(
+            source,
+            expected_manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
+        )
+        return stage_runtime_bundle(trusted, destination)
 
     def test_builds_exact_host_pinned_command_and_working_directory(self):
         with tempfile.TemporaryDirectory() as root:
@@ -70,12 +74,57 @@ class WindowsWorkerLaunchPlanTests(unittest.TestCase):
                 operation="observe_batch",
             )
             self.assertEqual(plan.dispatch_key, "surfcore_qq_batch")
+            self.assertEqual(plan.manifest_sha256, staged.trusted_manifest_sha256)
             self.assertEqual(plan.application_path, staged.interpreter_path)
             self.assertEqual(plan.arguments, (
                 "-I", "-S", "-B", staged.entrypoint_path,
                 "--dispatch-key", "surfcore_qq_batch",
             ))
             self.assertEqual(plan.current_directory, os.path.dirname(staged.entrypoint_path))
+
+    def test_rejects_unpinned_bundle_even_when_internal_hashes_are_valid(self):
+        with tempfile.TemporaryDirectory() as root:
+            source = os.path.join(root, "source")
+            destination = os.path.join(root, "staged")
+            files = {
+                PINNED_ENTRYPOINT_PATH: b"# pinned entrypoint fixture\\n",
+                PINNED_INTERPRETER_PATH: b"pinned interpreter fixture",
+            }
+            for relative, content in files.items():
+                target = Path(source, *relative.split("/"))
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(content)
+            manifest = {
+                "schema_version": 1,
+                "bundle_id": "windows-launch-plan-unpinned-fixture",
+                "python_implementation": "CPython",
+                "python_version": "3.12.16",
+                "interpreter_path": PINNED_INTERPRETER_PATH,
+                "entrypoint_path": PINNED_ENTRYPOINT_PATH,
+                "files": [
+                    {"path": path, "size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+                    for path, content in sorted(files.items())
+                ],
+                "adapters": [{
+                    "adapter_id": "surfcore.qq.readonly",
+                    "adapter_version": "0.1.0",
+                    "operation": "observe_batch",
+                    "dispatch_key": "surfcore_qq_batch",
+                }],
+            }
+            Path(source, MANIFEST_FILENAME).write_text(
+                json.dumps(manifest, sort_keys=True, separators=(",", ":")),
+                encoding="utf-8",
+            )
+            from adapters.worker_backends.runtime_bundle import load_runtime_bundle
+            unpinned = stage_runtime_bundle(load_runtime_bundle(source), destination)
+            with self.assertRaisesRegex(ValueError, "host-pinned digest"):
+                build_windows_worker_launch_plan(
+                    unpinned,
+                    adapter_id="surfcore.qq.readonly",
+                    adapter_version="0.1.0",
+                    operation="observe_batch",
+                )
 
     def test_rejects_unknown_adapter_version_or_operation(self):
         with tempfile.TemporaryDirectory() as root:
