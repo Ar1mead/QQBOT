@@ -11,6 +11,7 @@ on:
       - "tests/test_adapter_observation_contract.py"
       - "tests/test_csd_observation_v2.py"
       - "tests/test_bilibili_target.py"
+      - "tests/test_adapter_registry.py"
       - "tests/test_life_engine.py"
       - "tests/test_motivation_synthesis.py"
       - "tests/test_csd_cognitive.py"
@@ -79,6 +80,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_csd_observation_v2.py" -v
       - name: Run Bilibili target allowlist tests
         run: python -m unittest discover -s tests -p "test_bilibili_target.py" -v
+      - name: Run observation adapter registry tests
+        run: python -m unittest discover -s tests -p "test_adapter_registry.py" -v
       - name: Run provider-neutral proposal pipeline tests
         run: python -m unittest discover -s tests -p "test_csd_proposal_pipeline.py" -v
       - name: Run grounded-memory v2 tests
