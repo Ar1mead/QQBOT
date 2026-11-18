@@ -102,6 +102,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_adapter_worker_host.py" -v
       - name: Run Windows AppContainer ctypes layout tests
         run: python -m unittest discover -s tests -p "test_worker_windows_appcontainer_layout.py" -v
+      - name: Run Windows AppContainer ACL descriptor tests
+        run: python -m unittest discover -s tests -p "test_worker_windows_appcontainer_acl.py" -v
       - name: Run SurfCore observation mapping tests
         run: python -m unittest discover -s tests -p "test_surfcore_observation_mapping.py" -v
       - name: Run provider-neutral proposal pipeline tests

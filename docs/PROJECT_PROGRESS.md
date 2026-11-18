@@ -822,7 +822,7 @@ At the time of this update:
 - Added `docs/design/adapter-worker-isolation-implementation-plan.md` with a Windows-first plan (AppContainer + explicit ACLs + Job Object + bounded anonymous pipes), followed by Linux parity (bubblewrap namespaces + filesystem allowlist + resource controls).
 - The first worker is intentionally offline: trusted host supplies bounded DTO bytes over an anonymous pipe; the worker gets no network, no SurfCore bearer credential, no CSD store, and no inherited parent environment. A future network adapter must use a separately reviewed host-owned egress broker, not broad worker network access.
 - Added an adversarial acceptance matrix for secret/CSD file visibility, filesystem writes, loopback/private/public network, child process creation, memory/CPU/process limits, timeout, output overflow, malformed responses, and crash handling.
-- This remains a design/implementation plan only. No Windows AppContainer launcher, Linux bubblewrap executor, ACL policy, Job Object policy, or adversarial sandbox test has been implemented yet.
+- At the initial planning checkpoint, no Windows AppContainer launcher, Linux bubblewrap executor, ACL policy, Job Object policy, or adversarial sandbox test had been implemented. Subsequent Windows profile, empty-capability, and directory-ACL descriptor slices are recorded below; they are not a production launcher or a verified sandbox.
 - Recommended next implementation slice: Windows backend prototype using Python `ctypes`, with all policy setup fail-closed; test AppContainer launch, narrow runtime/temp ACLs, Job Object assignment before resume, bounded pipes, and kill-on-timeout before attempting Linux parity.
 - No SurfCore upstream code, local user files, credentials, accounts, or runtime settings were changed. PR #1 remains Draft/Open/Unmerged.
 
@@ -832,7 +832,7 @@ At the time of this update:
 - Added an explicit empty-capability representation and constants for suspended process creation, explicit inherited-handle lists, AppContainer security attributes, kill-on-close, active-process limit, and memory limits. No breakaway flag is provided.
 - Added `tests/test_worker_windows_appcontainer_layout.py` to check Win64 structure sizes, the empty-capability default, required Job Object constants, and non-Windows fail-closed platform guard.
 - Wired the layout test into the existing Ubuntu/Windows matrix. The change is expected to trigger hosted CI through the existing `adapters/**` path filter; results must be retrieved before marking it verified.
-- **Strict limitation at this checkpoint:** this was the initial ABI/declaration slice. The later AppContainer profile-provisioning section below adds profile SID creation/reuse only. DACL/SACL ACLs, Low Integrity temp labeling, pipes, process launch, Job Object assignment, timeout/output bounds, and actual isolation remain unimplemented. No production `WorkerExecutor` exists and third-party adapter execution remains prohibited.
+- **Strict limitation at this checkpoint:** this was the initial ABI/declaration slice. Later sections record profile SID provisioning, the empty-capability descriptor, and directory ACL helpers. Pipes, process launch, Job Object assignment, timeout/output bounds, and actual isolation remain unimplemented. No production `WorkerExecutor` exists and third-party adapter execution remains prohibited.
 - Latest implementation commits: `40bfb4a272bcde3b577bcf1dd655ba6f58afafc4`, `a919dd4459ca65464aa5d748f5a28dea5da58051`, `15f15d38258f432596e4e2c75fc56bda40542c54`; workflow wiring: `eea3ca94e6dda3b67c1280747290ae987fccb534`.
 - Next: retrieve the new Ubuntu/Windows CI results; then implement AppContainer SID/profile lifecycle and ACL/SACL helpers, including Low Integrity labeling only on the per-run temp directory. Do not treat this ABI slice as a sandbox.
 
@@ -856,3 +856,14 @@ At the time of this update:
 - Latest implementation commits: `b5918b743520020b4891ab37b137b7c07f332f96`, `584939394a694c48d458afb14f3487b7805fc0fd`.
 - Workflow/status lookup remains empty at this refresh; no hosted test result is claimed.
 - Next: handle-based DACL/SACL helpers and positive/negative access verification, followed by STARTUPINFOEX attribute-list construction and Job Object setup.
+
+
+## Windows AppContainer directory ACL foundation — 2026-11-18
+
+- Added `adapters/worker_backends/windows_acl.py` with handle-based directory security operations. It opens directory handles with `FILE_FLAG_OPEN_REPARSE_POINT`, checks directory/non-reparse attributes, and requests only the access rights needed for the specific DACL or label operation.
+- Runtime package grant: AppContainer package SID receives inheritable file read/execute access. Per-run scratch grant: package SID receives inheritable read/write access without an execute grant.
+- DACL update uses `GetSecurityInfo` + `SetEntriesInAclW` + `SetSecurityInfo(DACL_SECURITY_INFORMATION)`; unrelated existing ACEs are merged rather than replacing the whole DACL. Null DACLs are rejected. The resulting package-SID grant and inheritance flags are read back and verified.
+- Temp directory Low Integrity setup uses `SetSecurityInfo(LABEL_SECURITY_INFORMATION)` with a Low Integrity SID and `SYSTEM_MANDATORY_LABEL_NO_WRITE_UP`, inheritable to child files/directories. The helper reads the label back and verifies SID, policy, and inheritance. It does not request wholesale SACL replacement or `SE_SECURITY_NAME`; it does require `WRITE_OWNER`, and any failure is fatal.
+- Added Win64 layout checks for ACL-related ctypes structures and `tests/test_worker_windows_appcontainer_acl.py`; wired the test into the existing Ubuntu/Windows workflow.
+- Important limits: these are directory-descriptor helpers, not a launcher or proof of effective AppContainer access. The integration test is Windows-hosted descriptor setup/read-back only. Protected descendant ACLs, ancestor reparse points, process-token access, filesystem denial from inside a worker, network denial, Job Object, pipes, and cleanup are still unverified/unimplemented.
+- Hosted workflow status for this change has not yet been checked. No CI pass or local Windows test is claimed. PR #1 remains Draft, Open, and Unmerged.

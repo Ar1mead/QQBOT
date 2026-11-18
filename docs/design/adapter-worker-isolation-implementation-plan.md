@@ -70,6 +70,22 @@ The host-owned launcher must:
 
 Use Python standard-library `ctypes` initially to avoid a hidden dependency on an unpinned helper package. Keep Win32 structures/constants in a small audited module and add layout/size assertions for every ctypes structure passed to the OS.
 
+### 3.4 First ACL helper slice — directory descriptors only
+
+The reference implementation now contains `adapters/worker_backends/windows_acl.py`:
+
+- Opens the target directory through `CreateFileW` with a handle, share-all semantics, backup-directory support, and `FILE_FLAG_OPEN_REPARSE_POINT`; it rejects a final-component reparse point and non-directory target.
+- Reads the existing DACL with `GetSecurityInfo`, merges one package-SID grant through `SetEntriesInAclW`, applies only `DACL_SECURITY_INFORMATION` with `SetSecurityInfo`, and reads the DACL back to verify the package SID, requested access mask, and inheritance flags.
+- Refuses a null DACL rather than silently replacing an everyone-full-access descriptor. Runtime gets read/execute; the per-run temp directory gets read/write without an execute grant.
+- Sets the temp directory's Low Integrity label using `LABEL_SECURITY_INFORMATION` and a `SYSTEM_MANDATORY_LABEL_NO_WRITE_UP` ACE with object/container inheritance. This targets the mandatory-label component rather than replacing the audit SACL; it does not request `SACL_SECURITY_INFORMATION` or enable `SE_SECURITY_NAME`. The handle requests `WRITE_OWNER`; if the host cannot apply the label, setup fails closed.
+- Reads the mandatory label back and checks the Low Integrity SID, no-write-up mask, and inheritance flags. ACL-related ctypes structures have Win64 size assertions.
+
+Limitations at this slice:
+
+- These helpers configure and inspect directory security descriptors; they do not launch an AppContainer process or prove effective access from its token.
+- Runtime packaging must use a host-controlled dedicated tree. Inheritable ACEs are set on the selected root; protected descendant ACLs and ancestor reparse points still require explicit staging/verification by the eventual launcher. Do not point this helper at an arbitrary existing user or project tree.
+- The Windows-only integration test is a hosted CI check of descriptor setup/read-back. It is not an adversarial sandbox test and is not local verification on the owner's machine.
+
 ## 4. Linux backend — parity implementation after Windows
 
 Use a host-installed `bubblewrap` executable selected by an absolute, administrator-reviewed path. Do not use a shell.
