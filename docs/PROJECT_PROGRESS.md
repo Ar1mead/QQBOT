@@ -760,3 +760,5 @@ At the time of this update:
 - Corrected the success response envelope to exactly match the current Python mapper's strict batch schema; retention-floor metadata belongs only in a separate 410 error response.
 - This is a design document only. No upstream SurfCore files, user-local files, credentials, accounts, or settings were modified. No live QQ connection or local runtime test occurred. No transport client was added because the upstream endpoint does not yet exist.
 - Next gate: prepare a separately reviewed, narrowly scoped upstream SurfCore implementation patch for the journal module and callback tap (disabled by default), with unit tests. Only after that implementation exists should its HTTP listener and the CSD-side client be developed.
+
+- Linked the new QQ journal specification from `docs/design/surfcore-csd-adapter-integration.md` (documentation commit `786c465e01f5dfd9ed6342fd8810137fed48b4d2`).
