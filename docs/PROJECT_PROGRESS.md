@@ -557,3 +557,11 @@ At the time of this update:
 - Added `tests/test_adapter_registry.py` for unregistered dispatch denial, modality scope enforcement, non-observation registration denial, duplicate IDs, manifest pinning, and evidence identity checks. The workflow now runs this focused suite and includes its path in push/PR filters.
 - Security limit: this is a core-controlled application dispatch gate for trusted, host-loaded code. It is **not** a Python sandbox and cannot prevent in-process adapter code from importing sockets, opening files, or bypassing the registry. Untrusted third-party code must not be loaded into this process; actual isolation requires a separate process/container plus OS/network policy, which remains a later design task.
 - Latest code/test commits for this slice: `e96b6e2b16aefe0506f969f9f88c96d490d0b412`, `2fb8a769c31894c5c01b093277438d2462dd2b0b`, `8917dc4b2b24e75b131d6d94fa231485b5d8199c`, and `761322e92ced476a9d4c18c449ab701f96438c22`. Hosted CI is pending; no local tests are claimed.
+
+
+### 2026-11-18 — Adapter worker isolation threat model
+
+- Added `docs/design/adapter-worker-isolation.md` to define the requirements for eventually running third-party adapters outside the authoritative core process.
+- The draft covers secret separation, no CSD database access, typed bounded IPC, default-deny egress (including loopback/private/link-local/metadata destinations), filesystem isolation, resource/time limits, malformed output handling, and Windows/Linux verification gates.
+- This is a design document only. No worker launcher or OS sandbox is claimed to exist. Until that work is implemented and tested, the in-process registry may only host trusted project-owned code.
+- Registry test run #554 completed successfully on Ubuntu and Windows. The later request-type guard is included in run #555; Ubuntu passed and Windows was still running at the last check.
