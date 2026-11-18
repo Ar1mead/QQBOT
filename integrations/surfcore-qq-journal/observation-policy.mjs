@@ -9,6 +9,11 @@ function plainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function validIdentifier(value) {
+  return (typeof value === "string" && value.trim() !== "")
+    || (typeof value === "number" && Number.isSafeInteger(value));
+}
+
 function normalizeIds(value, field) {
   if (!Array.isArray(value)) throw new TypeError(`${field} must be an array`);
   const ids = value.map((item) => {
@@ -79,7 +84,7 @@ export function evaluateIncomingObservation({
   if (event?.message_type !== conversationKind) {
     return { allowed: false, reason: "conversation_kind_mismatch" };
   }
-  if (conversationId == null || senderId == null || String(conversationId) === "" || String(senderId) === "") {
+  if (!validIdentifier(conversationId) || !validIdentifier(senderId)) {
     return { allowed: false, reason: "missing_source_identity" };
   }
   if (selfId != null && String(senderId) === String(selfId)) {
@@ -117,8 +122,9 @@ export function extractIncomingText(message, maxChars = 16000) {
     }
   }
   if (!content.trim()) return { accepted: false, reason: "no_text_content" };
-  const truncated = content.length > maxChars;
-  if (truncated) content = content.slice(0, maxChars);
+  const codePoints = Array.from(content);
+  const truncated = codePoints.length > maxChars;
+  if (truncated) content = codePoints.slice(0, maxChars).join("");
   const notes = [];
   if (omitted.size) notes.push(`unsupported_segments_omitted:${[...omitted].sort().join(",")}`);
   if (truncated) notes.push("text_truncated_at_configured_limit");
