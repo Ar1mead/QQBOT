@@ -35,35 +35,32 @@ on:
       - ".github/workflows/csd-cognitive-slice.yml"
   pull_request:
     paths:
-      - "tests/test_worker_windows_appcontainer_layout.py"
-
-      - "tests/test_worker_windows_appcontainer_acl.py"
-
-      - "tests/test_worker_windows_environment.py"
-
-      - "tests/test_worker_windows_job.py"
-
-      - "tests/test_worker_windows_pipes.py"
-
-      - "tests/test_worker_windows_startup.py"
-
-      - "tests/test_worker_windows_process.py"
       - "core/csd/**"
       - "core/life_engine/**"
       - "adapters/**"
-
       - "integrations/surfcore-qq-journal/**"
-      - "tests/test_csd_observation_v2.py"
-      - "tests/test_csd_goals.py"
       - "tests/test_adapter_observation_contract.py"
+      - "tests/test_csd_observation_v2.py"
       - "tests/test_bilibili_target.py"
       - "tests/test_adapter_registry.py"
       - "tests/test_adapter_worker_protocol.py"
       - "tests/test_worker_entrypoint.py"
+      - "tests/test_surfcore_worker_result.py"
+      - "tests/test_worker_runtime_bundle.py"
+      - "tests/test_worker_windows_process.py"
+      - "tests/test_adapter_worker_host.py"
+      - "tests/test_surfcore_observation_mapping.py"
+      - "tests/test_worker_windows_appcontainer_layout.py"
+      - "tests/test_worker_windows_appcontainer_acl.py"
+      - "tests/test_worker_windows_environment.py"
+      - "tests/test_worker_windows_job.py"
+      - "tests/test_worker_windows_pipes.py"
+      - "tests/test_worker_windows_startup.py"
       - "tests/test_life_engine.py"
       - "tests/test_motivation_synthesis.py"
       - "tests/test_csd_cognitive.py"
       - "tests/test_csd_motivation.py"
+      - "tests/test_csd_goals.py"
       - "tests/test_csd_proposal_pipeline.py"
       - "tests/test_csd_grounded_memory.py"
       - "tests/test_csd_grounded_proposal_pipeline.py"
