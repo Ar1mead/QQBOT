@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from copy import deepcopy
 import unittest
 
 from adapters.contracts.observation import CapabilityMode, ContentOrigin
 from adapters.platforms.surfcore import (
     bilibili_manifest,
+    map_surfcore_qq_batch,
     map_surfcore_record,
     map_surfcore_record_to_csd_event,
     qq_manifest,
@@ -37,6 +37,7 @@ def record(platform="qq", **overrides):
                 "notes": ["Synthetic fixture; message content is untrusted."],
             },
             "account_ref": "qq-account-opaque",
+            "cursor": 42,
         }
     else:
         data = {
@@ -66,6 +67,17 @@ def record(platform="qq", **overrides):
         }
     data.update(overrides)
     return data
+
+
+def qq_batch(records, *, after_cursor=0, next_cursor=None):
+    if next_cursor is None:
+        next_cursor = records[-1]["cursor"] if records else after_cursor
+    return {
+        "schema_version": 1,
+        "after_cursor": after_cursor,
+        "next_cursor": next_cursor,
+        "records": records,
+    }
 
 
 class SurfCoreMappingTests(unittest.TestCase):
@@ -131,20 +143,82 @@ class SurfCoreMappingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "text modality only"):
             map_surfcore_record(record(modality="image"))
 
-    def test_coverage_schema_and_digest_are_validated(self):
+    def test_coverage_schema_is_validated(self):
         source = record()
         source["coverage"]["unexpected"] = "not allowed"
         with self.assertRaisesRegex(ValueError, "coverage fields"):
             map_surfcore_record(source)
-        source = record(content="Changed after source digest was supposed to be fixed.")
-        mapped = map_surfcore_record(source)
-        self.assertTrue(mapped.content_digest.startswith("sha256:"))
 
-    def test_csd_event_ingestion_is_idempotent_for_repeated_record(self):
-        first = map_surfcore_record_to_csd_event(record())
-        second = map_surfcore_record_to_csd_event(record())
-        self.assertEqual(first.event_id, second.event_id)
-        self.assertEqual(dict(first.payload), dict(second.payload))
+    def test_qq_record_requires_non_negative_integer_cursor(self):
+        source = record()
+        del source["cursor"]
+        with self.assertRaisesRegex(ValueError, "requires a cursor"):
+            map_surfcore_record(source)
+        source["cursor"] = True
+        with self.assertRaisesRegex(ValueError, "non-negative integer"):
+            map_surfcore_record(source)
+        source["cursor"] = -1
+        with self.assertRaisesRegex(ValueError, "non-negative integer"):
+            map_surfcore_record(source)
+
+    def test_bilibili_record_rejects_qq_cursor(self):
+        with self.assertRaisesRegex(ValueError, "only valid for QQ"):
+            map_surfcore_record(record("bilibili", cursor=1))
+
+    def test_qq_batch_maps_sorted_records_and_proposes_checkpoint(self):
+        first = record(cursor=11, record_id="message:11", external_ref="11")
+        second = record(cursor=18, record_id="message:18", external_ref="18")
+        result = map_surfcore_qq_batch(qq_batch([first, second], after_cursor=10, next_cursor=20))
+        self.assertEqual(result.after_cursor, 10)
+        self.assertEqual(result.proposed_cursor, 20)
+        self.assertEqual(len(result.events), 2)
+        self.assertNotEqual(result.events[0].event_id, result.events[1].event_id)
+        self.assertTrue(all(event.payload["untrusted"] for event in result.events))
+
+    def test_qq_batch_replay_produces_same_event_ids_and_payloads(self):
+        page = qq_batch([record(cursor=11, record_id="message:11", external_ref="11")],
+                        after_cursor=10, next_cursor=11)
+        first = map_surfcore_qq_batch(page)
+        replay = map_surfcore_qq_batch(page)
+        self.assertEqual(first.proposed_cursor, replay.proposed_cursor)
+        self.assertEqual([e.event_id for e in first.events], [e.event_id for e in replay.events])
+        self.assertEqual([dict(e.payload) for e in first.events], [dict(e.payload) for e in replay.events])
+
+    def test_qq_batch_rejects_out_of_order_or_repeated_cursors(self):
+        a = record(cursor=12, record_id="message:12")
+        b = record(cursor=11, record_id="message:11")
+        with self.assertRaisesRegex(ValueError, "strictly increasing"):
+            map_surfcore_qq_batch(qq_batch([a, b], after_cursor=10, next_cursor=12))
+        b["cursor"] = 12
+        with self.assertRaisesRegex(ValueError, "strictly increasing"):
+            map_surfcore_qq_batch(qq_batch([a, b], after_cursor=10, next_cursor=12))
+
+    def test_qq_batch_rejects_duplicate_record_ids_and_cursor_regression(self):
+        a = record(cursor=11, record_id="message:same")
+        b = record(cursor=12, record_id="message:same")
+        with self.assertRaisesRegex(ValueError, "duplicate record_id"):
+            map_surfcore_qq_batch(qq_batch([a, b], after_cursor=10, next_cursor=12))
+        with self.assertRaisesRegex(ValueError, "cannot move backwards"):
+            map_surfcore_qq_batch(qq_batch([], after_cursor=20, next_cursor=19))
+
+    def test_qq_batch_rejects_records_outside_page_bounds_and_foreign_platform(self):
+        future = record(cursor=21, record_id="message:21")
+        with self.assertRaisesRegex(ValueError, "exceeds batch next_cursor"):
+            map_surfcore_qq_batch(qq_batch([future], after_cursor=10, next_cursor=20))
+        foreign = record("bilibili")
+        with self.assertRaisesRegex(ValueError, "only QQ"):
+            map_surfcore_qq_batch(qq_batch([foreign], after_cursor=0, next_cursor=1))
+
+    def test_qq_batch_rejects_missing_or_duplicate_envelope_fields(self):
+        page = qq_batch([], after_cursor=0, next_cursor=0)
+        page["extra"] = "not allowed"
+        with self.assertRaisesRegex(ValueError, "batch fields"):
+            map_surfcore_qq_batch(page)
+
+    def test_empty_qq_batch_can_advance_over_filtered_feed_entries(self):
+        result = map_surfcore_qq_batch(qq_batch([], after_cursor=10, next_cursor=15))
+        self.assertEqual(result.events, ())
+        self.assertEqual(result.proposed_cursor, 15)
 
 
 if __name__ == "__main__":
