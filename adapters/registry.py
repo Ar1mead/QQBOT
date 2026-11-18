@@ -56,6 +56,8 @@ class ObservationAdapterRegistry:
         return tuple(sorted(self._adapters))
 
     def observe(self, adapter_id: str, request: ObservationRequest) -> ObservationResult:
+        if not isinstance(request, ObservationRequest):
+            raise TypeError("request must be an ObservationRequest")
         registered = self._adapters.get(adapter_id)
         if registered is None:
             raise AdapterDispatchDenied(f"adapter is not registered: {adapter_id}")
