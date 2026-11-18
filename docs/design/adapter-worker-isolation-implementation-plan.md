@@ -316,3 +316,7 @@ Run #635 exercised the copied runtime executable successfully, including the rea
 ### 3.11.1 Runtime executable launched under recursive ACLs
 
 Run #636 passed an end-to-end test that copied `cmd.exe` into a separate runtime directory, applied recursive read/execute ACLs, and launched that copied binary as the AppContainer worker. The worker could execute it, could not create a file in the runtime directory, and could write to the distinct Low-Integrity temp directory. This verifies the runtime ACL path for a representative existing executable; it does not yet verify the full Python runtime or a production WorkerExecutor.
+
+### 3.12 Ephemeral AppContainer profile lifecycle
+
+Production worker invocations should use a fresh AppContainer profile rather than the persistent named CI profile. `EphemeralAppContainerProfile.create()` creates a UUID-backed unique profile, retrieves its AppContainer SID and `GetAppContainerFolderPath` result, and owns `DeleteAppContainerProfile` cleanup. The process/job/pipe owners must be closed before the profile is deleted. This prevents the AppContainer's LocalAppData from becoming persistent cross-run storage. The new lifecycle test is pending CI.

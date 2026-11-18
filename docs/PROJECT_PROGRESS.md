@@ -1145,3 +1145,11 @@ At the time of this update:
 - All previously passing adversarial cases also passed, including host marker read denial, host temp write denial, loopback/private-interface network denial, child-process limit, timeout, output overflow, and Job Object kill-on-close.
 - Run #635 remains a failed earlier fixture attempt caused by stale tuple unpacking; Run #636 verifies the correction and cleanup.
 - Hosted CI only; no local Windows/DSH verification. Link-local/cloud metadata/public network attempts remain outstanding. PR #1 remains Draft/Open/Unmerged.
+
+
+## Ephemeral AppContainer profile lifecycle — implementation pending CI
+
+- Added `EphemeralAppContainerProfile`, which creates a uniquely named AppContainer profile for one worker invocation, obtains its SID and OS-managed `LOCALAPPDATA` path, and deletes that profile on close.
+- Unlike the persistent CI profile helper, the ephemeral helper never reuses an existing profile. If creation or path validation fails, it attempts to delete the just-created profile before raising.
+- The caller must close/terminate the worker process and release its process/job/pipe handles before closing the profile. This avoids cross-run AppContainer local-data persistence.
+- Added Windows tests for unique names/SIDs, path existence, deletion, and closed-object behavior. The lifecycle tests are pending CI; the production executor does not use the helper yet.

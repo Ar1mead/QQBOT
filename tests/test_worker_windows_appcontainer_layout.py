@@ -56,6 +56,27 @@ class WindowsAppContainerLayoutTests(unittest.TestCase):
         self.assertTrue(os.path.isabs(path))
         self.assertTrue(os.path.isdir(path))
 
+
+    @unittest.skipUnless(os.name == "nt", "Windows AppContainer profile lifecycle")
+    def test_ephemeral_profile_is_unique_and_deleted_on_close(self):
+        first = win.EphemeralAppContainerProfile.create()
+        first_name = first.profile_name
+        first_sid = first.appcontainer_sid
+        first_path = first.local_appdata_path
+        self.assertTrue(first_name.startswith("QQBOT.Worker."))
+        self.assertTrue(os.path.isdir(first_path))
+        self.assertTrue(first_sid.startswith("S-1-15-2-"))
+        first.close()
+        self.assertTrue(first._closed)
+        self.assertFalse(os.path.exists(first_path))
+        with self.assertRaisesRegex(RuntimeError, "already closed"):
+            first.__enter__()
+
+        with win.EphemeralAppContainerProfile.create() as second:
+            self.assertNotEqual(second.profile_name, first_name)
+            self.assertNotEqual(second.appcontainer_sid, first_sid)
+            self.assertTrue(os.path.isdir(second.local_appdata_path))
+
     def test_platform_guard_rejects_non_windows(self):
         if __import__("os").name == "nt":
             self.skipTest("Windows host")

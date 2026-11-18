@@ -8,6 +8,7 @@ from __future__ import annotations
 import ctypes
 import os
 import re
+import uuid
 
 
 DWORD = ctypes.c_uint32
@@ -265,6 +266,116 @@ def ensure_appcontainer_profile_sid(profile_name: str) -> str:
             local_free(ctypes.cast(sid_text, HANDLE))
         if sid:
             free_sid(sid)
+
+
+
+class EphemeralAppContainerProfile:
+    """Own a uniquely named AppContainer profile and delete it on close.
+
+    Use one profile per worker invocation so AppContainer LOCALAPPDATA does not
+    become a persistent cross-run storage area. The profile is deleted only
+    after the caller has stopped and closed the worker process.
+    """
+
+    def __init__(self, profile_name: str, appcontainer_sid: str, local_appdata_path: str) -> None:
+        self.profile_name = profile_name
+        self.appcontainer_sid = appcontainer_sid
+        self.local_appdata_path = local_appdata_path
+        self._closed = False
+
+    @classmethod
+    def create(cls) -> "EphemeralAppContainerProfile":
+        require_win64()
+        profile_name = "QQBOT.Worker." + uuid.uuid4().hex
+        if not _PROFILE_NAME_RE.fullmatch(profile_name):
+            raise ValueError("generated AppContainer profile name is invalid")
+
+        userenv = _windows_userenv()
+        advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+        create = userenv.CreateAppContainerProfile
+        create.argtypes = [
+            ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_wchar_p,
+            ctypes.POINTER(SID_AND_ATTRIBUTES), DWORD, ctypes.POINTER(LPVOID),
+        ]
+        create.restype = ctypes.c_long
+
+        convert = advapi32.ConvertSidToStringSidW
+        convert.argtypes = [LPVOID, ctypes.POINTER(ctypes.c_wchar_p)]
+        convert.restype = BOOL
+        free_sid = advapi32.FreeSid
+        free_sid.argtypes = [LPVOID]
+        free_sid.restype = LPVOID
+        local_free = kernel32.LocalFree
+        local_free.argtypes = [HANDLE]
+        local_free.restype = HANDLE
+
+        sid = LPVOID()
+        hr = int(create(
+            profile_name,
+            "QQBOT Isolated Adapter Worker",
+            "Ephemeral profile for one offline adapter worker invocation",
+            None,
+            0,
+            ctypes.byref(sid),
+        )) & 0xFFFFFFFF
+        if hr != 0:
+            raise OSError(f"CreateAppContainerProfile failed: HRESULT 0x{hr:08X}")
+        if not sid:
+            raise OSError("CreateAppContainerProfile succeeded without returning a SID")
+
+        sid_text = ctypes.c_wchar_p()
+        try:
+            if not convert(sid, ctypes.byref(sid_text)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            sid_value = sid_text.value
+            if not sid_value or not sid_value.startswith("S-1-15-2-"):
+                raise OSError("AppContainer profile returned a non-AppContainer SID")
+        except Exception:
+            # The profile was newly created by this call; do not leave it behind.
+            delete = userenv.DeleteAppContainerProfile
+            delete.argtypes = [ctypes.c_wchar_p]
+            delete.restype = ctypes.c_long
+            delete(profile_name)
+            raise
+        finally:
+            if sid_text:
+                local_free(ctypes.cast(sid_text, HANDLE))
+            if sid:
+                free_sid(sid)
+
+        try:
+            local_appdata = get_appcontainer_folder_path(sid_value)
+            if not os.path.isdir(local_appdata):
+                raise OSError("new AppContainer profile LocalAppData folder does not exist")
+            return cls(profile_name, sid_value, local_appdata)
+        except Exception:
+            delete = userenv.DeleteAppContainerProfile
+            delete.argtypes = [ctypes.c_wchar_p]
+            delete.restype = ctypes.c_long
+            delete(profile_name)
+            raise
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        userenv = _windows_userenv()
+        delete = userenv.DeleteAppContainerProfile
+        delete.argtypes = [ctypes.c_wchar_p]
+        delete.restype = ctypes.c_long
+        hr = int(delete(self.profile_name)) & 0xFFFFFFFF
+        if hr != 0:
+            raise OSError(f"DeleteAppContainerProfile failed: HRESULT 0x{hr:08X}")
+        self._closed = True
+
+    def __enter__(self) -> "EphemeralAppContainerProfile":
+        if self._closed:
+            raise RuntimeError("ephemeral AppContainer profile is already closed")
+        return self
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        self.close()
 
 
 class EmptyAppContainerCapabilities:
