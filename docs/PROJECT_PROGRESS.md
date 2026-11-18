@@ -627,3 +627,9 @@ At the time of this update:
 - Updated the Ubuntu/Windows workflow path filters and added a dedicated focused test step for the SurfCore mapper. Hosted CI is pending for this new code; do not claim it passes until the new run completes.
 - This does **not** connect to a running SurfCore instance, open a socket, read private SurfCore files, use credentials, or perform QQ/Bilibili actions. The fake DTO boundary is implemented; the actual scoped read-only transport is not.
 - Next: use hosted CI to validate the mapper, then extend the fake DTO contract with explicit cursor replay/duplicate-conflict cases and add the eventual SurfCore read-only feed only after its separate credential and process-isolation requirements are met.
+
+
+### SurfCore mapper CI status — 2026-11-18
+
+- Workflow run #577: [GitHub Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44267016747). Ubuntu completed successfully, including the dedicated SurfCore mapper suite and full test discovery. Windows was still running at the time of this ledger update; the two-platform gate is therefore **not yet complete**.
+- Run #577 checks code/workflow commit `1c0eb4d8f8caacec07597898733ad7ab15c8c93f`. Later commits in this sequence only refreshed this progress ledger; no later runtime code change is claimed.
