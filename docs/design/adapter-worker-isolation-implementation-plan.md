@@ -502,3 +502,6 @@ Run #651 passed on Ubuntu and Windows. The dedicated manifest/staging tests and 
 - The workflow now has a dedicated builder-test step and aligned push/PR path filters.
 - CI remains blocked before runner allocation (Runs #686–#688); these builder changes are not green. No actual Windows CPython runtime has been packaged or launched.
 - Next gate: get a runner to execute the new builder tests, then build an actual CPython 3.12 bundle on Windows and run the copied interpreter/entrypoint in AppContainer before composing the production executor.
+
+
+Follow-up: the package builder normalizes an optional `python312._pth` to explicit relative `python312.zip` (if present), `.`, `DLLs`, and `Lib` entries, without enabling `site`. Run #690 failed before runner allocation; this remains unverified.
