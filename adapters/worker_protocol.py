@@ -21,7 +21,7 @@ from adapters.contracts.observation import (
     ObservationStatus,
 )
 
-PROTOCOL_VERSION = 3
+PROTOCOL_VERSION = 4
 MAX_MESSAGE_BYTES = 1_048_576
 MAX_INPUT_PAYLOAD_BYTES = MAX_OBSERVATION_INPUT_BYTES
 MAX_ID_LENGTH = 128
@@ -339,7 +339,9 @@ def response_to_observation_result(response: WorkerResponse, request: WorkerRequ
         "external_ref", "observation_kind", "content_origin", "modality",
         "content", "source_ref", "observed_at", "received_at",
         "extraction_method", "content_digest", "coverage",
-        "source_artifact_ref", "account_ref", "untrusted",
+        "source_artifact_ref", "account_ref", "context_kind", "context_ref",
+        "actor_ref", "actor_role", "parent_ref", "content_language",
+        "source_sequence", "historical", "untrusted",
     }
     coverage_keys = {
         "modality", "extraction_method", "complete", "start_ms", "end_ms",
@@ -392,6 +394,14 @@ def response_to_observation_result(response: WorkerResponse, request: WorkerRequ
                 coverage=coverage,
                 source_artifact_ref=raw_evidence["source_artifact_ref"],
                 account_ref=raw_evidence["account_ref"],
+                context_kind=raw_evidence["context_kind"],
+                context_ref=raw_evidence["context_ref"],
+                actor_ref=raw_evidence["actor_ref"],
+                actor_role=raw_evidence["actor_role"],
+                parent_ref=raw_evidence["parent_ref"],
+                content_language=raw_evidence["content_language"],
+                source_sequence=raw_evidence["source_sequence"],
+                historical=raw_evidence["historical"],
                 untrusted=raw_evidence["untrusted"],
             ))
         except (TypeError, ValueError, KeyError) as exc:
