@@ -155,8 +155,12 @@ class SurfCoreMappingTests(unittest.TestCase):
             map_surfcore_record(record("bilibili", conversation_kind="group"))
 
     def test_historical_qq_message_remains_explicit(self):
-        mapped = map_surfcore_record(record(observation_kind="qq.message.incoming.historical"))
+        mapped = map_surfcore_record(record(
+            observation_kind="qq.message.incoming.historical",
+            historical=True,
+        ))
         self.assertEqual(mapped.observation_kind, "qq.message.incoming.historical")
+        self.assertTrue(mapped.historical)
 
     def test_bilibili_subtitle_preserves_partial_coverage(self):
         mapped = map_surfcore_record(record("bilibili"))
