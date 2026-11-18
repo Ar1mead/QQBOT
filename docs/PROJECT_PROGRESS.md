@@ -10,7 +10,7 @@ This is the durable hand-off record for continuing work when conversation contex
 
 ## Current status snapshot — 2026-11-19 00:09 UTC+08:00
 
-- Current branch head: `31bdcdf1eccd0fc5550b05c10aac506e3b027a71`; latest code/test checkpoint before documentation-only updates: `caa4dc780eb40641c5828cb624af60876aaf92c4`.
+- Latest code/test checkpoint before documentation-only updates: `caa4dc780eb40641c5828cb624af60876aaf92c4`.
 - Latest confirmed full CI matrix remains Run #664, which passed Ubuntu and Windows before the later launch-plan, bundle-pinning, Worker mapping-boundary, and package-builder changes.
 - Runs #665–#695 failed before runner allocation on both matrix jobs: no steps executed and no runner was assigned; no useful job logs were available. The cause remains unknown. Do not describe any changes after Run #664 as CI-passed.
 - Protocol v4, fixed Worker entrypoint, and isolated Python subprocess test were included in the last confirmed green matrix.
@@ -1519,3 +1519,6 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - `verify_staged_runtime()` recomputes the canonical manifest digest and checks it against the carried host pin before checking staged files. This prevents a modified in-memory staged manifest from retaining an unrelated old pin.
 - Added tests for forged trusted wrappers, non-canonical manifests, staged manifest mutation, and the separate policy checks for host allowlist and CPython version.
 - Runs #692–#695 again failed before runner allocation on both OS jobs; no test steps ran. These changes remain CI-unverified.
+
+
+- Retried Run #695 (attempt 2) after confirming both original jobs had `runner_id=0` and `steps=[]`. The retry failed identically: both Windows and Ubuntu jobs again had no assigned runner and no executed steps. This further supports treating the CI status as a GitHub runner-allocation/dispatch failure of unknown cause, not a code-test failure.
