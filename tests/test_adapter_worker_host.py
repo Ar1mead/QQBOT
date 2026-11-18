@@ -69,6 +69,14 @@ class WorkerHostTests(unittest.TestCase):
             },
             "source_artifact_ref": None,
             "account_ref": None,
+            "context_kind": None,
+            "context_ref": None,
+            "actor_ref": None,
+            "actor_role": None,
+            "parent_ref": None,
+            "content_language": None,
+            "source_sequence": None,
+            "historical": False,
             "untrusted": True,
         }
         evidence.update(changes)
