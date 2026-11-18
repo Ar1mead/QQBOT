@@ -86,6 +86,10 @@ A missing subtitle, inaccessible comment page, sampled frame set, or failed extr
 - Redact credentials and message content from diagnostic logs.
 - Treat every returned field as untrusted external evidence. The CSD adapter validates and maps it through the existing Observation v2 contract; it does not accept memories or goals.
 
+## 4.1 Detailed read-only ingress contract
+
+The concrete proposed transport and DTO schema are specified in [SurfCore Read-only Ingress Contract v1](./surfcore-readonly-ingress-contract-v1.md). This is a proposal for a separate SurfCore-side change, not an endpoint that exists today. It explicitly replaces the unsafe shortcuts of reading `state/qq-public-feed.jsonl` or reusing the management `consoleToken`.
+
 ## 5. Implementation sequence
 
 1. **SurfCore interface review** — finish endpoint/IPC schema design against the pinned source and confirm the actual installed version before any local activation.
