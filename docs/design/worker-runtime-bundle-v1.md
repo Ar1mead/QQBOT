@@ -201,3 +201,20 @@ The verifier now has a separate staging operation that copies only manifest-list
 ## Run #651 verification
 
 Per-invocation staging passed Run #651 on Ubuntu and Windows. It copies only listed files, verifies source and destination digests, rejects destination reuse and source/destination overlap, and cleans up without following reparse points. The next pre-entrypoint audit is to align worker response evidence serialization with the current ObservationEvidence provenance schema.
+
+
+
+## Superseding protocol contract — v4 provenance-complete evidence
+
+This section supersedes earlier protocol-v3 references in this document. The wire protocol is now version 4 because the strict evidence object schema has been expanded. Every evidence object must carry the complete ObservationEvidence provenance field set, including nullable fields:
+
+- source_artifact_ref, account_ref;
+- context_kind, context_ref;
+- actor_ref, actor_role;
+- parent_ref, content_language;
+- source_sequence, historical;
+- untrusted.
+
+The host reconstructs the typed ObservationEvidence object and relies on its validation for paired context fields, BCP 47 language tags, non-negative integer source sequence (booleans rejected), boolean historical flag, content digest integrity, and mandatory untrusted=true. The worker is not permitted to omit provenance by relying on host defaults: all fields are explicit in the v4 wire schema.
+
+The v4 implementation and provenance round-trip tests are present in the branch; hosted CI verification is pending. All worker entrypoint implementations must import the pinned protocol implementation from the same reviewed bundle and reject other protocol versions.
