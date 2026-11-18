@@ -148,7 +148,7 @@ export function createObservationJournal({
     handle = await fs.open(filePath, "a+");
     state.opened = true;
     state.healthy = true;
-    state.writable = true;
+    state.writable = state.bytes < maxBytes;
   }
 
   function capture(event, { conversationKind, denyUsers = [], denyConversations = [] } = {}) {
@@ -220,7 +220,7 @@ export function createObservationJournal({
         return { captured: false, reason: "journal_capacity_reached" };
       }
       try {
-        await handle.write(line);
+        await handle.writeFile(line);
         await handle.sync();
         state.bytes += line.length;
         state.latestCursor = cursor;
@@ -240,6 +240,7 @@ export function createObservationJournal({
     if (!Number.isSafeInteger(afterCursor) || afterCursor < 0) throw new TypeError("afterCursor must be a non-negative integer");
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new RangeError("limit must be from 1 to 500");
     if (afterCursor > state.latestCursor) throw new RangeError("afterCursor exceeds latest cursor");
+    await queue;
     const data = await fs.readFile(filePath, "utf8");
     const records = [];
     for (const line of data.split("\n")) {
