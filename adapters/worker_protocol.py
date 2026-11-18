@@ -289,6 +289,13 @@ def response_to_observation_result(response: WorkerResponse, request: WorkerRequ
                 missing_ranges_ms=tuple(tuple(item) for item in missing_ranges),
                 notes=tuple(notes),
             )
+            if (
+                raw_evidence["adapter_id"] != request.adapter_id
+                or raw_evidence["adapter_version"] != request.adapter_version
+            ):
+                raise WorkerProtocolError("evidence identity does not match the pinned request")
+            if raw_evidence["modality"] not in request.modalities:
+                raise WorkerProtocolError("evidence modality was not requested")
             evidence_items.append(ObservationEvidence(
                 observation_id=raw_evidence["observation_id"],
                 adapter_id=raw_evidence["adapter_id"],
