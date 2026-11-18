@@ -1,4 +1,7 @@
 import json
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 from adapters.worker_entrypoint import process_one_request
@@ -133,6 +136,26 @@ class WorkerEntrypointTests(unittest.TestCase):
             process_one_request(encode_request(wrong_binding), "surfcore_qq_batch")
         )
         self.assertEqual(response.status, "failed")
+
+    def test_entrypoint_runs_with_python_isolated_no_site_mode(self):
+        request = self.request(self.batch())
+        entrypoint = Path(__file__).resolve().parents[1] / "adapters" / "worker_entrypoint.py"
+        completed = subprocess.run(
+            [
+                sys.executable, "-I", "-S", "-B",
+                str(entrypoint), "--dispatch-key", "surfcore_qq_batch",
+            ],
+            input=encode_request(request),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=15,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr.decode("utf-8", errors="replace"))
+        self.assertEqual(completed.stderr, b"")
+        response = decode_response(completed.stdout)
+        self.assertEqual(response.status, "complete")
+        self.assertEqual(len(response.evidence), 1)
 
     def test_duplicate_json_keys_are_rejected(self):
         request = WorkerRequest(
