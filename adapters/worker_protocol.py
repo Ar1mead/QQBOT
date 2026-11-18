@@ -330,6 +330,49 @@ def validate_response_for_request(response: WorkerResponse, request: WorkerReque
     ):
         raise WorkerProtocolError("worker response adapter identity does not match request")
 
+def observation_evidence_to_wire(evidence: ObservationEvidence) -> dict[str, Any]:
+    """Serialize a validated evidence object to the exact protocol-v4 wire schema."""
+    if not isinstance(evidence, ObservationEvidence):
+        raise TypeError("evidence must be an ObservationEvidence")
+    coverage = evidence.coverage
+    return {
+        "observation_id": evidence.observation_id,
+        "adapter_id": evidence.adapter_id,
+        "adapter_version": evidence.adapter_version,
+        "platform": evidence.platform,
+        "external_ref": evidence.external_ref,
+        "observation_kind": evidence.observation_kind,
+        "content_origin": evidence.content_origin.value,
+        "modality": evidence.modality,
+        "content": evidence.content,
+        "source_ref": evidence.source_ref,
+        "observed_at": evidence.observed_at,
+        "received_at": evidence.received_at,
+        "extraction_method": evidence.extraction_method,
+        "content_digest": evidence.content_digest,
+        "coverage": {
+            "modality": coverage.modality,
+            "extraction_method": coverage.extraction_method,
+            "complete": coverage.complete,
+            "start_ms": coverage.start_ms,
+            "end_ms": coverage.end_ms,
+            "missing_ranges_ms": [list(pair) for pair in coverage.missing_ranges_ms],
+            "notes": list(coverage.notes),
+        },
+        "source_artifact_ref": evidence.source_artifact_ref,
+        "account_ref": evidence.account_ref,
+        "context_kind": evidence.context_kind,
+        "context_ref": evidence.context_ref,
+        "actor_ref": evidence.actor_ref,
+        "actor_role": evidence.actor_role,
+        "parent_ref": evidence.parent_ref,
+        "content_language": evidence.content_language,
+        "source_sequence": evidence.source_sequence,
+        "historical": evidence.historical,
+        "untrusted": evidence.untrusted,
+    }
+
+
 def response_to_observation_result(response: WorkerResponse, request: WorkerRequest) -> ObservationResult:
     """Reconstruct and validate worker evidence before it can enter CSD."""
     validate_response_for_request(response, request)
