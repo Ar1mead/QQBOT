@@ -12,7 +12,8 @@
 - `windows_launch_plan.py` now constrains execution to the compiled SurfCore QQ read-only binding, CPython 3.12.x, fixed interpreter/entrypoint paths, and fixed isolated-mode arguments. It re-verifies staged file-set and digest integrity before plan creation. This code is not yet CI-verified.
 - No production executor composes these pieces into one fail-closed lifecycle.
 - A host-pinned manifest loader now exists: `load_trusted_runtime_bundle()` verifies exact manifest bytes against an independently supplied SHA-256 pin, and the pin is carried through staging into the launch plan. The production executor does not yet consume it because no executor exists.
-- No deterministic runtime bundle builder/distribution pipeline exists yet. The current manifest verifier still supports unpinned consistency-only use for fixtures; production launch-plan creation rejects an unpinned staged bundle. A maliciously replaced manifest and matching files are rejected only when the host uses an independently provisioned pin and protects the source bundle root.
+- A deterministic package builder now exists at `adapters/worker_backends/runtime_bundle_builder.py`. It probes CPython 3.12.x in isolated mode, packages a fixed Worker source closure and runtime tree, excludes site-packages/tests/bytecode, emits canonical manifest bytes, and reports the digest. Synthetic tests exist but have not run because hosted jobs are not allocating runners.
+- The builder's digest is not yet provisioned into production host configuration because no production executor exists. Production launch-plan creation rejects an unpinned staged bundle; the source bundle root must also be protected from untrusted writes.
 - Required next gate: define deterministic package contents/dependency closure, host-trusted bundle provenance (pinned manifest digest or signature plus protected bundle root), build tooling and tests. Then restore CI execution, validate launch-plan code, and only afterward compose the production executor.
 - Linux Bubblewrap, live platform ingress, and owner-local Windows/DSH verification remain outstanding.
 
@@ -489,3 +490,15 @@ Run #651 passed on Ubuntu and Windows. The dedicated manifest/staging tests and 
 - Added regression tests for self-consistent package replacement, pinned manifest acceptance/rejection, launch-plan propagation, and unpinned staged-package rejection.
 - These changes are not CI-verified. Runs #673–#685 failed before runner allocation with no steps and no useful logs; Run #664 remains the last confirmed green matrix.
 - Still required: deterministic runtime bundle build tool, exact CPython 3.12 layout/dependency closure, trusted pin provisioning, and a production executor. Do not connect real platform data yet.
+
+
+## Deterministic Worker runtime bundle builder added (2026-11-19)
+
+- `adapters/worker_backends/runtime_bundle_builder.py` provides a deterministic fixed-file builder and CLI.
+- It probes the provided interpreter with `-I -S -B`, requires CPython 3.12.x, and copies only the approved worker dependency closure plus the runtime's executable, DLLs, standard library and native extension modules.
+- It excludes ambient `site-packages`, tests, bytecode caches, and unapproved `python312._pth` entries.
+- It creates a canonical sorted manifest with per-file size/SHA-256, verifies the generated output, and reports the exact manifest digest to be copied into trusted host configuration.
+- Synthetic tests cover deterministic manifest bytes, fixed file closure, exclusions, invalid version/path policy, symlink rejection, and compatibility with the host-pinned loader.
+- The workflow now has a dedicated builder-test step and aligned push/PR path filters.
+- CI remains blocked before runner allocation (Runs #686–#688); these builder changes are not green. No actual Windows CPython runtime has been packaged or launched.
+- Next gate: get a runner to execute the new builder tests, then build an actual CPython 3.12 bundle on Windows and run the copied interpreter/entrypoint in AppContainer before composing the production executor.
