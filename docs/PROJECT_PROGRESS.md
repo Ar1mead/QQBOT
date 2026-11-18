@@ -1505,3 +1505,7 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Added synthetic builder tests for deterministic output, fixed dependency closure, exclusion of ambient packages/tests, invalid Python versions, unsafe `._pth` directives, symlink rejection, and host-pin loading.
 - Aligned push and pull-request workflow path filters and added a dedicated builder test step.
 - This builder has not been CI-verified because Runs #686–#688 failed before runner allocation; no real Windows CPython 3.12 package has been built or executed. The builder's synthetic tests do not prove the generated runtime launches on Windows.
+
+
+- Follow-up hardening: the builder now normalizes a copied `python312._pth` to the exact relative search paths `python312.zip` (when present), `.`, `DLLs`, and `Lib`; it never enables `import site`. The synthetic builder test asserts this layout.
+- Run #690, which included the isolated Python search-path normalization, again failed before runner allocation on both OS jobs (no steps and no useful logs). Builder code/tests remain unverified.
