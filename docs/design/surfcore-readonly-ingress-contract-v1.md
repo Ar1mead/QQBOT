@@ -102,9 +102,17 @@ The consumer sends its last **durably ingested** cursor. It writes every returne
 Only canonical BV identifiers are accepted. Reject arbitrary URLs, shell fragments, command arguments, and path traversal. Responses use the same versioned observation record shape, with:
 
 - `external_ref`: canonical BV identifier;
+- `context_kind`: exactly `video`;
+- `context_ref`: the same canonical BV identifier as `external_ref`;
 - `observation_kind`: one of `bilibili.video.metadata`, `bilibili.video.subtitle`, `bilibili.video.comment`, or `bilibili.video.danmaku`;
+- `actor_role`: role associated with the record — `uploader`, `subtitle_contributor`, `comment_author`, or `danmaku_sender`, matching the observation kind;
+- `actor_ref`: stable opaque actor identity when the source exposes one; omit it rather than inventing identity when unavailable;
+- `parent_ref`: optional opaque parent/root comment reference, allowed only for comment records;
+- `content_language`: optional BCP 47 language tag, allowed only for subtitle records;
 - `source_artifact_ref`: opaque reference to SurfCore-managed cache/artifact, never a filesystem path;
 - `coverage`: explicit partial/unavailable notes for missing subtitles, inaccessible comments, sampled frames, or failed extraction.
+
+The adapter preserves these as structured CSD fields. It never infers a person identity from display text. A missing actor identity remains missing even when the actor role is known.
 
 v1 does not expose image/frame binary content through this text contract. It must not expose any write operation: like, favorite, follow, comment, reply, private message, dynamic publish/edit/delete, or danmaku send.
 
@@ -113,9 +121,9 @@ v1 does not expose image/frame binary content through this text contract. It mus
 The project-side adapter accepts only the exact versioned DTO fields. It must:
 
 - reject unknown fields and unsupported schema versions;
-- require the QQ conversation/sender/history metadata above;
+- require the QQ conversation/sender/history metadata and Bilibili video/actor-role provenance above;
 - keep all content `untrusted=true`;
-- retain account, conversation, sender, source-message, cursor, and historical provenance in the CSD event payload (not in free-form content); the generic ObservationEvidence contract exposes `context_kind`, `context_ref`, `actor_ref`, `source_sequence`, and `historical` for this purpose;
+- retain account, conversation, sender, source-message, cursor, and historical provenance in the CSD event payload (not in free-form content); the generic ObservationEvidence contract exposes `context_kind`, `context_ref`, `actor_ref`, `actor_role`, `parent_ref`, `content_language`, `source_sequence`, and `historical`;
 - derive deterministic observation/event identity from platform + opaque account/stream reference + stable source record ID;
 - reject cursor regression, out-of-page records, duplicate record IDs, and oversized batches;
 - never persist the cursor itself or call SurfCore.
