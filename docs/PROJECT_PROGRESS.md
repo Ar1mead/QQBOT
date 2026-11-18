@@ -1406,3 +1406,15 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - The existing evidence dataclass remains the authority for semantic validation; external evidence must remain untrusted and its content digest is still recomputed/verified.
 - Code commits: f42f7905736fd2b338887428a71182ce34a53b78 and 13f534e5999741061168cc0a6da7806775fd737e. CI result not yet confirmed. Do not treat protocol v4 as accepted until Ubuntu and Windows matrix plus full discovery pass.
 - Next: inspect CI result, reconcile protocol version references in worker design documentation, then continue the fixed worker entrypoint/static dispatch and Windows executor design.
+
+
+
+## Protocol v4 serializer symmetry added — CI pending
+
+- Added `observation_evidence_to_wire()` as the canonical worker-side serializer for validated ObservationEvidence objects. It emits every v4 evidence field explicitly, including nullable provenance fields, coverage arrays, and mandatory untrusted state.
+- Added a symmetry regression: decode wire evidence into the typed contract, serialize it back, and assert the complete v4 wire object is preserved exactly.
+- Protocol v4 now has both directions: strict worker response reconstruction on the host and a canonical typed evidence serializer for the worker entrypoint.
+- Latest branch head: `a0d0f0702474c00b6a69e7e6647aa6ec7a65adf4`.
+- The available workflow-run and combined-status lookups currently return no run/status for this revision. Hosted CI is therefore **not yet verified**; no green result is claimed. The workflow has a push path filter for both modified files and a PR path filter for the protocol test.
+- PR #1 was rechecked and remains Draft, Open, and Unmerged.
+- Next: obtain the Ubuntu/Windows CI result. Only after the v4 contract is green should implementation proceed to the fixed worker entrypoint and static dispatch.
