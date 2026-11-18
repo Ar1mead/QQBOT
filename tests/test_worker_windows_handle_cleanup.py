@@ -41,7 +41,7 @@ class NativeHandleCleanupTests(unittest.TestCase):
         owner._close = _CloseSequence([False, True, True, True, True, True, True])
         owner._closed = False
         owner._child_closed = False
-        with patch.object(windows_pipes.ctypes, "get_last_error", return_value=5), patch.object(
+        with patch.object(windows_pipes.ctypes, "get_last_error", return_value=5, create=True), patch.object(
             windows_pipes.ctypes, "WinError", side_effect=OSError("close failed"), create=True
         ):
             with self.assertRaisesRegex(OSError, "close failed"):
