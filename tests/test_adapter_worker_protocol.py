@@ -1,3 +1,4 @@
+import hashlib
 import unittest
 
 from adapters.worker_protocol import (
@@ -9,6 +10,7 @@ from adapters.worker_protocol import (
     decode_response,
     encode_request,
     encode_response,
+    response_to_observation_result,
     validate_response_for_request,
 )
 
@@ -105,6 +107,65 @@ class WorkerProtocolTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(WorkerProtocolError, "non-standard JSON constant"):
             decode_response(raw)
+
+    def make_wire_evidence(self):
+        content = "untrusted worker observation"
+        return {
+            "observation_id": "obs-1",
+            "adapter_id": self.request.adapter_id,
+            "adapter_version": self.request.adapter_version,
+            "platform": "bilibili",
+            "external_ref": self.request.target_ref,
+            "observation_kind": "caption",
+            "content_origin": "source_provided",
+            "modality": "text",
+            "content": content,
+            "source_ref": "https://example.invalid/source",
+            "observed_at": "2026-11-18T10:00:00+00:00",
+            "received_at": "2026-11-18T10:00:01+00:00",
+            "extraction_method": "worker_fixture",
+            "content_digest": "sha256:" + hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            "coverage": {
+                "modality": "text",
+                "extraction_method": "worker_fixture",
+                "complete": True,
+                "start_ms": None,
+                "end_ms": None,
+                "missing_ranges_ms": [],
+                "notes": [],
+            },
+            "source_artifact_ref": None,
+            "account_ref": None,
+            "untrusted": True,
+        }
+
+    def test_response_reconstructs_and_validates_evidence_before_csd(self):
+        response = WorkerResponse(
+            request_id=self.request.request_id,
+            adapter_id=self.request.adapter_id,
+            adapter_version=self.request.adapter_version,
+            status="complete",
+            evidence=(self.make_wire_evidence(),),
+        )
+        result = response_to_observation_result(response, self.request)
+        self.assertEqual(result.status.value, "complete")
+        self.assertEqual(len(result.evidence), 1)
+        self.assertIs(result.evidence[0].untrusted, True)
+
+    def test_response_rejects_tampered_digest_and_trusted_evidence(self):
+        for field, value in (("content_digest", "sha256:" + "0" * 64), ("untrusted", False)):
+            evidence = self.make_wire_evidence()
+            evidence[field] = value
+            response = WorkerResponse(
+                request_id=self.request.request_id,
+                adapter_id=self.request.adapter_id,
+                adapter_version=self.request.adapter_version,
+                status="complete",
+                evidence=(evidence,),
+            )
+            with self.subTest(field=field):
+                with self.assertRaisesRegex(WorkerProtocolError, "invalid observation evidence"):
+                    response_to_observation_result(response, self.request)
 
     def test_response_rejects_unknown_fields(self):
         raw = (
