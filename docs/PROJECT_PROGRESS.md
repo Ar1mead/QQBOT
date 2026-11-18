@@ -762,3 +762,15 @@ At the time of this update:
 - Next gate: prepare a separately reviewed, narrowly scoped upstream SurfCore implementation patch for the journal module and callback tap (disabled by default), with unit tests. Only after that implementation exists should its HTTP listener and the CSD-side client be developed.
 
 - Linked the new QQ journal specification from `docs/design/surfcore-csd-adapter-integration.md` (documentation commit `786c465e01f5dfd9ed6342fd8810137fed48b4d2`).
+
+## SurfCore QQ journal patch blueprint — 2026-11-18
+
+- Rechecked the pinned SurfCore v0.8.8 source at `0deb8261afe4c31b3127759ee4de36a1439cf422`.
+- Verified the actual Node project conventions from its `package.json`: ESM, Node `>=22.13.0`, and standalone `scripts/test-*.mjs` test programs.
+- Rechecked the precise private/group callback placement in `src/bridge.js`: after each self-message guard and before the existing `handleIncoming` call.
+- Reviewed `src/owner-audit.js` as a local JSONL precedent and explicitly rejected reusing it as-is because its read/rotation semantics do not satisfy the journal's corruption and cursor guarantees.
+- Added `docs/design/surfcore-qq-journal-patch-blueprint.md`, a file-level plan for a pure observation policy module, a dedicated durable journal module, minimal bridge callback taps, isolated config defaults, and focused Node regression scripts.
+- The first patch is deliberately limited to policy + journal + callback capture. No HTTP listener, CSD client, Bilibili path, or account mutation is included.
+- First-patch storage uses a hard byte ceiling and fails closed when full; it does not prune or truncate prior records. Segmented retention and explicit cursor-expired behavior are deferred to a separately tested follow-up rather than implemented unsafely.
+- This is still a blueprint, not code. No SurfCore upstream files were changed; no QQ/DSH live connection or user-local test was performed.
+- PR #1 remains Draft, Open, and Unmerged. Keep that state unchanged.
