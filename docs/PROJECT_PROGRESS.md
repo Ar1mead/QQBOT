@@ -10,17 +10,18 @@ This is the durable hand-off record for continuing work when conversation contex
 
 ## Current status snapshot — 2026-11-19 00:09 UTC+08:00
 
-- Current branch head: `e790bd077059cb7847eb01e5f53c9aa8ea4b0451`.
-- Latest confirmed full CI matrix: Run #664 passed Ubuntu and Windows, including protocol-v4 provenance, fixed Worker entrypoint, isolated Python subprocess, and complete test discovery. This checkpoint predates the Windows launch-plan and staged-byte re-verification commits.
-- Windows launch-plan code now exists and is covered by a dedicated test module, including allowlist enforcement, exact manifest binding, CPython 3.12 pinning, path/reparse checks, and staged-file tampering rejection. **This slice has not passed CI.**
-- Runs #665–#672 failed before runner allocation: both matrix jobs had no executed steps and no runner assignment; no usable job logs were exposed. This is a CI execution/runner-availability block of unknown cause, not evidence that test assertions failed. Do not mark post-#664 changes green.
-- Existing Windows low-level primitives include AppContainer profile/capability setup, ACLs, explicit environment, Job Object limits, STARTUPINFOEX, inherited pipes, suspended launch, and bounded concurrent stdio/timeout/overflow supervision. These remain separate modules; no production `WindowsAppContainerWorkerExecutor` composes them.
-- **New audit finding:** the repository has a runtime bundle manifest verifier/stager but no runtime bundle builder or trusted distribution/pinning flow. The manifest's internal SHA-256 values prove consistency with that manifest, not authenticity if an attacker can replace both the files and manifest. A trusted bundle source, pinned manifest digest or signature, and deterministic packaging process must be designed before production executor wiring.
-- The current fixed bundle layout expects `python/python.exe` and `app/worker_entrypoint.py`; the actual dependency closure/package contents are not yet produced by a repository build tool.
-- No Linux Bubblewrap backend, live SurfCore ingress, real QQ/Bilibili connection, or owner-local Windows/DSH verification exists.
-- PR #1 remains Draft/Open/Unmerged. Do not merge or convert it out of Draft.
+- Current branch: `feature/csd-cognitive-memory-slice`; latest code commit at this checkpoint: `511859ce1ce40df78e75093432b1a2501f282f25`.
+- Latest confirmed full CI matrix remains Run #664, which passed Ubuntu and Windows before the later launch-plan, bundle-pinning, and worker-mapping-boundary changes.
+- Runs #665–#685 failed before runner allocation on both matrix jobs: no steps executed and no runner was assigned; no useful job logs were available. The cause remains unknown. Do not describe any changes after Run #664 as CI-passed.
+- Protocol v4, fixed Worker entrypoint, and isolated Python subprocess test were included in the last confirmed green matrix.
+- Windows low-level primitives already exist: AppContainer profile/capability setup, ACL helpers, explicit environment, Job Object policy, STARTUPINFOEX handle allowlist, anonymous pipes, suspended process launch, and bounded concurrent stdio/timeout/overflow supervision.
+- Windows launch-plan builder now requires a host-pinned runtime manifest digest. A new trusted-bundle loader checks the exact manifest bytes against a host-provided SHA-256 pin; the trust marker is carried through staging and included in the launch plan. This is implemented but CI-unverified.
+- SurfCore worker mapping has been separated from host CSD event creation. The Worker-safe QQ batch validator returns untrusted ObservationEvidence only; CSD event construction is lazy and remains host-side. Added an isolated-import regression test to ensure the worker mapping path does not import CSD modules. This is implemented but CI-unverified.
+- **Still missing:** a deterministic runtime bundle builder and approved dependency closure for the fixed Worker entrypoint. The current verifier/stager can verify and copy a supplied package but does not build it. The host-pinned digest must come from trusted configuration and the source bundle root must be protected from untrusted writes.
+- No production `WindowsAppContainerWorkerExecutor` composes the primitives. No Linux Bubblewrap backend, live SurfCore ingress, real QQ/Bilibili connection, or owner-local Windows/DSH verification exists.
+- PR #1 remains Draft/Open/Unmerged.
 
-Next gate: define a reproducible, allowlisted Worker runtime bundle build and authenticity contract; add manifest pin/signature verification and tests; restore executable CI; only then compose the production Windows executor lifecycle.
+Next gate: finish the reproducible Worker package builder and define how its manifest pin is provisioned to the trusted host. Then restore executable CI, validate the new mapping/pinning slices, and only afterward compose the production Windows executor lifecycle.
 
 ---
 
@@ -1477,3 +1478,16 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 
 
 - Follow-up Run #672 for the staged-byte re-verification regression also failed before runner allocation on both Ubuntu and Windows (no steps/no runner assignment/no downloadable logs). This confirms the launch-plan slice still has no executable CI result; do not infer test success from earlier Run #664.
+
+
+## Worker package provenance and host/worker mapping boundary (2026-11-19)
+
+- Audit found that the Worker entrypoint previously called `map_surfcore_qq_batch()`, whose legacy host-oriented return type constructed `CognitiveEvent` values and imported `adapters.csd_mapping` / `core.csd.cognitive`. The Worker ignored those events and independently rebuilt evidence, creating an unnecessary CSD dependency inside the sandbox package.
+- Added `validate_surfcore_qq_batch()` and `SurfCoreQQObservationBatch`. This worker-safe path validates the same QQ batch/cursor/record invariants and returns only untrusted `ObservationEvidence`.
+- Moved CSD event conversion imports into host-only functions and retained the old `map_surfcore_qq_batch()` compatibility helper for existing host tests/callers. The fixed Worker entrypoint now consumes only the worker-safe evidence batch.
+- Added tests for the evidence-only batch contract and a clean isolated Python import proving the worker-safe mapping import does not load `core.csd.cognitive` or `adapters.csd_mapping`.
+- Added `TrustedRuntimeBundle` and `load_trusted_runtime_bundle()`: the exact raw manifest bytes must match a host-supplied SHA-256 pin before the package is accepted as trusted. `stage_runtime_bundle()` carries the pin into `StagedRuntimeBundle`; `build_windows_worker_launch_plan()` rejects staged packages without it and exposes the digest in the plan.
+- Added tests showing that internal file hashes alone accept a self-consistent replacement package, while the independent host pin rejects it. Launch-plan tests now require the pinned bundle path and explicitly reject unpinned staging.
+- This is a manifest pin, not a signature system. The digest must be provisioned through trusted host configuration, and the source bundle directory must be protected from untrusted writes.
+- No deterministic package builder exists yet. The next package slice must include the reviewed dependency closure for `worker_entrypoint.py`, CPython 3.12 runtime layout for isolated startup, sorted file hashes, canonical manifest output, and a reproducible build/test procedure.
+- Runs #673–#685 continued to fail before runner allocation on both OS jobs (no steps/no runner assignment). The above code/tests are therefore pending CI; the last confirmed green remains Run #664.
