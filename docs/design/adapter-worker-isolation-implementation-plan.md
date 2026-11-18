@@ -280,3 +280,5 @@ Additional Microsoft references:
 - [CreateProcessW](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw): explicit application path and inherited-handle controls.
 
 This addendum is a design correction, not an implementation or test result.
+
+The command-based probes consume the bounded request line before attempting their operation. This keeps them aligned with the worker protocol and avoids confusing an intentional early stdin close with a filesystem/network denial result.

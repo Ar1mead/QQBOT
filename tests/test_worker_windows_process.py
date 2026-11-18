@@ -99,7 +99,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
         )
 
     def test_worker_is_created_suspended_assigned_then_resumed_with_bounded_stdio(self):
-        with self._worker_session(["/d", "/c", "echo", "WORKER_OK"]) as (worker, worker_pipes, worker_job):
+        with self._worker_session(["/d", "/c", "set /p _= & echo WORKER_OK"]) as (worker, worker_pipes, worker_job):
             result = self._execute(worker, worker_pipes, worker_job)
             self.assertEqual(result.exit_code, 0)
             self.assertIn(b"WORKER_OK", result.stdout)
@@ -110,14 +110,14 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
             )
 
     def test_stdout_overflow_terminates_the_worker_job(self):
-        command = "for /l %i in (1,0,2) do @echo OVERFLOW"
+        command = "set /p _= & for /l %i in (1,0,2) do @echo OVERFLOW"
         with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job):
             with self.assertRaises(worker_io.WorkerOutputLimitError):
                 self._execute(worker, worker_pipes, worker_job, stdout_limit=128)
             self.assertTrue(worker.wait(5000), "overflow did not terminate the worker")
 
     def test_timeout_terminates_the_worker_job(self):
-        command = "for /l %i in (1,1,2147483647) do @rem"
+        command = "set /p _= & for /l %i in (1,1,2147483647) do @rem"
         with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job):
             with self.assertRaises(worker_io.WorkerTimeoutError):
                 self._execute(worker, worker_pipes, worker_job, timeout_ms=250)
@@ -134,7 +134,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
                 stream.write("CSD_DATABASE_MARKER")
             try:
                 with self._worker_session(
-                    ["/d", "/c", "type", secret_path, csd_path]
+                    ["/d", "/c", f"set /p _= & type {secret_path} {csd_path}"]
                 ) as (worker, worker_pipes, worker_job):
                     result = self._execute(worker, worker_pipes, worker_job)
                     self.assertNotIn(b"HOST_SECRET_MARKER", result.stdout)
@@ -176,7 +176,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
         server.start()
         try:
             with self._worker_session(
-                ["--max-time", "2", "--silent", "--show-error", f"http://127.0.0.1:{port}/"],
+                ["--max-time", "2", "--silent", "--show-error", "--data-binary", "@-", f"http://127.0.0.1:{port}/"],
                 application_name="curl.exe",
             ) as (worker, worker_pipes, worker_job):
                 result = self._execute(worker, worker_pipes, worker_job, timeout_ms=8000)
@@ -189,7 +189,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
         self.assertFalse(accepted, "AppContainer unexpectedly connected to host loopback")
 
     def test_job_active_process_limit_blocks_child_process_creation(self):
-        command = 'start /b cmd.exe /d /c echo CHILD_PROCESS_MARKER'
+        command = 'set /p _= & start /b cmd.exe /d /c echo CHILD_PROCESS_MARKER'
         with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job):
             result = self._execute(worker, worker_pipes, worker_job)
             self.assertNotIn(b"CHILD_PROCESS_MARKER", result.stdout)

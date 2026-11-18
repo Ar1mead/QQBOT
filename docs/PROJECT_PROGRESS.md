@@ -1031,3 +1031,12 @@ At the time of this update:
 - The tests use the actual AppContainer launch path, Job Object, and bounded stdio supervisor; they do not infer isolation from configuration flags alone.
 - The new adversarial tests are **not yet run**. Do not claim filesystem/network/child-process/timeout isolation until Windows CI completes and the assertions pass.
 - Loopback coverage is only one network case; private, link-local, metadata, and public destination attempts remain additional tests.
+
+
+## Windows adversarial test Run #629 fixture correction
+
+- Run #629 passed Ubuntu, loopback denial, child-process denial, timeout termination, and output-overflow termination on Windows.
+- The host-file/CSD-marker test failed before its filesystem assertions because its `cmd.exe type` probe exited without reading the supervisor's stdin request; the writer then correctly received `ERROR_NO_DATA` (232) from the closed pipe.
+- This is a test-fixture protocol mismatch, not evidence that the host files were readable. The supervisor intentionally treats an early stdin close as an I/O failure rather than silently accepting an unconsumed request.
+- Updated command probes to consume one input line with `set /p` before running the target operation. The curl probe now uses `--data-binary @-` so it also consumes the request body.
+- Run #629 remains failed on Windows due to this fixture error. A new run is required before marking the adversarial cases passed.
