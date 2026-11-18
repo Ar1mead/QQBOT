@@ -1243,7 +1243,8 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             "coverage", "untrusted",
         }
         provenance_fields = {
-            "context_kind", "context_ref", "actor_ref", "source_sequence", "historical",
+            "context_kind", "context_ref", "actor_ref", "actor_role", "parent_ref",
+            "content_language", "source_sequence", "historical",
         }
         if not required.issubset(payload) or set(payload) - required - provenance_fields:
             raise ValueError("observation v2 payload contains missing or unsupported fields")
@@ -1255,12 +1256,21 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             _nonempty(payload.get(field), f"observation.{field}")
         if payload.get("content_origin") not in {"source_provided", "adapter_extracted"}:
             raise ValueError("observation.content_origin is unsupported")
-        for field in ("account_ref", "source_artifact_ref", "context_kind", "context_ref", "actor_ref"):
+        for field in (
+            "account_ref", "source_artifact_ref", "context_kind", "context_ref",
+            "actor_ref", "actor_role", "parent_ref",
+        ):
             value = payload.get(field)
             if value is not None:
                 _nonempty(value, f"observation.{field}")
         if (payload.get("context_kind") is None) != (payload.get("context_ref") is None):
             raise ValueError("observation context_kind and context_ref must be provided together")
+        content_language = payload.get("content_language")
+        if content_language is not None:
+            _nonempty(content_language, "observation.content_language")
+            import re
+            if re.fullmatch(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*", content_language) is None:
+                raise ValueError("observation content_language must be a BCP 47 language tag")
         source_sequence = payload.get("source_sequence")
         if source_sequence is not None and (
             not isinstance(source_sequence, int)
