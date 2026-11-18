@@ -1564,3 +1564,13 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Hardened the failed `CreateProcessW` startup path: after worker termination is confirmed, both thread and process handles are attempted even if one close fails; failed handles remain recorded in the native process-information structure. The cleanup helper is covered by platform-neutral retry tests.
 - Commits: `82eeb64c9dc8df39df49c2b87de9beb669cbe64a`, `9dfcda7b2f5b4b06bc17b9bd800dd6a646558fc9`, `897e7896444f108065f236bfe8f688d188563e55`, `4fd1865db6b5f5c428a3fef9e12dfdff78b50541`, `8142e204d46bff6ea427206e64a57cea50ac6e11`, `6cf14131cda24da8598175128d0bcb27bbcde1c7`, `ecdf787766f2f4596b61569fbe72ffa685acbf5e`.
 - These cleanup changes remain CI-unverified because Actions has not assigned runners. The test suite uses fake native handles for retry semantics; actual Windows API behavior still needs Windows integration coverage.
+
+
+## Current checkpoint after Windows lifecycle audit — 2026-11-19
+
+- Current branch head before this documentation checkpoint: `b262a72265c513ebf2b1d1f65dee2c3d72faab22`.
+- The most recent workflow runs #698–#710 all failed before runner allocation. Latest Run #710 jobs again report `runner_id=0`, empty `runner_name`, and zero executed steps on both Ubuntu and Windows. This is not a test failure and provides no pass/fail evidence for the new lifecycle changes.
+- The cleanup tests are wired into both workflow path filters and the explicit matrix steps. The AppContainer process integration test also now creates runtime/temp directories beneath the ephemeral profile LocalAppData root, resolving the fixture's previous contradictory path assertion.
+- The code/test changes since Run #664 remain unverified. Do not build or enable a production executor based on synthetic tests alone.
+- Next gate: regain an actual hosted CI execution, review all new failures (if any) from executed steps, then run the native Windows AppContainer process suite. Only after those gates should the Windows executor coordinator be implemented and tested with strict reverse-order cleanup and an explicit quarantine path for any process whose termination cannot be confirmed.
+- PR #1 remains Draft, Open, and Unmerged.
