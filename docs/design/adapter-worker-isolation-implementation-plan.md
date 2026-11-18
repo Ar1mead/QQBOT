@@ -1,18 +1,19 @@
 # Adapter Worker OS Isolation — Implementation Plan
 
-> Status: implementation plan with a hosted-CI-verified low-level Windows AppContainer launch/test harness; no production WindowsAppContainerWorkerExecutor or complete cross-platform sandbox rollout is implemented.
+> Status: low-level Windows AppContainer launch and bounded stdio primitives are implemented; the fixed Worker entrypoint is CI-verified through Run #664. The newer launch-plan and staged-byte verification slice is awaiting executable CI. No production WindowsAppContainerWorkerExecutor or complete cross-platform sandbox rollout exists.
 >
-> Decision: implement and verify Windows first because the intended owner runtime is Windows, then implement Linux parity. Do not enable any untrusted adapter until both the target OS backend and its adversarial tests pass.
+> Decision: implement and verify Windows first because the intended owner runtime is Windows, then implement Linux parity. Do not enable any untrusted adapter until the target OS backend, trusted runtime package, and adversarial tests pass.
 
-## Current implementation status — supersedes earlier point-in-time notes
+## Current implementation status — 2026-11-19
 
-The detailed subsections below were written incrementally and preserve the implementation history. Where an earlier subsection says that process creation, pipes, Job Object assignment, Python execution, or adversarial tests are "not yet" implemented, read that statement as the status at the time that subsection was written. The current verified state is:
-
-- Low-level Windows AppContainer process creation, Job Object assignment, explicit pipe-handle inheritance, bounded stdio, timeout/overflow termination, and ephemeral profile cleanup are implemented.
-- The Windows harness has passed copied cmd.exe and copied CPython 3.12 runtime tests. Run #643 passed Ubuntu and Windows, 38 steps per matrix job.
-- The Python probe verifies isolated mode, no site initialization, no bytecode writes, standard-library/native-extension imports, runtime write denial, temp-directory boundaries, and parent-environment secret absence.
-- Host-positive TCP probes to public 1.1.1.1:443 and link-local metadata 169.254.169.254:80 were denied from the AppContainer. Separate loopback and host-private-interface probes also passed.
-- No production WindowsAppContainerWorkerExecutor exists. The current ObservationRequest/WorkerRequest contracts do not yet carry host-fetched DTO bytes. Linux Bubblewrap and local Windows/DSH verification remain outstanding.
+- Confirmed CI Run #664 passed Ubuntu and Windows before the launch-plan additions. Runs #665–#672 failed before runner allocation on both matrix jobs; there were no executed steps or useful logs. The cause is unknown. All changes after #664 remain CI-unverified.
+- Low-level Windows primitives already exist: ephemeral AppContainer profile and zero-capability token attributes, handle-based runtime/temp ACL helpers, explicit environment block, Job Object resource policy, explicit inherited anonymous pipes, suspended process launch, and bounded concurrent stdio with timeout/output-overflow termination.
+- Protocol v4 and fixed static Worker entrypoint are implemented. The entrypoint consumes one bounded request from stdin through EOF and emits one response; it does not connect to QQ/Bilibili or access the network.
+- `windows_launch_plan.py` now constrains execution to the compiled SurfCore QQ read-only binding, CPython 3.12.x, fixed interpreter/entrypoint paths, and fixed isolated-mode arguments. It re-verifies staged file-set and digest integrity before plan creation. This code is not yet CI-verified.
+- No production executor composes these pieces into one fail-closed lifecycle.
+- No runtime bundle builder/distribution pipeline exists yet. The current manifest verifier checks internal file-set/size/SHA-256 consistency but does not authenticate the manifest's origin. A maliciously replaced manifest and matching files would remain internally consistent if the bundle root were not independently trusted.
+- Required next gate: define deterministic package contents/dependency closure, host-trusted bundle provenance (pinned manifest digest or signature plus protected bundle root), build tooling and tests. Then restore CI execution, validate launch-plan code, and only afterward compose the production executor.
+- Linux Bubblewrap, live platform ingress, and owner-local Windows/DSH verification remain outstanding.
 
 ## 1. Why this is the next critical path
 
