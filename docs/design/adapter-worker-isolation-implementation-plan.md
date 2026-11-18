@@ -356,3 +356,8 @@ The first Python runtime integration run proved that CPython 3.12 and the select
 Run #641 passed on Ubuntu and Windows. The Windows AppContainer process suite copied CPython 3.12 into the isolated read-only runtime, launched it with `-I -S -B`, imported standard-library modules and native extensions (`ssl`, `sqlite3`), confirmed `sys.path` stayed within the runtime tree, confirmed a parent-only secret was absent, denied runtime writes, and allowed writes only to the explicitly provisioned temp directory plus the OS-managed temp path inside the ephemeral AppContainer profile. Run #640 was the failed first attempt and is retained as historical failure evidence.
 
 This validates the Python runtime in the low-level launch harness; it does not constitute a production `WindowsAppContainerWorkerExecutor` or a real adapter protocol execution.
+
+
+### 3.14 Connection-only link-local metadata and public network probes
+
+The Python AppContainer probe now tries TCP handshakes to public `1.1.1.1:443` and link-local metadata `169.254.169.254:80`. It first performs the same TCP connection from the host and only includes destinations that the host can reach. The worker then attempts the same connection and must be denied. No HTTP request or metadata/application payload is sent. The test logs which host-positive destinations were available, so a missing positive control is not misreported as verified isolation. CI pending.

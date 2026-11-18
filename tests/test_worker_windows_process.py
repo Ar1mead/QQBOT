@@ -201,6 +201,8 @@ print(json.dumps({
     "outside_sys_path": outside_paths,
 }, sort_keys=True))
 '''
+        print("Host-positive TCP network probe targets:", host_targets)
+
         secret_name = "QQBOT_PARENT_SECRET"
         previous_secret = os.environ.get(secret_name)
         os.environ[secret_name] = "HOST_ONLY_SECRET_MARKER"

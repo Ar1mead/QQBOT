@@ -1249,3 +1249,11 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - This verifies a real copied Python runtime under the current low-level launcher harness. It does **not** yet implement the production `WindowsAppContainerWorkerExecutor` or run a real adapter protocol module.
 - Next Windows gap: connection-only denial probes for link-local/cloud metadata and public destinations, using host-side positive controls. Then compose the low-level modules into the host-owned executor.
 - Hosted CI only; no local Windows/DSH verification. Linux Bubblewrap and live SurfCore ingress remain unimplemented. PR #1 remains Draft/Open/Unmerged.
+
+
+## Windows network isolation probes extended — pending CI
+
+- Extended the copied-Python AppContainer probe with connection-only TCP checks to public `1.1.1.1:443` and link-local metadata `169.254.169.254:80`.
+- Each destination is attempted from the host first. The worker only attempts destinations for which the host established a TCP connection, then immediately closes any connection; no HTTP request, metadata token request, or application payload is sent.
+- The worker must fail to connect to every host-positive destination. The test logs which positive-control destinations were actually available; unavailable host routes are not counted as verified coverage.
+- Run pending. Existing loopback and host-private-interface tests remain separate and previously passed in Run #640/#641.
