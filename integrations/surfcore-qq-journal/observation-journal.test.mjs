@@ -133,6 +133,17 @@ test("text extraction records omitted segment coverage and truncation", () => {
   assert.equal(extractIncomingText([{ type: "image", data: { url: "x" } }]).accepted, false);
 });
 
+test("identifier validation and Unicode truncation do not produce malformed text", () => {
+  const invalid = evaluateIncomingObservation({
+    config: config(), conversationKind: "private", conversationId: { id: "friend-1" },
+    senderId: "friend-1", event: privateEvent(),
+  });
+  assert.equal(invalid.reason, "missing_source_identity");
+  const truncated = extractIncomingText("A😀BC", 2);
+  assert.equal(truncated.content, "A😀");
+  assert.equal(truncated.complete, false);
+});
+
 test("journal captures a DTO accepted by the Python mapper and hides raw QQ identifiers", async (t) => {
   const { directory, journal } = await fixture(t);
   const result = await journal.capture(privateEvent(), { conversationKind: "private" });
