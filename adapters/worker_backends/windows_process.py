@@ -27,6 +27,7 @@ from .windows_appcontainer import (
     STARTUPINFOEX,
     HANDLE,
     require_win64,
+    get_appcontainer_folder_path,
     JOB_OBJECT_CPU_RATE_CONTROL_ENABLE,
     JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP,
 )

@@ -279,6 +279,7 @@ class EmptyAppContainerCapabilities:
         if not isinstance(appcontainer_sid, str) or not appcontainer_sid.startswith("S-1-15-2-"):
             raise ValueError("appcontainer_sid must be an AppContainer package SID")
 
+        self.appcontainer_sid = appcontainer_sid
         self._kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         self._advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
         convert = self._advapi32.ConvertStringSidToSidW
@@ -313,3 +314,40 @@ class EmptyAppContainerCapabilities:
 
     def __exit__(self, exc_type, exc, traceback) -> None:
         self.close()
+
+
+def get_appcontainer_folder_path(appcontainer_sid: str) -> str:
+    """Return the OS-managed LocalAppData folder for this AppContainer SID.
+
+    Windows requires the AppContainer profile path in the child's LOCALAPPDATA
+    environment variable when constructing the process environment. The native
+    string is allocated by COM and must be released with CoTaskMemFree.
+    """
+    require_win64()
+    if (
+        not isinstance(appcontainer_sid, str)
+        or not re.fullmatch(r"S-1-15-2-(?:[0-9]+-){6}[0-9]+", appcontainer_sid)
+    ):
+        raise ValueError("appcontainer_sid must be a canonical AppContainer package SID")
+
+    userenv = ctypes.WinDLL("userenv", use_last_error=True)
+    ole32 = ctypes.WinDLL("ole32", use_last_error=True)
+    get_path = userenv.GetAppContainerFolderPath
+    get_path.argtypes = [ctypes.c_wchar_p, ctypes.POINTER(ctypes.c_wchar_p)]
+    get_path.restype = ctypes.c_long
+    free = ole32.CoTaskMemFree
+    free.argtypes = [LPVOID]
+    free.restype = None
+
+    path_pointer = ctypes.c_wchar_p()
+    hr = int(get_path(appcontainer_sid, ctypes.byref(path_pointer))) & 0xFFFFFFFF
+    if hr != 0 or not path_pointer.value:
+        raise OSError(f"GetAppContainerFolderPath failed: HRESULT 0x{hr:08X}")
+    try:
+        path = path_pointer.value
+        if not path or not os.path.isabs(path):
+            raise OSError("GetAppContainerFolderPath returned a non-absolute path")
+        return os.path.normpath(path)
+    finally:
+        if path_pointer:
+            free(ctypes.cast(path_pointer, LPVOID))

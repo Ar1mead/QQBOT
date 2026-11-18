@@ -149,6 +149,10 @@ class WorkerStartupAttributes:
     def inherited_handle_values(self) -> tuple[int, ...]:
         return self._inherited_handle_values
 
+    @property
+    def appcontainer_sid(self) -> str:
+        return self._capabilities.appcontainer_sid
+
     def validate_live(self) -> None:
         if not self._initialized or not self._attribute_list:
             raise RuntimeError("STARTUPINFOEX attribute list is already closed")

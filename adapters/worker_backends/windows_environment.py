@@ -12,6 +12,7 @@ ALLOWED_ENVIRONMENT_KEYS = frozenset(
     {
         "SYSTEMROOT",
         "WINDIR",
+        "LOCALAPPDATA",
         "TEMP",
         "TMP",
         "PATH",
@@ -22,7 +23,7 @@ ALLOWED_ENVIRONMENT_KEYS = frozenset(
         "PYTHONSAFEPATH",
     }
 )
-REQUIRED_ENVIRONMENT_KEYS = frozenset({"SYSTEMROOT", "WINDIR", "TEMP", "TMP"})
+REQUIRED_ENVIRONMENT_KEYS = frozenset({"SYSTEMROOT", "WINDIR", "LOCALAPPDATA", "TEMP", "TMP"})
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,7 @@ def build_worker_environment(values: Mapping[str, str]) -> WorkerEnvironment:
     if missing:
         raise ValueError(f"missing required environment variables: {', '.join(sorted(missing))}")
 
-    for key in ("SYSTEMROOT", "WINDIR", "TEMP", "TMP"):
+    for key in ("SYSTEMROOT", "WINDIR", "LOCALAPPDATA", "TEMP", "TMP"):
         if not ntpath.isabs(normalized[key]):
             raise ValueError(f"{key} must be an absolute Windows path")
 

@@ -1,4 +1,5 @@
 import ctypes
+import os
 import unittest
 
 from adapters.worker_backends import windows_appcontainer as win
@@ -46,6 +47,14 @@ class WindowsAppContainerLayoutTests(unittest.TestCase):
             self.assertTrue(bool(capabilities.value.AppContainerSid))
         with self.assertRaisesRegex(RuntimeError, "already closed"):
             capabilities.__enter__()
+
+
+    @unittest.skipUnless(os.name == "nt", "Windows AppContainer API")
+    def test_profile_local_appdata_path_is_returned_by_userenv(self):
+        sid = win.ensure_appcontainer_profile_sid("Ar1mead.QQBOT.Worker.CI")
+        path = win.get_appcontainer_folder_path(sid)
+        self.assertTrue(os.path.isabs(path))
+        self.assertTrue(os.path.isdir(path))
 
     def test_platform_guard_rejects_non_windows(self):
         if __import__("os").name == "nt":

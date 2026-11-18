@@ -12,6 +12,7 @@ class WorkerEnvironmentTests(unittest.TestCase):
         return {
             "SystemRoot": r"C:\Windows",
             "WINDIR": r"C:\Windows",
+            "LOCALAPPDATA": r"C:\WorkerLocalAppData",
             "TEMP": r"C:\WorkerTemp",
             "TMP": r"C:\WorkerTemp",
             "PATH": r"C:\PythonRuntime",
@@ -59,6 +60,10 @@ class WorkerEnvironmentTests(unittest.TestCase):
         values = self.valid_values()
         values["TEMP"] = "relative"
         with self.assertRaisesRegex(ValueError, "absolute Windows path"):
+            build_worker_environment(values)
+        values = self.valid_values()
+        values["LOCALAPPDATA"] = "relative"
+        with self.assertRaisesRegex(ValueError, "LOCALAPPDATA"):
             build_worker_environment(values)
 
     def test_rejects_nul_values_and_bad_python_flags(self):

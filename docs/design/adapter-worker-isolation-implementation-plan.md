@@ -124,6 +124,22 @@ Two preparation modules are now present:
 - `adapters/worker_backends/windows_environment.py` builds a sorted Unicode environment block from a strict allowlist. It requires absolute `SystemRoot`, `WINDIR`, `TEMP`, and `TMP` paths; rejects unknown names, case-colliding names, NULs, empty values, and oversized blocks; and forces Python's no-user-site, no-bytecode, and safe-path flags. It never copies the host's ambient environment.
 - These are resource-preparation helpers only. No process is created, no pipes are read or written, no output limit or timeout is enforced, and no process has been assigned to a Job Object.
 
+### 3.8.1 AppContainer LOCALAPPDATA requirement discovered by the first launch attempt
+
+The first Windows AppContainer process creation attempt returned Win32 error 203. The environment block was syntactically valid, but it omitted the AppContainer-specific `LOCALAPPDATA` variable. Microsoft's AppContainer launch documentation states that the container profile is accessed through `LOCALAPPDATA` or `GetAppContainerFolderPath`; the documented value is the profile's AppContainer local-data directory, not an arbitrary host or worker temp path.
+
+The implementation now:
+
+- adds `LOCALAPPDATA` to the strict environment allowlist and required absolute-path set;
+- exposes the SID associated with the live `EmptyAppContainerCapabilities` lease;
+- calls `GetAppContainerFolderPath` for that exact SID and frees the returned path with `CoTaskMemFree`;
+- requires the launch environment's `LOCALAPPDATA` to match that OS-managed path and requires the folder to exist;
+- keeps `TEMP` and `TMP` pointed at the separately ACL-hardened per-run working directory.
+
+The Windows launch test now uses the API-returned AppContainer profile path. This is a correction based on Microsoft's documented environment contract, not yet a verified launch result; the corrected process-launch CI run is pending.
+
+Reference: [Microsoft — Launch an AppContainer](https://learn.microsoft.com/en-us/windows/win32/secauthz/implementing-an-appcontainer) and [GetAppContainerFolderPath](https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-getappcontainerfolderpath).
+
 ### 3.8 Suspended AppContainer process launch — first end-to-end launch path
 
 The reference module `adapters/worker_backends/windows_process.py` now implements the launch ordering:

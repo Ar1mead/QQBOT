@@ -962,3 +962,13 @@ At the time of this update:
 - Post-creation failure handling terminates the Job Object or closes its kill-on-close handle, then requires a signaled process handle before declaring cleanup successful. It raises a fatal cleanup error rather than claiming cleanup if termination cannot be confirmed.
 - Added a Windows integration test that attempts to run a harmless `cmd.exe /d /c echo WORKER_OK` inside the AppContainer and checks process exit/output. This test is **pending CI**; it is not yet evidence of successful AppContainer launch.
 - No pipe I/O supervisor, output-size cap, stderr/stdout streaming loop, timeout enforcement, host-file/network/child-process adversarial tests, or production WorkerExecutor exists yet. No real platform adapter may be enabled.
+
+
+## Windows AppContainer launch attempt — Run #625 failure and LOCALAPPDATA correction
+
+- Run #625 passed the Ubuntu job. The Windows focused process-launch test reached `CreateProcessW` but failed with Win32 error 203 (`ERROR_ENVVAR_NOT_FOUND`). The launcher had supplied a valid explicit environment block but omitted `LOCALAPPDATA`.
+- Microsoft documents that an AppContainer profile is accessed via `LOCALAPPDATA` or `GetAppContainerFolderPath`; the environment value is the AppContainer's OS-managed local-data directory. This is distinct from the per-run `TEMP/TMP` directory.
+- Added `get_appcontainer_folder_path(sid)`, which calls `GetAppContainerFolderPath` and releases its returned buffer with `CoTaskMemFree`. The live capability lease now exposes its package SID, and the startup owner exposes that same SID.
+- Added `LOCALAPPDATA` to the strict environment allowlist/required keys. The launcher now checks that it exactly matches the path returned by `GetAppContainerFolderPath` for the same startup SID and that the directory exists. `TEMP/TMP` remain separate and must match the per-run working directory.
+- Updated the Windows integration test to use the API-returned path and added a Windows test for the path API. The corrected launch attempt is pending CI; do not treat Run #625 as successful.
+- Reference: [Microsoft Launch an AppContainer](https://learn.microsoft.com/en-us/windows/win32/secauthz/implementing-an-appcontainer) and [GetAppContainerFolderPath](https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-getappcontainerfolderpath).

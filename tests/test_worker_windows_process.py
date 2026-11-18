@@ -82,6 +82,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
                 {
                     "SystemRoot": system_root,
                     "WINDIR": system_root,
+                    "LOCALAPPDATA": app.get_appcontainer_folder_path(sid),
                     "TEMP": worker_temp,
                     "TMP": worker_temp,
                     "PATH": system32,
