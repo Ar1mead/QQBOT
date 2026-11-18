@@ -97,6 +97,15 @@ class WorkerProtocolTests(unittest.TestCase):
         with self.assertRaisesRegex(WorkerProtocolError, "unavailable response"):
             WorkerResponse("r", "a", "1", "unavailable", evidence=({"x": 1},))
 
+    def test_decoder_rejects_nonstandard_json_constants(self):
+        raw = (
+            '{"protocol_version":1,"message_type":"observation_response",'
+            '"request_id":"r","adapter_id":"a","adapter_version":"1",'
+            '"status":"unavailable","evidence":[],"warnings":[],"error_code":NaN}'
+        )
+        with self.assertRaisesRegex(WorkerProtocolError, "non-standard JSON constant"):
+            decode_response(raw)
+
     def test_response_rejects_unknown_fields(self):
         raw = (
             '{"protocol_version":1,"message_type":"observation_response",'
