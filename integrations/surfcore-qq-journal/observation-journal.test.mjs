@@ -152,7 +152,7 @@ test("journal captures a DTO accepted by the Python mapper and hides raw QQ iden
   const bytes = await fs.readFile(path.join(directory, "qq-observations-v1.jsonl"), "utf8");
   assert.equal(bytes.includes("bot-account-1"), false);
   assert.equal(bytes.includes("friend-1"), false);
-  assert.equal(bytes.includes("\\"message_id\\""), false);
+  assert.equal(bytes.includes('"message_id"'), false);
   assert.equal(bytes.includes("\\"101\\""), false);
 });
 
@@ -219,7 +219,7 @@ test("duplicate-key JSON lines are rejected during recovery", async (t) => {
   await journal.close();
   const file = path.join(directory, "qq-observations-v1.jsonl");
   const validLine = (await fs.readFile(file, "utf8")).trimEnd();
-  await fs.writeFile(file, validLine.replace("{", '{"schema_version":1,') + "\\n");
+  await fs.writeFile(file, validLine.replace("{", '{"schema_version":1,') + "\n");
   const reopened = createObservationJournal({
     directory, accountId: "bot-account-1", hmacKey: Buffer.alloc(32, 7),
     config: config(), secureDirectory: async () => {},
