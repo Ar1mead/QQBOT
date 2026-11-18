@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { TextDecoder } from "node:util";
 import { evaluateIncomingObservation, extractIncomingText, normalizeObservationIngressConfig } from "./observation-policy.mjs";
 
 const RECORD_FIELDS = new Set([
@@ -22,7 +23,9 @@ function requireString(value, field) {
 }
 
 function isIsoDate(value) {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
+  if (typeof value !== "string") return false;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) && date.toISOString() === value;
 }
 
 function opaqueRef(key, domain, value) {
@@ -48,6 +51,13 @@ function validateRecord(record, expectedStreamRef, expectedCursor) {
   }
   for (const field of ["record_id", "external_ref", "account_ref", "conversation_ref", "sender_ref",
     "content", "source_ref", "extraction_method"]) requireString(record[field], field);
+  const opaquePattern = /^hmac:v1:[a-f0-9]{64}$/;
+  for (const field of ["record_id", "external_ref", "account_ref", "conversation_ref", "sender_ref"]) {
+    if (!opaquePattern.test(record[field])) throw new Error("record_opaque_reference_invalid");
+  }
+  if (record.source_ref !== `surfcore://qq/message/${record.external_ref}`) {
+    throw new Error("record_source_reference_invalid");
+  }
   if (!isIsoDate(record.observed_at) || !isIsoDate(record.received_at)) throw new Error("record_timestamp_invalid");
   if (record.extraction_method !== EXTRACTION_METHOD || record.content.length > 16000) {
     throw new Error("record_content_limit_invalid");
