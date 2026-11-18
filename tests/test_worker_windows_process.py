@@ -1,3 +1,4 @@
+import ipaddress
 import os
 import socket
 import tempfile
@@ -218,6 +219,66 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
             listener.close()
             server.join(timeout=4)
         self.assertFalse(accepted, "AppContainer unexpectedly connected to host loopback")
+
+
+    def test_appcontainer_cannot_connect_to_host_private_interface(self):
+        system_root = os.environ["SystemRoot"]
+        curl_path = os.path.join(system_root, "System32", "curl.exe")
+        if not os.path.isfile(curl_path):
+            self.skipTest("curl.exe is unavailable on this Windows runner")
+
+        candidates = []
+        for entry in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET, socket.SOCK_STREAM):
+            address = entry[4][0]
+            parsed = ipaddress.ip_address(address)
+            if parsed.is_private and not parsed.is_loopback and not parsed.is_link_local:
+                candidates.append(address)
+        if not candidates:
+            self.skipTest("Windows runner has no discoverable private IPv4 interface")
+
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            listener.bind((candidates[0], 0))
+            listener.listen(2)
+            listener.settimeout(3)
+        except OSError:
+            listener.close()
+            self.skipTest("could not bind a test listener to the private interface")
+        port = listener.getsockname()[1]
+        accepted = []
+
+        def serve_two():
+            for _ in range(2):
+                try:
+                    connection, _ = listener.accept()
+                    with connection:
+                        accepted.append(True)
+                        connection.sendall(b"PRIVATE_NETWORK_ALLOWED_MARKER")
+                except OSError:
+                    return
+
+        server = threading.Thread(target=serve_two, name="worker-private-interface-server", daemon=True)
+        server.start()
+        try:
+            # Positive control: prove the host itself can reach this listener.
+            with socket.create_connection((candidates[0], port), timeout=2) as host_connection:
+                self.assertIn(b"PRIVATE_NETWORK_ALLOWED_MARKER", host_connection.recv(128))
+
+            with self._worker_session(
+                [
+                    "--max-time", "2", "--silent", "--show-error",
+                    "--data-binary", "@-", f"http://{candidates[0]}:{port}/",
+                ],
+                application_name="curl.exe",
+            ) as (worker, worker_pipes, worker_job, worker_temp):
+                result = self._execute(worker, worker_pipes, worker_job, timeout_ms=8000)
+                self.assertNotEqual(result.exit_code, 0)
+                self.assertNotIn(b"PRIVATE_NETWORK_ALLOWED_MARKER", result.stdout)
+                self.assertNotIn(b"PRIVATE_NETWORK_ALLOWED_MARKER", result.stderr)
+        finally:
+            listener.close()
+            server.join(timeout=4)
+        self.assertEqual(len(accepted), 1, "AppContainer unexpectedly reached the private interface")
 
     def test_job_active_process_limit_blocks_child_process_creation(self):
         command = 'set /p _= & start /b cmd.exe /d /c echo CHILD_PROCESS_MARKER'

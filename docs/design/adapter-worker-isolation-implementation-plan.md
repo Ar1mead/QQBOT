@@ -298,3 +298,5 @@ Run #631 passed the positive/negative write test: the worker created a file in i
 The Windows Job Object adversarial suite now includes a kill-on-close test: a running worker is left blocked on stdin, the host closes the Job Object handle, and the test requires the worker process handle to become signaled. This is pending CI.
 
 Run #632 verified kill-on-close against a live process: the worker was launched and left waiting on stdin, the host closed the Job Object handle, and the process handle became signaled. This is stronger than the earlier configuration-only read-back test.
+
+A private-interface network probe has been added: the host first proves it can connect to a listener bound to its own private IPv4 address, then the AppContainer worker attempts the same TCP connection. The worker must fail and the server must receive no second connection. This test is pending Windows CI.

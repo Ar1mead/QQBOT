@@ -1094,3 +1094,10 @@ At the time of this update:
 - Run #632 also retained all previously passing Windows adversarial tests: temp write boundary, host marker read denial, loopback denial, child-process limit, timeout, output overflow, and normal stdio.
 - Hosted CI is not local Windows/DSH verification. Private/link-local/metadata/public network probes and broader filesystem coverage remain outstanding.
 - PR #1 remains **Draft**, **Open**, and **Unmerged**.
+
+
+## Windows private-interface network denial test added — pending CI
+
+- Added a second network denial test that discovers a private IPv4 address assigned to the Windows runner, starts a host TCP listener on that address, and first verifies the host can connect (positive control).
+- The AppContainer worker then attempts the same connection using `curl.exe`; the test requires connection failure and confirms the host listener received no second connection.
+- This supplements loopback denial with a real host-private-interface positive control. It is pending CI; public and metadata destinations remain separate coverage.
