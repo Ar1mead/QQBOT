@@ -50,7 +50,6 @@ function groupEvent(overrides = {}) {
 
 async function fixture(t, options = {}) {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "surfcore-qq-journal-"));
-  t.after(async () => fs.rm(directory, { recursive: true, force: true }));
   const journal = createObservationJournal({
     directory,
     accountId: "bot-account-1",
@@ -62,6 +61,10 @@ async function fixture(t, options = {}) {
     log: options.log ?? (() => {}),
   });
   await journal.open();
+  t.after(async () => {
+    await journal.close().catch(() => {});
+    await fs.rm(directory, { recursive: true, force: true });
+  });
   return { directory, journal };
 }
 
