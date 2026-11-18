@@ -165,7 +165,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
     def test_closing_job_object_kills_the_running_worker(self):
         command = "set /p _= & for /l %i in (1,1,2147483647) do @rem"
         with self._worker_session(["/d", "/c", command]) as (
-            worker, worker_pipes, worker_job, worker_temp
+            worker, worker_pipes, worker_job, worker_temp, runtime_temp
         ):
             self.assertTrue(worker.handle)
             worker_job.close()
@@ -181,7 +181,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
                 "echo TEMP_WRITE_MARKER > worker-write-test.txt"
             )
             with self._worker_session(["/d", "/c", command]) as (
-                worker, worker_pipes, worker_job, worker_temp
+                worker, worker_pipes, worker_job, worker_temp, runtime_temp
             ):
                 result = self._execute(worker, worker_pipes, worker_job)
                 self.assertEqual(result.exit_code, 0)

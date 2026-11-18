@@ -1127,3 +1127,11 @@ At the time of this update:
 - The suite also includes a reparse-point rejection test; it skips only if the Windows runner cannot create a symlink. The workflow step passed, but the run log available to this checkpoint does not distinguish pass from conditional skip for that one case.
 - This verifies ACL descriptor setup/read-back on hosted Windows, not yet that a copied runtime executable can launch under those ACLs. The next process integration test will execute a copied `cmd.exe` from a separately ACL-hardened runtime directory.
 - PR #1 remains Draft/Open/Unmerged.
+
+
+## Windows copied-runtime process test Run #635 fixture correction
+
+- Run #635 verified that the copied `cmd.exe` in the separately ACL-hardened runtime directory could launch and execute commands; the runtime read/execute-only positive/negative write test passed.
+- Two other tests failed because their context-manager destructuring still expected four yielded values after the helper began returning five (it now also returns the runtime directory path).
+- The resulting fixture exception interrupted normal cleanup and left the copied executable locked, producing a secondary temporary-directory cleanup error. This is a test fixture mismatch; the process launch and runtime directory test passed.
+- Updated the two stale tuple destructuring sites to accept the fifth value. Run #635 remains failed on Windows; a new run is required to verify cleanup and the full suite.
