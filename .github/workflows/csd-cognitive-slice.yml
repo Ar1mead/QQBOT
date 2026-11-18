@@ -8,6 +8,7 @@ on:
       - "core/csd/**"
       - "core/life_engine/**"
       - "adapters/**"
+      - "integrations/surfcore-qq-journal/**"
       - "tests/test_adapter_observation_contract.py"
       - "tests/test_csd_observation_v2.py"
       - "tests/test_bilibili_target.py"
@@ -32,7 +33,8 @@ on:
       - "core/csd/**"
       - "core/life_engine/**"
       - "adapters/**"
-      - "tests/test_csd_observation_v2.py"
+
+      - "integrations/surfcore-qq-journal/**"      - "tests/test_csd_observation_v2.py"
       - "tests/test_csd_goals.py"
       - "tests/test_adapter_observation_contract.py"
       - "tests/test_bilibili_target.py"
@@ -73,6 +75,12 @@ jobs:
         run: python -c "import sqlite3,sys; print('Python:', sys.version); print('SQLite:', sqlite3.sqlite_version)"
       - name: Compile CSD and tests
         run: python -m compileall -q adapters core tests
+      - name: Set up Node.js for SurfCore journal reference tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run SurfCore QQ journal reference tests
+        run: node --test integrations/surfcore-qq-journal/observation-journal.test.mjs
       - name: Run cognitive-memory slice tests
         run: python -m unittest discover -s tests -p "test_csd_cognitive.py" -v
       - name: Run CSD motivation state tests
