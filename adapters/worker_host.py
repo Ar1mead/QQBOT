@@ -33,7 +33,13 @@ class WorkerExecutionError(RuntimeError):
 
 
 class WorkerExecutor(Protocol):
-    """Trusted host-owned backend that must enforce OS isolation before use."""
+    """Trusted host-owned backend that must enforce OS isolation before use.
+
+    Implementations must enforce the timeout by terminating the worker and
+    must stop reading output once max_response_bytes is exceeded. WorkerHost
+    rechecks returned bytes, but cannot undo memory already allocated by a
+    backend that ignores this streaming limit.
+    """
 
     def execute(
         self,
