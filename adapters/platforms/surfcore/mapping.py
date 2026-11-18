@@ -1,8 +1,9 @@
 """Pure mapper for versioned, read-only SurfCore observation DTOs.
 
+The worker-safe path converts DTOs into untrusted ObservationEvidence only.
+Host-only CSD event conversion is lazy and never imported by the Worker entrypoint.
 This module performs no network, filesystem, credential, or platform operations.
-It converts already-normalized DTOs into untrusted ObservationEvidence / CSD
-Observation v2 events. QQ cursor advancement is proposed, never persisted here.
+QQ cursor advancement is proposed, never persisted here.
 """
 from __future__ import annotations
 
@@ -20,9 +21,6 @@ from adapters.contracts.observation import (
     ObservationCoverage,
     ObservationEvidence,
 )
-from adapters.csd_mapping import observation_evidence_to_csd_event
-from core.csd.cognitive import CognitiveEvent
-
 ADAPTER_VERSION = "0.1.0"
 SCHEMA_VERSION = 1
 MAX_CONTENT_CHARS = 256_000
@@ -281,19 +279,21 @@ def map_surfcore_record(record: Mapping[str, Any]) -> ObservationEvidence:
     )
 
 
-def map_surfcore_record_to_csd_event(record: Mapping[str, Any]) -> CognitiveEvent:
-    """Map a validated SurfCore DTO directly to a deterministic CSD event."""
+def map_surfcore_record_to_csd_event(record: Mapping[str, Any]):
+    """Host-only conversion of one validated DTO into a deterministic CSD event."""
+    from adapters.csd_mapping import observation_evidence_to_csd_event
+
     return observation_evidence_to_csd_event(map_surfcore_record(record))
 
 
 @dataclass(frozen=True)
-class SurfCoreQQBatch:
-    """Validated QQ page; proposed_cursor advances only after durable CSD writes."""
+class SurfCoreQQObservationBatch:
+    """Worker-safe validated QQ page containing evidence, never CSD events."""
 
     stream_ref: str
     after_cursor: int
     proposed_cursor: int
-    events: tuple[CognitiveEvent, ...]
+    evidence: tuple[ObservationEvidence, ...]
 
     def __post_init__(self) -> None:
         _nonempty(self.stream_ref, "batch.stream_ref")
@@ -301,16 +301,16 @@ class SurfCoreQQBatch:
         _cursor(self.proposed_cursor, "batch.proposed_cursor")
         if self.proposed_cursor < self.after_cursor:
             raise ValueError("proposed cursor cannot move backwards")
-        if any(not isinstance(event, CognitiveEvent) for event in self.events):
-            raise ValueError("batch events must be CognitiveEvent values")
+        if any(not isinstance(item, ObservationEvidence) for item in self.evidence):
+            raise ValueError("batch evidence must contain ObservationEvidence values")
 
 
-def map_surfcore_qq_batch(batch: Mapping[str, Any]) -> SurfCoreQQBatch:
-    """Validate a bounded QQ cursor page and map all records before checkpointing.
+def validate_surfcore_qq_batch(batch: Mapping[str, Any]) -> SurfCoreQQObservationBatch:
+    """Validate a bounded QQ cursor page and map records to untrusted evidence.
 
-    The caller must durably submit every returned event to CSD before persisting
-    proposed_cursor. If a crash happens first, the same page is replayed and CSD
-    event IDs make the repeated delivery idempotent.
+    This worker-safe function does not import or construct CSD events. The host
+    must durably submit all returned evidence to CSD before persisting the
+    proposed cursor.
     """
     if not isinstance(batch, Mapping):
         raise TypeError("QQ batch must be a mapping")
@@ -332,7 +332,7 @@ def map_surfcore_qq_batch(batch: Mapping[str, Any]) -> SurfCoreQQBatch:
 
     prior_cursor = after_cursor
     seen_ids: set[str] = set()
-    events: list[CognitiveEvent] = []
+    evidence: list[ObservationEvidence] = []
     for record in records:
         if not isinstance(record, Mapping) or record.get("platform") != "qq":
             raise ValueError("QQ batch may contain only QQ records")
@@ -348,11 +348,41 @@ def map_surfcore_qq_batch(batch: Mapping[str, Any]) -> SurfCoreQQBatch:
         prior_cursor = current_cursor
         if record.get("account_ref") != stream_ref:
             raise ValueError("QQ record account_ref must match batch stream_ref")
-        events.append(map_surfcore_record_to_csd_event(record))
+        evidence.append(map_surfcore_record(record))
 
-    return SurfCoreQQBatch(
+    return SurfCoreQQObservationBatch(
         stream_ref=stream_ref,
         after_cursor=after_cursor,
         proposed_cursor=next_cursor,
-        events=tuple(events),
+        evidence=tuple(evidence),
+    )
+
+
+@dataclass(frozen=True)
+class SurfCoreQQBatch:
+    """Host-side CSD event batch; cursor persists only after durable CSD writes."""
+
+    stream_ref: str
+    after_cursor: int
+    proposed_cursor: int
+    events: tuple[Any, ...]
+
+    def __post_init__(self) -> None:
+        _nonempty(self.stream_ref, "batch.stream_ref")
+        _cursor(self.after_cursor, "batch.after_cursor")
+        _cursor(self.proposed_cursor, "batch.proposed_cursor")
+        if self.proposed_cursor < self.after_cursor:
+            raise ValueError("proposed cursor cannot move backwards")
+
+
+def map_surfcore_qq_batch(batch: Mapping[str, Any]) -> SurfCoreQQBatch:
+    """Host-only compatibility mapper from a validated QQ page to CSD events."""
+    from adapters.csd_mapping import observation_evidence_to_csd_event
+
+    mapped = validate_surfcore_qq_batch(batch)
+    return SurfCoreQQBatch(
+        stream_ref=mapped.stream_ref,
+        after_cursor=mapped.after_cursor,
+        proposed_cursor=mapped.proposed_cursor,
+        events=tuple(observation_evidence_to_csd_event(item) for item in mapped.evidence),
     )
