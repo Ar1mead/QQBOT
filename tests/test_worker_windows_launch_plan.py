@@ -7,6 +7,7 @@ import unittest
 
 from adapters.worker_backends.runtime_bundle import (
     MANIFEST_FILENAME,
+    RuntimeBundleError,
     StagedRuntimeBundle,
     load_runtime_bundle,
     stage_runtime_bundle,
@@ -139,6 +140,18 @@ class WindowsWorkerLaunchPlanTests(unittest.TestCase):
             except (OSError, NotImplementedError):
                 self.skipTest("symlink creation is not permitted on this runner")
             with self.assertRaisesRegex(ValueError, "link or reparse"):
+                build_windows_worker_launch_plan(
+                    staged,
+                    adapter_id="surfcore.qq.readonly",
+                    adapter_version="0.1.0",
+                    operation="observe_batch",
+                )
+
+    def test_rechecks_staged_file_digests_before_launch(self):
+        with tempfile.TemporaryDirectory() as root:
+            staged = self.make_staged(root)
+            Path(staged.entrypoint_path).write_bytes(b"tampered after staging")
+            with self.assertRaisesRegex(RuntimeBundleError, "size mismatch|SHA-256 mismatch"):
                 build_windows_worker_launch_plan(
                     staged,
                     adapter_id="surfcore.qq.readonly",
