@@ -545,8 +545,7 @@ def cleanup_staged_runtime(staged: StagedRuntimeBundle) -> None:
     _remove_tree_no_follow(staged.root_path)
 
 
-def load_runtime_bundle(root_path: str) -> VerifiedRuntimeBundle:
-    """Load and verify bundle-manifest.json and every listed file."""
+def _read_runtime_manifest_bytes(root_path: str) -> tuple[str, bytes]:
     if not isinstance(root_path, str) or not root_path:
         raise ValueError("root_path must be a non-empty path")
     absolute_root = os.path.abspath(root_path)
@@ -569,5 +568,34 @@ def load_runtime_bundle(root_path: str) -> VerifiedRuntimeBundle:
         raise RuntimeBundleError("cannot read runtime bundle manifest") from exc
     if len(raw) > MAX_MANIFEST_BYTES:
         raise RuntimeBundleError("runtime bundle manifest exceeds the size limit")
+    return absolute_root, raw
+
+
+def load_runtime_bundle(root_path: str) -> VerifiedRuntimeBundle:
+    """Verify manifest/file consistency only; this does not authenticate origin."""
+    absolute_root, raw = _read_runtime_manifest_bytes(root_path)
+    manifest = parse_runtime_bundle_manifest(raw)
+    return verify_runtime_bundle(absolute_root, manifest)
+
+
+def load_trusted_runtime_bundle(
+    root_path: str,
+    *,
+    expected_manifest_sha256: str,
+) -> VerifiedRuntimeBundle:
+    """Load a bundle only when its exact manifest bytes match a host-pinned digest.
+
+    The expected digest must come from trusted host configuration, not from the
+    bundle itself. This authenticates the manifest identity under that pin; the
+    caller must still protect the source bundle root from untrusted writes.
+    """
+    if not isinstance(expected_manifest_sha256, str) or not _SHA256_RE.fullmatch(
+        expected_manifest_sha256
+    ):
+        raise ValueError("expected_manifest_sha256 must be 64 lowercase hexadecimal characters")
+    absolute_root, raw = _read_runtime_manifest_bytes(root_path)
+    actual_digest = hashlib.sha256(raw).hexdigest()
+    if actual_digest != expected_manifest_sha256:
+        raise RuntimeBundleError("runtime bundle manifest does not match the host-pinned SHA-256")
     manifest = parse_runtime_bundle_manifest(raw)
     return verify_runtime_bundle(absolute_root, manifest)
