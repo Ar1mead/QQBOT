@@ -173,6 +173,9 @@ class ObservationEvidence:
     context_kind: str | None = None
     context_ref: str | None = None
     actor_ref: str | None = None
+    actor_role: str | None = None
+    parent_ref: str | None = None
+    content_language: str | None = None
     source_sequence: int | None = None
     historical: bool = False
     untrusted: bool = True
@@ -210,6 +213,16 @@ class ObservationEvidence:
             _nonempty(self.context_ref, "evidence.context_ref")
         if self.actor_ref is not None:
             _nonempty(self.actor_ref, "evidence.actor_ref")
+        if self.actor_role is not None:
+            _nonempty(self.actor_role, "evidence.actor_role")
+        if (self.actor_ref is None) != (self.actor_role is None):
+            raise ValueError("evidence.actor_ref and actor_role must be provided together")
+        if self.parent_ref is not None:
+            _nonempty(self.parent_ref, "evidence.parent_ref")
+        if self.content_language is not None:
+            _nonempty(self.content_language, "evidence.content_language")
+            if not re.fullmatch(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*", self.content_language):
+                raise ValueError("evidence.content_language must be a BCP 47 language tag")
         if self.source_sequence is not None and (
             not isinstance(self.source_sequence, int)
             or isinstance(self.source_sequence, bool)
