@@ -184,14 +184,13 @@ Response envelope:
   "stream_ref": "opaque:qq-stream:...",
   "after_cursor": 120,
   "next_cursor": 128,
-  "earliest_cursor": 1,
   "records": []
 }
 ```
 
 `next_cursor` is the last cursor actually included in the page, or equals `after_cursor` when no records are returned. Do not advance it over records that were never appended. If policy filters an event before append, it receives no journal cursor. The consumer's checkpoint sequence is therefore contiguous across exported records, not across all raw QQ traffic.
 
-The service does not acknowledge reads. The CSD host writes all returned events durably first, then stores `next_cursor`. A crash before checkpoint persistence causes replay.
+The successful response envelope intentionally matches the existing Python mapper exact batch schema (`schema_version`, `stream_ref`, `after_cursor`, `next_cursor`, `records`) and must not add fields such as `earliest_cursor`. The `earliest_cursor` value is returned only in the distinct `410 cursor_expired` error body, which the consumer handles before attempting normal batch mapping. The service does not acknowledge reads. The CSD host writes all returned events durably first, then stores `next_cursor`. A crash before checkpoint persistence causes replay.
 
 ## 8. Consumer ordering with the existing adapter
 
