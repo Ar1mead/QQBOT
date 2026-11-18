@@ -101,9 +101,10 @@ class WorkerProcess:
 
     def close(self) -> None:
         if self.handle:
-            handle, self.handle = self.handle, None
+            handle = self.handle
             if not self._close(handle):
                 raise ctypes.WinError(ctypes.get_last_error())
+            self.handle = None
 
     def __enter__(self) -> "WorkerProcess":
         if not self.handle:
