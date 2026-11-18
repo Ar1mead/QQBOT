@@ -710,3 +710,10 @@ At the time of this update:
 - These were corrected in follow-up commits. The invalid-language CSD test now mutates a valid event payload so it reaches the CSD validator (rather than failing earlier in the Evidence constructor).
 - Current intended field rules: Bilibili records require video context and a matching BV reference plus a kind-specific actor role; actor identity may be absent if the platform does not expose it. Parent references are comment-only; language tags are subtitle-only. All values remain untrusted source provenance.
 - The newest code/test correction is commit `88c1f5ccae97d3a09a3ca86f0f1ed1c31348a53d`. The latest CI run must be checked before treating the Bilibili slice as verified; earlier failed runs are intermediate states and are not evidence of the corrected final commit.
+
+
+### Additional mapper allowlist correction — 2026-11-18
+
+- Run #603 caught one remaining schema omission: the Bilibili `context_kind` and `context_ref` fields were defined as required by the Bilibili contract but were not yet included in the exact optional-field allowlist used before platform-specific validation. They are now explicitly admitted; unknown fields remain fail-closed.
+- The CSD language-tag import and invalid-language test construction were also corrected in follow-up commits. Run #603's failure is an intermediate commit state; the next run containing commit `d975b93f4ed565a932f8f389ee9250b13d7009c4` is required to verify the allowlist fix.
+- Added `actor_role=sender` to the QQ contract example to match the mapper's strict DTO.
