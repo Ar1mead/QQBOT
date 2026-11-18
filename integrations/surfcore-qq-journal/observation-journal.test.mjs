@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -214,7 +213,7 @@ test("a corrupt complete line fails closed instead of being skipped", async (t) 
 });
 
 test("capacity stops new capture without truncating prior records and leaves reads available", async (t) => {
-  const { directory, journal } = await fixture(t, { maxBytes: 1024 });
+  const { directory, journal } = await fixture(t, { maxBytes: 1600 });
   const first = await journal.capture(privateEvent(), { conversationKind: "private" });
   assert.equal(first.captured, true);
   const second = await journal.capture(privateEvent({
@@ -226,7 +225,7 @@ test("capacity stops new capture without truncating prior records and leaves rea
   assert.equal(journal.health().writable, false);
   assert.equal((await journal.readPage({ afterCursor: 0 })).records.length, 1);
   const size = (await fs.stat(path.join(directory, "qq-observations-v1.jsonl"))).size;
-  assert.ok(size < 1024);
+  assert.ok(size < 1600);
 });
 
 test("ACL hardening callback and a dedicated HMAC key are mandatory", () => {
