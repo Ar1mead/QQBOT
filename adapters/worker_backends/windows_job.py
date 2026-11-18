@@ -110,9 +110,10 @@ class WorkerJobObject:
 
     def close(self) -> None:
         if self.handle:
-            handle, self.handle = self.handle, None
+            handle = self.handle
             if not self._close_handle(handle):
                 raise ctypes.WinError(ctypes.get_last_error())
+            self.handle = None
 
     def __enter__(self) -> "WorkerJobObject":
         if not self.handle:
