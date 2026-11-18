@@ -437,3 +437,8 @@ WorkerResponse now includes a required exact-key result_metadata object. The pro
 ### 3.20.1 Run #646 corrections
 
 Run #646 found that the v3 encoder emitted result_metadata but the decoder exact-key set omitted it; it also caught an incorrectly escaped control-character test fixture. Both were corrected. Run #647 pending.
+
+
+### 3.21 Host-side SurfCore QQ cursor metadata validator
+
+Added adapters/platforms/surfcore/worker_result.py with an immutable SurfCoreQQResultMetadata value and exact validator. It binds the returned stream reference and prior cursor to the host request checkpoint, rejects boolean/negative/backward cursors and unknown/duplicate fields, and returns the proposed cursor only as validated data. It performs no persistence. The caller must submit all observations durably to CSD before storing proposed_cursor. CI pending.

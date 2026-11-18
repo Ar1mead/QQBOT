@@ -1329,3 +1329,12 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
   2. One test fixture used a literal backslash-n sequence instead of an actual newline when checking control-character rejection.
 - The host API and metadata value bounds were not the cause. Corrected the decoder's exact response key set and the test fixture. Run #647 is required to verify the correction.
 - The Windows job was still running when the Ubuntu failure was first inspected; do not count Run #646 as passing.
+
+
+## SurfCore QQ cursor metadata validator added — CI pending
+
+- Added a host-side typed validator for the exact QQ result metadata shape: stream_ref, after_cursor, proposed_cursor.
+- The validator binds stream_ref to the host's expected stream, requires after_cursor to equal the checkpoint used for the request, rejects booleans/negative/backward cursors, and rejects missing/unknown/duplicate fields.
+- It returns an immutable SurfCoreQQResultMetadata value. It does not persist cursors or submit events to CSD; the caller must first durably accept all returned observations.
+- Added unit tests for valid metadata, empty-page cursor advance, stream/checkpoint mismatch, invalid cursor types/ranges, unknown fields, and duplicate keys.
+- This validator is a building block only. It is not yet wired into a live QQ adapter or production Windows executor. Protocol v3 CI Run #646 failed on an exact-key decoder omission and one test fixture; those corrections are in Run #647. The QQ metadata validator is being added as the next CI slice.
