@@ -171,3 +171,26 @@ No step in this plan authorizes modifying the SurfCore upstream repository autom
 - HTTP service/client: not implemented.
 - Real QQ/DSH connection: not tested.
 - User-local test: not performed.
+
+## 8. Isolated reference implementation in this repository
+
+A first executable reference slice now exists under `integrations/surfcore-qq-journal/`:
+
+- `observation-policy.mjs` — disabled-by-default configuration normalization, independent private/group allowlists, deny overrides, strict OneBot message provenance, and text-only segment extraction with explicit partial-coverage notes.
+- `observation-journal.mjs` — injected HMAC key and mandatory host ACL callback, domain-separated opaque references, serialized private/group appends, synced JSONL writes, strict startup recovery, incomplete-final-tail repair, corruption fail-closed behavior, bounded page reads, and a hard capacity ceiling that preserves existing records.
+- `observation-journal.test.mjs` — synthetic fixtures for policy, privacy, cursor ordering, duplicate source identity, restart recovery, corruption, partial media, and capacity behavior.
+- `.github/workflows/surfcore-qq-journal-reference.yml` — Node 22 Ubuntu/Windows test workflow.
+
+This code is a reference implementation in the individual-AI repository, not a SurfCore upstream patch. It is not imported by SurfCore, has no QQ SDK connection, and does not provision or persist the HMAC key. A production SurfCore caller must supply a dedicated random key and a verified Windows/Linux ACL-hardening callback.
+
+### Contract cross-check with the Python mapper
+
+The journal record is shaped to match the existing exact-key mapper in `adapters/platforms/surfcore/mapping.py`:
+
+- Every record has the required base fields plus QQ provenance: `account_ref`, `cursor`, `conversation_kind`, `conversation_ref`, `sender_ref`, `historical`, and `actor_role`.
+- `account_ref` equals the page `stream_ref`.
+- The page envelope is exactly `schema_version`, `stream_ref`, `after_cursor`, `next_cursor`, and `records`.
+- The first reference implementation emits only `qq.message.incoming`, with `historical=false`, `actor_role=sender`, text modality, explicit coverage, and opaque source/account/conversation/sender references.
+- No `stream_ref`, token, raw QQ ID, or unrecognized convenience field is added to an individual record.
+
+The reference test workflow has been added, but no passing result has yet been confirmed through the available status lookup. Treat these files as unverified until the Ubuntu and Windows jobs finish successfully.
