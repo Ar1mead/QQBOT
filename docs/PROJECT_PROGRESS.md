@@ -1285,3 +1285,10 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - WorkerHost passes the payload through unchanged to the serialized WorkerRequest. The worker still receives no source credentials and must not fetch its own input.
 - Added tests for payload round-trip, deterministic encoding, invalid base64, digest tampering, oversize rejection, ObservationRequest bounds, and WorkerHost payload propagation.
 - This closes the earlier design/code mismatch about DTO transport. It does not implement a SurfCore ingress client, a production WorkerExecutor, or real adapter execution. CI pending.
+
+
+## Run #644 — ObservationRequest payload field missing in first protocol-v2 integration
+
+- Ubuntu failed in the new ObservationRequest contract test because the first committed contract blob contained the validation logic but omitted the dataclass field declaration. The resulting constructor rejected the input_payload keyword.
+- The protocol and WorkerHost code already referenced the payload field. This was a code assembly omission, not a design rejection.
+- Corrected the contract source from the reviewed payload-enabled version and centralized the 512 KiB limit as MAX_OBSERVATION_INPUT_BYTES. The corrected commit is pending CI.

@@ -104,6 +104,7 @@ class ObservationRequest:
     request_id: str
     target_ref: str
     modalities: tuple[str, ...]
+    input_payload: bytes = b""
 
     def __post_init__(self) -> None:
         _nonempty(self.request_id, "request.request_id")
@@ -114,6 +115,10 @@ class ObservationRequest:
             raise ValueError("request.modalities must contain non-empty strings")
         if len(self.modalities) != len(set(self.modalities)):
             raise ValueError("request.modalities must not contain duplicates")
+        if not isinstance(self.input_payload, bytes):
+            raise ValueError("request.input_payload must be immutable bytes")
+        if len(self.input_payload) > MAX_OBSERVATION_INPUT_BYTES:
+            raise ValueError("request.input_payload exceeds the 512 KiB limit")
 
 
 @dataclass(frozen=True)

@@ -404,3 +404,8 @@ The prior pre-executor gap is now addressed at the request-contract layer:
 - WorkerHost passes the host-supplied bytes into the request envelope. The worker is still offline and receives no SurfCore credentials.
 
 This provides the bounded host-to-worker data plane required by the design. It does not create the host-side SurfCore ingress client or the production WindowsAppContainerWorkerExecutor. The latter remains the next implementation milestone. CI pending.
+
+
+### 3.16.1 Run #644 contract-field assembly correction
+
+Run #644 caught that the ObservationRequest validation referenced input_payload but the dataclass field declaration had not made it into the first assembled commit. The contract source now declares the immutable bytes field and uses a shared MAX_OBSERVATION_INPUT_BYTES constant. Run #645 must validate the full protocol-v2 request path.
