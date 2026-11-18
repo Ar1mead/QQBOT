@@ -139,11 +139,12 @@ class RuntimeBundleManifestTests(unittest.TestCase):
             self.write_bundle(root, value, file_bytes)
             manifest_bytes = Path(root, MANIFEST_FILENAME).read_bytes()
             pinned_digest = hashlib.sha256(manifest_bytes).hexdigest()
-            verified = load_trusted_runtime_bundle(
+            trusted = load_trusted_runtime_bundle(
                 root,
                 expected_manifest_sha256=pinned_digest,
             )
-            self.assertEqual(verified.manifest.bundle_id, "qqbot-worker-test")
+            self.assertEqual(trusted.verified_bundle.manifest.bundle_id, "qqbot-worker-test")
+            self.assertEqual(trusted.manifest_sha256, pinned_digest)
             with self.assertRaisesRegex(RuntimeBundleError, "host-pinned SHA-256"):
                 load_trusted_runtime_bundle(
                     root,
