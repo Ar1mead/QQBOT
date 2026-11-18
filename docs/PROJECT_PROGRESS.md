@@ -170,7 +170,6 @@ Important implementation boundary: the current CSD motivation decision path is d
 5. **Run full protocol/host/CSD regressions on Ubuntu and Windows.** Only after both OS backends pass their adversarial suites may a real read-only adapter be considered.
 6. **Return to SurfCore integration:** separately review the disabled-by-default upstream QQ journal patch, then its narrow read-only endpoint and CSD client; Bilibili follows with structured read-only data. Do not expose SurfCore credentials to workers or modify SurfCore upstream without a separate authorization/review.
 7. Keep the remaining CSD/Life Engine work (event replay audits, blocked/unblocked lifecycle, real deliberator/provider, self-initiated diary behavior, and ASM side-effect policy) queued behind the current isolation milestone; do not represent any of it as complete.
-7. **Only then build the first read-only Bilibili adapter and evaluate actual video/audio comprehension.**
 
 ## 8. Handoff rules for future sessions
 
