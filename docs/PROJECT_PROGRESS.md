@@ -812,3 +812,14 @@ At the time of this update:
 - Latest policy/journal/test commits: `b9192c8a53cb0084af99e118bfc28c6727e29957`, `86eaa378083499099513b1e727083cbf093c77a9`, and `5ab9a2618326ed3e6ea85058f2f1d136f268d9d8`.
 - The Node 22 test step is wired into the existing Ubuntu/Windows CSD workflow. GitHub status and PR-run lookups still return no check entries for this commit. The reference suite remains **unverified**; no pass is claimed.
 - PR #1 remains open and titled Draft. It has not been marked ready or merged.
+
+## 2026-11-18 — Priority reset: OS worker isolation before live SurfCore ingress
+
+- Reconstructed the earlier project sequence: worker protocol v1, host orchestration, and fake-executor tests were completed first; actual Windows/Linux process isolation was explicitly left as a security blocker. SurfCore DTO mapping, cursor/idempotency validation, and the QQ journal design/reference work followed, but no live transport was enabled.
+- Decision: return to the missing OS-isolation foundation before enabling live platform data in CSD. Keep the SurfCore QQ journal as an independent reference artifact; do not expand it into a live upstream connection until the worker boundary is verified.
+- Added `docs/design/adapter-worker-isolation-implementation-plan.md` with a Windows-first plan (AppContainer + explicit ACLs + Job Object + bounded anonymous pipes), followed by Linux parity (bubblewrap namespaces + filesystem allowlist + resource controls).
+- The first worker is intentionally offline: trusted host supplies bounded DTO bytes over an anonymous pipe; the worker gets no network, no SurfCore bearer credential, no CSD store, and no inherited parent environment. A future network adapter must use a separately reviewed host-owned egress broker, not broad worker network access.
+- Added an adversarial acceptance matrix for secret/CSD file visibility, filesystem writes, loopback/private/public network, child process creation, memory/CPU/process limits, timeout, output overflow, malformed responses, and crash handling.
+- This remains a design/implementation plan only. No Windows AppContainer launcher, Linux bubblewrap executor, ACL policy, Job Object policy, or adversarial sandbox test has been implemented yet.
+- Recommended next implementation slice: Windows backend prototype using Python `ctypes`, with all policy setup fail-closed; test AppContainer launch, narrow runtime/temp ACLs, Job Object assignment before resume, bounded pipes, and kill-on-timeout before attempting Linux parity.
+- No SurfCore upstream code, local user files, credentials, accounts, or runtime settings were changed. PR #1 remains Draft/Open/Unmerged.
