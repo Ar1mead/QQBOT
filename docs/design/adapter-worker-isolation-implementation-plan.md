@@ -157,6 +157,22 @@ Any failure after process creation attempts Job Object termination (or kill-on-c
 
 The returned `WorkerProcess` owns the process handle and supports bounded wait/exit-code inspection. The caller retains the Job Object, pipes, startup attribute list, and environment owners.
 
+### 3.9 Bounded concurrent stdio supervisor — implementation slice
+
+The module `adapters/worker_backends/windows_worker_io.py` now performs one bounded request/response exchange:
+
+- starts independent reader threads for stdout and stderr before writing input, preventing one full output pipe from blocking the worker while the host writes;
+- writes the request in chunks, with a 1 MiB maximum, then closes the host's stdin writer to signal EOF;
+- concurrently drains stdout (maximum 1 MiB) and stderr (maximum 64 KiB), retaining no more than the configured limits plus one detection byte;
+- enforces a 1–300,000 ms wall-clock deadline;
+- terminates the Job Object on timeout, pipe error, or output overflow, with kill-on-close and direct-process termination fallbacks, and requires a signaled process handle;
+- returns raw bounded stdout/stderr and the process exit code. It does not interpret protocol JSON; the existing host/protocol layer remains responsible for schema, request binding, evidence, and digest validation.
+
+The pipe supervisor is a separate orchestration helper. The caller still owns and must close the process handle, pipe owner, startup attribute list, capability lease, and Job Object. The Windows tests now exercise a successful stdio round trip and an output-overflow case that must terminate the worker.
+
+This still does not complete the security proof. Host-file/CSD-marker denial, network denial, child-process denial, and a timeout-specific adversarial case remain mandatory. A process that is merely launched inside AppContainer is not yet approved for untrusted adapters.
+
+
 **This is the first process launch implementation, not a complete WorkerExecutor.** The current Windows integration test launches a harmless `cmd.exe /d /c echo WORKER_OK` process in an AppContainer, assigns it to the configured Job Object while suspended, resumes it, and checks its exit/output. It does not yet prove host-file denial, network denial, child-process denial, whole-job timeout, streaming output limits, or complete pipe-drain behavior. Those adversarial tests and the I/O supervisor remain mandatory before any real adapter is enabled.
 
 ## 4. Linux backend — parity implementation after Windows

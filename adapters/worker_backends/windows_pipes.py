@@ -215,6 +215,25 @@ class WorkerPipes:
         )
         self._child_closed = True
 
+
+    def close_parent_stdin(self) -> None:
+        """Close the host's stdin writer so the worker observes end-of-input."""
+        if self._closed:
+            raise RuntimeError("worker pipes are already closed")
+        handle = self.handles.parent_stdin
+        if not handle:
+            raise RuntimeError("worker stdin writer is already closed")
+        if not self._close(handle):
+            raise ctypes.WinError(ctypes.get_last_error())
+        self.handles = WorkerPipeHandles(
+            child_stdin=self.handles.child_stdin,
+            child_stdout=self.handles.child_stdout,
+            child_stderr=self.handles.child_stderr,
+            parent_stdin=None,
+            parent_stdout=self.handles.parent_stdout,
+            parent_stderr=self.handles.parent_stderr,
+        )
+
     def close(self) -> None:
         if self._closed:
             return

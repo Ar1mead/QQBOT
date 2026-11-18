@@ -988,3 +988,13 @@ At the time of this update:
 - It does **not** prove host-file/CSD-marker denial, network denial, child-process denial, output-overflow termination, timeout handling, or robust concurrent stdout/stderr draining. There is still no production `WorkerExecutor` or complete I/O supervisor.
 - Run #625 remains a failed earlier attempt caused by the missing `LOCALAPPDATA`; the correction is verified by Run #626.
 - Hosted CI is not owner-local Windows/DSH verification. PR #1 remains **Draft**, **Open**, and **Unmerged**.
+
+
+## Windows bounded worker stdio supervisor — implementation slice
+
+- Added `adapters/worker_backends/windows_worker_io.py`: concurrent stdout/stderr readers, chunked bounded stdin writer, EOF signaling by closing the parent stdin endpoint, independent stdout/stderr byte ceilings, and a wall-clock timeout.
+- Limits: request ≤ 1 MiB; stdout ≤ 1 MiB; stderr ≤ 64 KiB; timeout 1–300,000 ms. Each stream is drained on its own thread so a full stderr pipe cannot deadlock stdout or stdin.
+- On timeout, pipe I/O error, or output overflow, the supervisor terminates the Job Object, falls back to kill-on-close/direct process termination when needed, and requires the process handle to become signaled.
+- The supervisor returns raw bounded stdout/stderr and exit code only; it does not parse worker protocol data or create CSD events.
+- Updated the Windows process integration tests to use the supervisor for a bounded stdio round trip and to verify that stdout overflow terminates the worker.
+- These tests are pending CI. Host-file/CSD-marker denial, network denial, child-process denial, and a dedicated timeout adversarial test remain unimplemented. No real adapter is enabled.
