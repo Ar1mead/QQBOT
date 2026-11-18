@@ -846,3 +846,13 @@ At the time of this update:
 - Latest code commits: `25c4d8e4f2d81a685c6f865aa40ece05be48fdf1`, `8957bfd5e3d13ec58ad73838261c08b7047121c3`, `083cc0293123fb861ada32a922ad704731f7e259`.
 - Hosted workflow/status lookup for the new commits returned no run/check entries at this refresh. **No test pass is claimed.**
 - Next: implement and test ACL/SACL operations using handle-based security APIs, preserve existing ACL entries, verify the per-run directory's Low Integrity label, then construct the empty-capability `SECURITY_CAPABILITIES` for suspended process creation.
+
+## Empty-capability AppContainer launch descriptor — 2026-11-18
+
+- Added `EmptyAppContainerCapabilities`, a scoped owner for the native package SID and `SECURITY_CAPABILITIES` structure used with `PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES`.
+- It converts only a canonical AppContainer package SID, explicitly sets `Capabilities = NULL` and `CapabilityCount = 0`, keeps the SID allocation alive for the native call, and releases it through `LocalFree` on context exit.
+- Extended the Windows-only profile integration test to verify the zero-capability descriptor and its lifetime/closed-state behavior.
+- This does **not** create a process or prove network denial. Empty capabilities are a required launch input, not a substitute for in-worker socket denial tests. Process attribute-list setup, DACL/SACL, Job Object, pipes, and launcher remain incomplete.
+- Latest implementation commits: `b5918b743520020b4891ab37b137b7c07f332f96`, `584939394a694c48d458afb14f3487b7805fc0fd`.
+- Workflow/status lookup remains empty at this refresh; no hosted test result is claimed.
+- Next: handle-based DACL/SACL helpers and positive/negative access verification, followed by STARTUPINFOEX attribute-list construction and Job Object setup.
