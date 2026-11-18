@@ -774,3 +774,14 @@ At the time of this update:
 - First-patch storage uses a hard byte ceiling and fails closed when full; it does not prune or truncate prior records. Segmented retention and explicit cursor-expired behavior are deferred to a separately tested follow-up rather than implemented unsafely.
 - This is still a blueprint, not code. No SurfCore upstream files were changed; no QQ/DSH live connection or user-local test was performed.
 - PR #1 remains Draft, Open, and Unmerged. Keep that state unchanged.
+
+## SurfCore QQ journal executable reference slice — 2026-11-18
+
+- Added an isolated Node ESM reference implementation under `integrations/surfcore-qq-journal/`; this is in the individual-AI repository, not in the SurfCore upstream repository.
+- `observation-policy.mjs`: defaults off; private/group allowlists are independent; empty allowlists deny; explicit deny lists override; OneBot event type must be `message`; only text segments are extracted, with unsupported segments recorded as partial coverage.
+- `observation-journal.mjs`: requires an injected 32-byte HMAC key and host-provided ACL hardening callback; derives domain-separated opaque refs; serializes capture and page reads; syncs each append before advancing the cursor; rebuilds cursor from the journal; repairs only an incomplete final tail; rejects corrupt complete lines; never prunes/truncates prior records when full.
+- `observation-journal.test.mjs`: synthetic Node built-in test suite covers default-deny policy, private/group separation, deny overrides, self-message filtering, partial text extraction, opaque identifiers, cursor ordering, duplicate source identity, recovery, corruption, and capacity behavior.
+- Added `.github/workflows/surfcore-qq-journal-reference.yml` for Node 22 on Ubuntu and Windows. The latest code/test commit is `a69e50bd6782dfe87dce6fe17dfe367b576a1fa7`; the available combined-status lookup returned no status entries, so the new workflow is **not yet verified**. Do not claim these tests passed.
+- Cross-checked the record and page envelope against the exact-key Python mapper. The record fields include the mapper's required QQ provenance; `account_ref` matches `stream_ref`; the successful batch envelope is exact.
+- Important limits: the reference code is not connected to SurfCore; it does not provision/store its HMAC key; the ACL callback is injected and has only a no-op test fixture; no HTTP listener, CSD HTTP client, production worker, QQ account, or DSH connection exists.
+- No SurfCore upstream source was modified. No real QQ or local Windows test was performed. PR #1 remains open and must remain Draft/unmerged.
