@@ -290,3 +290,20 @@ The Worker package dependency closure was also reduced. The Worker entrypoint no
 Still missing: a deterministic package builder that produces the exact `python/python.exe` + `app/worker_entrypoint.py` layout and all reviewed import dependencies, emits canonical manifest bytes and hashes, and documents how the resulting manifest digest is provisioned into trusted host configuration.
 
 Runs #673–#685 did not allocate runners (no steps/no runner assignment); these changes remain CI-pending. The last confirmed green matrix is Run #664.
+
+
+## Deterministic bundle builder
+
+The repository now contains `adapters/worker_backends/runtime_bundle_builder.py`.
+
+CLI:
+
+```powershell
+python -m adapters.worker_backends.runtime_bundle_builder --python-runtime-root "C:\Python312" --output-root "E:\QQBOT\worker-runtime-bundle"
+```
+
+The CLI probes the supplied `python.exe` with isolated `-I -S -B` flags and accepts only CPython 3.12.x. The builder copies a fixed Worker import closure and the runtime executable, top-level DLLs, `DLLs`, and `Lib`; it excludes `site-packages`, tests, `__pycache__`, and bytecode. An optional `python312._pth` file is accepted only with a small relative-path allowlist.
+
+The output manifest is canonical sorted JSON with a fixed bundle ID, CPython version, pinned interpreter/entrypoint paths, sorted per-file sizes and SHA-256 digests, and exactly one host-approved SurfCore QQ read-only dispatch binding. The builder verifies its output and reports the manifest SHA-256. That digest must be copied into trusted host configuration through a separately reviewed deployment step; it must never be read from the bundle itself.
+
+Synthetic builder tests are present, but Runs #686–#688 did not allocate runners. No real CPython 3.12 runtime bundle has yet been built or launched. The dependency closure and actual isolated runtime startup remain pending Windows execution.
