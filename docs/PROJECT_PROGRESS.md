@@ -1459,3 +1459,14 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Latest known successful full matrix remains Run #664 (entrypoint + isolated Python mode). The launch-plan slice and the workflow-filter changes are **not yet CI-verified** because the latest workflow jobs did not acquire runners.
 - PR #1 remains Draft/Open/Unmerged. No local Windows/DSH execution or live platform connection has been performed.
 - Next: restore a usable hosted CI run or obtain runner-allocation diagnostics; then validate this launch-plan slice. Only after that should the native executor orchestrator be composed. The executor must concurrently drain bounded stdout/stderr, bound stdin, enforce timeout through Job Object termination, validate host response and adapter-specific cursor metadata, and surface cleanup failures.
+
+
+## Launch-plan hardening: staged bytes rechecked at plan time (2026-11-18)
+
+- Added `verify_staged_runtime()` to recheck the exact staged file set, regular-file status, every manifest size/SHA-256 digest, and executable metadata immediately before a launch plan is created. This closes the gap between initial staging verification and later ACL/launch preparation.
+- `build_windows_worker_launch_plan()` now invokes that verifier before accepting the staged tree. The launch plan remains constrained to the compiled SurfCore QQ binding, CPython 3.12.x, fixed interpreter/entrypoint paths, and fixed `-I -S -B` arguments.
+- Added a regression test that tampers with the staged entrypoint after staging and confirms plan construction rejects it.
+- CI Runs #668–#671 all failed before runner allocation, with both matrix jobs reporting no steps and runner_id 0; job logs were unavailable. This repeats the #665 pre-run failure and leaves launch-plan tests unverified. The last successful matrix remains #664, which predates the launch-plan code.
+- Do not interpret the empty-job failures as test assertion failures. Also do not claim the new launch-plan code is green until a runner actually executes the dedicated step and full discovery.
+- The PR path filter includes `tests/test_worker_windows_launch_plan.py` and the workflow has a dedicated step.
+- Next: resolve GitHub Actions runner allocation/availability or obtain an actionable diagnostic. Once the launch-plan slice has a real green matrix, continue with bounded Windows stdio and then the production lifecycle coordinator.
