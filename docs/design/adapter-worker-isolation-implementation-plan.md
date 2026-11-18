@@ -86,6 +86,20 @@ Limitations at this slice:
 - Runtime packaging must use a host-controlled dedicated tree. Inheritable ACEs are set on the selected root; protected descendant ACLs and ancestor reparse points still require explicit staging/verification by the eventual launcher. Do not point this helper at an arbitrary existing user or project tree.
 - The Windows-only integration test is a hosted CI check of descriptor setup/read-back. It is not an adversarial sandbox test and is not local verification on the owner's machine.
 
+### 3.5 Job Object policy slice — configuration only
+
+The next reference module, `adapters/worker_backends/windows_job.py`, creates an unnamed Job Object and configures:
+
+- kill-on-job-close;
+- active process limit of exactly one;
+- finite per-process and per-job memory ceilings;
+- CPU hard-cap control in Windows 1/100-percent units;
+- no breakaway flags.
+
+It queries the Job Object back and rejects any mismatch. The API requires explicit memory and CPU limits; it does not silently choose a machine-dependent default. The scoped wrapper closes the Job Object handle, which will terminate assigned members once a launcher exists.
+
+This slice does not yet create or assign a process. It does not test that closing the Job Object kills a real worker, and it does not provide timeout supervision. Those behaviors must be tested when suspended process creation and assignment are implemented.
+
 ## 4. Linux backend — parity implementation after Windows
 
 Use a host-installed `bubblewrap` executable selected by an absolute, administrator-reviewed path. Do not use a shell.

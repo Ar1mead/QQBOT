@@ -884,3 +884,12 @@ At the time of this update:
 - This verifies hosted Windows directory-descriptor setup/read-back only. It does **not** prove that a launched AppContainer worker can or cannot access particular files; there is still no process launcher, no inside-worker adversarial filesystem/network test, no Job Object, and no production WorkerExecutor.
 - The corrected journal assertion in the same tested head is a test syntax repair; it does not change the journal implementation.
 - Hosted CI is not owner-local Windows/DSH verification. PR #1 remains **Draft**, **Open**, and **Unmerged**.
+
+
+## Windows Job Object resource policy — implementation slice
+
+- Added `adapters/worker_backends/windows_job.py` with an unnamed Job Object, kill-on-close, active-process limit 1, finite per-process and job memory limits, and a CPU hard cap.
+- The API requires explicit memory and CPU limits, validates them before native calls, applies the extended-limit and CPU-rate information classes, then queries the Job Object back and verifies every required flag/value. No breakaway option exists.
+- Added `tests/test_worker_windows_job.py` for configuration validation, no-breakaway constants, native read-back on Windows, and non-Windows fail-closed behavior. Wired the test into the existing Ubuntu/Windows workflow.
+- **Not yet a process sandbox:** no process is created or assigned to this Job Object yet. Kill-on-close has not yet been proven against a real worker; timeout supervision, suspended launch, pipe handles, and output bounds remain next.
+- Hosted CI for this Job Object slice is pending. The preceding directory ACL slice passed Run #620 on both Ubuntu and Windows; see the verification section above. PR #1 remains Draft/Open/Unmerged.
