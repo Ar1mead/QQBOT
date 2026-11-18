@@ -39,7 +39,7 @@ This decision corrects the earlier generic platform plan that treated Bilibili/Q
 3. Reading SurfCore's private state files directly would couple CSD to unstable internal schemas and could expose unrelated private state.
 4. Parsing human-oriented CLI output is brittle and does not reliably preserve source time, coverage, modality, and provenance.
 5. SurfCore's existing ability to perform account mutations does not authorize this individual to perform them. All external mutations remain blocked until an ASM action contract exists.
-6. WorkerHost remains an orchestration/protocol interface whose unit tests use fake executors. The repository now has a hosted-CI-verified low-level Windows AppContainer launcher and adversarial Python-runtime harness, but no production WindowsAppContainerWorkerExecutor composition. The current ObservationRequest/WorkerRequest contract also carries metadata only, not the pre-fetched DTO bytes required by the offline worker design. Do not run third-party SurfCore/plugin code as an untrusted worker until the DTO input path, production executor, Linux parity, and local Windows verification are complete.
+6. WorkerHost remains an orchestration/protocol interface whose unit tests use fake executors. The repository has a hosted-CI-verified low-level Windows AppContainer launcher and adversarial Python-runtime harness, plus protocol v2 that carries host-fetched DTO bytes as bounded base64 with a verified SHA-256 digest. There is still no production WindowsAppContainerWorkerExecutor composition or trusted SurfCore ingress client. Do not run third-party SurfCore/plugin code as an untrusted worker until the production executor, Linux parity, and local Windows verification are complete.
 
 ## 4. Proposed narrow integration boundary
 

@@ -1276,3 +1276,12 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Run #642 was a failed test-instrumentation attempt (diagnostic print before variable initialization); Run #643 verifies the correction. Run #640 was the earlier TEMP-directory fixture failure; Run #641 verifies its correction.
 - **New contract gap found during pre-executor audit:** `ObservationRequest` and `WorkerRequest` currently carry request/target/modality metadata only. The worker-isolation design says the trusted host supplies already-fetched DTO bytes, but no payload field/path exists in the current request contract. A production executor must not be built until this is addressed explicitly.
 - Next: design and implement bounded, digest-verified host-to-worker DTO input; then compose the low-level Windows modules into `WindowsAppContainerWorkerExecutor`. Linux Bubblewrap remains after Windows production executor/adversarial acceptance. No local Windows/DSH verification; no live SurfCore ingress. PR #1 remains Draft/Open/Unmerged.
+
+
+## Worker protocol v2 — bounded host-to-worker DTO input added
+
+- Extended ObservationRequest with immutable `input_payload` bytes, bounded to 512 KiB. Empty payload remains representable for metadata-only operations.
+- Bumped Worker protocol to version 2. Requests now include canonical base64 input bytes and a lowercase SHA-256 digest; decoding enforces exact fields, canonical base64, digest equality, and the 512 KiB limit before the request reaches a worker.
+- WorkerHost passes the payload through unchanged to the serialized WorkerRequest. The worker still receives no source credentials and must not fetch its own input.
+- Added tests for payload round-trip, deterministic encoding, invalid base64, digest tampering, oversize rejection, ObservationRequest bounds, and WorkerHost payload propagation.
+- This closes the earlier design/code mismatch about DTO transport. It does not implement a SurfCore ingress client, a production WorkerExecutor, or real adapter execution. CI pending.

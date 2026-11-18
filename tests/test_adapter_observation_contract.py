@@ -71,6 +71,14 @@ class ObservationContractTests(unittest.TestCase):
         self.assertTrue(adapter.manifest.observation_only)
         self.assertTrue(first.evidence[0].untrusted)
 
+    def test_observation_request_bounds_immutable_source_payload(self):
+        with self.assertRaisesRegex(ValueError, "immutable bytes"):
+            ObservationRequest("r", "target", ("text",), input_payload="not-bytes")
+        with self.assertRaisesRegex(ValueError, "512 KiB"):
+            ObservationRequest("r", "target", ("text",), input_payload=b"x" * (512 * 1024 + 1))
+        request = ObservationRequest("r", "target", ("text",), input_payload=b'{"schema_version":1}')
+        self.assertEqual(request.input_payload, b'{"schema_version":1}')
+
     def test_manifest_reports_observation_only_capability_surface(self):
         manifest = AdapterManifest(
             adapter_id="bilibili.fake", adapter_version="0.1.0", platform="bilibili",

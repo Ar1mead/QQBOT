@@ -87,6 +87,7 @@ class WorkerHost:
             operation=operation,
             target_ref=request.target_ref,
             modalities=request.modalities,
+            input_payload=request.input_payload,
         )
         payload = encode_request(worker_request)
         try:

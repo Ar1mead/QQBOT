@@ -14,6 +14,9 @@ import re
 from typing import Protocol
 
 
+MAX_OBSERVATION_INPUT_BYTES = 512 * 1024
+
+
 class CapabilityMode(str, Enum):
     OBSERVE = "observe"
     PRESENT = "present"

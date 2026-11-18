@@ -392,3 +392,15 @@ A final audit before production executor composition found a mismatch between th
 - `WorkerHost.observe()` serializes only that metadata. The `WorkerExecutor.execute()` contract receives only the serialized request bytes.
 
 Therefore, the current low-level Windows launcher can execute a Python process, but there is not yet a complete data path for a real adapter to transform host-fetched SurfCore DTOs without network access. Before implementing `WindowsAppContainerWorkerExecutor`, add a bounded, explicit, digest-verified input-payload contract (including size limits, exact schema, and host-side provenance) and tests for tampering/oversize/empty input. The worker must not fetch its own source data or receive SurfCore credentials.
+
+
+## 3.16 Worker protocol v2 input payload path implemented
+
+The prior pre-executor gap is now addressed at the request-contract layer:
+
+- ObservationRequest includes immutable input_payload bytes, capped at 512 KiB.
+- Worker protocol version 2 serializes those bytes as canonical base64 and includes a SHA-256 digest.
+- The strict decoder checks exact fields, base64 canonicality, payload size, and digest before constructing WorkerRequest.
+- WorkerHost passes the host-supplied bytes into the request envelope. The worker is still offline and receives no SurfCore credentials.
+
+This provides the bounded host-to-worker data plane required by the design. It does not create the host-side SurfCore ingress client or the production WindowsAppContainerWorkerExecutor. The latter remains the next implementation milestone. CI pending.

@@ -6,19 +6,24 @@ provide OS isolation; the host must validate every response before CSD mapping.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import base64
+import binascii
+import hashlib
 import json
 from typing import Any
 
 from adapters.contracts.observation import (
     ContentOrigin,
+    MAX_OBSERVATION_INPUT_BYTES,
     ObservationCoverage,
     ObservationEvidence,
     ObservationResult,
     ObservationStatus,
 )
 
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 MAX_MESSAGE_BYTES = 1_048_576
+MAX_INPUT_PAYLOAD_BYTES = MAX_OBSERVATION_INPUT_BYTES
 MAX_ID_LENGTH = 128
 MAX_TARGET_LENGTH = 512
 MAX_MODALITIES = 16
@@ -108,6 +113,7 @@ class WorkerRequest:
     target_ref: str
     modalities: tuple[str, ...]
     protocol_version: int = PROTOCOL_VERSION
+    input_payload: bytes = b""
 
     def __post_init__(self) -> None:
         if type(self.protocol_version) is not int or self.protocol_version != PROTOCOL_VERSION:
@@ -121,6 +127,10 @@ class WorkerRequest:
             _bounded_string(modality, "modality", 64)
         if len(set(self.modalities)) != len(self.modalities):
             raise WorkerProtocolError("modalities must not contain duplicates")
+        if not isinstance(self.input_payload, bytes):
+            raise WorkerProtocolError("input_payload must be immutable bytes")
+        if len(self.input_payload) > MAX_INPUT_PAYLOAD_BYTES:
+            raise WorkerProtocolError("input_payload exceeds the 512 KiB limit")
 
 
 @dataclass(frozen=True)
@@ -164,6 +174,8 @@ class WorkerResponse:
 def encode_request(request: WorkerRequest) -> bytes:
     if not isinstance(request, WorkerRequest):
         raise TypeError("request must be a WorkerRequest")
+    payload_b64 = base64.b64encode(request.input_payload).decode("ascii")
+    payload_digest = hashlib.sha256(request.input_payload).hexdigest()
     return _encode_object({
         "protocol_version": request.protocol_version,
         "message_type": "observation_request",
@@ -173,6 +185,8 @@ def encode_request(request: WorkerRequest) -> bytes:
         "operation": request.operation,
         "target_ref": request.target_ref,
         "modalities": list(request.modalities),
+        "input_payload_b64": payload_b64,
+        "input_payload_sha256": payload_digest,
     })
 
 
@@ -181,6 +195,7 @@ def decode_request(raw: bytes | str) -> WorkerRequest:
     _require_exact_keys(value, {
         "protocol_version", "message_type", "request_id", "adapter_id",
         "adapter_version", "operation", "target_ref", "modalities",
+        "input_payload_b64", "input_payload_sha256",
     })
     if value["message_type"] != "observation_request":
         raise WorkerProtocolError("unexpected worker message type")
@@ -189,6 +204,27 @@ def decode_request(raw: bytes | str) -> WorkerRequest:
     modalities = value["modalities"]
     if not isinstance(modalities, list) or any(not isinstance(item, str) for item in modalities):
         raise WorkerProtocolError("modalities must be a JSON string array")
+    payload_b64 = value["input_payload_b64"]
+    payload_digest = value["input_payload_sha256"]
+    if not isinstance(payload_b64, str):
+        raise WorkerProtocolError("input_payload_b64 must be a base64 string")
+    if (
+        not isinstance(payload_digest, str)
+        or len(payload_digest) != 64
+        or any(char not in "0123456789abcdef" for char in payload_digest)
+    ):
+        raise WorkerProtocolError("input_payload_sha256 must be 64 lowercase hexadecimal characters")
+    try:
+        input_payload = base64.b64decode(payload_b64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise WorkerProtocolError("input_payload_b64 is not valid base64") from exc
+    if base64.b64encode(input_payload).decode("ascii") != payload_b64:
+        raise WorkerProtocolError("input_payload_b64 is not canonical base64")
+    if len(input_payload) > MAX_INPUT_PAYLOAD_BYTES:
+        raise WorkerProtocolError("input_payload exceeds the 512 KiB limit")
+    actual_digest = hashlib.sha256(input_payload).hexdigest()
+    if actual_digest != payload_digest:
+        raise WorkerProtocolError("input_payload_sha256 does not match payload bytes")
     return WorkerRequest(
         request_id=value["request_id"],
         adapter_id=value["adapter_id"],
@@ -197,6 +233,7 @@ def decode_request(raw: bytes | str) -> WorkerRequest:
         target_ref=value["target_ref"],
         modalities=tuple(modalities),
         protocol_version=value["protocol_version"],
+        input_payload=input_payload,
     )
 
 

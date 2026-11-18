@@ -1,6 +1,6 @@
 # Adapter Worker Isolation — Design Draft
 
-> Status: design draft; low-level Windows AppContainer process and Python-runtime harness is implemented and hosted-CI-verified, but no production WorkerExecutor or Linux sandbox backend exists.
+> Status: design draft; low-level Windows AppContainer process/Python-runtime harness and protocol v2 bounded DTO input path are implemented, but no production WorkerExecutor or Linux sandbox backend exists.
 >
 > Scope: define the security requirements for eventually running third-party or otherwise untrusted environment-adapter code without loading it into the authoritative individual-core process.
 
@@ -85,8 +85,9 @@ Windows and Linux require different enforcement mechanisms. The project must ver
 
 Implemented in `adapters/worker_protocol.py`:
 
-- protocol version 1 with distinct observation-request and observation-response message types;
+- protocol version 2 with distinct observation-request and observation-response message types;
 - exact envelope field allowlists (unknown fields are rejected);
+- request-side host-fetched DTO bytes carried as canonical base64 plus SHA-256, capped at 512 KiB;
 - duplicate JSON key rejection and strict UTF-8 decoding;
 - a 1 MiB encoded-message ceiling, bounded identifiers/target references, and bounded modality/evidence/warning counts;
 - request/response binding checks for request ID and pinned adapter ID/version;
@@ -103,7 +104,7 @@ Implemented in `adapters/worker_host.py`:
 - Missing executor configuration is rejected. There is no fallback that imports or executes adapter code inside the core process.
 - Backend timeout, execution error, malformed response, oversized response, and identity/target mismatches fail closed. A production backend must terminate the worker on timeout and cap output while streaming it; the host's post-return size check cannot undo memory already allocated by a backend that buffered an oversized response.
 
-Important: `WorkerExecutor` is an interface, not an OS sandbox. The current WorkerHost tests still use an in-memory fake executor. Separate low-level Windows modules now launch an AppContainer process, apply file/network/process/resource restrictions, and pass hosted adversarial tests, including a copied CPython runtime. They are not yet composed into a production WorkerExecutor. No Linux isolation backend exists. A production executor must be host-owned and separately reviewed. Do not inject third-party executor code.
+Important: `WorkerExecutor` is an interface, not an OS sandbox. The current WorkerHost tests still use an in-memory fake executor. Protocol v2 transports the bounded host-fetched DTO bytes but does not itself provide a trusted source ingress client. Separate low-level Windows modules now launch an AppContainer process, apply file/network/process/resource restrictions, and pass hosted adversarial tests, including a copied CPython runtime. They are not yet composed into a production WorkerExecutor. No Linux isolation backend exists. A production executor must be host-owned and separately reviewed. Do not inject third-party executor code.
 
 ## 7. Current status
 
@@ -117,7 +118,7 @@ Implemented:
 
 Not implemented:
 - production WindowsAppContainerWorkerExecutor composition;
-- bounded, digest-verified host-to-worker DTO payload path (the current ObservationRequest/WorkerRequest carry metadata only);
+- host-side SurfCore ingress client that supplies DTO bytes through the new bounded protocol path;
 - Linux Bubblewrap backend and parity tests;
 - local Windows/DSH verification;
 - real Bilibili/QQ account integration or live SurfCore connection.

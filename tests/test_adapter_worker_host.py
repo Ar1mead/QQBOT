@@ -13,7 +13,7 @@ from adapters.worker_host import (
     WorkerHost,
     WorkerBackedObservationAdapter,
 )
-from adapters.worker_protocol import WorkerResponse, encode_response
+from adapters.worker_protocol import WorkerResponse, decode_request, encode_response
 
 
 class FakeWorkerExecutor:
@@ -39,7 +39,7 @@ class WorkerHostTests(unittest.TestCase):
                 Capability("observe:text", CapabilityMode.OBSERVE, "Read text"),
             ),
         )
-        self.request = ObservationRequest("req-01", "target:42", ("text",))
+        self.request = ObservationRequest("req-01", "target:42", ("text",), input_payload=b'{"schema_version":1,"records":[]}')
 
     def make_evidence(self, **changes):
         content = "worker supplied evidence"
@@ -91,7 +91,9 @@ class WorkerHostTests(unittest.TestCase):
         self.assertEqual(result.status, ObservationStatus.COMPLETE)
         self.assertEqual(len(result.evidence), 1)
         self.assertEqual(len(executor.calls), 1)
-        _, timeout, max_bytes = executor.calls[0]
+        request_payload, timeout, max_bytes = executor.calls[0]
+        decoded_request = decode_request(request_payload)
+        self.assertEqual(decoded_request.input_payload, self.request.input_payload)
         self.assertEqual(timeout, 15.0)
         self.assertGreater(max_bytes, 0)
 

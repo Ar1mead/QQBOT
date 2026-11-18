@@ -1,4 +1,5 @@
 import hashlib
+import json
 import unittest
 
 from adapters.worker_protocol import (
@@ -31,6 +32,44 @@ class WorkerProtocolTests(unittest.TestCase):
         self.assertEqual(encode_request(decode_request(encoded)), encoded)
         self.assertEqual(decode_request(encoded), self.request)
 
+    def test_request_payload_round_trip_and_digest_validation(self):
+        payload = b'{"schema_version":1,"records":[{"id":"m-1","text":"untrusted"}]}'
+        request = WorkerRequest(
+            request_id="req-payload",
+            adapter_id="qq.read_only",
+            adapter_version="0.1.0",
+            operation="observe_messages",
+            target_ref="stream:opaque",
+            modalities=("text",),
+            input_payload=payload,
+        )
+        encoded = encode_request(request)
+        decoded = decode_request(encoded)
+        self.assertEqual(decoded.input_payload, payload)
+        self.assertEqual(encode_request(decoded), encoded)
+
+        value = json.loads(encoded.decode("utf-8"))
+        value["input_payload_sha256"] = "0" * 64
+        with self.assertRaisesRegex(WorkerProtocolError, "does not match payload bytes"):
+            decode_request(json.dumps(value))
+
+        value = json.loads(encoded.decode("utf-8"))
+        value["input_payload_b64"] = "%%%not-base64%%%"
+        with self.assertRaisesRegex(WorkerProtocolError, "not valid base64"):
+            decode_request(json.dumps(value))
+
+    def test_request_rejects_oversized_input_payload(self):
+        with self.assertRaisesRegex(WorkerProtocolError, "512 KiB"):
+            WorkerRequest(
+                request_id="r",
+                adapter_id="a",
+                adapter_version="1",
+                operation="observe",
+                target_ref="target:1",
+                modalities=("text",),
+                input_payload=b"x" * (512 * 1024 + 1),
+            )
+
     def test_request_rejects_unknown_fields_and_wrong_message_type(self):
         raw = encode_request(self.request).decode("utf-8")
         with self.assertRaisesRegex(WorkerProtocolError, "invalid message fields"):
@@ -40,7 +79,7 @@ class WorkerProtocolTests(unittest.TestCase):
 
     def test_request_rejects_duplicate_json_keys(self):
         raw = (
-            '{"protocol_version":1,"message_type":"observation_request",'
+            '{"protocol_version":2,"message_type":"observation_request",'
             '"request_id":"a","request_id":"b","adapter_id":"x",'
             '"adapter_version":"1","operation":"observe","target_ref":"BV1xx411c7mD",'
             '"modalities":["text"]}'
@@ -105,7 +144,7 @@ class WorkerProtocolTests(unittest.TestCase):
 
     def test_decoder_rejects_nonstandard_json_constants(self):
         raw = (
-            '{"protocol_version":1,"message_type":"observation_response",'
+            '{"protocol_version":2,"message_type":"observation_response",'
             '"request_id":"r","adapter_id":"a","adapter_version":"1",'
             '"status":"unavailable","evidence":[],"warnings":[],"error_code":NaN}'
         )
@@ -189,7 +228,7 @@ class WorkerProtocolTests(unittest.TestCase):
 
     def test_response_rejects_unknown_fields(self):
         raw = (
-            '{"protocol_version":1,"message_type":"observation_response",'
+            '{"protocol_version":2,"message_type":"observation_response",'
             '"request_id":"r","adapter_id":"a","adapter_version":"1",'
             '"status":"unavailable","evidence":[],"warnings":[],"error_code":null,'
             '"shell_command":"whoami"}'
