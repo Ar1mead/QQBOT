@@ -1556,3 +1556,11 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - This also makes ancestor traversal part of the actual Windows integration test rather than relying on ambient access to a system temp directory.
 - Commit: `d61b004392d507c1c9886ed73455cc1d9f7f1f2a`.
 - This is a test-fixture correction only; it has not run on a Windows host yet because hosted Actions jobs are still failing before runner assignment. The native test must pass before the directory layout is accepted.
+
+
+## Additional native resource cleanup audit — 2026-11-19
+
+- Extended retryable cleanup semantics to ACL object handles and the SID buffer retained by `EmptyAppContainerCapabilities`. A failed `CloseHandle` or `LocalFree` now leaves the ownership field intact and raises instead of silently marking the resource closed.
+- Hardened the failed `CreateProcessW` startup path: after worker termination is confirmed, both thread and process handles are attempted even if one close fails; failed handles remain recorded in the native process-information structure. The cleanup helper is covered by platform-neutral retry tests.
+- Commits: `82eeb64c9dc8df39df49c2b87de9beb669cbe64a`, `9dfcda7b2f5b4b06bc17b9bd800dd6a646558fc9`, `897e7896444f108065f236bfe8f688d188563e55`, `4fd1865db6b5f5c428a3fef9e12dfdff78b50541`, `8142e204d46bff6ea427206e64a57cea50ac6e11`, `6cf14131cda24da8598175128d0bcb27bbcde1c7`, `ecdf787766f2f4596b61569fbe72ffa685acbf5e`.
+- These cleanup changes remain CI-unverified because Actions has not assigned runners. The test suite uses fake native handles for retry semantics; actual Windows API behavior still needs Windows integration coverage.
