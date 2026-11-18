@@ -508,3 +508,6 @@ Follow-up: the package builder normalizes an optional `python312._pth` to explic
 
 
 The host-pin chain is now checked against the canonical typed manifest at load, stage, and pre-launch verification. A forged wrapper or altered staged manifest cannot keep an unrelated old digest. Non-canonical JSON is rejected. Regression tests cover these cases and keep manifest authenticity distinct from host allowlist and Python-version policy. Runs #692–#695 did not allocate runners; no pass is claimed.
+
+
+Run #695 attempt 2 was retried. Both matrix jobs again completed with `runner_id=0` and an empty `steps` array; no tests executed. The cause is not exposed by the available GitHub job records. The launch-plan, bundle provenance, worker-safe mapping, and bundle-builder changes remain unverified; do not treat the retry as a code regression or a pass.
