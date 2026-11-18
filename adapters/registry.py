@@ -33,7 +33,7 @@ class AdapterContractViolation(RuntimeError):
 class ObservationAdapterRegistry:
     """Explicit allowlist of host-loaded adapters; no discovery or auto-import."""
 
-    _adapters: dict[str, ObservationAdapter] = field(default_factory=dict)
+    _adapters: dict[str, tuple[AdapterManifest, ObservationAdapter]] = field(default_factory=dict)
 
     def register(self, adapter: ObservationAdapter) -> None:
         manifest = getattr(adapter, "manifest", None)
@@ -50,17 +50,17 @@ class ObservationAdapterRegistry:
             raise AdapterRegistrationError(
                 f"adapter_id is already registered: {manifest.adapter_id}"
             )
-        self._adapters[manifest.adapter_id] = adapter
+        self._adapters[manifest.adapter_id] = (manifest, adapter)
 
     def registered_ids(self) -> tuple[str, ...]:
         return tuple(sorted(self._adapters))
 
     def observe(self, adapter_id: str, request: ObservationRequest) -> ObservationResult:
-        adapter = self._adapters.get(adapter_id)
-        if adapter is None:
+        registered = self._adapters.get(adapter_id)
+        if registered is None:
             raise AdapterDispatchDenied(f"adapter is not registered: {adapter_id}")
 
-        manifest = adapter.manifest
+        manifest, adapter = registered
         declared_modalities = {
             capability.name.removeprefix("observe:")
             for capability in manifest.capabilities
