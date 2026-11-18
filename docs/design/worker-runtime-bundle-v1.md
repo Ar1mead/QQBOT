@@ -232,3 +232,17 @@ The implementation has advanced beyond the earlier status notes above:
 - The workflow PR path filters have been reconciled to include the worker entrypoint, runtime bundle, protocol, SurfCore mapping/result, host, and Windows backend test files. The workflow-only follow-up commit is awaiting its own CI run.
 - Still not implemented: a production Windows AppContainer executor that composes bundle verification/staging, AppContainer profile, ACLs, explicit environment, inherited pipes, Job Object, suspended launch/resume, bounded concurrent I/O, response validation, and mandatory cleanup into one fail-closed lifecycle.
 - The entrypoint is not a network client and does not connect to QQ/Bilibili. Live platform ingestion remains outside this slice.
+
+
+## Windows launch-plan slice (2026-11-18)
+
+A host-side launch-plan builder now exists at `adapters/worker_backends/windows_launch_plan.py`.
+
+- It accepts only the compiled host allowlist entry for SurfCore QQ read-only batch observation.
+- The bundle manifest must contain exactly the corresponding adapter/version/operation/dispatch binding; the manifest cannot add or override a dispatch key.
+- The Python implementation must be CPython 3.12.x, and interpreter/entrypoint paths are fixed to `python/python.exe` and `app/worker_entrypoint.py`.
+- It rejects symlinks/reparse points in the staged interpreter and entrypoint paths and verifies staged metadata matches the pinned paths.
+- It produces only the fixed command tuple `-I -S -B <entrypoint> --dispatch-key surfcore_qq_batch`; no caller-supplied command, module, shell, path, or dispatch key is accepted.
+- Tests were added for the allowlist, manifest drift, Python version, path metadata, and symlink rejection. The workflow has a dedicated step and path filters.
+- Runs #665–#667 failed before either OS job acquired a runner (empty step lists and no downloadable logs). This blocks CI verification of the launch-plan slice; it is not a reported test assertion failure.
+- No production executor is implemented yet. The next slice must compose the already-tested native primitives and this fixed launch plan with bounded concurrent stdio and mandatory lifecycle cleanup.
