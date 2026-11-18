@@ -328,8 +328,20 @@ def launch_appcontainer_worker(
                 f"could not confirm termination of failed worker process {int(info.dwProcessId)}"
             ) from launch_error
 
-        if info.hThread and not close_handle(info.hThread):
-            raise ctypes.WinError(ctypes.get_last_error()) from launch_error
-        if info.hProcess and not close_handle(info.hProcess):
-            raise ctypes.WinError(ctypes.get_last_error()) from launch_error
+        close_failures: list[tuple[str, int]] = []
+        for handle_name in ("hThread", "hProcess"):
+            handle = getattr(info, handle_name)
+            if not handle:
+                continue
+            if close_handle(handle):
+                setattr(info, handle_name, None)
+            else:
+                close_failures.append((handle_name, ctypes.get_last_error()))
+        if close_failures:
+            details = ", ".join(
+                f"{name}=Win32 error {error}" for name, error in close_failures
+            )
+            raise RuntimeError(
+                f"failed to close native handles after worker launch failure: {details}"
+            ) from launch_error
         raise
