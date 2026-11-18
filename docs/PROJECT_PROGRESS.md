@@ -1418,3 +1418,16 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - The available workflow-run and combined-status lookups currently return no run/status for this revision. Hosted CI is therefore **not yet verified**; no green result is claimed. The workflow has a push path filter for both modified files and a PR path filter for the protocol test.
 - PR #1 was rechecked and remains Draft, Open, and Unmerged.
 - Next: obtain the Ubuntu/Windows CI result. Only after the v4 contract is green should implementation proceed to the fixed worker entrypoint and static dispatch.
+
+
+
+## Worker protocol v4 CI repair and fixed entrypoint slice (2026-11-18)
+
+- Hosted CI #656 for commit `4d0421625a906fdd624068fbaa1a3bf064db62a2` completed successfully on Ubuntu and Windows after updating the WorkerHost evidence fixture with all eight required v4 provenance fields. This confirms the previous v4 implementation plus WorkerHost compatibility on both CI operating systems.
+- The earlier CI #652–#655 failures were caused by that stale WorkerHost fixture; protocol-specific tests themselves had passed. The failure was diagnosed from both OS job logs, not inferred.
+- Added `adapters/worker_entrypoint.py`: one-request offline worker loop, strict protocol-v4 decode/encode, bounded input/output, duplicate-key and non-standard-JSON rejection, stable failed response for invalid adapter input, and an explicit static dispatch table. No dynamic imports, module paths, eval, shell, or network client.
+- Added fixed SurfCore QQ batch dispatch. It validates the versioned batch via the existing mapper, binds request target to stream_ref, emits complete provenance-bearing untrusted evidence, and returns proposed cursor metadata without persisting any cursor.
+- Added `tests/test_worker_entrypoint.py` covering valid provenance round-trip, empty batches, malformed input, target mismatch, fixed dispatch allowlisting, adapter identity binding, and duplicate JSON keys.
+- Added the entrypoint test as an explicit CI step and included its path in push/PR filters.
+- Run #657 for entrypoint commit `78565bc59edc1a49e74ab125fd5cf307a8ad3eb2` was in progress at the last status check; it includes the full test-discovery step, which discovers the new test module. A subsequent workflow update adds an explicit entrypoint test step; wait for that run before calling the entrypoint verified.
+- No production Windows executor has been composed yet. The current Windows modules remain low-level pieces; do not enable third-party adapters. Next: finish entrypoint CI, then define and test the host-side executor lifecycle, especially bundle-to-dispatch binding, protected staging roots, profile/temp cleanup, and termination/pipe cleanup guarantees.
