@@ -191,6 +191,7 @@ class SurfCoreMappingTests(unittest.TestCase):
             actor_ref="comment-author-opaque",
             actor_role="comment_author",
             parent_ref="root-comment-opaque",
+            content_language=None,
         )
         source["coverage"]["extraction_method"] = "platform_comment"
         mapped = map_surfcore_record(source)
