@@ -88,6 +88,21 @@ class NativeHandleCleanupTests(unittest.TestCase):
         self.assertIsNone(owner._sid.value)
         self.assertTrue(owner._closed)
 
+    def test_process_information_cleanup_attempts_both_handles_and_retains_failure(self):
+        info = windows_process.PROCESS_INFORMATION()
+        info.hThread = 22
+        info.hProcess = 11
+        closer = _CloseSequence([False, True])
+        with patch.object(windows_process.ctypes, "get_last_error", return_value=6, create=True):
+            failures = windows_process._close_owned_process_handles(info, closer)
+        self.assertEqual(failures, (("hThread", 6),))
+        self.assertEqual(info.hThread, 22)
+        self.assertIsNone(info.hProcess)
+
+        retry = _CloseSequence([True])
+        self.assertEqual(windows_process._close_owned_process_handles(info, retry), ())
+        self.assertIsNone(info.hThread)
+
 
 if __name__ == "__main__":
     unittest.main()
