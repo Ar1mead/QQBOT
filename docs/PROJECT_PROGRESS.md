@@ -1522,3 +1522,15 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 
 
 - Retried Run #695 (attempt 2) after confirming both original jobs had `runner_id=0` and `steps=[]`. The retry failed identically: both Windows and Ubuntu jobs again had no assigned runner and no executed steps. This further supports treating the CI status as a GitHub runner-allocation/dispatch failure of unknown cause, not a code-test failure.
+
+
+## Worker stdio termination and cleanup hardening — 2026-11-19
+
+- Audited the existing bounded stdio supervisor before composing the production Windows executor.
+- Fixed a fail-closed gap in `windows_worker_io.py`: failures from Job Object termination, kill-on-close fallback, process wait, and final thread cleanup are no longer silently discarded. If the worker's termination cannot be confirmed, the supervisor raises `WorkerTerminationError` with the primary I/O failure and cleanup failure context.
+- The last-resort `TerminateProcess` return value is now checked; a failed call is accepted only if a subsequent wait confirms that the process exited.
+- Moved thread startup inside the protected lifecycle and track only successfully started threads, so a partial thread-start failure cannot cause an invalid join of an unstarted thread.
+- Added platform-neutral unit tests for successful Job termination, kill-on-close fallback, failed fallback-close reporting, and wait failure reporting. Added the test to both push and pull-request path filters and a dedicated CI step.
+- Commits: `37424e13d6bdcdd769d0bd7e415cfd819a167613`, `28aae2695fbcef7f3e71da33ae20c8b8da1039be`, `ad0dc784dc7b7879eed47cc8620742e848bc791b`.
+- These changes are not yet CI-verified. The test covers lifecycle decision/error propagation with fakes; it does not replace native Windows pipe/Job Object integration testing.
+- Next: audit native handle close semantics and design the host-owned Windows executor coordinator with explicit ownership/cleanup ordering. Keep AppContainer and third-party adapter execution disabled until the complete coordinator passes Windows CI and real Windows runtime-bundle launch verification.
