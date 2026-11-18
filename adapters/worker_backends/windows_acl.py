@@ -265,7 +265,7 @@ class _NativeSecurity:
             ace = ctypes.cast(ace_ptr, ctypes.POINTER(ACCESS_ALLOWED_ACE)).contents
             if ace.Header.AceType != SYSTEM_MANDATORY_LABEL_ACE_TYPE:
                 continue
-            ace_sid = ctypes.cast(ctypes.byref(ace, ACCESS_ALLOWED_ACE.SidStart.offset), LPVOID)
+            ace_sid = ctypes.c_void_p(ace_ptr.value + ACCESS_ALLOWED_ACE.SidStart.offset)
             required_flags = OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE
             if (
                 self.equal_sid(ace_sid, low_sid)
@@ -317,6 +317,8 @@ def _grant_access(path: str, appcontainer_sid: str, access_mask: int) -> None:
                 entry.Trustee.ptstrName = ctypes.cast(sid, ctypes.c_wchar_p)
                 code = int(api.set_entries(1, ctypes.byref(entry), old_dacl, ctypes.byref(new_acl)))
                 _raise_winerror(code, "SetEntriesInAclW")
+                if not new_acl:
+                    raise OSError("SetEntriesInAclW returned success without an ACL")
                 code = int(api.set_security(
                     directory.value, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
                     None, None, new_acl, None,
