@@ -1375,3 +1375,12 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Verified behavior includes exact manifest schema, duplicate-key rejection, canonical relative path rules, sorted/unique manifest entries, adapter dispatch key syntax, file/total size limits, SHA-256 metadata, exact on-disk file-set checks, reparse/symlink rejection, and file tamper detection.
 - This is manifest parsing and source-bundle verification only. No staging/copy-to-per-run runtime tree, ACL application, fixed worker entrypoint, or production executor exists yet.
 - Next: implement a separate per-invocation staging primitive that copies only manifest-listed files, rechecks source bytes during copy, creates files exclusively beneath a new host-controlled directory, and verifies staged digests before ACL hardening.
+
+
+## Per-invocation runtime staging added — CI pending
+
+- Extended runtime_bundle.py with stage_runtime_bundle(): it revalidates the source bundle, creates a new per-run destination exclusively, copies only manifest-listed files, opens source files without following links where supported, verifies source identity/metadata during copy, hashes bytes while copying, fsyncs destination files, reads back and verifies destination digests, and checks the staged file set exactly matches the manifest.
+- Added cleanup_staged_runtime(), which recursively removes only regular files/directories and refuses symlinks/reparse points rather than following them.
+- Staging rejects existing destinations and source/destination overlap. It does not copy bundle-manifest.json into the worker runtime.
+- Added tests for exact staging, copied bytes, interpreter/entrypoint paths, cleanup, existing destination, post-verification source tampering, and destination-inside-source rejection.
+- Important boundary: staged runtime still requires AppContainer read/execute ACL application and verification before launch. No executor is composed yet. CI pending.

@@ -8,8 +8,10 @@ import unittest
 from adapters.worker_backends.runtime_bundle import (
     MANIFEST_FILENAME,
     RuntimeBundleError,
+    cleanup_staged_runtime,
     load_runtime_bundle,
     parse_runtime_bundle_manifest,
+    stage_runtime_bundle,
     verify_runtime_bundle,
 )
 
@@ -151,6 +153,59 @@ class RuntimeBundleManifestTests(unittest.TestCase):
                 self.skipTest("symlink creation is unavailable on this runner")
             with self.assertRaisesRegex(RuntimeBundleError, "symlink or reparse"):
                 load_runtime_bundle(root)
+
+
+    def test_stage_copies_only_listed_files_and_cleanup_removes_tree(self):
+        value, file_bytes = self.make_manifest()
+        with tempfile.TemporaryDirectory() as root:
+            source = Path(root, "source")
+            destination_parent = Path(root, "worker-runs")
+            source.mkdir()
+            destination_parent.mkdir()
+            self.write_bundle(source, value, file_bytes)
+            verified = load_runtime_bundle(str(source))
+            staged = stage_runtime_bundle(verified, str(destination_parent / "run-001"))
+            self.assertTrue(Path(staged.interpreter_path).is_file())
+            self.assertTrue(Path(staged.entrypoint_path).is_file())
+            self.assertFalse(Path(staged.root_path, MANIFEST_FILENAME).exists())
+            self.assertEqual(
+                {str(path.relative_to(staged.root_path)).replace(os.sep, "/")
+                 for path in Path(staged.root_path).rglob("*") if path.is_file()},
+                {entry["path"] for entry in value["files"]},
+            )
+            for path, data in file_bytes.items():
+                self.assertEqual(Path(staged.root_path, *path.split("/")).read_bytes(), data)
+            cleanup_staged_runtime(staged)
+            self.assertFalse(Path(staged.root_path).exists())
+
+    def test_stage_rejects_existing_destination_and_source_tampering(self):
+        value, file_bytes = self.make_manifest()
+        with tempfile.TemporaryDirectory() as root:
+            source = Path(root, "source")
+            destination_parent = Path(root, "worker-runs")
+            source.mkdir()
+            destination_parent.mkdir()
+            self.write_bundle(source, value, file_bytes)
+            verified = load_runtime_bundle(str(source))
+            existing = destination_parent / "already-exists"
+            existing.mkdir()
+            with self.assertRaisesRegex(RuntimeBundleError, "must not already exist"):
+                stage_runtime_bundle(verified, str(existing))
+            Path(source, "app", "worker_entrypoint.py").write_bytes(b"changed after verify")
+            destination = destination_parent / "tampered"
+            with self.assertRaises(RuntimeBundleError):
+                stage_runtime_bundle(verified, str(destination))
+            self.assertFalse(destination.exists())
+
+    def test_stage_rejects_destination_inside_source_bundle(self):
+        value, file_bytes = self.make_manifest()
+        with tempfile.TemporaryDirectory() as root:
+            source = Path(root, "source")
+            source.mkdir()
+            self.write_bundle(source, value, file_bytes)
+            verified = load_runtime_bundle(str(source))
+            with self.assertRaisesRegex(RuntimeBundleError, "outside and separate"):
+                stage_runtime_bundle(verified, str(source / "staged"))
 
     def test_load_rejects_missing_or_oversized_manifest(self):
         with tempfile.TemporaryDirectory() as root:

@@ -315,6 +315,205 @@ def verify_runtime_bundle(root_path: str, manifest: RuntimeBundleManifest) -> Ve
     return VerifiedRuntimeBundle(absolute_root, manifest)
 
 
+@dataclass(frozen=True)
+class StagedRuntimeBundle:
+    """Per-invocation copy of a verified bundle; ACL hardening is still required."""
+
+    root_path: str
+    interpreter_path: str
+    entrypoint_path: str
+    manifest: RuntimeBundleManifest
+
+
+def _hash_regular_file(path: str, expected_size: int, expected_digest: str) -> None:
+    before = _safe_lstat(path, directory=False)
+    if before.st_size != expected_size:
+        raise RuntimeBundleError(f"staged runtime file size mismatch: {path}")
+    digest = hashlib.sha256()
+    try:
+        with open(path, "rb") as stream:
+            opened = os.fstat(stream.fileno())
+            if not stat.S_ISREG(opened.st_mode) or (
+                opened.st_dev, opened.st_ino, opened.st_size
+            ) != (before.st_dev, before.st_ino, before.st_size):
+                raise RuntimeBundleError(f"staged runtime file changed during open: {path}")
+            while True:
+                chunk = stream.read(1024 * 1024)
+                if not chunk:
+                    break
+                digest.update(chunk)
+            after = os.fstat(stream.fileno())
+    except RuntimeBundleError:
+        raise
+    except OSError as exc:
+        raise RuntimeBundleError(f"cannot read staged runtime file: {path}") from exc
+    if (
+        (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
+        != (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns, opened.st_ctime_ns)
+    ):
+        raise RuntimeBundleError(f"staged runtime file changed while hashing: {path}")
+    if digest.hexdigest() != expected_digest:
+        raise RuntimeBundleError(f"staged runtime SHA-256 mismatch: {path}")
+
+
+def _copy_verified_file(source: str, destination: str, entry: RuntimeBundleFile) -> None:
+    before = _safe_lstat(source, directory=False)
+    if before.st_size != entry.size:
+        raise RuntimeBundleError(f"source runtime file size changed: {entry.path}")
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        source_fd = os.open(source, flags)
+    except OSError as exc:
+        raise RuntimeBundleError(f"cannot open source runtime file: {entry.path}") from exc
+    destination_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    destination_fd = None
+    digest = hashlib.sha256()
+    copied = 0
+    try:
+        opened = os.fstat(source_fd)
+        if not stat.S_ISREG(opened.st_mode) or (
+            opened.st_dev, opened.st_ino, opened.st_size
+        ) != (before.st_dev, before.st_ino, before.st_size):
+            raise RuntimeBundleError(f"source runtime file changed during open: {entry.path}")
+        destination_fd = os.open(destination, destination_flags, 0o600)
+        with os.fdopen(source_fd, "rb", closefd=True) as source_stream:
+            source_fd = -1
+            with os.fdopen(destination_fd, "wb", closefd=True) as destination_stream:
+                destination_fd = None
+                while True:
+                    chunk = source_stream.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    copied += len(chunk)
+                    if copied > entry.size:
+                        raise RuntimeBundleError(f"source runtime file grew during copy: {entry.path}")
+                    digest.update(chunk)
+                    destination_stream.write(chunk)
+                destination_stream.flush()
+                os.fsync(destination_stream.fileno())
+            after = os.fstat(source_stream.fileno())
+        current = _safe_lstat(source, directory=False)
+        if (
+            (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
+            != (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns, opened.st_ctime_ns)
+            or (current.st_dev, current.st_ino, current.st_size)
+            != (opened.st_dev, opened.st_ino, opened.st_size)
+        ):
+            raise RuntimeBundleError(f"source runtime file changed during copy: {entry.path}")
+        if copied != entry.size or digest.hexdigest() != entry.sha256:
+            raise RuntimeBundleError(f"source runtime file digest mismatch during copy: {entry.path}")
+        _hash_regular_file(destination, entry.size, entry.sha256)
+    except RuntimeBundleError:
+        raise
+    except OSError as exc:
+        raise RuntimeBundleError(f"failed to stage runtime file: {entry.path}") from exc
+    finally:
+        if source_fd >= 0:
+            os.close(source_fd)
+        if destination_fd is not None:
+            os.close(destination_fd)
+
+
+def _remove_tree_no_follow(path: str) -> None:
+    info = _safe_lstat(path)
+    if stat.S_ISDIR(info.st_mode):
+        for entry in os.scandir(path):
+            child_info = _safe_lstat(entry.path)
+            if stat.S_ISDIR(child_info.st_mode):
+                _remove_tree_no_follow(entry.path)
+            elif stat.S_ISREG(child_info.st_mode):
+                os.unlink(entry.path)
+            else:
+                raise RuntimeBundleError(f"refusing to remove unexpected staged object: {entry.path}")
+        os.rmdir(path)
+    elif stat.S_ISREG(info.st_mode):
+        os.unlink(path)
+    else:
+        raise RuntimeBundleError(f"refusing to remove unexpected staged object: {path}")
+
+
+def stage_runtime_bundle(
+    bundle: VerifiedRuntimeBundle,
+    destination_root: str,
+) -> StagedRuntimeBundle:
+    """Copy only manifest-listed files into a newly created per-run directory.
+
+    Source bytes are re-hashed while copying, destination files are created
+    exclusively, and every staged file is read back and verified. The returned
+    tree is not launchable until the caller applies and verifies AppContainer
+    read/execute ACLs and Low Integrity scratch policy separately.
+    """
+    if not isinstance(bundle, VerifiedRuntimeBundle):
+        raise TypeError("bundle must be a VerifiedRuntimeBundle")
+    if not isinstance(destination_root, str) or not destination_root:
+        raise ValueError("destination_root must be a non-empty path")
+    source_root = os.path.abspath(bundle.root_path)
+    destination = os.path.abspath(destination_root)
+    try:
+        common = os.path.commonpath((source_root, destination))
+    except ValueError as exc:
+        raise RuntimeBundleError("source and destination must be on the same filesystem volume") from exc
+    if common in {source_root, destination}:
+        raise RuntimeBundleError("staging destination must be outside and separate from the source bundle")
+    parent = os.path.dirname(destination)
+    _safe_lstat(parent, directory=True)
+    if os.path.lexists(destination):
+        raise RuntimeBundleError("staging destination must not already exist")
+
+    # Revalidate the source at staging time, then verify every source file again
+    # while copying to close the gap between initial verification and use.
+    verify_runtime_bundle(source_root, bundle.manifest)
+    try:
+        os.mkdir(destination, 0o700)
+        _safe_lstat(destination, directory=True)
+        for entry in bundle.manifest.files:
+            parts = entry.path.split("/")
+            current = destination
+            for component in parts[:-1]:
+                current = os.path.join(current, component)
+                if not os.path.exists(current):
+                    os.mkdir(current, 0o700)
+                _safe_lstat(current, directory=True)
+            source = os.path.join(source_root, *parts)
+            target = os.path.join(destination, *parts)
+            _copy_verified_file(source, target, entry)
+
+        staged_files = _walk_bundle_files(destination)
+        expected_files = {entry.path for entry in bundle.manifest.files}
+        if staged_files != expected_files:
+            raise RuntimeBundleError("staged runtime file set does not match the manifest")
+        for entry in bundle.manifest.files:
+            _hash_regular_file(
+                os.path.join(destination, *entry.path.split("/")),
+                entry.size,
+                entry.sha256,
+            )
+        return StagedRuntimeBundle(
+            root_path=destination,
+            interpreter_path=os.path.join(destination, *bundle.manifest.interpreter_path.split("/")),
+            entrypoint_path=os.path.join(destination, *bundle.manifest.entrypoint_path.split("/")),
+            manifest=bundle.manifest,
+        )
+    except Exception as exc:
+        try:
+            if os.path.lexists(destination):
+                _remove_tree_no_follow(destination)
+        except Exception as cleanup_error:
+            raise RuntimeBundleError(
+                f"runtime staging failed and cleanup also failed: {cleanup_error}"
+            ) from exc
+        if isinstance(exc, RuntimeBundleError):
+            raise
+        raise RuntimeBundleError(f"runtime bundle staging failed: {type(exc).__name__}") from exc
+
+
+def cleanup_staged_runtime(staged: StagedRuntimeBundle) -> None:
+    """Remove a staged runtime without following links or reparse points."""
+    if not isinstance(staged, StagedRuntimeBundle):
+        raise TypeError("staged must be a StagedRuntimeBundle")
+    _remove_tree_no_follow(staged.root_path)
+
+
 def load_runtime_bundle(root_path: str) -> VerifiedRuntimeBundle:
     """Load and verify bundle-manifest.json and every listed file."""
     if not isinstance(root_path, str) or not root_path:

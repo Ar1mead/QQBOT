@@ -466,3 +466,8 @@ Added adapters/worker_backends/runtime_bundle.py and tests/test_worker_runtime_b
 ### 3.22.2 Run #650 verified the manifest verifier
 
 Run #650 passed on Ubuntu and Windows. The dedicated runtime bundle manifest test step and full Windows test discovery passed. This verifies parsing and source-tree verification only; per-run staging, ACL hardening, and process launch remain separate.
+
+
+### 3.23 Per-invocation runtime staging implementation
+
+Added stage_runtime_bundle() and cleanup_staged_runtime() to runtime_bundle.py. Staging revalidates the source bundle, creates a new destination, copies only listed files, hashes source bytes during copy, checks file identity/metadata, fsyncs and re-hashes destination files, verifies exact staged file set, and refuses symlinks/reparse points during cleanup. It rejects destination reuse and source/destination overlap. The staged runtime is not launchable until ACL hardening is applied and verified. CI pending.

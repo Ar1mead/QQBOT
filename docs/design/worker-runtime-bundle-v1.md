@@ -191,3 +191,8 @@ A pure manifest parser and on-disk verifier now exist. It enforces exact fields,
 ## Run #650 verification
 
 The runtime bundle manifest parser and on-disk verifier passed Run #650 on Ubuntu and Windows. This does not verify staging or launch. The next slice is exclusive per-invocation staging of only manifest-listed files, with source re-hashing during copy and destination digest verification before AppContainer ACLs are applied.
+
+
+## Per-invocation staging slice
+
+The verifier now has a separate staging operation that copies only manifest-listed files to a new per-run directory. It revalidates the source, re-hashes source bytes during copy, creates destination files exclusively, fsyncs and reads back destination bytes, verifies exact file set and digests, and provides no-follow cleanup. It rejects an existing destination or source/destination overlap. AppContainer ACL hardening is still required before launch. CI pending.
