@@ -1598,3 +1598,31 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Latest observed Actions runs were #701–#710; all failed before runner allocation. Run #710 (ID `44353015881`) had Ubuntu and Windows jobs with `runner_id=0`, blank runner names, and empty steps. No tests ran. The cause remains unknown.
 - This is a documentation/process correction; it does not change runtime code or claim new CI verification.
 - Commit creating the stable handoff: `73a1fe361898e4137e2577ab81266c8a8380677c`.
+
+## Context continuity and emergency handoff protocol — 2026-11-19
+
+This protocol is a standing project-work rule, not an end-of-window checklist.
+
+### Continuous checkpointing
+- After every substantive code change, test/verification result, security finding, or architecture decision, update this ledger in the same work session.
+- Update `docs/HANDOFF_CURRENT.md` whenever the next action, active blocker, verification status, important decision, or continuation point changes materially. Do not wait until the conversation is nearly full.
+- Keep GitHub commits as the durable checkpoints. Prefer small, coherent commits with clear messages; do not create meaningless commits solely to simulate progress.
+- An uncommitted local/chat-only change is not a completed project change. A test result not recorded with its exact scope and environment is not verified. An architecture decision left only in chat is not a durable project decision. A handoff not updated after a material state change is incomplete.
+
+### Context-limit warning
+- If the conversation appears to be approaching its context limit, stop starting new implementation work.
+- First save any in-progress work safely, commit coherent completed changes, record exact test status, update this ledger, and refresh `docs/HANDOFF_CURRENT.md`.
+- Then provide the user with the standard new-window startup message. Do not spend the remaining context on optional refactoring or speculative next steps before checkpointing.
+
+### Unexpected interruption / no final handoff
+If a conversation ends abruptly and no final handoff was written, the next window must recover from GitHub rather than asking the user to reconstruct the old conversation:
+1. Read `docs/PROJECT_PROGRESS.md` and `docs/HANDOFF_CURRENT.md`.
+2. Query the live feature-branch HEAD and PR #1 metadata; verify PR #1 is still Draft, Open, and Unmerged.
+3. Inspect the latest 10 Actions runs and fetch the jobs JSON for the newest relevant run. Distinguish runner-allocation failures (no runner / no steps) from tests that actually executed.
+4. Inspect commits after the last documented checkpoint and compare changed files, commit messages, workflow runs, and test evidence against both documents.
+5. Identify any code changes, tests, or decisions that were committed but not documented; update the ledger and handoff before proceeding.
+6. Treat uncommitted work as unknown/unavailable unless it is actually present in the current environment. Do not assume the prior chat's claims are authoritative.
+7. Resume from the live repository state. Do not repeat completed work, and do not claim unverified work passed.
+
+### Standard continuation rule
+The user should only need to paste the short startup message stored in the current handoff. That message must always direct the new window to read these two documents and independently verify live GitHub state. Keep it current in `HANDOFF_CURRENT.md`.
