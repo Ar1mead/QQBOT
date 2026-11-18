@@ -1626,3 +1626,59 @@ If a conversation ends abruptly and no final handoff was written, the next windo
 
 ### Standard continuation rule
 The user should only need to paste the short startup message stored in the current handoff. That message must always direct the new window to read these two documents and independently verify live GitHub state. Keep it current in `HANDOFF_CURRENT.md`.
+
+
+## Strategic direction revision — cognition-first delivery and human-like behavior — 2026-11-19
+
+This decision refines the project objective and supersedes any earlier priority ordering that would continue expanding infrastructure before demonstrating a working cognitive loop. It does not discard the existing CSD / ASM / Worker architecture or weaken security boundaries.
+
+### Decision
+- The next product milestone is a small, end-to-end, model-backed cognitive loop, not another broad infrastructure layer.
+- Keep security work that is necessary to prevent untrusted inputs or models from directly mutating CSD or performing unauthorized side effects. Defer additional sandbox/backend expansion unless it blocks the minimum safe cognitive loop or closes a demonstrated security gap.
+- Do not begin real QQ/Bilibili write actions or broad platform integration as a substitute for cognition. Platform adapters should initially supply bounded, read-only observations.
+- Use cloud model APIs; do not make local model inference a prerequisite for the user's GTX 1050 Ti 4GB machine.
+- Treat all model outputs as proposals/evidence. CSD remains the only authority for durable memories, self-model, preferences, affect/drives, goals, and lifecycle transitions. ASM remains the authority for external side effects.
+- Do not describe generated emotional language as evidence of subjective feeling or consciousness. The project can implement and test persistent affect-like state, motivations, preferences, and behavioral continuity without claiming to solve consciousness.
+
+### New delivery sequence
+1. Define the minimum cognitive loop and acceptance tests. Specify inputs, state read, model deliberation, candidate proposals, CSD validation/commit, optional ASM handoff, outcome observation, and learning/update. Include explicit no-op, wait, decline, stop, and ask-user outcomes.
+2. Connect one real cloud model provider behind a provider-neutral interface. The model interprets context and proposes bounded changes; it cannot write to CSD directly, change its own permissions, or dispatch actions.
+3. Demonstrate persistent experience-to-change behavior. A user interaction or read-only observation must be stored as an episode with provenance; the system should later retrieve it, derive a tentative interpretation/preference update, preserve uncertainty and counterevidence, and only commit an accepted transition.
+4. Add cross-session continuity tests. Restart the process, advance time, and switch model providers while checking that durable identity-relevant state remains stable and traceable.
+5. Add bounded autonomous activity. The Life Engine may wake to evaluate curiosity, unresolved goals, commitments, and available time/resources; it must be allowed to do nothing. Any external side effect goes through ASM authorization.
+6. Add self-initiated writing as a genuine optional activity. Writing is neither a scheduled quota nor an automatic memory dump. The system may choose a topic, draft privately, revise, stop, save, revisit, or decline.
+7. Expand platform integrations and sandbox backends only when a demonstrated cognitive-loop requirement needs them. Keep QQ/Bilibili initially read-only; real accounts and external actions require separate permission and verification gates.
+
+### Human-like capability design requirements
+These are functional design targets, not claims of human consciousness:
+- Autobiographical continuity: distinguish episodic experience (what happened), semantic knowledge (what is generally believed), self-model (what the system currently believes about itself), and active commitments/goals. Preserve source, time, confidence, and revision history.
+- Preference formation and revision: preferences begin as hypotheses with confidence and supporting/counterevidence; repeated choices, explicit feedback, and changed circumstances can strengthen, weaken, contextualize, or retire them. Do not turn one-off behavior into permanent personality.
+- Affect-like state and needs: represent valence/arousal or a simpler bounded affect vector, needs/drives, intensity, duration, triggers, and decay. Affect may bias attention and action selection but must not override safety, evidence, or user consent. Do not hardcode one emotion per keyword.
+- Curiosity and intrinsic goals: generate candidate questions/activities from information gaps, novelty, unresolved contradictions, long-term interests, and unfinished self-chosen projects. Score expected value, uncertainty, cost, risk, and opportunity; permit postponement and no-op.
+- Self-model and metacognition: track capabilities, limitations, confidence, uncertainty, known failure modes, and what evidence would change a belief. Avoid confident claims about inaccessible internal states.
+- Relationship continuity: remember interaction history and user-stated boundaries/preferences with provenance; distinguish facts from interpretations; allow correction and forgetting policies; do not infer sensitive traits or treat the user as an object of emotional obligation.
+- Learning from outcomes: compare intended and actual results; record success, failure, surprise, and causal uncertainty; update future predictions and strategies rather than merely appending more text to memory.
+- Natural communication: adapt brevity, initiative, tone, and disclosure to context; allow stable voice with situational variation; avoid repetitive templates, forced affection, constant self-reference, and pretending to have performed actions that did not occur.
+- Rest and temporal rhythm: use elapsed time, recent activity, cognitive load, and pending commitments to decide whether to continue, pause, or remain inactive. A timer may trigger evaluation, never force a task.
+
+### Minimum end-to-end acceptance scenarios
+Before calling the cognitive loop operational, demonstrate at least:
+1. A new experience is stored with provenance and can be retrieved in a later session.
+2. The model proposes a tentative preference/self-model update with evidence and uncertainty; CSD rejects malformed, unsupported, stale, or conflicting proposals.
+3. Explicit user correction changes the relevant belief while preserving an auditable revision trail.
+4. Repeated evidence can strengthen or weaken a preference; a single ambiguous event cannot silently rewrite identity.
+5. A contradiction is surfaced and handled as uncertainty/context, not silently overwritten.
+6. With no worthwhile action, the system chooses no-op without inventing a task.
+7. An independently proposed activity can be deferred, stopped, or declined; unauthorized external actions are blocked by ASM.
+8. A private writing impulse can be proposed and then either pursued or declined without a schedule/quota.
+9. Restart and model-provider change do not erase durable state or fabricate continuity.
+10. Tests distinguish deterministic rules, model-generated proposals, accepted durable state changes, and externally verified outcomes.
+
+### Scope-control rule
+Every new module or infrastructure task must state: (a) which user-visible cognitive capability it enables, (b) the minimum safe implementation, and (c) its acceptance test. If it cannot answer these, defer it. Keep the existing security boundary intact, but do not expand infrastructure merely because it is technically interesting.
+
+### Immediate next work
+- Draft a compact cognitive-loop specification and test matrix before implementing another broad subsystem.
+- Inspect existing CSD memory/motivation/goal APIs and Life Engine interfaces to reuse what exists; identify the smallest missing seam for one real cloud model provider.
+- In parallel, diagnose Actions runner allocation with read-only evidence. Do not treat runner-allocation failures as test results and do not create repeated code commits just to trigger runs.
+- Keep real Windows runtime-bundle / AppContainer verification as a separate security gate before enabling untrusted third-party Worker execution; it need not block a trusted, in-process model-provider adapter that has no direct CSD write or external-action authority.
