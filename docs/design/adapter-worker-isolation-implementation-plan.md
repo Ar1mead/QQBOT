@@ -451,7 +451,7 @@ The new tests/test_surfcore_worker_result.py test file is now explicitly include
 
 ### 3.21.2 Run #649 verified protocol v3 and QQ metadata validation
 
-Run #649 passed on Ubuntu and Windows after the new test file was wired into the matrix. Windows complete test discovery ran 516 tests successfully with 6 expected skips. Run #647 verified protocol-v3 response metadata transport; Run #648 verified the host-side QQ metadata validator code but predated the dedicated test step. Run #649 includes and passes that test step.
+Run #649 passed on Ubuntu and Windows after the new test file was wired into the matrix. Windows complete test discovery ran 516 tests successfully with 6 expected skips. Run #647 verified protocol-v3 response metadata transport; Run #648 full test discovery already included and passed the QQ metadata validator tests. Run #649 additionally passed the newly explicit dedicated test step.
 
 ### 3.22 Next implementation slice — runtime bundle manifest verifier
 

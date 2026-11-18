@@ -1351,9 +1351,9 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 ## Protocol v3 and SurfCore QQ cursor metadata validation verified — Run #649
 
 - Run #647 completed successfully on Ubuntu and Windows. It verifies the protocol-v3 response exact-key schema, bounded scalar result_metadata round-trip, and WorkerHost.observe_with_metadata() propagation.
-- Run #648 completed successfully on Ubuntu and Windows for the host-side SurfCore QQ cursor metadata validator code. Its workflow did not yet include the new test file.
-- Run #649 completed successfully on Ubuntu and Windows after the workflow gained a dedicated SurfCore worker result metadata test step. The Windows full test discovery ran 516 tests successfully (6 expected platform-specific skips); the Ubuntu matrix job also passed all workflow steps.
+- Run #648 completed successfully on Ubuntu and Windows; its full test discovery included and passed all six SurfCore QQ metadata validator tests. The dedicated workflow step and path filter were then added so this focused suite is visible in every relevant matrix run.
+- Run #649 completed successfully on Ubuntu and Windows after the workflow gained a dedicated SurfCore worker result metadata test step. The Windows full test discovery ran 516 tests successfully (6 expected platform-specific skips); the Ubuntu matrix job also passed all workflow steps. Both the dedicated test step and full discovery passed.
 - The QQ metadata validator enforces exact stream_ref/after_cursor/proposed_cursor fields, binds the first two to host-supplied checkpoint values, rejects bool/negative/backward cursors, and returns an immutable typed value. It does not persist the cursor.
 - The protocol metadata transport is generic; the QQ-specific validator is the host-side semantic check. The caller still must durably submit all evidence/events to CSD before persisting proposed_cursor.
-- Current HEAD after the documentation update: 9013626a7043d8b747a15b42d4d250e7bc35d394. PR #1 remains Draft/Open/Unmerged.
+- Documentation reconciliation commit follows this entry; the current branch head is verified separately at the end of this work session. PR #1 remains Draft/Open/Unmerged.
 - Next: implement the host-owned runtime bundle manifest verifier and immutable staging primitives, then the fixed worker entrypoint and WindowsAppContainerWorkerExecutor. Linux Bubblewrap remains after Windows acceptance. No local Windows/DSH verification and no live SurfCore ingress.
