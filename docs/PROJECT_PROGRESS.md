@@ -998,3 +998,11 @@ At the time of this update:
 - The supervisor returns raw bounded stdout/stderr and exit code only; it does not parse worker protocol data or create CSD events.
 - Updated the Windows process integration tests to use the supervisor for a bounded stdio round trip and to verify that stdout overflow terminates the worker.
 - These tests are pending CI. Host-file/CSD-marker denial, network denial, child-process denial, and a dedicated timeout adversarial test remain unimplemented. No real adapter is enabled.
+
+
+## Windows stdio supervisor Run #627 failure and process-exit wait correction
+
+- Run #627 passed Ubuntu and the Windows stdout-overflow termination test. The normal Windows stdio round-trip exposed a timing assumption: stdout/stderr pipe EOF can arrive just before the process handle becomes signaled.
+- The supervisor previously treated "all pipe threads reached EOF" plus "process not yet signaled on an immediate zero-time poll" as an I/O failure. This was too strict; it did not wait for process exit within the already-established deadline.
+- Corrected the final phase to continue polling the process in short bounded intervals until it exits or the original wall-clock deadline expires. If the deadline expires, the Job Object is terminated and termination is confirmed before raising a timeout.
+- A new CI run is required. Run #627 remains failed on Windows; its stdout-overflow test passed, but the normal round-trip test failed on this race.

@@ -272,9 +272,14 @@ def execute_worker_stdio(
                 if len(completed) < 3:
                     raise WorkerIOError("worker exited but stdio pipes did not reach EOF")
 
-        if not worker.wait(0):
-            _terminate_and_confirm(worker, job)
-            raise WorkerIOError("worker stdio completed while process remained active")
+        # Closing stdio can precede process termination by a short interval.
+        # Keep supervising the process until exit or the original deadline.
+        while not worker.wait(50):
+            if time.monotonic() >= deadline:
+                _terminate_and_confirm(worker, job)
+                raise WorkerTimeoutError(
+                    f"worker process {worker.process_id} exceeded {timeout_ms} ms"
+                )
 
         return WorkerIOResult(
             stdout=result_buffers["stdout"],
