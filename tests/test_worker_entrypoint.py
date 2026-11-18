@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from adapters.worker_entrypoint import process_one_request
+from adapters.worker_entrypoint import _dispatch_surfcore_qq_batch, process_one_request
 from adapters.worker_protocol import (
     WorkerProtocolError,
     WorkerRequest,
@@ -69,9 +69,7 @@ class WorkerEntrypointTests(unittest.TestCase):
 
     def test_fixed_dispatch_returns_v4_evidence_and_cursor_metadata(self):
         request = self.request(self.batch())
-        response = decode_response(
-            process_one_request(encode_request(request), "surfcore_qq_batch")
-        )
+        response = _dispatch_surfcore_qq_batch(request)
         self.assertEqual(response.status, "complete")
         self.assertEqual(len(response.evidence), 1)
         evidence = response.evidence[0]
