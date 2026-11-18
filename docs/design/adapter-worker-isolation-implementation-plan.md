@@ -11,7 +11,8 @@
 - Protocol v4 and fixed static Worker entrypoint are implemented. The entrypoint consumes one bounded request from stdin through EOF and emits one response; it does not connect to QQ/Bilibili or access the network.
 - `windows_launch_plan.py` now constrains execution to the compiled SurfCore QQ read-only binding, CPython 3.12.x, fixed interpreter/entrypoint paths, and fixed isolated-mode arguments. It re-verifies staged file-set and digest integrity before plan creation. This code is not yet CI-verified.
 - No production executor composes these pieces into one fail-closed lifecycle.
-- No runtime bundle builder/distribution pipeline exists yet. The current manifest verifier checks internal file-set/size/SHA-256 consistency but does not authenticate the manifest's origin. A maliciously replaced manifest and matching files would remain internally consistent if the bundle root were not independently trusted.
+- A host-pinned manifest loader now exists: `load_trusted_runtime_bundle()` verifies exact manifest bytes against an independently supplied SHA-256 pin, and the pin is carried through staging into the launch plan. The production executor does not yet consume it because no executor exists.
+- No deterministic runtime bundle builder/distribution pipeline exists yet. The current manifest verifier still supports unpinned consistency-only use for fixtures; production launch-plan creation rejects an unpinned staged bundle. A maliciously replaced manifest and matching files are rejected only when the host uses an independently provisioned pin and protects the source bundle root.
 - Required next gate: define deterministic package contents/dependency closure, host-trusted bundle provenance (pinned manifest digest or signature plus protected bundle root), build tooling and tests. Then restore CI execution, validate launch-plan code, and only afterward compose the production executor.
 - Linux Bubblewrap, live platform ingress, and owner-local Windows/DSH verification remain outstanding.
 
@@ -477,3 +478,14 @@ Added stage_runtime_bundle() and cleanup_staged_runtime() to runtime_bundle.py. 
 ### 3.23.1 Run #651 verified per-invocation staging
 
 Run #651 passed on Ubuntu and Windows. The dedicated manifest/staging tests and full Windows test discovery passed. The staged runtime is still not launchable until the executor applies and verifies AppContainer ACLs. Before writing the fixed worker entrypoint, audit that the worker response evidence schema carries every current ObservationEvidence provenance field.
+
+
+## 2026-11-19 audit follow-up: CSD-free worker mapping and manifest pin
+
+- The fixed Worker entrypoint previously imported a SurfCore batch mapper that also constructed CSD `CognitiveEvent` objects, even though the worker only needed evidence. This unnecessarily pulled CSD code into the sandbox runtime package.
+- The mapping module now has a worker-safe `validate_surfcore_qq_batch()` path that validates cursor order, stream identity, duplicate IDs, and records, returning only untrusted `ObservationEvidence`. Host-only CSD conversion is lazy. The Worker entrypoint uses only the evidence path.
+- Added a clean isolated-import test asserting that worker-safe mapping does not import `core.csd.cognitive` or `adapters.csd_mapping`.
+- Added a typed `TrustedRuntimeBundle` wrapper and a loader that requires a host-supplied manifest SHA-256 pin. The staged bundle carries that pin; Windows launch-plan generation rejects packages that were only internally verified and not host-pinned.
+- Added regression tests for self-consistent package replacement, pinned manifest acceptance/rejection, launch-plan propagation, and unpinned staged-package rejection.
+- These changes are not CI-verified. Runs #673–#685 failed before runner allocation with no steps and no useful logs; Run #664 remains the last confirmed green matrix.
+- Still required: deterministic runtime bundle build tool, exact CPython 3.12 layout/dependency closure, trusted pin provisioning, and a production executor. Do not connect real platform data yet.
