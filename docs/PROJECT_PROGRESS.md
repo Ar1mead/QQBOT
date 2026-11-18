@@ -565,3 +565,13 @@ At the time of this update:
 - The draft covers secret separation, no CSD database access, typed bounded IPC, default-deny egress (including loopback/private/link-local/metadata destinations), filesystem isolation, resource/time limits, malformed output handling, and Windows/Linux verification gates.
 - This is a design document only. No worker launcher or OS sandbox is claimed to exist. Until that work is implemented and tested, the in-process registry may only host trusted project-owned code.
 - Registry test run #554 completed successfully on Ubuntu and Windows. The later request-type guard is included in run #555, which has now also completed successfully on both Ubuntu and Windows. Run #555 validates code/test head `761322e92ced476a9d4c18c449ab701f96438c22`; subsequent commits only updated documentation and PR text.
+
+
+### 2026-11-18 — Adapter worker protocol v1 (transport envelope only)
+
+- Added `adapters/worker_protocol.py` with distinct versioned observation request/response envelopes.
+- Protocol parsing rejects unknown fields, duplicate JSON keys, invalid UTF-8, non-standard JSON constants, unsupported versions, oversized messages, out-of-bounds identifiers/targets/counts, malformed status/evidence shapes, and mismatched request/adapter identities.
+- Added `tests/test_adapter_worker_protocol.py` covering deterministic round trips, unknown fields/message types, duplicate keys, unsupported versions, duplicate modalities, size bounds, response identity binding, status shapes, and non-standard JSON constants.
+- Wired the focused protocol suite into the hosted Ubuntu/Windows workflow and added both registry/protocol test paths to the pull-request filter.
+- Important limitation: this is only a bounded transport-envelope layer. It does not launch/authenticate a worker, provide a secure channel, semantically reconstruct/validate evidence objects, or enforce OS filesystem/network/resource restrictions. Valid JSON is not trusted evidence; host-side ObservationEvidence validation remains mandatory before CSD mapping.
+- CI for this new protocol slice is pending. No local test execution is claimed.
