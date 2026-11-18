@@ -304,3 +304,7 @@ A private-interface network probe has been added: the host first proves it can c
 ### 3.10.2 Private-interface network denial verified
 
 Run #633 passed the private-interface test with a host positive control: the host connected to a listener bound to its own private IPv4 address, while the AppContainer worker could not establish the same connection. Loopback denial remains separately covered. Link-local/cloud metadata and public destinations are still not tested.
+
+### 3.11 Recursive runtime ACL hardening
+
+The runtime grant no longer relies on directory inheritance alone. It enumerates all existing entries, rejects reparse points from the runtime root's ancestors and descendants, then applies and reads back an explicit read/execute ACE for each existing file and directory. Directory ACEs are inheritable for future runtime contents; file ACEs are direct. Enumeration is capped at 100,000 entries. The new nested-file and symlink tests are pending CI.

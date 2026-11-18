@@ -112,15 +112,15 @@ def _raise_winerror(code: int, operation: str) -> None:
         raise OSError(code, f"{operation} failed: {ctypes.FormatError(code).strip()}")
 
 
-class _DirectoryHandle:
-    """Own a verified directory handle opened without following its final reparse point."""
+class _AclObjectHandle:
+    """Own a verified file/directory handle opened without following reparse points."""
 
-    def __init__(self, path: str, desired_access: int) -> None:
+    def __init__(self, path: str, desired_access: int, expected_directory: bool | None) -> None:
         require_win64()
-        if not isinstance(path, str) or not path or "\x00" in path:
+        if not isinstance(path, str) or not path or "\\x00" in path:
             raise ValueError("path must be a non-empty filesystem path")
         if not os.path.isabs(path):
-            raise ValueError("directory path must be absolute")
+            raise ValueError("ACL target path must be absolute")
 
         self._kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         create_file = self._kernel32.CreateFileW
@@ -131,13 +131,16 @@ class _DirectoryHandle:
         self._close_handle = self._kernel32.CloseHandle
         self._close_handle.argtypes = [HANDLE]
         self._close_handle.restype = ctypes.c_int32
+        flags = FILE_FLAG_OPEN_REPARSE_POINT
+        if expected_directory is not False:
+            flags |= FILE_FLAG_BACKUP_SEMANTICS
         self.value = create_file(
             os.path.abspath(path),
             desired_access,
             SHARE_ALL,
             None,
             OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+            flags,
             None,
         )
         if self.value == INVALID_HANDLE_VALUE or not self.value:
@@ -155,10 +158,12 @@ class _DirectoryHandle:
                 ctypes.sizeof(info),
             ):
                 raise ctypes.WinError(ctypes.get_last_error())
-            if not (info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY):
-                raise ValueError("ACL target is not a directory")
             if info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT:
                 raise ValueError("ACL target must not be a reparse point")
+            is_directory = bool(info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            if expected_directory is not None and is_directory is not expected_directory:
+                kind = "directory" if expected_directory else "regular file"
+                raise ValueError(f"ACL target must be a {kind}")
         except Exception:
             self.close()
             raise
@@ -168,13 +173,23 @@ class _DirectoryHandle:
             self._close_handle(self.value)
             self.value = None
 
-    def __enter__(self) -> "_DirectoryHandle":
+    def __enter__(self) -> "_AclObjectHandle":
         if not self.value:
-            raise RuntimeError("directory handle is already closed")
+            raise RuntimeError("ACL object handle is already closed")
         return self
 
     def __exit__(self, exc_type, exc, traceback) -> None:
         self.close()
+
+
+class _DirectoryHandle(_AclObjectHandle):
+    def __init__(self, path: str, desired_access: int) -> None:
+        super().__init__(path, desired_access, expected_directory=True)
+
+
+class _FileHandle(_AclObjectHandle):
+    def __init__(self, path: str, desired_access: int) -> None:
+        super().__init__(path, desired_access, expected_directory=False)
 
 
 class _NativeSecurity:
@@ -248,15 +263,20 @@ class _NativeSecurity:
                 raise ctypes.WinError(ctypes.get_last_error())
             yield ace
 
-    def has_allowed_ace(self, acl: LPVOID, sid: LPVOID, required_mask: int) -> bool:
+    def has_allowed_ace(
+        self, acl: LPVOID, sid: LPVOID, required_mask: int,
+        required_inheritance_flags: int | None = None,
+    ) -> bool:
         for ace_ptr in self.acl_entries(acl):
             ace = ctypes.cast(ace_ptr, ctypes.POINTER(ACCESS_ALLOWED_ACE)).contents
             if ace.Header.AceType != ACCESS_ALLOWED_ACE_TYPE:
                 continue
             ace_sid = ctypes.c_void_p(ace_ptr.value + ACCESS_ALLOWED_ACE.SidStart.offset)
             if self.equal_sid(ace_sid, sid) and (ace.Mask & required_mask) == required_mask:
-                required_flags = OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE
-                if (ace.Header.AceFlags & required_flags) == required_flags:
+                if required_inheritance_flags is None:
+                    return True
+                inheritance_mask = OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE
+                if (ace.Header.AceFlags & inheritance_mask) == required_inheritance_flags:
                     return True
         return False
 
@@ -292,7 +312,14 @@ def _read_acl(api: _NativeSecurity, handle: HANDLE, security_info: int):
     return dacl, sacl, descriptor
 
 
-def _grant_access(path: str, appcontainer_sid: str, access_mask: int) -> None:
+def _grant_access(
+    path: str,
+    appcontainer_sid: str,
+    access_mask: int,
+    *,
+    inheritance_flags: int,
+    expected_directory: bool,
+) -> None:
     if not isinstance(appcontainer_sid, str) or not appcontainer_sid.startswith("S-1-15-2-"):
         raise ValueError("appcontainer_sid must be an AppContainer package SID")
 
@@ -300,16 +327,17 @@ def _grant_access(path: str, appcontainer_sid: str, access_mask: int) -> None:
     sid = api.sid_from_string(appcontainer_sid)
     new_acl = LPVOID()
     try:
-        with _DirectoryHandle(path, FILE_READ_ATTRIBUTES | READ_CONTROL | WRITE_DAC) as directory:
+        handle_type = _DirectoryHandle if expected_directory else _FileHandle
+        with handle_type(path, FILE_READ_ATTRIBUTES | READ_CONTROL | WRITE_DAC) as directory:
             old_dacl, _, descriptor = _read_acl(api, directory.value, DACL_SECURITY_INFORMATION)
             try:
                 if not old_dacl:
                     # A null DACL grants everyone full access; do not silently rewrite it.
-                    raise OSError("refusing to change a directory with a null DACL")
+                    raise OSError("refusing to change an object with a null DACL")
                 entry = EXPLICIT_ACCESS_W()
                 entry.grfAccessPermissions = access_mask
                 entry.grfAccessMode = GRANT_ACCESS
-                entry.grfInheritance = OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE
+                entry.grfInheritance = inheritance_flags
                 entry.Trustee.pMultipleTrustee = None
                 entry.Trustee.MultipleTrusteeOperation = 0
                 entry.Trustee.TrusteeForm = TRUSTEE_IS_SID
@@ -328,7 +356,10 @@ def _grant_access(path: str, appcontainer_sid: str, access_mask: int) -> None:
                     api, directory.value, DACL_SECURITY_INFORMATION
                 )
                 try:
-                    if not api.has_allowed_ace(check_dacl, sid, access_mask):
+                    expected_inheritance = inheritance_flags if expected_directory else None
+                    if not api.has_allowed_ace(
+                        check_dacl, sid, access_mask, expected_inheritance
+                    ):
                         raise OSError("AppContainer DACL grant did not survive read-back verification")
                 finally:
                     if check_descriptor:
@@ -343,14 +374,88 @@ def _grant_access(path: str, appcontainer_sid: str, access_mask: int) -> None:
             api.local_free(sid)
 
 
+MAX_RUNTIME_TREE_ENTRIES: Final[int] = 100000
+
+
+def _runtime_tree_entries(root: str) -> list[tuple[str, bool]]:
+    """Enumerate a pinned runtime tree without following any reparse point."""
+    require_win64()
+    if not isinstance(root, str) or not root or "\\x00" in root or not os.path.isabs(root):
+        raise ValueError("runtime root must be an absolute NUL-free directory path")
+    root = os.path.abspath(root)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    get_attributes = kernel32.GetFileAttributesW
+    get_attributes.argtypes = [ctypes.c_wchar_p]
+    get_attributes.restype = DWORD
+
+    # Reject reparse points in every ancestor, including the supplied root.
+    ancestor = root
+    while ancestor:
+        ancestor_attributes = int(get_attributes(ancestor))
+        if ancestor_attributes == 0xFFFFFFFF:
+            raise ctypes.WinError(ctypes.get_last_error())
+        if ancestor_attributes & FILE_ATTRIBUTE_REPARSE_POINT:
+            raise ValueError(f"runtime path contains a reparse-point ancestor: {ancestor}")
+        parent = os.path.dirname(ancestor)
+        if parent == ancestor:
+            break
+        ancestor = parent
+
+    root_attributes = int(get_attributes(root))
+    if not (root_attributes & FILE_ATTRIBUTE_DIRECTORY):
+        raise ValueError("runtime root must be a directory")
+    entries: list[tuple[str, bool]] = [(root, True)]
+    pending = [root]
+
+    while pending:
+        directory = pending.pop()
+        with os.scandir(directory) as iterator:
+            children = sorted(iterator, key=lambda entry: entry.name.casefold())
+        for child in children:
+            child_path = child.path
+            attributes = int(get_attributes(child_path))
+            if attributes == 0xFFFFFFFF:
+                raise ctypes.WinError(ctypes.get_last_error())
+            if attributes & FILE_ATTRIBUTE_REPARSE_POINT or child.is_symlink():
+                raise ValueError(f"runtime tree contains a reparse point: {child_path}")
+            is_directory = bool(attributes & FILE_ATTRIBUTE_DIRECTORY)
+            entries.append((child_path, is_directory))
+            if is_directory:
+                pending.append(child_path)
+            if len(entries) > MAX_RUNTIME_TREE_ENTRIES:
+                raise ValueError("runtime tree exceeds the configured entry ceiling")
+
+    # Parent directories are secured before descendants; each existing file
+    # receives a direct non-inheritable ACE, while directories also propagate.
+    entries.sort(key=lambda item: (item[0].count(os.sep), item[0].casefold()))
+    return entries
+
+
 def grant_runtime_read_execute(path: str, appcontainer_sid: str) -> None:
-    """Grant the worker package SID read/execute access, inheritable below path."""
-    _grant_access(path, appcontainer_sid, GENERIC_READ_FILE | GENERIC_EXECUTE_FILE)
+    """Grant read/execute to every existing runtime object, rejecting reparse points."""
+    entries = _runtime_tree_entries(path)
+    access_mask = GENERIC_READ_FILE | GENERIC_EXECUTE_FILE
+    for entry_path, is_directory in entries:
+        _grant_access(
+            entry_path,
+            appcontainer_sid,
+            access_mask,
+            inheritance_flags=(
+                OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE if is_directory else 0
+            ),
+            expected_directory=is_directory,
+        )
 
 
 def grant_temp_read_write(path: str, appcontainer_sid: str) -> None:
     """Grant the worker package SID read/write (not execute) access below path."""
-    _grant_access(path, appcontainer_sid, GENERIC_READ_FILE | GENERIC_WRITE_FILE)
+    _grant_access(
+        path,
+        appcontainer_sid,
+        GENERIC_READ_FILE | GENERIC_WRITE_FILE,
+        inheritance_flags=OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE,
+        expected_directory=True,
+    )
 
 
 def apply_low_integrity_no_write_up(path: str) -> None:

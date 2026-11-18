@@ -32,8 +32,12 @@ class WindowsAppContainerAclLayoutTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="qqbot-worker-acl-") as root:
             runtime = os.path.join(root, "runtime")
             scratch = os.path.join(root, "scratch")
-            os.mkdir(runtime)
+            os.makedirs(os.path.join(runtime, "python", "site-packages"))
             os.mkdir(scratch)
+            with open(os.path.join(runtime, "python.exe"), "wb") as stream:
+                stream.write(b"existing-runtime-executable")
+            with open(os.path.join(runtime, "python", "site-packages", "worker.py"), "w", encoding="utf-8") as stream:
+                stream.write("WORKER_MARKER = True\\n")
 
             acl.grant_runtime_read_execute(runtime, sid)
             acl.grant_temp_read_write(scratch, sid)
@@ -42,7 +46,26 @@ class WindowsAppContainerAclLayoutTests(unittest.TestCase):
             # The helpers perform handle-based read-back checks for the exact
             # package SID, required access mask, inheritance flags, and label.
             self.assertTrue(os.path.isdir(runtime))
+            self.assertTrue(os.path.isfile(os.path.join(runtime, "python.exe")))
+            self.assertTrue(os.path.isfile(os.path.join(runtime, "python", "site-packages", "worker.py")))
             self.assertTrue(os.path.isdir(scratch))
+
+
+    @unittest.skipUnless(os.name == "nt", "Windows reparse-point APIs")
+    def test_runtime_tree_rejects_reparse_points_before_granting_access(self):
+        sid = win.ensure_appcontainer_profile_sid("Ar1mead.QQBOT.Worker.CI")
+        with tempfile.TemporaryDirectory(prefix="qqbot-worker-reparse-") as root:
+            runtime = os.path.join(root, "runtime")
+            target = os.path.join(root, "target")
+            os.mkdir(runtime)
+            os.mkdir(target)
+            link = os.path.join(runtime, "linked-directory")
+            try:
+                os.symlink(target, link, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                self.skipTest("Windows symlink creation is not enabled on this runner")
+            with self.assertRaisesRegex(ValueError, "reparse point"):
+                acl.grant_runtime_read_execute(runtime, sid)
 
     def test_non_windows_acl_operations_fail_closed(self):
         if os.name == "nt":

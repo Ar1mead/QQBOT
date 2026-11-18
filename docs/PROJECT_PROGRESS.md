@@ -1110,3 +1110,11 @@ At the time of this update:
 - This adds a positive-control-backed private-interface denial test to the previously passing loopback denial test. Link-local/cloud metadata and public destination attempts remain untested.
 - Run #632 already verified Job Object kill-on-close against a live process; Run #631 verified the temp write boundary. These remain separate passing runs.
 - Hosted CI only; no local Windows/DSH verification. PR #1 remains Draft/Open/Unmerged.
+
+
+## Windows runtime ACL recursive hardening — implementation pending CI
+
+- Code audit found the earlier runtime grant applied an inheritable ACE only to the runtime root directory. That does not prove existing files already present beneath it received access.
+- Reworked `grant_runtime_read_execute` to enumerate the existing runtime tree, grant read/execute to each existing directory and file through a verified handle, set inheritable ACEs on directories for future descendants, and read each DACL back.
+- Enumeration now rejects reparse points in the supplied root's ancestor chain and in every descendant; it does not follow symlinks/junctions. A hard ceiling of 100,000 entries prevents unbounded traversal.
+- Added ACL tests with pre-existing nested directories/files and a Windows symlink/reparse-point rejection test. These tests are pending CI.
