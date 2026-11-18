@@ -183,8 +183,7 @@ def assert_win64_structure_layouts() -> None:
 
 # HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS), returned when the profile exists.
 HRESULT_PROFILE_ALREADY_EXISTS = 0x800700B7
-ERROR_ALREADY_EXISTS = 183
-_PROFILE_NAME_RE = __import__("re").compile(r"[-_. A-Za-z0-9]{1,64}\\Z")
+_PROFILE_NAME_RE = __import__("re").compile(r"[-_. A-Za-z0-9]{1,64}\Z")
 
 
 def _windows_userenv():
