@@ -8,6 +8,7 @@ import unittest
 from adapters.worker_backends.runtime_bundle import (
     MANIFEST_FILENAME,
     RuntimeBundleError,
+    TrustedRuntimeBundle,
     cleanup_staged_runtime,
     load_runtime_bundle,
     load_trusted_runtime_bundle,
@@ -154,6 +155,38 @@ class RuntimeBundleManifestTests(unittest.TestCase):
                 load_trusted_runtime_bundle(
                     root,
                     expected_manifest_sha256="NOT-A-DIGEST",
+                )
+
+    def test_trusted_bundle_wrapper_cannot_be_forged_with_another_digest(self):
+        value, file_bytes = self.make_manifest()
+        with tempfile.TemporaryDirectory() as root:
+            source = Path(root, "source")
+            destination_parent = Path(root, "worker-runs")
+            source.mkdir()
+            destination_parent.mkdir()
+            self.write_bundle(source, value, file_bytes)
+            manifest_bytes = Path(source, MANIFEST_FILENAME).read_bytes()
+            trusted = load_trusted_runtime_bundle(
+                str(source),
+                expected_manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
+            )
+            forged = TrustedRuntimeBundle(
+                verified_bundle=trusted.verified_bundle,
+                manifest_sha256="0" * 64,
+            )
+            with self.assertRaisesRegex(RuntimeBundleError, "typed manifest"):
+                stage_runtime_bundle(forged, str(destination_parent / "forged"))
+
+    def test_trusted_loader_rejects_noncanonical_manifest_even_when_pinned(self):
+        value, file_bytes = self.make_manifest()
+        with tempfile.TemporaryDirectory() as root:
+            self.write_bundle(root, value, file_bytes)
+            raw = json.dumps(value, indent=2).encode("utf-8")
+            Path(root, MANIFEST_FILENAME).write_bytes(raw)
+            with self.assertRaisesRegex(RuntimeBundleError, "canonical JSON"):
+                load_trusted_runtime_bundle(
+                    root,
+                    expected_manifest_sha256=hashlib.sha256(raw).hexdigest(),
                 )
 
     def test_host_pinned_manifest_rejects_self_consistent_bundle_replacement(self):
