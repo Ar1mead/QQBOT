@@ -1,6 +1,6 @@
 # Adapter Worker Isolation — Design Draft
 
-> Status: design draft; no worker process or OS sandbox is implemented.
+> Status: design draft; low-level Windows AppContainer process and Python-runtime harness is implemented and hosted-CI-verified, but no production WorkerExecutor or Linux sandbox backend exists.
 >
 > Scope: define the security requirements for eventually running third-party or otherwise untrusted environment-adapter code without loading it into the authoritative individual-core process.
 
@@ -103,20 +103,23 @@ Implemented in `adapters/worker_host.py`:
 - Missing executor configuration is rejected. There is no fallback that imports or executes adapter code inside the core process.
 - Backend timeout, execution error, malformed response, oversized response, and identity/target mismatches fail closed. A production backend must terminate the worker on timeout and cap output while streaming it; the host's post-return size check cannot undo memory already allocated by a backend that buffered an oversized response.
 
-Important: `WorkerExecutor` is an interface, not an OS sandbox. The current tests use an in-memory fake executor. No real subprocess backend or Windows/Linux isolation policy is implemented. A production executor must be host-owned and separately reviewed to prove filesystem, network, secret, process, and resource restrictions. Do not inject third-party executor code.
+Important: `WorkerExecutor` is an interface, not an OS sandbox. The current WorkerHost tests still use an in-memory fake executor. Separate low-level Windows modules now launch an AppContainer process, apply file/network/process/resource restrictions, and pass hosted adversarial tests, including a copied CPython runtime. They are not yet composed into a production WorkerExecutor. No Linux isolation backend exists. A production executor must be host-owned and separately reviewed. Do not inject third-party executor code.
 
 ## 7. Current status
 
 Implemented:
-- platform-neutral observation contracts;
-- CSD observation v2 mapping and validation;
+- platform-neutral observation contracts and CSD observation v2 mapping/validation;
 - explicit in-process adapter registry and capability gate;
-- tests for registration, dispatch scope, and returned evidence identity.
+- versioned Worker protocol and fail-closed WorkerHost orchestration;
+- low-level Windows AppContainer process launch, ephemeral profile lifecycle, zero-capability STARTUPINFOEX, handle-based runtime/temp ACLs, Job Object controls, explicit environment, anonymous pipes, and bounded stdio/timeout handling;
+- hosted Windows adversarial tests for copied cmd.exe and copied CPython 3.12, filesystem boundaries, loopback/private-interface denial, host-positive link-local metadata/public TCP denial, child-process restriction, timeout, output overflow, and kill-on-close;
+- Run #643 passed on Ubuntu and Windows, 38 steps per matrix job.
 
 Not implemented:
-- production worker executor / process launcher and OS sandbox;
-- Windows/Linux sandbox launchers;
-- filesystem/network/resource enforcement;
-- real Bilibili network access or account integration.
+- production WindowsAppContainerWorkerExecutor composition;
+- bounded, digest-verified host-to-worker DTO payload path (the current ObservationRequest/WorkerRequest carry metadata only);
+- Linux Bubblewrap backend and parity tests;
+- local Windows/DSH verification;
+- real Bilibili/QQ account integration or live SurfCore connection.
 
-Until these requirements are implemented and verified, the registry must only host trusted project-owned code. This document is a design draft, not a claim that process isolation already exists.
+Until the production executor, DTO input contract, Linux parity, and owner-local Windows verification are complete, the registry must only host trusted project-owned code. This document is a design draft, not a claim that production process isolation is ready.
