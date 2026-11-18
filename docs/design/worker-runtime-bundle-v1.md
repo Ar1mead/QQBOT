@@ -100,9 +100,9 @@ The entrypoint invokes the adapter with the decoded immutable request. It serial
 
 ## 6. SurfCore-specific response metadata gap
 
-The current protocol-v2 WorkerResponse carries evidence, warnings, and an error code, but no result metadata. The QQ mapper returns SurfCoreQQBatch.proposed_cursor alongside its mapped events. If the worker returns only evidence, the host loses the proposed cursor and cannot safely checkpoint the QQ journal.
+The current protocol-v3 WorkerResponse carries evidence, warnings, and an error code, but no result metadata. The QQ mapper returns SurfCoreQQBatch.proposed_cursor alongside its mapped events. If the worker returns only evidence, the host loses the proposed cursor and cannot safely checkpoint the QQ journal.
 
-Before a SurfCore QQ adapter is dispatched through the worker, introduce a versioned, bounded result-metadata field and a host-side typed result API. Do not smuggle cursor values into warnings, evidence text, or unvalidated opaque fields.
+Before a SurfCore QQ adapter is dispatched through the worker, use the protocol-v3 bounded result_metadata field and host-side WorkerHostResult API. Do not smuggle cursor values into warnings, evidence text, or unvalidated opaque fields.
 
 For the QQ batch adapter, the metadata schema must be exact and limited to:
 
@@ -137,10 +137,11 @@ Protocol/result:
 
 ## 8. Current status and non-claims
 
-The current repository has the low-level Windows AppContainer, ACL, process launch, Job Object, startup attribute, pipe, environment, bounded stdio, and protocol-v2 payload primitives. Hosted CI Run #645 passed on Ubuntu and Windows for the protocol-v2 host-to-worker payload path; Run #643 passed the Windows network destination probes.
+The current repository has the low-level Windows AppContainer, ACL, process launch, Job Object, startup attribute, pipe, environment, bounded stdio, and protocol-v3 payload primitives. Hosted CI Run #645 passed on Ubuntu and Windows for the protocol-v3 host-to-worker payload path; Run #643 passed the Windows network destination probes.
 
 Not yet implemented:
 
+- exact SurfCore QQ result_metadata validator binding stream_ref/after_cursor/proposed_cursor to the original request checkpoint;
 - bundle manifest/parser/verifier and immutable runtime staging;
 - fixed worker entrypoint/static adapter dispatch;
 - result metadata protocol and typed host result API;
@@ -151,3 +152,8 @@ Not yet implemented:
 - live SurfCore ingress or live QQ/Bilibili account connection.
 
 No claim of production-ready sandbox or real SurfCore connection is made by this document.
+
+
+## Protocol v3 result metadata transport
+
+The generic response now carries a bounded scalar metadata object. This only solves transport and generic shape validation. The host still needs an adapter-operation-specific validator before trusting cursor fields. For QQ, it must check exact key set, stream_ref binding, after_cursor equality with the host checkpoint, and monotonic proposed_cursor. The host must not persist that cursor until all returned events have been durably accepted by CSD.

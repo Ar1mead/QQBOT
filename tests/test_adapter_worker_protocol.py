@@ -79,7 +79,7 @@ class WorkerProtocolTests(unittest.TestCase):
 
     def test_request_rejects_duplicate_json_keys(self):
         raw = (
-            '{"protocol_version":2,"message_type":"observation_request",'
+            '{"protocol_version":3,"message_type":"observation_request",'
             '"request_id":"a","request_id":"b","adapter_id":"x",'
             '"adapter_version":"1","operation":"observe","target_ref":"BV1xx411c7mD",'
             '"modalities":["text"]}'
@@ -130,6 +130,39 @@ class WorkerProtocolTests(unittest.TestCase):
         with self.assertRaisesRegex(WorkerProtocolError, "adapter identity"):
             validate_response_for_request(wrong_adapter, self.request)
 
+
+    def test_response_round_trips_bounded_scalar_result_metadata(self):
+        response = WorkerResponse(
+            request_id=self.request.request_id,
+            adapter_id=self.request.adapter_id,
+            adapter_version=self.request.adapter_version,
+            status="complete",
+            evidence=(self.make_wire_evidence(),),
+            result_metadata=(("after_cursor", 4), ("proposed_cursor", 9), ("stream_ref", "opaque-stream")),
+        )
+        encoded = encode_response(response)
+        decoded = decode_response(encoded)
+        self.assertEqual(decoded.result_metadata, (
+            ("after_cursor", 4), ("proposed_cursor", 9), ("stream_ref", "opaque-stream"),
+        ))
+        self.assertEqual(encode_response(decoded), encoded)
+
+    def test_response_rejects_nested_or_oversized_result_metadata(self):
+        for metadata in (
+            (("nested", {"arbitrary": "object"}),),
+            tuple((f"k{i}", i) for i in range(17)),
+            (("bad\\nkey", "value"),),
+        ):
+            with self.subTest(metadata=metadata):
+                with self.assertRaises(WorkerProtocolError):
+                    WorkerResponse(
+                        request_id="r",
+                        adapter_id="a",
+                        adapter_version="1",
+                        status="unavailable",
+                        result_metadata=metadata,
+                    )
+
     def test_response_rejects_boolean_protocol_version(self):
         with self.assertRaisesRegex(WorkerProtocolError, "unsupported worker protocol"):
             WorkerResponse("r", "a", "1", "unavailable", protocol_version=True)
@@ -144,9 +177,9 @@ class WorkerProtocolTests(unittest.TestCase):
 
     def test_decoder_rejects_nonstandard_json_constants(self):
         raw = (
-            '{"protocol_version":2,"message_type":"observation_response",'
+            '{"protocol_version":3,"message_type":"observation_response",'
             '"request_id":"r","adapter_id":"a","adapter_version":"1",'
-            '"status":"unavailable","evidence":[],"warnings":[],"error_code":NaN}'
+            '"status":"unavailable","evidence":[],"warnings":[],"error_code":NaN,"result_metadata":{}}'
         )
         with self.assertRaisesRegex(WorkerProtocolError, "non-standard JSON constant"):
             decode_response(raw)
@@ -228,10 +261,10 @@ class WorkerProtocolTests(unittest.TestCase):
 
     def test_response_rejects_unknown_fields(self):
         raw = (
-            '{"protocol_version":2,"message_type":"observation_response",'
+            '{"protocol_version":3,"message_type":"observation_response",'
             '"request_id":"r","adapter_id":"a","adapter_version":"1",'
             '"status":"unavailable","evidence":[],"warnings":[],"error_code":null,'
-            '"shell_command":"whoami"}'
+            '"result_metadata":{},"shell_command":"whoami"}'
         )
         with self.assertRaisesRegex(WorkerProtocolError, "invalid message fields"):
             decode_response(raw)

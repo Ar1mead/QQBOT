@@ -1311,3 +1311,12 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - The document specifies a host-owned immutable runtime bundle, manifest/digest verification, no reparse points/path traversal, fixed Python entrypoint, static adapter ID/version/operation allowlist, and per-invocation runtime staging.
 - It records a second integration gap: protocol-v2 WorkerResponse has no result metadata, but SurfCore QQ batch mapping needs to return proposed_cursor. A dedicated bounded/typed metadata contract is required; cursor values must not be hidden in evidence or warnings.
 - This is a design artifact only. No runtime bundle verifier, worker entrypoint, metadata protocol, production executor, Linux backend, or live SurfCore connection has been implemented.
+
+
+## Worker protocol v3 — bounded result metadata added; CI pending
+
+- Bumped the strict worker request/response envelope version from 2 to 3. Request payload transport remains unchanged: host-supplied bytes, 512 KiB cap, canonical base64 and SHA-256 validation.
+- Added exact response field result_metadata. It is a bounded immutable scalar map: at most 16 entries, bounded keys and strings, and values limited to string, signed 64-bit integer, boolean, or null. Nested objects/arrays and unknown response fields remain rejected.
+- Added WorkerHost.observe_with_metadata(), returning a WorkerHostResult containing the already-validated ObservationResult plus immutable metadata. Existing WorkerHost.observe() remains backward-compatible at the Python API level and returns only the ObservationResult.
+- Added tests for metadata round-trip, bounds/rejection, and host propagation. This is generic transport validation only; the SurfCore QQ adapter still needs an exact host-side validator binding stream_ref/after_cursor/proposed_cursor to the request checkpoint.
+- CI pending. No production Windows executor or worker-side entrypoint yet.

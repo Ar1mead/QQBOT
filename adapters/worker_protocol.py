@@ -21,7 +21,7 @@ from adapters.contracts.observation import (
     ObservationStatus,
 )
 
-PROTOCOL_VERSION = 2
+PROTOCOL_VERSION = 3
 MAX_MESSAGE_BYTES = 1_048_576
 MAX_INPUT_PAYLOAD_BYTES = MAX_OBSERVATION_INPUT_BYTES
 MAX_ID_LENGTH = 128
@@ -29,6 +29,9 @@ MAX_TARGET_LENGTH = 512
 MAX_MODALITIES = 16
 MAX_EVIDENCE_ITEMS = 128
 MAX_WARNINGS = 64
+MAX_RESULT_METADATA_ITEMS = 16
+MAX_RESULT_METADATA_KEY_LENGTH = 64
+MAX_RESULT_METADATA_STRING_LENGTH = 1024
 
 
 class WorkerProtocolError(ValueError):
@@ -104,6 +107,35 @@ def _bounded_string(value: Any, field: str, maximum: int = MAX_ID_LENGTH) -> str
     return value
 
 
+def _normalize_result_metadata(value: Any) -> tuple[tuple[str, str | int | bool | None], ...]:
+    """Validate small, immutable scalar metadata; adapter schemas are checked by the host."""
+    if not isinstance(value, (dict, tuple)):
+        raise WorkerProtocolError("result_metadata must be an object or immutable key/value tuple")
+    items = list(value.items()) if isinstance(value, dict) else list(value)
+    if len(items) > MAX_RESULT_METADATA_ITEMS:
+        raise WorkerProtocolError("result_metadata contains too many entries")
+    normalized: dict[str, str | int | bool | None] = {}
+    for item in items:
+        if not isinstance(item, (tuple, list)) or len(item) != 2:
+            raise WorkerProtocolError("result_metadata entries must be key/value pairs")
+        key, entry = item
+        if not isinstance(key, str) or not key.strip() or len(key) > MAX_RESULT_METADATA_KEY_LENGTH:
+            raise WorkerProtocolError("result_metadata keys must be bounded non-empty strings")
+        if any(ord(char) < 32 for char in key):
+            raise WorkerProtocolError("result_metadata keys must not contain control characters")
+        if key in normalized:
+            raise WorkerProtocolError("result_metadata contains duplicate keys")
+        if entry is not None and type(entry) not in (str, int, bool):
+            raise WorkerProtocolError("result_metadata values must be string, integer, boolean, or null")
+        if isinstance(entry, str):
+            if len(entry) > MAX_RESULT_METADATA_STRING_LENGTH or any(ord(char) < 32 for char in entry):
+                raise WorkerProtocolError("result_metadata string value exceeds bounds")
+        if type(entry) is int and not -(2**63) <= entry <= (2**63 - 1):
+            raise WorkerProtocolError("result_metadata integer is outside signed 64-bit bounds")
+        normalized[key] = entry
+    return tuple(sorted(normalized.items(), key=lambda pair: pair[0]))
+
+
 @dataclass(frozen=True)
 class WorkerRequest:
     request_id: str
@@ -143,8 +175,11 @@ class WorkerResponse:
     warnings: tuple[str, ...] = ()
     error_code: str | None = None
     protocol_version: int = PROTOCOL_VERSION
+    result_metadata: tuple[tuple[str, str | int | bool | None], ...] = ()
 
     def __post_init__(self) -> None:
+        normalized_metadata = _normalize_result_metadata(self.result_metadata)
+        object.__setattr__(self, "result_metadata", normalized_metadata)
         if type(self.protocol_version) is not int or self.protocol_version != PROTOCOL_VERSION:
             raise WorkerProtocolError("unsupported worker protocol version")
         for name in ("request_id", "adapter_id", "adapter_version"):
@@ -250,6 +285,7 @@ def encode_response(response: WorkerResponse) -> bytes:
         "evidence": list(response.evidence),
         "warnings": list(response.warnings),
         "error_code": response.error_code,
+        "result_metadata": dict(response.result_metadata),
     })
 
 
@@ -265,6 +301,9 @@ def decode_response(raw: bytes | str) -> WorkerResponse:
         raise WorkerProtocolError("unsupported worker protocol version")
     if not isinstance(value["evidence"], list) or not isinstance(value["warnings"], list):
         raise WorkerProtocolError("evidence and warnings must be JSON arrays")
+    if not isinstance(value["result_metadata"], dict):
+        raise WorkerProtocolError("result_metadata must be a JSON object")
+    metadata = _normalize_result_metadata(value["result_metadata"])
     return WorkerResponse(
         request_id=value["request_id"],
         adapter_id=value["adapter_id"],
@@ -274,6 +313,7 @@ def decode_response(raw: bytes | str) -> WorkerResponse:
         warnings=tuple(value["warnings"]),
         error_code=value["error_code"],
         protocol_version=value["protocol_version"],
+        result_metadata=metadata,
     )
 
 

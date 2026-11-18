@@ -51,6 +51,14 @@ class WorkerExecutor(Protocol):
 
 
 @dataclass(frozen=True)
+class WorkerHostResult:
+    """Validated observation plus bounded adapter-specific scalar metadata."""
+
+    observation: ObservationResult
+    result_metadata: tuple[tuple[str, str | int | bool | None], ...] = ()
+
+
+@dataclass(frozen=True)
 class WorkerHost:
     executor: WorkerExecutor
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
@@ -72,14 +80,14 @@ class WorkerHost:
         ):
             raise ValueError("max_response_bytes is outside the protocol limit")
 
-    def observe(
+    def observe_with_metadata(
         self,
         *,
         adapter_id: str,
         adapter_version: str,
         operation: str,
         request: ObservationRequest,
-    ) -> ObservationResult:
+    ) -> WorkerHostResult:
         worker_request = WorkerRequest(
             request_id=request.request_id,
             adapter_id=adapter_id,
@@ -109,7 +117,22 @@ class WorkerHost:
             result = response_to_observation_result(response, worker_request)
         except WorkerProtocolError as exc:
             raise WorkerExecutionError(f"worker response rejected: {exc}") from exc
-        return result
+        return WorkerHostResult(result, response.result_metadata)
+
+    def observe(
+        self,
+        *,
+        adapter_id: str,
+        adapter_version: str,
+        operation: str,
+        request: ObservationRequest,
+    ) -> ObservationResult:
+        return self.observe_with_metadata(
+            adapter_id=adapter_id,
+            adapter_version=adapter_version,
+            operation=operation,
+            request=request,
+        ).observation
 
 
 @dataclass

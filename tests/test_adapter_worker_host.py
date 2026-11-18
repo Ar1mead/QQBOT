@@ -97,6 +97,31 @@ class WorkerHostTests(unittest.TestCase):
         self.assertEqual(timeout, 15.0)
         self.assertGreater(max_bytes, 0)
 
+
+    def test_host_exposes_validated_result_metadata_without_changing_observe_api(self):
+        response = WorkerResponse(
+            request_id=self.request.request_id,
+            adapter_id=self.manifest.adapter_id,
+            adapter_version=self.manifest.adapter_version,
+            status="complete",
+            evidence=(self.make_evidence(),),
+            result_metadata=(("after_cursor", 7), ("proposed_cursor", 12), ("stream_ref", "opaque-stream")),
+        )
+        executor = FakeWorkerExecutor(response=encode_response(response))
+        host = WorkerHost(executor)
+        detailed = host.observe_with_metadata(
+            adapter_id=self.manifest.adapter_id,
+            adapter_version=self.manifest.adapter_version,
+            operation="observe",
+            request=self.request,
+        )
+        self.assertEqual(detailed.observation.status, ObservationStatus.COMPLETE)
+        self.assertEqual(dict(detailed.result_metadata), {
+            "after_cursor": 7,
+            "proposed_cursor": 12,
+            "stream_ref": "opaque-stream",
+        })
+
     def test_host_requires_explicit_executor_and_has_no_fallback(self):
         with self.assertRaisesRegex(ValueError, "reviewed worker executor"):
             WorkerHost(None)

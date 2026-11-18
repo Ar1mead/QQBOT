@@ -394,7 +394,7 @@ A final audit before production executor composition found a mismatch between th
 Therefore, the current low-level Windows launcher can execute a Python process, but there is not yet a complete data path for a real adapter to transform host-fetched SurfCore DTOs without network access. Before implementing `WindowsAppContainerWorkerExecutor`, add a bounded, explicit, digest-verified input-payload contract (including size limits, exact schema, and host-side provenance) and tests for tampering/oversize/empty input. The worker must not fetch its own source data or receive SurfCore credentials.
 
 
-## 3.16 Worker protocol v2 input payload path implemented
+## 3.16 Worker protocol v3 input payload path implemented
 
 The prior pre-executor gap is now addressed at the request-contract layer:
 
@@ -408,12 +408,12 @@ This provides the bounded host-to-worker data plane required by the design. It d
 
 ### 3.16.1 Run #644 contract-field assembly correction
 
-Run #644 caught that the ObservationRequest validation referenced input_payload but the dataclass field declaration had not made it into the first assembled commit. The contract source now declares the immutable bytes field and uses a shared MAX_OBSERVATION_INPUT_BYTES constant. Run #645 must validate the full protocol-v2 request path.
+Run #644 caught that the ObservationRequest validation referenced input_payload but the dataclass field declaration had not made it into the first assembled commit. The contract source now declares the immutable bytes field and uses a shared MAX_OBSERVATION_INPUT_BYTES constant. Run #645 must validate the full protocol-v3 request path.
 
 
-### 3.16.2 Run #645 verified protocol-v2 input transport
+### 3.16.2 Run #645 verified protocol-v3 input transport
 
-Run #645 passed on Ubuntu and Windows for head `16e027b89e60717040e54e273b1d2f8cd6a01fe8`. It verifies the corrected `ObservationRequest.input_payload` dataclass field, the shared 512 KiB bound, protocol-v2 canonical base64 plus SHA-256 serialization/validation, and WorkerHost propagation. Run #644 remains the failed first assembly attempt.
+Run #645 passed on Ubuntu and Windows for head `16e027b89e60717040e54e273b1d2f8cd6a01fe8`. It verifies the corrected `ObservationRequest.input_payload` dataclass field, the shared 512 KiB bound, protocol-v3 canonical base64 plus SHA-256 serialization/validation, and WorkerHost propagation. Run #644 remains the failed first assembly attempt.
 
 ### 3.17 Next design gate — trusted worker runtime bundle and fixed dispatch
 
@@ -427,3 +427,8 @@ See worker-runtime-bundle-v1.md. The executor must not accept caller-controlled 
 ### 3.19 Result metadata required before SurfCore QQ dispatch
 
 Protocol v2 currently returns evidence but not adapter-specific result metadata. SurfCore QQ batch mapping produces a proposed cursor that must reach the trusted host, and the host must persist it only after durable CSD submission. A bounded typed result-metadata contract and host result API must be implemented before QQ worker dispatch. The runtime bundle design document specifies the exact initial cursor metadata shape.
+
+
+### 3.20 Protocol v3 bounded result metadata
+
+WorkerResponse now includes a required exact-key result_metadata object. The protocol layer limits it to 16 immutable scalar entries with bounded keys/string values and signed 64-bit integers; nested arbitrary JSON is rejected. WorkerHost.observe_with_metadata() returns this metadata alongside the validated ObservationResult, while the existing observe() API continues to return ObservationResult only. Adapter-specific metadata must still be validated by the trusted host against the adapter operation and original request. CI pending.
