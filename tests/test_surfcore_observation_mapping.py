@@ -38,6 +38,10 @@ def record(platform="qq", **overrides):
             },
             "account_ref": "qq-account-opaque",
             "cursor": 42,
+            "conversation_kind": "group",
+            "conversation_ref": "qq-conversation-opaque",
+            "sender_ref": "qq-sender-opaque",
+            "historical": False,
         }
     else:
         data = {
@@ -105,6 +109,49 @@ class SurfCoreMappingTests(unittest.TestCase):
         self.assertEqual(first.content_origin, ContentOrigin.SOURCE_PROVIDED)
         self.assertIs(first.untrusted, True)
         self.assertEqual(first.account_ref, "qq-account-opaque")
+        self.assertEqual(first.context_kind, "group")
+        self.assertEqual(first.context_ref, "qq-conversation-opaque")
+        self.assertEqual(first.actor_ref, "qq-sender-opaque")
+        self.assertEqual(first.source_sequence, 42)
+        self.assertFalse(first.historical)
+
+    def test_qq_private_and_backfilled_provenance_is_preserved(self):
+        mapped = map_surfcore_record(record(
+            conversation_kind="private",
+            conversation_ref="private-thread-opaque",
+            sender_ref="owner-opaque",
+            historical=True,
+        ))
+        self.assertEqual(mapped.context_kind, "private")
+        self.assertEqual(mapped.context_ref, "private-thread-opaque")
+        self.assertEqual(mapped.actor_ref, "owner-opaque")
+        self.assertTrue(mapped.historical)
+        event = map_surfcore_record_to_csd_event(record(
+            conversation_kind="private",
+            conversation_ref="private-thread-opaque",
+            sender_ref="owner-opaque",
+            historical=True,
+        ))
+        self.assertEqual(event.payload["context_kind"], "private")
+        self.assertEqual(event.payload["context_ref"], "private-thread-opaque")
+        self.assertEqual(event.payload["actor_ref"], "owner-opaque")
+        self.assertEqual(event.payload["source_sequence"], 42)
+        self.assertTrue(event.payload["historical"])
+
+    def test_qq_requires_conversation_sender_and_history_provenance(self):
+        for field in ("conversation_kind", "conversation_ref", "sender_ref", "historical", "account_ref"):
+            source = record()
+            del source[field]
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "provenance fields"):
+                map_surfcore_record(source)
+        with self.assertRaisesRegex(ValueError, "conversation_kind"):
+            map_surfcore_record(record(conversation_kind="channel"))
+        with self.assertRaisesRegex(ValueError, "historical must be boolean"):
+            map_surfcore_record(record(historical="false"))
+
+    def test_bilibili_rejects_qq_conversation_provenance(self):
+        with self.assertRaisesRegex(ValueError, "QQ-only provenance"):
+            map_surfcore_record(record("bilibili", conversation_kind="group"))
 
     def test_historical_qq_message_remains_explicit(self):
         mapped = map_surfcore_record(record(observation_kind="qq.message.incoming.historical"))
