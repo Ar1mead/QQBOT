@@ -9,6 +9,7 @@ from adapters.worker_backends.runtime_bundle import (
     MANIFEST_FILENAME,
     RuntimeBundleError,
     StagedRuntimeBundle,
+    canonical_runtime_bundle_manifest_bytes,
     load_trusted_runtime_bundle,
     stage_runtime_bundle,
 )
@@ -143,11 +144,11 @@ class WindowsWorkerLaunchPlanTests(unittest.TestCase):
                             operation=operation,
                         )
 
-    def test_rejects_manifest_dispatch_key_not_in_host_code(self):
+    def test_rejects_manifest_dispatch_key_tampering_against_original_pin(self):
         with tempfile.TemporaryDirectory() as root:
             staged = self.make_staged(root)
-            wrong = staged.manifest.adapters[0]
             from dataclasses import replace
+            wrong = staged.manifest.adapters[0]
             forged_manifest = replace(
                 staged.manifest,
                 adapters=(replace(wrong, dispatch_key="other_fixed_key"),),
@@ -161,13 +162,43 @@ class WindowsWorkerLaunchPlanTests(unittest.TestCase):
                     operation="observe_batch",
                 )
 
+    def test_rejects_manifest_dispatch_key_outside_host_allowlist(self):
+        with tempfile.TemporaryDirectory() as root:
+            staged = self.make_staged(root)
+            from dataclasses import replace
+            wrong = staged.manifest.adapters[0]
+            forged_manifest = replace(
+                staged.manifest,
+                adapters=(replace(wrong, dispatch_key="other_fixed_key"),),
+            )
+            forged_pin = hashlib.sha256(
+                canonical_runtime_bundle_manifest_bytes(forged_manifest)
+            ).hexdigest()
+            forged = replace_staged(
+                staged,
+                manifest=forged_manifest,
+                trusted_manifest_sha256=forged_pin,
+            )
+            with self.assertRaisesRegex(ValueError, "exactly match"):
+                build_windows_worker_launch_plan(
+                    forged,
+                    adapter_id="surfcore.qq.readonly",
+                    adapter_version="0.1.0",
+                    operation="observe_batch",
+                )
+
     def test_rejects_python_version_outside_supported_series(self):
         with tempfile.TemporaryDirectory() as root:
             staged = self.make_staged(root)
             from dataclasses import replace
+            forged_manifest = replace(staged.manifest, python_version="3.13.0")
+            forged_pin = hashlib.sha256(
+                canonical_runtime_bundle_manifest_bytes(forged_manifest)
+            ).hexdigest()
             forged = replace_staged(
                 staged,
-                manifest=replace(staged.manifest, python_version="3.13.0"),
+                manifest=forged_manifest,
+                trusted_manifest_sha256=forged_pin,
             )
             with self.assertRaisesRegex(ValueError, "supported 3.12"):
                 build_windows_worker_launch_plan(
