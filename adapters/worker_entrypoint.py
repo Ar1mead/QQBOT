@@ -7,9 +7,15 @@ accepted from the request.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from collections.abc import Callable, Mapping
 from typing import Any
+
+# Python is launched with -I -S -B. Isolated mode deliberately omits the script
+# directory from sys.path, so add only this verified, staged application root.
+_WORKER_APP_ROOT = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, _WORKER_APP_ROOT)
 
 from adapters.platforms.surfcore.mapping import map_surfcore_qq_batch, map_surfcore_record
 from adapters.worker_protocol import (
