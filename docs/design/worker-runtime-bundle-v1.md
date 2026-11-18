@@ -273,3 +273,20 @@ Security distinction:
 - Until a real package builder and provenance verification exist, the launch-plan fixture tests do not prove that a production bundle can start.
 
 This audit is a release gate before composing `WindowsAppContainerWorkerExecutor`; do not weaken it by accepting a self-authenticating manifest.
+
+
+## Host-pinned bundle provenance and Worker-safe mapping boundary (2026-11-19)
+
+The runtime loader now distinguishes internal consistency from trusted origin:
+
+- `load_runtime_bundle()` verifies only manifest/file-set/size/digest consistency. It is suitable for fixture and staging-integrity tests, not by itself for production launch.
+- `load_trusted_runtime_bundle(root, expected_manifest_sha256=...)` requires an independently supplied, lowercase SHA-256 digest of the exact manifest bytes and returns a `TrustedRuntimeBundle`.
+- `stage_runtime_bundle()` carries that independent digest into `StagedRuntimeBundle`.
+- `build_windows_worker_launch_plan()` rejects a staged bundle without the host pin and includes the digest in its immutable launch plan.
+- The pin must come from trusted host configuration; reading it from the bundle would defeat the check. The source bundle directory must also be protected from untrusted writes. This is a pinned-manifest design, not a digital-signature system.
+
+The Worker package dependency closure was also reduced. The Worker entrypoint now calls `validate_surfcore_qq_batch()`, which returns untrusted `ObservationEvidence` only. CSD event conversion imports are lazy and used only by host-side compatibility helpers. A clean isolated import test asserts that the worker-safe mapping path does not import `core.csd.cognitive` or `adapters.csd_mapping`.
+
+Still missing: a deterministic package builder that produces the exact `python/python.exe` + `app/worker_entrypoint.py` layout and all reviewed import dependencies, emits canonical manifest bytes and hashes, and documents how the resulting manifest digest is provisioned into trusted host configuration.
+
+Runs #673–#685 did not allocate runners (no steps/no runner assignment); these changes remain CI-pending. The last confirmed green matrix is Run #664.
