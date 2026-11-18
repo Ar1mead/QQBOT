@@ -1584,3 +1584,17 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Latest committed source changes include retryable cleanup ownership for Job Object/process/pipe/ACL handles and AppContainer SID memory, stronger Worker termination/error propagation, startup-failure cleanup attempts for both process handles, the AppContainer LocalAppData directory fixture correction, and platform-neutral fake-handle tests.
 - All source/test changes made after the last known full matrix success (#664) remain unverified. New synthetic tests are not native Windows validation. Do not describe the Windows executor or runtime bundle as production-ready.
 - A dedicated continuation brief with exact next actions is in `docs/HANDOFF_2026-11-19.md`.
+
+
+---
+
+## Documentation handoff policy — 2026-11-19
+
+- `docs/HANDOFF_CURRENT.md` is now the single authoritative current handoff entry. Every future handoff must update/replace that fixed path; do not create another date-stamped handoff as the current document.
+- `docs/PROJECT_PROGRESS.md` remains the durable chronological progress ledger. Continue appending meaningful implementation, verification, and decision checkpoints here.
+- Existing date-stamped handoff files (including `docs/HANDOFF_2026-11-19.md`) are historical snapshots only. They may remain in the repository, but must not be used as current-state authority.
+- New-window read order: this file, then `docs/HANDOFF_CURRENT.md`, then independently verify live branch HEAD, PR #1, recent Actions runs, and latest jobs JSON. Live repository state wins over stale document hashes.
+- At this policy update, the active branch was verified at `8e617fd487f8485a03b22432c1310fe03bcb1f77`; PR #1 head matched and remained Draft/Open/Unmerged.
+- Latest observed Actions runs were #701–#710; all failed before runner allocation. Run #710 (ID `44353015881`) had Ubuntu and Windows jobs with `runner_id=0`, blank runner names, and empty steps. No tests ran. The cause remains unknown.
+- This is a documentation/process correction; it does not change runtime code or claim new CI verification.
+- Commit creating the stable handoff: `73a1fe361898e4137e2577ab81266c8a8380677c`.
