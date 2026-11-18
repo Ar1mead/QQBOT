@@ -49,6 +49,7 @@ The cursor is scoped to one SurfCore account/feed identity. The response contain
       "cursor": 124,
       "external_ref": "opaque-source-message-ref",
       "observation_kind": "qq.message.incoming",
+      "account_ref": "opaque-qq-account-stream-ref",
       "conversation_kind": "group",
       "conversation_ref": "opaque-stable-conversation-ref",
       "sender_ref": "opaque-stable-sender-ref",
@@ -114,12 +115,12 @@ The project-side adapter accepts only the exact versioned DTO fields. It must:
 - reject unknown fields and unsupported schema versions;
 - require the QQ conversation/sender/history metadata above;
 - keep all content `untrusted=true`;
-- retain account, conversation, sender, source-message, cursor, and historical provenance in the CSD event payload (not in free-form content);
+- retain account, conversation, sender, source-message, cursor, and historical provenance in the CSD event payload (not in free-form content); the generic ObservationEvidence contract exposes `context_kind`, `context_ref`, `actor_ref`, `source_sequence`, and `historical` for this purpose;
 - derive deterministic observation/event identity from platform + opaque account/stream reference + stable source record ID;
 - reject cursor regression, out-of-page records, duplicate record IDs, and oversized batches;
 - never persist the cursor itself or call SurfCore.
 
-The current Python mapper is still an earlier DTO draft. It does not yet carry the full conversation/sender/history provenance specified here; align the mapper and tests to this contract before implementing transport.
+The mapper is being aligned to this DTO contract in staged changes; the transport remains unimplemented.
 
 ## 6. Security and privacy acceptance tests
 
