@@ -505,3 +505,6 @@ Run #651 passed on Ubuntu and Windows. The dedicated manifest/staging tests and 
 
 
 Follow-up: the package builder normalizes an optional `python312._pth` to explicit relative `python312.zip` (if present), `.`, `DLLs`, and `Lib` entries, without enabling `site`. Run #690 failed before runner allocation; this remains unverified.
+
+
+The host-pin chain is now checked against the canonical typed manifest at load, stage, and pre-launch verification. A forged wrapper or altered staged manifest cannot keep an unrelated old digest. Non-canonical JSON is rejected. Regression tests cover these cases and keep manifest authenticity distinct from host allowlist and Python-version policy. Runs #692–#695 did not allocate runners; no pass is claimed.
