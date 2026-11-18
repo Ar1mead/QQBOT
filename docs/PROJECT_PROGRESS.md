@@ -10,12 +10,12 @@ This is the durable hand-off record for continuing work when conversation contex
 
 ## Current status snapshot — 2026-11-18 19:13 UTC+08:00
 
-- Current branch: `feature/csd-cognitive-memory-slice`; current documentation-only HEAD at reconciliation: `46b33762292a0dcdbb46e7a8aae15cf3b36cb155`.
+- Current branch: `feature/csd-cognitive-memory-slice`; last code/test checkpoint: `d36c346ae0b4cc10cbed55814eadde74d74386a7` (Run #643 passed). Subsequent progress-ledger/design updates are documentation-only.
 - Latest verified code/test commit: `1a177d2ef73a5b32b0900fa115d922366d3f33be`; Run #639 completed successfully on Ubuntu and Windows (38 steps per matrix job). The only commits after that tested code are documentation-only.
 - Windows backend now contains AppContainer profile/capability helpers, handle-based runtime/temp ACL and Low Integrity label helpers, explicit environment block, Job Object limits, STARTUPINFOEX handle allowlist, suspended process launch, anonymous pipes, and bounded concurrent stdio/timeout termination.
 - Windows process tests currently execute copied `cmd.exe`, not Python. Verified cases include runtime read-only/temp writable, host/CSD marker read denial, loopback and private-interface connection denial, child-process limit, timeout, output overflow, and Job Object kill-on-close. Link-local/cloud metadata and public network destinations are not yet tested.
 - No production `WindowsAppContainerWorkerExecutor` exists; low-level launcher/stdio modules are not yet composed into the existing `WorkerExecutor` interface. No Linux Bubblewrap backend, live SurfCore ingress, or local Windows/DSH test exists.
-- New next slice: verify a copied, minimal Python runtime under the same AppContainer controls with `-I -S -B`, standard-library/native-extension imports, explicit environment, no runtime writes, and temp-only writes. This test has been added and is awaiting CI.
+- Python runtime verification is now complete on hosted Windows: copied CPython 3.12 launched with `-I -S -B`, standard-library/native-extension imports passed, `sys.path` stayed inside the copied runtime, parent-only secret was absent, runtime writes were denied, and the explicit plus AppContainer-managed per-profile temp paths behaved as expected.
 - PR #1 remains Draft/Open/Unmerged.
 
 ---
@@ -1265,3 +1265,14 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - This was a test-harness ordering error, not an AppContainer/network-policy failure. The probe itself was not executed, so Run #642 provides no metadata/public network result.
 - Corrected the diagnostic placement to print after the host-side positive-control scan. The network test still performs TCP handshakes only and sends no application or metadata request.
 - Correction pending Run #643.
+
+
+## Run #643 — Python runtime and network destination isolation verified
+
+- Run #643 for tested head `d36c346ae0b4cc10cbed55814eadde74d74386a7` completed successfully on Ubuntu and Windows; both matrix jobs passed all 38 steps.
+- The Windows Python integration test ran 13 tests (one platform-specific validation test skipped as expected); all executed tests passed.
+- Host-side positive controls successfully established TCP connections to both public `1.1.1.1:443` and link-local metadata `169.254.169.254:80`. The copied Python worker attempted the same TCP handshakes and was denied to both. No HTTP request, metadata token request, or application payload was sent.
+- Existing loopback and private-interface denial tests also passed. Thus the current AppContainer configuration has hosted-CI evidence for loopback, private-interface, link-local metadata, and public network denial.
+- Run #642 was a failed test-instrumentation attempt (diagnostic print before variable initialization); Run #643 verifies the correction. Run #640 was the earlier TEMP-directory fixture failure; Run #641 verifies its correction.
+- **New contract gap found during pre-executor audit:** `ObservationRequest` and `WorkerRequest` currently carry request/target/modality metadata only. The worker-isolation design says the trusted host supplies already-fetched DTO bytes, but no payload field/path exists in the current request contract. A production executor must not be built until this is addressed explicitly.
+- Next: design and implement bounded, digest-verified host-to-worker DTO input; then compose the low-level Windows modules into `WindowsAppContainerWorkerExecutor`. Linux Bubblewrap remains after Windows production executor/adversarial acceptance. No local Windows/DSH verification; no live SurfCore ingress. PR #1 remains Draft/Open/Unmerged.

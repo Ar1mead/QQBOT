@@ -366,3 +366,19 @@ The Python AppContainer probe now tries TCP handshakes to public `1.1.1.1:443` a
 ### 3.14.1 Run #642 instrumentation correction
 
 Run #642 did not execute the new network probe: the Windows test raised `NameError` because the diagnostic print referenced `host_targets` before the host-positive-control list was initialized. This was test harness ordering only. The print now follows target discovery. No network isolation conclusion is drawn from Run #642; Run #643 must verify the corrected test.
+
+
+### 3.14.2 Network destination probes passed — Run #643
+
+Run #643 passed on both Ubuntu and Windows. On Windows, host-side positive controls established TCP connections to public `1.1.1.1:443` and link-local metadata `169.254.169.254:80`. The copied Python AppContainer worker attempted the same TCP handshakes and was denied to both. No HTTP request, metadata token request, or application payload was sent. Loopback and a host private-interface listener are covered by separate passing tests. This provides hosted-Windows evidence for those specific destinations, not a universal proof for every possible network route.
+
+### 3.15 Pre-executor request-data contract gap
+
+A final audit before production executor composition found a mismatch between the design and current code:
+
+- The design requires the trusted host to fetch/receive bounded DTO bytes and pass them to an offline worker.
+- `ObservationRequest` currently contains only `request_id`, `target_ref`, and `modalities`.
+- `WorkerRequest` similarly contains request/adapter/operation/target/modality metadata only.
+- `WorkerHost.observe()` serializes only that metadata. The `WorkerExecutor.execute()` contract receives only the serialized request bytes.
+
+Therefore, the current low-level Windows launcher can execute a Python process, but there is not yet a complete data path for a real adapter to transform host-fetched SurfCore DTOs without network access. Before implementing `WindowsAppContainerWorkerExecutor`, add a bounded, explicit, digest-verified input-payload contract (including size limits, exact schema, and host-side provenance) and tests for tampering/oversize/empty input. The worker must not fetch its own source data or receive SurfCore credentials.
