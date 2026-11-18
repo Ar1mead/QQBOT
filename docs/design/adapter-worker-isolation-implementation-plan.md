@@ -471,3 +471,8 @@ Run #650 passed on Ubuntu and Windows. The dedicated runtime bundle manifest tes
 ### 3.23 Per-invocation runtime staging implementation
 
 Added stage_runtime_bundle() and cleanup_staged_runtime() to runtime_bundle.py. Staging revalidates the source bundle, creates a new destination, copies only listed files, hashes source bytes during copy, checks file identity/metadata, fsyncs and re-hashes destination files, verifies exact staged file set, and refuses symlinks/reparse points during cleanup. It rejects destination reuse and source/destination overlap. The staged runtime is not launchable until ACL hardening is applied and verified. CI pending.
+
+
+### 3.23.1 Run #651 verified per-invocation staging
+
+Run #651 passed on Ubuntu and Windows. The dedicated manifest/staging tests and full Windows test discovery passed. The staged runtime is still not launchable until the executor applies and verifies AppContainer ACLs. Before writing the fixed worker entrypoint, audit that the worker response evidence schema carries every current ObservationEvidence provenance field.

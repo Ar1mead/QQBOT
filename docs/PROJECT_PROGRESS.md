@@ -1384,3 +1384,13 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Staging rejects existing destinations and source/destination overlap. It does not copy bundle-manifest.json into the worker runtime.
 - Added tests for exact staging, copied bytes, interpreter/entrypoint paths, cleanup, existing destination, post-verification source tampering, and destination-inside-source rejection.
 - Important boundary: staged runtime still requires AppContainer read/execute ACL application and verification before launch. No executor is composed yet. CI pending.
+
+
+## Per-invocation runtime staging passed — Run #651
+
+- Run #651 for tested code head 9a2a48bd392c22f412d7a20b5b4575fbae23abb4 completed successfully on Ubuntu and Windows.
+- The runtime bundle manifest/staging test step passed on both platforms, and full Windows test discovery passed.
+- Staging tests verify that only manifest-listed files are copied, destination bytes match the manifest, interpreter/entrypoint paths resolve inside the staged tree, the bundle manifest itself is not copied into the worker runtime, cleanup removes the staged tree, existing destinations are rejected, post-verification source tampering is detected, and source/destination overlap is rejected.
+- The staged runtime is still not launchable until AppContainer read/execute ACLs are applied and verified. The executor, worker entrypoint/static dispatch, and protocol evidence serializer are not yet implemented.
+- Current branch head before the next docs-only reconciliation: 9a2a48bd392c22f412d7a20b5b4575fbae23abb4. PR #1 remains Draft/Open/Unmerged.
+- Next audit: reconcile the current ObservationEvidence provenance fields with the strict worker response schema before writing the worker entrypoint. The SurfCore mapper now includes provenance fields that may not yet be representable by the protocol.

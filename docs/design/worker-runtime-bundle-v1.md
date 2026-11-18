@@ -196,3 +196,8 @@ The runtime bundle manifest parser and on-disk verifier passed Run #650 on Ubunt
 ## Per-invocation staging slice
 
 The verifier now has a separate staging operation that copies only manifest-listed files to a new per-run directory. It revalidates the source, re-hashes source bytes during copy, creates destination files exclusively, fsyncs and reads back destination bytes, verifies exact file set and digests, and provides no-follow cleanup. It rejects an existing destination or source/destination overlap. AppContainer ACL hardening is still required before launch. CI pending.
+
+
+## Run #651 verification
+
+Per-invocation staging passed Run #651 on Ubuntu and Windows. It copies only listed files, verifies source and destination digests, rejects destination reuse and source/destination overlap, and cleans up without following reparse points. The next pre-entrypoint audit is to align worker response evidence serialization with the current ObservationEvidence provenance schema.
