@@ -1118,3 +1118,12 @@ At the time of this update:
 - Reworked `grant_runtime_read_execute` to enumerate the existing runtime tree, grant read/execute to each existing directory and file through a verified handle, set inheritable ACEs on directories for future descendants, and read each DACL back.
 - Enumeration now rejects reparse points in the supplied root's ancestor chain and in every descendant; it does not follow symlinks/junctions. A hard ceiling of 100,000 entries prevents unbounded traversal.
 - Added ACL tests with pre-existing nested directories/files and a Windows symlink/reparse-point rejection test. These tests are pending CI.
+
+
+## Windows recursive runtime ACL hosted verification — Run #634
+
+- Run #634 for tested head `700f4d017ae5e5351dcb1b369289ffde2a83576e` completed successfully on Ubuntu and Windows; both matrix jobs passed all 38 steps.
+- The Windows ACL descriptor suite passed with a runtime tree containing pre-existing nested directories and files. The grant helper enumerated and applied/read back access for the existing objects instead of relying only on inherited ACEs at the root.
+- The suite also includes a reparse-point rejection test; it skips only if the Windows runner cannot create a symlink. The workflow step passed, but the run log available to this checkpoint does not distinguish pass from conditional skip for that one case.
+- This verifies ACL descriptor setup/read-back on hosted Windows, not yet that a copied runtime executable can launch under those ACLs. The next process integration test will execute a copied `cmd.exe` from a separately ACL-hardened runtime directory.
+- PR #1 remains Draft/Open/Unmerged.

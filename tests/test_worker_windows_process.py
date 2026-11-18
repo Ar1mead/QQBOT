@@ -1,5 +1,6 @@
 import ipaddress
 import os
+import shutil
 import socket
 import tempfile
 import threading
@@ -52,41 +53,49 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
     def _worker_session(self, arguments, application_name="cmd.exe"):
         system_root = os.environ["SystemRoot"]
         system32 = os.path.join(system_root, "System32")
-        application = os.path.join(system32, application_name)
         temp_parent = os.path.join(system_root, "Temp")
         os.makedirs(temp_parent, exist_ok=True)
 
         with tempfile.TemporaryDirectory(prefix="qqbot-worker-", dir=temp_parent) as worker_temp:
-            sid = app.ensure_appcontainer_profile_sid("Ar1mead.QQBOT.Worker.CI")
-            acl.grant_temp_read_write(worker_temp, sid)
-            acl.apply_low_integrity_no_write_up(worker_temp)
-            worker_env = environment.build_worker_environment(
-                {
-                    "SystemRoot": system_root,
-                    "WINDIR": system_root,
-                    "LOCALAPPDATA": app.get_appcontainer_folder_path(sid),
-                    "TEMP": worker_temp,
-                    "TMP": worker_temp,
-                    "PATH": system32,
-                }
-            )
-
-            with pipes.WorkerPipes.create() as worker_pipes:
-                with app.EmptyAppContainerCapabilities(sid) as capabilities:
-                    with startup.WorkerStartupAttributes(
-                        capabilities, worker_pipes.child_handles_for_startup()
-                    ) as startup_attributes:
-                        with job.create_worker_job(128 * 1024 * 1024, 10000) as worker_job:
-                            with process.launch_appcontainer_worker(
-                                application_path=application,
-                                arguments=arguments,
-                                current_directory=worker_temp,
-                                environment=worker_env,
-                                pipes=worker_pipes,
-                                startup=startup_attributes,
-                                job=worker_job,
-                            ) as worker:
-                                yield worker, worker_pipes, worker_job, worker_temp
+            with tempfile.TemporaryDirectory(prefix="qqbot-runtime-", dir=temp_parent) as runtime_temp:
+                sid = app.ensure_appcontainer_profile_sid("Ar1mead.QQBOT.Worker.CI")
+                if application_name == "cmd.exe":
+                    application = os.path.join(runtime_temp, application_name)
+                    shutil.copy2(os.path.join(system32, application_name), application)
+                    acl.grant_runtime_read_execute(runtime_temp, sid)
+                else:
+                    application = os.path.join(system32, application_name)
+                if callable(arguments):
+                    arguments = arguments(worker_temp, runtime_temp)
+                acl.grant_temp_read_write(worker_temp, sid)
+                acl.apply_low_integrity_no_write_up(worker_temp)
+                worker_env = environment.build_worker_environment(
+                    {
+                        "SystemRoot": system_root,
+                        "WINDIR": system_root,
+                        "LOCALAPPDATA": app.get_appcontainer_folder_path(sid),
+                        "TEMP": worker_temp,
+                        "TMP": worker_temp,
+                        "PATH": system32,
+                    }
+                )
+    
+                with pipes.WorkerPipes.create() as worker_pipes:
+                    with app.EmptyAppContainerCapabilities(sid) as capabilities:
+                        with startup.WorkerStartupAttributes(
+                            capabilities, worker_pipes.child_handles_for_startup()
+                        ) as startup_attributes:
+                            with job.create_worker_job(128 * 1024 * 1024, 10000) as worker_job:
+                                with process.launch_appcontainer_worker(
+                                    application_path=application,
+                                    arguments=arguments,
+                                    current_directory=worker_temp,
+                                    environment=worker_env,
+                                    pipes=worker_pipes,
+                                    startup=startup_attributes,
+                                    job=worker_job,
+                                ) as worker:
+                                    yield worker, worker_pipes, worker_job, worker_temp, runtime_temp
 
     def _execute(self, worker, worker_pipes, worker_job, timeout_ms=10000, stdout_limit=4096):
         return worker_io.execute_worker_stdio(
@@ -100,7 +109,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
         )
 
     def test_worker_is_created_suspended_assigned_then_resumed_with_bounded_stdio(self):
-        with self._worker_session(["/d", "/c", "set /p _= & echo WORKER_OK"]) as (worker, worker_pipes, worker_job, worker_temp):
+        with self._worker_session(["/d", "/c", "set /p _= & echo WORKER_OK"]) as (worker, worker_pipes, worker_job, worker_temp, runtime_temp):
             result = self._execute(worker, worker_pipes, worker_job)
             self.assertEqual(result.exit_code, 0)
             self.assertIn(b"WORKER_OK", result.stdout)
@@ -112,14 +121,14 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
 
     def test_stdout_overflow_terminates_the_worker_job(self):
         command = "set /p _= & for /l %i in (1,0,2) do @echo OVERFLOW"
-        with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job, worker_temp):
+        with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job, worker_temp, runtime_temp):
             with self.assertRaises(worker_io.WorkerOutputLimitError):
                 self._execute(worker, worker_pipes, worker_job, stdout_limit=128)
             self.assertTrue(worker.wait(5000), "overflow did not terminate the worker")
 
     def test_timeout_terminates_the_worker_job(self):
         command = "set /p _= & for /l %i in (1,1,2147483647) do @rem"
-        with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job, worker_temp):
+        with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job, worker_temp, runtime_temp):
             with self.assertRaises(worker_io.WorkerTimeoutError):
                 self._execute(worker, worker_pipes, worker_job, timeout_ms=250)
             self.assertTrue(worker.wait(5000), "timeout did not terminate the worker")
@@ -136,7 +145,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
             try:
                 with self._worker_session(
                     ["/d", "/c", f"set /p _= & type {secret_path} {csd_path}"]
-                ) as (worker, worker_pipes, worker_job, worker_temp):
+                ) as (worker, worker_pipes, worker_job, worker_temp, runtime_temp):
                     result = self._execute(worker, worker_pipes, worker_job)
                     self.assertNotIn(b"HOST_SECRET_MARKER", result.stdout)
                     self.assertNotIn(b"CSD_DATABASE_MARKER", result.stdout)
@@ -182,6 +191,26 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
                 with open(inside_path, "r", encoding="utf-8") as stream:
                     self.assertIn("TEMP_WRITE_MARKER", stream.read())
 
+
+    def test_runtime_directory_is_read_execute_only_while_temp_remains_writable(self):
+        def arguments(worker_temp, runtime_temp):
+            blocked = os.path.join(runtime_temp, "runtime-write-must-fail.txt")
+            return [
+                "/d", "/c",
+                f"set /p _= & echo RUNTIME_WRITE_MARKER > {blocked} & echo TEMP_WRITE_MARKER > worker-write-test.txt",
+            ]
+
+        with self._worker_session(arguments) as (
+            worker, worker_pipes, worker_job, worker_temp, runtime_temp
+        ):
+            result = self._execute(worker, worker_pipes, worker_job)
+            self.assertEqual(result.exit_code, 0)
+            self.assertFalse(
+                os.path.exists(os.path.join(runtime_temp, "runtime-write-must-fail.txt"))
+            )
+            with open(os.path.join(worker_temp, "worker-write-test.txt"), "r", encoding="utf-8") as stream:
+                self.assertIn("TEMP_WRITE_MARKER", stream.read())
+
     def test_appcontainer_cannot_connect_to_host_loopback_listener(self):
         system_root = os.environ["SystemRoot"]
         curl_path = os.path.join(system_root, "System32", "curl.exe")
@@ -210,7 +239,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
             with self._worker_session(
                 ["--max-time", "2", "--silent", "--show-error", "--data-binary", "@-", f"http://127.0.0.1:{port}/"],
                 application_name="curl.exe",
-            ) as (worker, worker_pipes, worker_job, worker_temp):
+            ) as (worker, worker_pipes, worker_job, worker_temp, runtime_temp):
                 result = self._execute(worker, worker_pipes, worker_job, timeout_ms=8000)
                 self.assertNotEqual(result.exit_code, 0)
                 self.assertNotIn(b"NETWORK_ALLOWED_MARKER", result.stdout)
@@ -270,7 +299,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
                     "--data-binary", "@-", f"http://{candidates[0]}:{port}/",
                 ],
                 application_name="curl.exe",
-            ) as (worker, worker_pipes, worker_job, worker_temp):
+            ) as (worker, worker_pipes, worker_job, worker_temp, runtime_temp):
                 result = self._execute(worker, worker_pipes, worker_job, timeout_ms=8000)
                 self.assertNotEqual(result.exit_code, 0)
                 self.assertNotIn(b"PRIVATE_NETWORK_ALLOWED_MARKER", result.stdout)
@@ -282,7 +311,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
 
     def test_job_active_process_limit_blocks_child_process_creation(self):
         command = 'set /p _= & start /b cmd.exe /d /c echo CHILD_PROCESS_MARKER'
-        with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job, worker_temp):
+        with self._worker_session(["/d", "/c", command]) as (worker, worker_pipes, worker_job, worker_temp, runtime_temp):
             result = self._execute(worker, worker_pipes, worker_job)
             self.assertNotIn(b"CHILD_PROCESS_MARKER", result.stdout)
             self.assertEqual(worker_job.query_configuration()["active_process_limit"], 1)
