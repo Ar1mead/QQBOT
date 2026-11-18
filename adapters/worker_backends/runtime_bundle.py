@@ -66,6 +66,39 @@ class VerifiedRuntimeBundle:
     manifest: RuntimeBundleManifest
 
 
+def canonical_runtime_bundle_manifest_bytes(manifest: RuntimeBundleManifest) -> bytes:
+    """Serialize the typed manifest to its one canonical UTF-8 JSON representation."""
+    if not isinstance(manifest, RuntimeBundleManifest):
+        raise TypeError("manifest must be a RuntimeBundleManifest")
+    value = {
+        "schema_version": manifest.schema_version,
+        "bundle_id": manifest.bundle_id,
+        "python_implementation": manifest.python_implementation,
+        "python_version": manifest.python_version,
+        "interpreter_path": manifest.interpreter_path,
+        "entrypoint_path": manifest.entrypoint_path,
+        "files": [
+            {"path": item.path, "size": item.size, "sha256": item.sha256}
+            for item in manifest.files
+        ],
+        "adapters": [
+            {
+                "adapter_id": item.adapter_id,
+                "adapter_version": item.adapter_version,
+                "operation": item.operation,
+                "dispatch_key": item.dispatch_key,
+            }
+            for item in manifest.adapters
+        ],
+    }
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+
+
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
@@ -456,8 +489,15 @@ def stage_runtime_bundle(
     if isinstance(bundle, TrustedRuntimeBundle):
         verified = bundle.verified_bundle
         trusted_manifest_sha256 = bundle.manifest_sha256
-        if not _SHA256_RE.fullmatch(trusted_manifest_sha256):
+        if not isinstance(trusted_manifest_sha256, str) or not _SHA256_RE.fullmatch(
+            trusted_manifest_sha256
+        ):
             raise RuntimeBundleError("trusted bundle manifest pin is invalid")
+        actual_manifest_digest = hashlib.sha256(
+            canonical_runtime_bundle_manifest_bytes(verified.manifest)
+        ).hexdigest()
+        if actual_manifest_digest != trusted_manifest_sha256:
+            raise RuntimeBundleError("trusted bundle pin does not match its typed manifest")
     elif isinstance(bundle, VerifiedRuntimeBundle):
         verified = bundle
         trusted_manifest_sha256 = None
@@ -532,6 +572,16 @@ def verify_staged_runtime(staged: StagedRuntimeBundle) -> StagedRuntimeBundle:
         raise TypeError("staged must be a StagedRuntimeBundle")
     root = os.path.abspath(staged.root_path)
     _safe_lstat(root, directory=True)
+    if staged.trusted_manifest_sha256 is not None:
+        if not isinstance(staged.trusted_manifest_sha256, str) or not _SHA256_RE.fullmatch(
+            staged.trusted_manifest_sha256
+        ):
+            raise RuntimeBundleError("staged runtime host pin is invalid")
+        actual_manifest_digest = hashlib.sha256(
+            canonical_runtime_bundle_manifest_bytes(staged.manifest)
+        ).hexdigest()
+        if actual_manifest_digest != staged.trusted_manifest_sha256:
+            raise RuntimeBundleError("staged runtime manifest does not match the host-pinned SHA-256")
     expected_files = {entry.path for entry in staged.manifest.files}
     actual_files = _walk_bundle_files(root)
     if actual_files != expected_files:
@@ -616,6 +666,9 @@ def load_trusted_runtime_bundle(
     if actual_digest != expected_manifest_sha256:
         raise RuntimeBundleError("runtime bundle manifest does not match the host-pinned SHA-256")
     manifest = parse_runtime_bundle_manifest(raw)
+    canonical = canonical_runtime_bundle_manifest_bytes(manifest)
+    if raw != canonical:
+        raise RuntimeBundleError("host-pinned manifest must use canonical JSON encoding")
     verified = verify_runtime_bundle(absolute_root, manifest)
     return TrustedRuntimeBundle(
         verified_bundle=verified,
