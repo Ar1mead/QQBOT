@@ -702,3 +702,11 @@ At the time of this update:
 - Updated the read-only ingress contract with the Bilibili provenance schema and privacy rule.
 - Latest changes are triggering hosted CI. No test result is claimed for these new changes until the latest run completes on both Ubuntu and Windows.
 - No SurfCore runtime endpoint or platform transport was implemented; this remains DTO/CSD mapping and contract work only.
+
+
+### CI reconciliation — Bilibili provenance changes (2026-11-18)
+
+- The first Bilibili provenance runs exposed several integration gaps in intermediate commits: new DTO provenance fields had not yet been admitted by the exact-key allowlist; QQ fixtures/assertion expectations had not all been updated to require `actor_role=sender`; and CSD's new language-tag check needed a module-level `re` import.
+- These were corrected in follow-up commits. The invalid-language CSD test now mutates a valid event payload so it reaches the CSD validator (rather than failing earlier in the Evidence constructor).
+- Current intended field rules: Bilibili records require video context and a matching BV reference plus a kind-specific actor role; actor identity may be absent if the platform does not expose it. Parent references are comment-only; language tags are subtitle-only. All values remain untrusted source provenance.
+- The newest code/test correction is commit `88c1f5ccae97d3a09a3ca86f0f1ed1c31348a53d`. The latest CI run must be checked before treating the Bilibili slice as verified; earlier failed runs are intermediate states and are not evidence of the corrected final commit.
