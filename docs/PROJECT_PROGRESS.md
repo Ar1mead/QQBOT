@@ -785,3 +785,13 @@ At the time of this update:
 - Cross-checked the record and page envelope against the exact-key Python mapper. The record fields include the mapper's required QQ provenance; `account_ref` matches `stream_ref`; the successful batch envelope is exact.
 - Important limits: the reference code is not connected to SurfCore; it does not provision/store its HMAC key; the ACL callback is injected and has only a no-op test fixture; no HTTP listener, CSD HTTP client, production worker, QQ account, or DSH connection exists.
 - No SurfCore upstream source was modified. No real QQ or local Windows test was performed. PR #1 remains open and must remain Draft/unmerged.
+
+### Reference journal hardening checkpoint
+
+- Tightened the reference policy to require explicit OneBot `post_type=message` and matching `message_type`; unsafe numeric identifiers in allow/deny lists are rejected.
+- Serialized page reads through the same queue as appends to prevent a reader from observing a partially written record.
+- Changed appends to use the file handle's full `writeFile` operation followed by `sync()`; cursor advancement remains after sync only.
+- Recovery now uses fatal UTF-8 decoding, rejects non-canonical JSON (including duplicate-key lines), validates opaque HMAC reference shape and source-reference binding, and accepts only canonical UTC ISO timestamps.
+- Capacity exhaustion is distinct from journal corruption: new capture stops, existing records remain readable, and no data is pruned.
+- Latest reference code/test commit: `21ad837c240fbc524d3614a51ab6260771701ed6`. The GitHub combined-status lookup still returned no check entries; cross-platform Node 22 CI remains pending/unverified.
+- These are reference files only. No SurfCore upstream patch, key provisioning, production ACL implementation, HTTP route, or real QQ connection exists.
