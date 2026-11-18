@@ -1509,3 +1509,13 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 
 - Follow-up hardening: the builder now normalizes a copied `python312._pth` to the exact relative search paths `python312.zip` (when present), `.`, `DLLs`, and `Lib`; it never enables `import site`. The synthetic builder test asserts this layout.
 - Run #690, which included the isolated Python search-path normalization, again failed before runner allocation on both OS jobs (no steps and no useful logs). Builder code/tests remain unverified.
+
+
+## Host-pin binding hardening (2026-11-19)
+
+- The typed runtime manifest now has one canonical UTF-8 JSON encoding helper.
+- `load_trusted_runtime_bundle()` rejects non-canonical manifest bytes even when a matching digest is supplied.
+- `stage_runtime_bundle()` verifies that a `TrustedRuntimeBundle` wrapper's digest actually matches its typed manifest before staging.
+- `verify_staged_runtime()` recomputes the canonical manifest digest and checks it against the carried host pin before checking staged files. This prevents a modified in-memory staged manifest from retaining an unrelated old pin.
+- Added tests for forged trusted wrappers, non-canonical manifests, staged manifest mutation, and the separate policy checks for host allowlist and CPython version.
+- Runs #692–#695 again failed before runner allocation on both OS jobs; no test steps ran. These changes remain CI-unverified.
