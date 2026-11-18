@@ -167,7 +167,7 @@ test("journal captures a DTO accepted by the Python mapper and hides raw QQ iden
   assert.equal(bytes.includes("bot-account-1"), false);
   assert.equal(bytes.includes("friend-1"), false);
   assert.equal(bytes.includes('"message_id"'), false);
-  assert.equal(bytes.includes("\\"101\\""), false);
+  assert.equal(bytes.includes('"101"'), false);
 });
 
 test("private and group callbacks share one serialized cursor and duplicate source IDs stay stable", async (t) => {

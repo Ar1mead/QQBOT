@@ -867,3 +867,10 @@ At the time of this update:
 - Added Win64 layout checks for ACL-related ctypes structures and `tests/test_worker_windows_appcontainer_acl.py`; wired the test into the existing Ubuntu/Windows workflow.
 - Important limits: these are directory-descriptor helpers, not a launcher or proof of effective AppContainer access. The integration test is Windows-hosted descriptor setup/read-back only. Protected descendant ACLs, ancestor reparse points, process-token access, filesystem denial from inside a worker, network denial, Job Object, pipes, and cleanup are still unverified/unimplemented.
 - Hosted workflow status for this change has not yet been checked. No CI pass or local Windows test is claimed. PR #1 remains Draft, Open, and Unmerged.
+
+
+## CI #618 syntax failure triage — 2026-11-18
+
+- The first ACL commit triggered Run #618 on Ubuntu and Windows. Both jobs passed checkout, Python setup, and `compileall`, then stopped before all Python tests because the pre-existing SurfCore QQ journal test file had a malformed JavaScript string literal at line 170 (`bytes.includes("\\"101\\"")`).
+- Corrected the assertion to use a single-quoted JavaScript string containing the quoted numeric ID. This is a test-source syntax repair only; it does not change journal runtime behavior or the Windows ACL implementation.
+- Run #618 is **failed**, not a Windows ACL test result: the ACL test step was skipped on both platforms. Run #619 includes the ACL pointer/read-back correction and is queued; a new run after this syntax fix is needed to test the new slice.
