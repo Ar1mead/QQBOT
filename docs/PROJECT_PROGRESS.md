@@ -597,3 +597,6 @@ At the time of this update:
 
 
 - Executor contract clarification: a real backend must kill the worker on timeout and cap output while streaming, not merely after buffering. The host's post-return byte check cannot undo memory already allocated by an executor that ignored the cap.
+
+
+- CI follow-up: run #571 exposed a transient import failure because the adapter class rename and test rename landed in separate sequential commits; the test commit briefly referenced the new symbol before the implementation commit existed. The subsequent run #572 passed Ubuntu with the renamed implementation/tests. Run #573 (latest executor-contract docstring change) has Ubuntu passed and Windows still running at the latest check. Do not treat the full two-platform gate as complete until Windows finishes.
