@@ -164,6 +164,16 @@ adapters/
 
 The contracts package must not import DSH, SurfCore, QQ, Bilibili, or provider SDKs. Platform/runtime packages may depend on the contracts, but the individual core must not import platform-specific SDKs.
 
+## 7.1 Core-controlled observation dispatch
+
+The initial Python implementation uses an explicit in-process registry as an application-level gate:
+
+- The host registers only adapters it has explicitly loaded and reviewed; there is no automatic plugin discovery or import.
+- Registration rejects manifests that declare presentation or side-effect capabilities and rejects duplicate adapter IDs.
+- Dispatch requires a registered adapter ID and requires every requested modality to be declared as an `observe:<modality>` capability.
+- The manifest is pinned at registration. Returned evidence must match its adapter ID, version, and platform, and must stay within the requested modalities and the untrusted-evidence invariant.
+- This gate controls the project's normal dispatch path. It is **not** a sandbox: Python code in the same process can still import networking/filesystem APIs or bypass the registry. Third-party or otherwise untrusted adapter code must not be loaded in-process. A real isolation boundary needs a separate worker process/container with OS-level filesystem, credential, and network restrictions; that design is not implemented by this slice.
+
 ## 8. Staged implementation and acceptance gates
 
 | Stage | Work | Must pass before proceeding |
