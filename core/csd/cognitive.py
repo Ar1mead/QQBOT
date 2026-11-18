@@ -1268,7 +1268,6 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         content_language = payload.get("content_language")
         if content_language is not None:
             _nonempty(content_language, "observation.content_language")
-            import re
             if re.fullmatch(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*", content_language) is None:
                 raise ValueError("observation content_language must be a BCP 47 language tag")
         source_sequence = payload.get("source_sequence")
