@@ -99,7 +99,7 @@ This is a transport and evidence-reconstruction implementation. It does not laun
 Implemented in `adapters/worker_host.py`:
 
 - `WorkerHost` builds a typed request, invokes an explicitly injected host-owned `WorkerExecutor`, bounds the timeout and response size, decodes the response, and reconstructs validated observation evidence.
-- `WorkerProcessObservationAdapter` bridges that host to the existing `ObservationAdapter` interface and checks returned platform and target against the registered manifest/request.
+- `WorkerBackedObservationAdapter` bridges that host to the existing `ObservationAdapter` interface and checks returned platform and target against the registered manifest/request.
 - Missing executor configuration is rejected. There is no fallback that imports or executes adapter code inside the core process.
 - Backend timeout, execution error, malformed response, oversized response, and identity/target mismatches fail closed.
 
