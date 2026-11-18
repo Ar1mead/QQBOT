@@ -535,3 +535,14 @@ At the time of this update:
 - Corrected the tamper test to assert the actual public integrity error category (`invalid durable event envelope`). The underlying trust invariant remains strict: a recomputed digest cannot make external evidence trusted.
 - Fix commits: `8ee0fbdba4e0ccdfedd83edc1377e365ef0c4ce8` and `902141f1f926c59d6e83b8a3dd48d33ff61dba73`.
 - The new commits trigger fresh hosted runs. Their results must be checked before claiming the v2 slice passes.
+
+
+### 2026-11-18 — Bilibili read-only capability boundary (first slice)
+
+- Confirmed from the user's Actions screenshot that Run #547 completed successfully with two matrix jobs; this is the hosted Ubuntu/Windows success signal for the v2 compatibility fix.
+- Added a generic adapter policy gate, `require_observation_only`, which rejects manifests declaring presentation or side-effect capabilities.
+- Added a minimal Bilibili manifest that declares only canonical video-target validation as an observation-stage capability. Its description explicitly says it does not fetch platform data.
+- Added tests for the Bilibili manifest and rejection of both presentation and side-effect capability declarations. Existing target parsing continues to reject URLs, short links, local paths, and arbitrary hosts.
+- Important limitation: this is a capability-declaration gate, not an operating-system sandbox. It does not by itself prevent a buggy or dishonest adapter implementation from opening a network connection. No live Bilibili client, HTTP transport, cookie/session handling, account access, download, comment/like/follow, or other external action has been implemented.
+- The existing workflow already includes `adapters/**` and the Bilibili target test in its push and pull-request paths; hosted verification of this new policy slice is pending.
+- PR #1 remains Draft, Open, and Unmerged.
