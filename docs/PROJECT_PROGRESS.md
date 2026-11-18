@@ -690,3 +690,15 @@ At the time of this update:
 
 - Run #590 ([Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44268497654)) is the first run containing the corrected CSD validator, strict QQ provenance fixtures, and QQ stream/account binding. Ubuntu has passed; Windows is still running through the complete suite.
 - Run #591 ([Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44268590651)) includes the final test refinement that a historical QQ event must set both the historical event kind and `historical=true`. Both platform jobs are running. Use #591 as the authoritative latest verification once complete.
+
+
+### 2026-11-18 — Bilibili observation provenance
+
+- Confirmed Run #591 (44268590651) completed successfully on both Ubuntu and Windows for the preceding QQ provenance implementation.
+- Extended platform-neutral `ObservationEvidence` and CSD Observation v2 payloads with `actor_role`, `parent_ref`, and `content_language`, retaining structured provenance instead of flattening it into content.
+- SurfCore Bilibili mapper now requires every record to identify its containing video (`context_kind=video`, `context_ref=external_ref`) and a record-kind-specific actor role: uploader, subtitle contributor, comment author, or danmaku sender. `actor_ref` remains optional when the platform does not expose a stable identity; no identity is invented from display names.
+- Subtitle records may carry a BCP 47 `content_language`; comment records may carry an opaque `parent_ref`; those fields are rejected on unrelated record kinds. QQ records now explicitly identify `actor_role=sender`.
+- Added tests for subtitle contributor/language preservation, comment author/thread relationships, danmaku sender role without fabricated identity, mismatched video references, wrong actor roles, invalid language tags, and CSD persistence/validation.
+- Updated the read-only ingress contract with the Bilibili provenance schema and privacy rule.
+- Latest changes are triggering hosted CI. No test result is claimed for these new changes until the latest run completes on both Ubuntu and Windows.
+- No SurfCore runtime endpoint or platform transport was implemented; this remains DTO/CSD mapping and contract work only.
