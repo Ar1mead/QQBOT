@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 from adapters.contracts.observation import CapabilityMode, ContentOrigin
@@ -9,6 +12,7 @@ from adapters.platforms.surfcore import (
     map_surfcore_record,
     map_surfcore_record_to_csd_event,
     qq_manifest,
+    validate_surfcore_qq_batch,
 )
 
 
@@ -287,6 +291,40 @@ class SurfCoreMappingTests(unittest.TestCase):
     def test_bilibili_record_rejects_qq_cursor(self):
         with self.assertRaisesRegex(ValueError, "QQ-only provenance"):
             map_surfcore_record(record("bilibili", cursor=1))
+
+    def test_worker_safe_qq_batch_returns_evidence_without_csd_events(self):
+        first = record(cursor=11, record_id="message:11", external_ref="11")
+        second = record(cursor=18, record_id="message:18", external_ref="18")
+        result = validate_surfcore_qq_batch(
+            qq_batch([first, second], after_cursor=10, next_cursor=20)
+        )
+        self.assertEqual(result.stream_ref, "qq-account-opaque")
+        self.assertEqual(result.after_cursor, 10)
+        self.assertEqual(result.proposed_cursor, 20)
+        self.assertEqual(len(result.evidence), 2)
+        self.assertTrue(all(item.untrusted for item in result.evidence))
+
+    def test_worker_safe_mapping_import_does_not_load_csd_modules(self):
+        repository_root = str(Path(__file__).resolve().parents[1])
+        script = (
+            "import sys; "
+            "sys.path.insert(0, sys.argv[1]); "
+            "from adapters.platforms.surfcore.mapping import validate_surfcore_qq_batch; "
+            "assert 'core.csd.cognitive' not in sys.modules; "
+            "assert 'adapters.csd_mapping' not in sys.modules"
+        )
+        completed = subprocess.run(
+            [sys.executable, "-I", "-S", "-B", "-c", script, repository_root],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=15,
+            check=False,
+        )
+        self.assertEqual(
+            completed.returncode,
+            0,
+            completed.stderr.decode("utf-8", errors="replace"),
+        )
 
     def test_qq_batch_maps_sorted_records_and_proposes_checkpoint(self):
         first = record(cursor=11, record_id="message:11", external_ref="11")
