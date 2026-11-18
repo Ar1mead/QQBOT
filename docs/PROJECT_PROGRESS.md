@@ -161,12 +161,15 @@ Important implementation boundary: the current CSD motivation decision path is d
 
 ## 7. Next work queue
 
-1. **Continue adversarial review of event schemas, replay determinism, idempotency, and projection integrity.** Memory, grounded-memory, motivation, and goal proposal families now share the append-time/replay chronology guard; continue looking for coordinated projection corruption, invalid event order, and migration/recovery edge cases.
-2. **Run the exact suite on the user's Windows 11 / Python 3.12.14 machine.** A one-command script is ready at `scripts/verify_windows.ps1`; execution remains pending until the repository is cloned locally.
-3. **Design blocked/unblocked only against trusted ASM/prerequisite evidence.** Pause/resume is implemented and hosted-tested. Keep satisfied, abandoned, superseded, and revise separate until their evidence, authority, and atomicity contracts are reviewed.
-4. **Connect a real deliberator/provider in pending or shadow mode only after local Windows verification and further adversarial review.** The Life Engine has a CSD sink for candidate creation, activation, and pause/resume; no real model provider is connected. Keep empty `no_op` deliberations cheap and avoid manufacturing goals to satisfy a scheduler.
-5. **Develop self-initiated activity and diary behavior.** No daily quota, no forced wake-up task, no requirement to save every draft.
-6. **Define ASM handoff and permission model before any side-effecting platform action.**
+> Priority reset on 2026-11-18: the older CSD/Life Engine backlog below is not the active execution order. The current security-critical path is OS-level Worker isolation before any live third-party platform ingestion.
+
+1. **Implement the Windows AppContainer Worker backend** using audited `ctypes` declarations, narrow runtime/temp ACLs plus the temp directory's Low Integrity label, an empty AppContainer capability list, explicit inherited pipe handles, and a Job Object assigned before process resume.
+2. **Add adversarial Windows tests** proving file/secret/CSD denial, network denial, child-process denial, bounded memory/output, timeout process-tree termination, and valid positive-control execution. Fail closed; no ordinary subprocess fallback.
+3. **Run the Windows backend tests in GitHub Actions** and inspect both matrix job logs. Hosted CI is the available development verification path; do not ask the user to clone the repository or perform repetitive local tests. Hosted CI alone does not authorize enabling live platform ingestion.
+4. **Implement Linux Bubblewrap parity** with namespaces, read-only mounts, no network, bounded temp storage, no-new-privileges/seccomp where supported, and enforceable cgroup limits; fail closed if any required control is unavailable.
+5. **Run full protocol/host/CSD regressions on Ubuntu and Windows.** Only after both OS backends pass their adversarial suites may a real read-only adapter be considered.
+6. **Return to SurfCore integration:** separately review the disabled-by-default upstream QQ journal patch, then its narrow read-only endpoint and CSD client; Bilibili follows with structured read-only data. Do not expose SurfCore credentials to workers or modify SurfCore upstream without a separate authorization/review.
+7. Keep the remaining CSD/Life Engine work (event replay audits, blocked/unblocked lifecycle, real deliberator/provider, self-initiated diary behavior, and ASM side-effect policy) queued behind the current isolation milestone; do not represent any of it as complete.
 7. **Only then build the first read-only Bilibili adapter and evaluate actual video/audio comprehension.**
 
 ## 8. Handoff rules for future sessions
