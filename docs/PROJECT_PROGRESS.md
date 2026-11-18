@@ -1,7 +1,7 @@
 # Project Progress Ledger
 
 > Repository: `Ar1mead/QQBOT`  
-> Last updated: 2026-11-16 (UTC+08:00)  
+> Last updated: 2026-11-18 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
 > Default branch: `main`  
 > Merge policy: work remains on feature branches until reviewed; do not assume anything is merged to `main`.
