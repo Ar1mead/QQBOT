@@ -180,7 +180,8 @@ export function createObservationJournal({
       });
       if (!decision.allowed) return { captured: false, reason: decision.reason };
       const sourceMessageId = event?.message_id ?? event?.msg_id ?? event?.message_seq;
-      if (sourceMessageId == null || String(sourceMessageId).trim() === "") {
+      if (!((typeof sourceMessageId === "string" && sourceMessageId.trim() !== "")
+          || (typeof sourceMessageId === "number" && Number.isSafeInteger(sourceMessageId)))) {
         return { captured: false, reason: "missing_source_message_id" };
       }
       const extracted = extractIncomingText(event?.message, normalizedConfig.maxRecordChars);
