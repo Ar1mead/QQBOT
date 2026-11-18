@@ -149,3 +149,8 @@ A focused line-level review of the pinned v0.8.8 source identified the concrete 
 3. Implement the Bilibili JSON service second, initially for one canonical BV target and a small, explicit set of read methods.
 4. Only connect either transport through WorkerHost after a host-owned subprocess executor and Windows/Linux OS isolation have been implemented and tested.
 5. No upstream SurfCore files were changed. This audit is pinned-source review only; it does not prove a live QQ/Bilibili account connection or local runtime behavior.
+
+
+## 4.3 QQ observation journal specification
+
+The callback-level design is now detailed in [SurfCore QQ Observation Journal v1](surfcore-qq-observation-journal-v1.md). That document specifies independent opt-in, opaque identifiers, durable cursor allocation/recovery, retention-gap signaling, and the separate loopback GET-only transport. It remains a proposal; no SurfCore implementation or live connection exists.
