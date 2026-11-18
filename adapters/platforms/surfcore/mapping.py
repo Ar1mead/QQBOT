@@ -45,13 +45,21 @@ _REQUIRED_FIELDS = {
 _OPTIONAL_FIELDS = {
     "account_ref", "source_artifact_ref", "cursor",
     "conversation_kind", "conversation_ref", "sender_ref", "historical",
+    "actor_ref", "actor_role", "parent_ref", "content_language",
 }
 _QQ_REQUIRED_FIELDS = {
     "account_ref", "cursor", "conversation_kind", "conversation_ref",
-    "sender_ref", "historical",
+    "sender_ref", "historical", "actor_role",
 }
 _QQ_ONLY_FIELDS = {
     "cursor", "conversation_kind", "conversation_ref", "sender_ref", "historical",
+}
+_BILI_REQUIRED_FIELDS = {"context_kind", "context_ref", "actor_role"}
+_BILI_ACTOR_ROLES = {
+    "bilibili.video.metadata": "uploader",
+    "bilibili.video.subtitle": "subtitle_contributor",
+    "bilibili.video.comment": "comment_author",
+    "bilibili.video.danmaku": "danmaku_sender",
 }
 _COVERAGE_FIELDS = {
     "modality", "extraction_method", "complete", "start_ms", "end_ms",
@@ -127,6 +135,10 @@ def map_surfcore_record(record: Mapping[str, Any]) -> ObservationEvidence:
             raise ValueError(f"QQ record missing provenance fields: {', '.join(sorted(missing_qq))}")
     elif keys & _QQ_ONLY_FIELDS:
         raise ValueError("QQ-only provenance fields are not valid for Bilibili records")
+    else:
+        missing_bili = _BILI_REQUIRED_FIELDS - keys
+        if missing_bili:
+            raise ValueError(f"Bilibili record missing provenance fields: {', '.join(sorted(missing_bili))}")
     kind = _nonempty(record["observation_kind"], "observation_kind")
     if kind not in _ALLOWED_KINDS[platform]:
         raise ValueError("observation_kind is not allowed for this platform")
@@ -178,6 +190,9 @@ def map_surfcore_record(record: Mapping[str, Any]) -> ObservationEvidence:
     actor_ref = None
     source_sequence = None
     historical = False
+    actor_role = None
+    parent_ref = None
+    content_language = None
     if platform == "qq":
         cursor = _cursor(record["cursor"], "record.cursor")
         context_kind = _nonempty(record["conversation_kind"], "conversation_kind")
@@ -185,12 +200,40 @@ def map_surfcore_record(record: Mapping[str, Any]) -> ObservationEvidence:
             raise ValueError("QQ conversation_kind must be private or group")
         context_ref = _nonempty(record["conversation_ref"], "conversation_ref")
         actor_ref = _nonempty(record["sender_ref"], "sender_ref")
+        actor_role = _nonempty(record["actor_role"], "actor_role")
+        if actor_role != "sender":
+            raise ValueError("QQ actor_role must be sender")
         historical = record["historical"]
         if not isinstance(historical, bool):
             raise ValueError("QQ historical must be boolean")
         source_sequence = cursor
-    elif "cursor" in record:
-        raise ValueError("cursor is only valid for QQ observation records")
+    else:
+        context_kind = _nonempty(record["context_kind"], "context_kind")
+        if context_kind != "video":
+            raise ValueError("Bilibili context_kind must be video")
+        context_ref = _nonempty(record["context_ref"], "context_ref")
+        if context_ref != _nonempty(record["external_ref"], "external_ref"):
+            raise ValueError("Bilibili context_ref must match external_ref")
+        actor_role = _nonempty(record["actor_role"], "actor_role")
+        expected_role = _BILI_ACTOR_ROLES[kind]
+        if actor_role != expected_role:
+            raise ValueError(f"Bilibili actor_role must be {expected_role}")
+        actor_ref = record.get("actor_ref")
+        if actor_ref is not None:
+            actor_ref = _nonempty(actor_ref, "actor_ref")
+        parent_ref = record.get("parent_ref")
+        if parent_ref is not None:
+            if kind != "bilibili.video.comment":
+                raise ValueError("parent_ref is only valid for Bilibili comments")
+            parent_ref = _nonempty(parent_ref, "parent_ref")
+        content_language = record.get("content_language")
+        if content_language is not None:
+            if kind != "bilibili.video.subtitle":
+                raise ValueError("content_language is only valid for Bilibili subtitles")
+            content_language = _nonempty(content_language, "content_language")
+            import re
+            if re.fullmatch(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*", content_language) is None:
+                raise ValueError("content_language must be a BCP 47 language tag")
 
     identity = hashlib.sha256(
         f"{platform}\0{account_ref or ''}\0{record_id}".encode("utf-8")
@@ -228,6 +271,9 @@ def map_surfcore_record(record: Mapping[str, Any]) -> ObservationEvidence:
         context_kind=context_kind,
         context_ref=context_ref,
         actor_ref=actor_ref,
+        actor_role=actor_role,
+        parent_ref=parent_ref,
+        content_language=content_language,
         source_sequence=source_sequence,
         historical=historical,
         untrusted=True,
