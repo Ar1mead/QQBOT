@@ -147,3 +147,40 @@ The mapper now validates and carries the QQ conversation/sender/history fields a
 ## 7. Non-claims
 
 This document is a proposed contract, not a SurfCore implementation. The pinned source review does not prove the user's currently installed version or account state. No live connection, private-message export, local credential, or platform action has been tested.
+
+
+## 8. Pinned SurfCore v0.8.8 implementation notes
+
+This section records the exact source-side integration points found during the 2026-11-18 audit. It does not claim that the proposed service exists.
+
+### QQ callback placement
+
+In the pinned src/bridge.js, the SnowLumaWebSocketClient registers two distinct ingress callbacks:
+
+- bot.onPrivateMessage(event): rejects messages authored by the bot itself, then passes the original event to handleIncoming('private', event.user_id, event, cfg).
+- bot.onGroupMessage(event): rejects messages authored by the bot itself, then passes the original event to handleIncoming('group', event.group_id, event, cfg).
+
+handleIncoming performs SurfCore's own session/mode authorization, sender-deny checks, OneBot segment normalization, media extraction, source-reference extraction, memory ingestion, and eventual wake/reply handling. The new observation journal must be a separate sibling path at the callback boundary. It must not call handleIncoming again, depend on DSH turn state, or use the outcome of SurfCore wake/reply policy as a substitute for the observation feed's explicit export policy.
+
+The event's message_id/msg_id/message_seq values are useful source references, but the audit did not establish message_seq as a durable, globally monotonic cursor. The feed must allocate its own per-stream cursor when it appends a normalized record. Preserve the source message ID/sequence in record_id/external_ref/source_ref independently.
+
+Recommended sequence inside each callback:
+
+1. Reject self-authored bot events (same as the existing callback).
+2. Evaluate a separate observation-export policy: account stream enabled, explicit private opt-in for private chats, and explicit group allowlist for group chats. Do not broaden or silently inherit chat/reply permissions.
+3. Normalize a bounded, allowlisted subset of the OneBot event into the v1 record shape.
+4. Append durably to the observation journal and assign its feed cursor.
+5. Continue the existing handleIncoming call unchanged.
+
+Journal append failure must be isolated and logged without message content or credentials; it must not prevent the existing SurfCore callback from running. The feed read path must not mutate message state or invoke any DSH/QQ action.
+
+### Bilibili implementation cautions
+
+The pinned command map includes read candidates and mutation commands, but the read candidates are not interchangeable with a stable API:
+
+- video-content.mjs prints presentation-oriented text and includes an extra GitHub repository/README fetch derived from the video description. It should not be used as the generic CSD video-ingress endpoint.
+- subtitles.mjs writes local JSON/TXT artifacts and prunes the shots cache in addition to retrieving subtitle content. Extract the underlying read operation into a side-effect-free service path or make artifact persistence explicitly disabled for the observation caller.
+- feed.mjs supports --json but still reads local preference/history state and writes selected picks to local state. It is outside the first observation-ingress slice.
+- search.mjs prints human-oriented output and is not a versioned JSON contract.
+
+The first Bilibili service should therefore be a small, explicit read-only API for a single canonical BV target, returning structured metadata/subtitle/comment/danmaku records and coverage. It must not shell out to the full CLI, parse stdout, expose generic command dispatch, or inherit its local state writes. Keep feed selection and preference learning outside the initial observation transport.
