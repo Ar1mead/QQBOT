@@ -190,6 +190,35 @@ def _runtime_files(runtime_root: str) -> list[tuple[str, str]]:
     return sorted(selected.items())
 
 
+def _normalize_python_pth(output_root: str) -> None:
+    """Pin the copied runtime's stdlib and native-extension search directories."""
+    path = os.path.join(output_root, "python", "python312._pth")
+    if not os.path.isfile(path):
+        return
+    zip_path = os.path.join(output_root, "python", "python312.zip")
+    lines = []
+    if os.path.isfile(zip_path):
+        lines.append("python312.zip")
+    lines.extend([".", "DLLs", "Lib"])
+    with open(path, "w", encoding="utf-8", newline="\n") as stream:
+        stream.write("\n".join(lines) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _hash_output_file(path: str) -> tuple[int, str]:
+    digest = hashlib.sha256()
+    size = 0
+    with open(path, "rb") as stream:
+        while True:
+            chunk = stream.read(1024 * 1024)
+            if not chunk:
+                break
+            size += len(chunk)
+            digest.update(chunk)
+    return size, digest.hexdigest()
+
+
 def _worker_source_files(repository_root: str) -> list[tuple[str, str]]:
     selected: list[tuple[str, str]] = []
     required = list(WORKER_SOURCE_FILES) + [WORKER_ENTRYPOINT_SOURCE]
@@ -284,11 +313,16 @@ def build_worker_runtime_bundle(
 
     try:
         os.mkdir(output_root, 0o700)
-        file_entries: list[dict[str, Any]] = []
-        total_bytes = 0
         for target_relative, source in sorted(all_sources):
             destination = os.path.join(output_root, *target_relative.split("/"))
-            size, digest = _copy_file(source, destination)
+            _copy_file(source, destination)
+        _normalize_python_pth(output_root)
+
+        file_entries: list[dict[str, Any]] = []
+        total_bytes = 0
+        for target_relative, _ in sorted(all_sources):
+            destination = os.path.join(output_root, *target_relative.split("/"))
+            size, digest = _hash_output_file(destination)
             total_bytes += size
             file_entries.append({"path": target_relative, "size": size, "sha256": digest})
 
