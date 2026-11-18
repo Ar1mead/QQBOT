@@ -200,7 +200,7 @@ class SurfCoreMappingTests(unittest.TestCase):
     def test_qq_record_requires_non_negative_integer_cursor(self):
         source = record()
         del source["cursor"]
-        with self.assertRaisesRegex(ValueError, "requires a cursor"):
+        with self.assertRaisesRegex(ValueError, "provenance fields"):
             map_surfcore_record(source)
         source["cursor"] = True
         with self.assertRaisesRegex(ValueError, "non-negative integer"):
@@ -210,7 +210,7 @@ class SurfCoreMappingTests(unittest.TestCase):
             map_surfcore_record(source)
 
     def test_bilibili_record_rejects_qq_cursor(self):
-        with self.assertRaisesRegex(ValueError, "only valid for QQ"):
+        with self.assertRaisesRegex(ValueError, "QQ-only provenance"):
             map_surfcore_record(record("bilibili", cursor=1))
 
     def test_qq_batch_maps_sorted_records_and_proposes_checkpoint(self):
