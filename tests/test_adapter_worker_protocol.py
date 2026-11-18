@@ -91,6 +91,10 @@ class WorkerProtocolTests(unittest.TestCase):
         with self.assertRaisesRegex(WorkerProtocolError, "adapter identity"):
             validate_response_for_request(wrong_adapter, self.request)
 
+    def test_response_rejects_boolean_protocol_version(self):
+        with self.assertRaisesRegex(WorkerProtocolError, "unsupported worker protocol"):
+            WorkerResponse("r", "a", "1", "unavailable", protocol_version=True)
+
     def test_response_status_shape_is_enforced(self):
         with self.assertRaisesRegex(WorkerProtocolError, "complete response"):
             WorkerResponse("r", "a", "1", "complete")
