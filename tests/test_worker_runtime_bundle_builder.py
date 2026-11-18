@@ -78,6 +78,8 @@ class RuntimeBundleBuilderTests(unittest.TestCase):
             self.assertIn("python/python312.dll", paths)
             self.assertIn("python/DLLs/_ssl.pyd", paths)
             self.assertIn("python/Lib/json/__init__.py", paths)
+            pth = Path(first.output_root, "python", "python312._pth").read_text(encoding="utf-8")
+            self.assertEqual(pth.splitlines(), ["python312.zip", ".", "DLLs", "Lib"])
             self.assertNotIn("python/Lib/site-packages/untrusted.py", paths)
             self.assertNotIn("python/Lib/test/test_bad.py", paths)
             self.assertFalse(any(path.startswith("core/") or "/core/" in path for path in paths))
