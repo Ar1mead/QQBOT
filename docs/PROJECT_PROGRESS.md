@@ -1682,3 +1682,19 @@ Every new module or infrastructure task must state: (a) which user-visible cogni
 - Inspect existing CSD memory/motivation/goal APIs and Life Engine interfaces to reuse what exists; identify the smallest missing seam for one real cloud model provider.
 - In parallel, diagnose Actions runner allocation with read-only evidence. Do not treat runner-allocation failures as test results and do not create repeated code commits just to trigger runs.
 - Keep real Windows runtime-bundle / AppContainer verification as a separate security gate before enabling untrusted third-party Worker execution; it need not block a trusted, in-process model-provider adapter that has no direct CSD write or external-action authority.
+
+
+## Three-layer cognitive architecture formalized — 2026-11-19
+
+- Added `docs/architecture/three-layer-cognitive-architecture.md` as the explicit architecture contract requested by the user.
+- The three layers are now defined as:
+  1. Persistent identity and cognitive state — CSD owns autobiographical/episodic memory, semantic knowledge, self-model, revisable preferences, bounded affect/needs, interests/goals/commitments, relationship continuity, and private-writing artifacts.
+  2. Thinking, interpretation, and decision — cloud model plus provider-neutral cognitive services and Life Engine retrieve context, reason, form evidence-linked proposals, deliberate, and choose act/ask/wait/defer/stop/decline/no-op. This layer does not own durable identity.
+  3. Lived interaction, environment, and action — adapters, runtime, communication, research, writing activities, and observations connect the system to its environment; ASM alone authorizes external side effects.
+- Specified the cross-layer experience → retrieval → interpretation → proposal → CSD adjudication → activity decision → ASM-authorized action → observed outcome loop.
+- Added invariants for provenance, model replaceability, proposal-only model authority, evidence/counterevidence, revisable preferences, bounded affect, restraint/no-op, user boundaries, untrusted external content, and no fabricated experiences/actions.
+- Added architecture acceptance tests and an implementation sequence centered on one cloud-model-backed vertical slice.
+- Explicitly recorded that this is a design contract, not a claim that the capabilities are already implemented or that the system has human consciousness.
+- This change is documentation/design only. No runtime code changed and no tests were run or claimed.
+- Architecture document commit: `618f82bfa3893afe831a7eb71ffcc22ed1579f28`.
+- Next: map existing CSD/Life Engine APIs to the new contract, create the compact cognitive-loop acceptance matrix, and identify the smallest safe provider integration seam.
