@@ -717,3 +717,10 @@ At the time of this update:
 - Run #603 caught one remaining schema omission: the Bilibili `context_kind` and `context_ref` fields were defined as required by the Bilibili contract but were not yet included in the exact optional-field allowlist used before platform-specific validation. They are now explicitly admitted; unknown fields remain fail-closed.
 - The CSD language-tag import and invalid-language test construction were also corrected in follow-up commits. Run #603's failure is an intermediate commit state; the next run containing commit `d975b93f4ed565a932f8f389ee9250b13d7009c4` is required to verify the allowlist fix.
 - Added `actor_role=sender` to the QQ contract example to match the mapper's strict DTO.
+
+
+### Current verification checkpoint — Run #604
+
+- Run #604 ([Actions](https://github.com/Ar1mead/QQBOT/actions/runs/44269594358)) is testing the mapper allowlist fix at commit `d975b93f4ed565a932f8f389ee9250b13d7009c4`. Ubuntu completed successfully; Windows reached complete test discovery with 24 prior steps successful and no failures at the last check.
+- Documentation-only commits after that code commit update the integration assessment and detailed ingress contract; they do not alter the tested code.
+- Do not claim the Bilibili provenance slice is fully verified until the Windows job completes successfully.
