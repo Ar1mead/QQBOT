@@ -802,3 +802,13 @@ At the time of this update:
 - Removed the separate standalone journal workflow to avoid duplicate CI runs.
 - Updated test fixture cleanup to close open file handles before deleting temporary directories, avoiding Windows file-lock failures.
 - Latest journal test commit: `17b4cb803350a9cbb5b6fd40f70d32bddebbceb1`; CI workflow wiring commit: `8682db9375caa007123af4dda01ae9ea8dc8713d`. No check results are visible from the available status lookup yet; do not claim a pass.
+
+### Final reference-slice review — 2026-11-18
+
+- Source identifiers are now restricted to strings or safe integers; malformed objects/unsafe numeric values are rejected.
+- Text truncation operates on Unicode code points, avoiding a cut between UTF-16 surrogate halves.
+- Journal recovery now rejects invalid UTF-8 and non-canonical JSON, including duplicate-key records; opaque references and the derived source reference are validated.
+- Reads and appends share one serialized queue; Windows test cleanup closes journal handles before removing temporary directories.
+- Latest policy/journal/test commits: `b9192c8a53cb0084af99e118bfc28c6727e29957`, `86eaa378083499099513b1e727083cbf093c77a9`, and `5ab9a2618326ed3e6ea85058f2f1d136f268d9d8`.
+- The Node 22 test step is wired into the existing Ubuntu/Windows CSD workflow. GitHub status and PR-run lookups still return no check entries for this commit. The reference suite remains **unverified**; no pass is claimed.
+- PR #1 remains open and titled Draft. It has not been marked ready or merged.
