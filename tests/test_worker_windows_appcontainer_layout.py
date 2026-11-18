@@ -40,6 +40,12 @@ class WindowsAppContainerLayoutTests(unittest.TestCase):
             sid,
             win.ensure_appcontainer_profile_sid("Ar1mead.QQBOT.Worker.CI"),
         )
+        with win.EmptyAppContainerCapabilities(sid) as capabilities:
+            self.assertEqual(capabilities.value.CapabilityCount, 0)
+            self.assertFalse(bool(capabilities.value.Capabilities))
+            self.assertTrue(bool(capabilities.value.AppContainerSid))
+        with self.assertRaisesRegex(RuntimeError, "already closed"):
+            capabilities.__enter__()
 
     def test_platform_guard_rejects_non_windows(self):
         if __import__("os").name == "nt":
