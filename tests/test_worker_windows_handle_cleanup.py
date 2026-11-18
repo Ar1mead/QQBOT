@@ -57,6 +57,37 @@ class NativeHandleCleanupTests(unittest.TestCase):
         self.assertTrue(owner._closed)
         self.assertIsNone(owner.handles.child_stdin)
 
+    def test_acl_object_handle_is_retained_when_close_fails_then_cleared_on_retry(self):
+        owner = windows_acl._AclObjectHandle.__new__(windows_acl._AclObjectHandle)
+        owner.value = 303
+        owner._close_handle = _CloseSequence([False, True])
+        with patch.object(windows_acl.ctypes, "WinError", side_effect=OSError("close failed"), create=True), patch.object(
+            windows_acl.ctypes, "get_last_error", return_value=5, create=True
+        ):
+            with self.assertRaisesRegex(OSError, "close failed"):
+                owner.close()
+        self.assertEqual(owner.value, 303)
+        owner.close()
+        self.assertIsNone(owner.value)
+
+    def test_appcontainer_sid_buffer_is_retained_when_local_free_fails(self):
+        owner = windows_appcontainer.EmptyAppContainerCapabilities.__new__(
+            windows_appcontainer.EmptyAppContainerCapabilities
+        )
+        owner._sid = windows_appcontainer.LPVOID(404)
+        owner._closed = False
+        owner._local_free = _CloseSequence([404, None])
+        with patch.object(windows_appcontainer.ctypes, "WinError", side_effect=OSError("LocalFree failed"), create=True), patch.object(
+            windows_appcontainer.ctypes, "get_last_error", return_value=5, create=True
+        ):
+            with self.assertRaisesRegex(OSError, "LocalFree failed"):
+                owner.close()
+        self.assertEqual(owner._sid.value, 404)
+        self.assertFalse(owner._closed)
+        owner.close()
+        self.assertIsNone(owner._sid.value)
+        self.assertTrue(owner._closed)
+
 
 if __name__ == "__main__":
     unittest.main()
