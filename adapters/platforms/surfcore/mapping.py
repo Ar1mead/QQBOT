@@ -46,7 +46,8 @@ _REQUIRED_FIELDS = {
 _OPTIONAL_FIELDS = {
     "account_ref", "source_artifact_ref", "cursor",
     "conversation_kind", "conversation_ref", "sender_ref", "historical",
-    "actor_ref", "actor_role", "parent_ref", "content_language",
+    "context_kind", "context_ref", "actor_ref", "actor_role", "parent_ref",
+    "content_language",
 }
 _QQ_REQUIRED_FIELDS = {
     "account_ref", "cursor", "conversation_kind", "conversation_ref",
