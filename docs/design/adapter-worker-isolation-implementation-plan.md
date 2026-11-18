@@ -288,3 +288,5 @@ The command-based probes consume the bounded request line before attempting thei
 Run #630 passed the current adversarial cases on GitHub's Windows runner: host-user-temp and repository-root marker reads were denied, a host loopback listener was unreachable, child process creation was blocked by the active-process limit, and a bounded wall-clock timeout terminated the worker. Stdout overflow and the positive stdio round trip also passed.
 
 These are important initial results, not a complete isolation certification. Explicit private/link-local/metadata/public network attempts, broader filesystem traversal checks, and verification on the actual target Windows/DSH environment remain outstanding. The Linux backend has not yet been implemented.
+
+The filesystem adversarial suite now also includes a positive/negative write boundary: a worker-created file inside the dedicated temp directory must exist and contain its marker, while an attempted write into a separate host-user temp directory must leave no file behind. This test is pending Windows CI.

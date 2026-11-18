@@ -1056,3 +1056,10 @@ At the time of this update:
 - Scope limitation: loopback denial is not exhaustive network proof. Private, link-local, cloud metadata, and public destinations still need explicit tests. Host-file marker tests cover two representative paths, not every possible host resource.
 - This is hosted CI evidence only, not local Windows/DSH verification. No production WorkerExecutor or real platform adapter is enabled.
 - PR #1 remains **Draft**, **Open**, and **Unmerged**.
+
+
+## Windows temp-write boundary test added — pending CI
+
+- Added a positive/negative filesystem write test to the AppContainer integration suite.
+- The worker must be able to create and read a file in its dedicated low-integrity temp working directory, while a write to a separate host-user temp directory must fail (the host checks that no file was created).
+- This complements the existing host-secret/CSD-marker read denial tests. It is not yet verified; the next Windows CI run must pass before the write boundary is counted as tested.
