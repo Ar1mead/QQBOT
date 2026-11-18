@@ -17,7 +17,8 @@ This is the durable hand-off record for continuing work when conversation contex
 - Windows low-level primitives already exist: AppContainer profile/capability setup, ACL helpers, explicit environment, Job Object policy, STARTUPINFOEX handle allowlist, anonymous pipes, suspended process launch, and bounded concurrent stdio/timeout/overflow supervision.
 - Windows launch-plan builder now requires a host-pinned runtime manifest digest. A new trusted-bundle loader checks the exact manifest bytes against a host-provided SHA-256 pin; the trust marker is carried through staging and included in the launch plan. This is implemented but CI-unverified.
 - SurfCore worker mapping has been separated from host CSD event creation. The Worker-safe QQ batch validator returns untrusted ObservationEvidence only; CSD event construction is lazy and remains host-side. Added an isolated-import regression test to ensure the worker mapping path does not import CSD modules. This is implemented but CI-unverified.
-- **Still missing:** a deterministic runtime bundle builder and approved dependency closure for the fixed Worker entrypoint. The current verifier/stager can verify and copy a supplied package but does not build it. The host-pinned digest must come from trusted configuration and the source bundle root must be protected from untrusted writes.
+- A deterministic runtime bundle builder now exists at `adapters/worker_backends/runtime_bundle_builder.py`. It selects a fixed Worker source closure, copies a CPython 3.12 runtime tree, excludes site-packages/tests/bytecode, emits sorted canonical manifest bytes, and reports the manifest SHA-256. Synthetic builder tests were added; no real CPython bundle has yet been built or launched.
+- Still missing: provision the builder's output digest into trusted host configuration and implement the production executor. The source bundle root must be protected from untrusted writes.
 - No production `WindowsAppContainerWorkerExecutor` composes the primitives. No Linux Bubblewrap backend, live SurfCore ingress, real QQ/Bilibili connection, or owner-local Windows/DSH verification exists.
 - PR #1 remains Draft/Open/Unmerged.
 
@@ -1491,3 +1492,16 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - This is a manifest pin, not a signature system. The digest must be provisioned through trusted host configuration, and the source bundle directory must be protected from untrusted writes.
 - No deterministic package builder exists yet. The next package slice must include the reviewed dependency closure for `worker_entrypoint.py`, CPython 3.12 runtime layout for isolated startup, sorted file hashes, canonical manifest output, and a reproducible build/test procedure.
 - Runs #673–#685 continued to fail before runner allocation on both OS jobs (no steps/no runner assignment). The above code/tests are therefore pending CI; the last confirmed green remains Run #664.
+
+
+## Deterministic Worker runtime package builder (2026-11-19)
+
+- Added `adapters/worker_backends/runtime_bundle_builder.py` and CLI entrypoint:
+  `python -m adapters.worker_backends.runtime_bundle_builder --python-runtime-root <CPython-3.12-root> --output-root <new-bundle-directory>`
+- The CLI probes the supplied interpreter using isolated `-I -S -B` flags and requires CPython 3.12.x before building.
+- The builder copies only the reviewed Worker source closure (entrypoint, protocol, observation contract, SurfCore mapper/result validator) plus the CPython runtime executable, runtime DLLs, `DLLs`, and `Lib`.
+- It excludes `site-packages`, Python test trees, `__pycache__`, and bytecode. If `python312._pth` exists, only a narrow relative-path allowlist is accepted.
+- It emits a sorted canonical manifest with per-file size/SHA-256 and the single host-compiled SurfCore QQ read-only dispatch binding, verifies the output with the existing bundle loader, and prints the manifest digest for trusted host configuration.
+- Added synthetic builder tests for deterministic output, fixed dependency closure, exclusion of ambient packages/tests, invalid Python versions, unsafe `._pth` directives, symlink rejection, and host-pin loading.
+- Aligned push and pull-request workflow path filters and added a dedicated builder test step.
+- This builder has not been CI-verified because Runs #686–#688 failed before runner allocation; no real Windows CPython 3.12 package has been built or executed. The builder's synthetic tests do not prove the generated runtime launches on Windows.
