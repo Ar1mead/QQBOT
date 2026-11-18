@@ -8,6 +8,18 @@
 
 This is the durable hand-off record for continuing work when conversation context is unavailable. Update this file whenever a meaningful work item is completed, its verification status changes, or a decision changes.
 
+## Current status snapshot — 2026-11-18 19:13 UTC+08:00
+
+- Current branch: `feature/csd-cognitive-memory-slice`; current documentation-only HEAD at reconciliation: `46b33762292a0dcdbb46e7a8aae15cf3b36cb155`.
+- Latest verified code/test commit: `1a177d2ef73a5b32b0900fa115d922366d3f33be`; Run #639 completed successfully on Ubuntu and Windows (38 steps per matrix job). The only commits after that tested code are documentation-only.
+- Windows backend now contains AppContainer profile/capability helpers, handle-based runtime/temp ACL and Low Integrity label helpers, explicit environment block, Job Object limits, STARTUPINFOEX handle allowlist, suspended process launch, anonymous pipes, and bounded concurrent stdio/timeout termination.
+- Windows process tests currently execute copied `cmd.exe`, not Python. Verified cases include runtime read-only/temp writable, host/CSD marker read denial, loopback and private-interface connection denial, child-process limit, timeout, output overflow, and Job Object kill-on-close. Link-local/cloud metadata and public network destinations are not yet tested.
+- No production `WindowsAppContainerWorkerExecutor` exists; low-level launcher/stdio modules are not yet composed into the existing `WorkerExecutor` interface. No Linux Bubblewrap backend, live SurfCore ingress, or local Windows/DSH test exists.
+- New next slice: verify a copied, minimal Python runtime under the same AppContainer controls with `-I -S -B`, standard-library/native-extension imports, explicit environment, no runtime writes, and temp-only writes. This test has been added and is awaiting CI.
+- PR #1 remains Draft/Open/Unmerged.
+
+---
+
 ## 1. Project objective
 
 Build a persistent AI individual, not merely a chat bot or a fixed workflow agent. The system should accumulate lived experience, form and revise memories and preferences, develop its own interests and goals, initiate activities without user prompts, and retain continuity across model/runtime/platform replacement.
@@ -1209,3 +1221,11 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Microsoft documents that failed profile deletion leaves state indeterminate and should be retried; see [DeleteAppContainerProfile](https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-deleteappcontainerprofile).
 - This remains hosted CI only, not local Windows/DSH verification. The backend still has no production WorkerExecutor; full Python runtime and remaining network destination probes are outstanding.
 - PR #1 remains **Draft**, **Open**, and **Unmerged**.
+
+
+## Python runtime isolation probe added — pending CI
+
+- Extended the Windows AppContainer process test harness to build a minimal copied CPython runtime in the dedicated read-only runtime directory: the base interpreter executable, top-level runtime DLLs, standard-library `Lib`, extension-module `DLLs`, and optional versioned stdlib zip/isolated-path file.
+- Added a real Python worker probe launched with `-I -S -B`. It reads the bounded request from stdin; imports `json`, `pathlib`, `ssl`, and `sqlite3`; checks isolated/no-site/no-bytecode flags; checks that `sys.path` stays within the copied runtime; confirms a parent-only secret is absent; proves runtime writes fail while temp writes succeed.
+- This is an integration test of the copied Python runtime under the existing AppContainer controls, not yet a production executor or a complete adapter protocol run. CI is pending.
+- Added the Windows backend test files to the workflow's pull-request path filters so test-only changes also trigger the matrix.

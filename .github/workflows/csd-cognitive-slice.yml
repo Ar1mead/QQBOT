@@ -32,6 +32,19 @@ on:
       - ".github/workflows/csd-cognitive-slice.yml"
   pull_request:
     paths:
+      - "tests/test_worker_windows_appcontainer_layout.py"
+
+      - "tests/test_worker_windows_appcontainer_acl.py"
+
+      - "tests/test_worker_windows_environment.py"
+
+      - "tests/test_worker_windows_job.py"
+
+      - "tests/test_worker_windows_pipes.py"
+
+      - "tests/test_worker_windows_startup.py"
+
+      - "tests/test_worker_windows_process.py"
       - "core/csd/**"
       - "core/life_engine/**"
       - "adapters/**"

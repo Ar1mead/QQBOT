@@ -337,3 +337,10 @@ The first Windows AppContainer process launch is no longer the blocker. The rema
 Profile cleanup follows Microsoft's documented behavior: if `DeleteAppContainerProfile` fails, the profile state is indeterminate and the API should be called again. The ephemeral owner now retries once and only marks itself closed after success. See [DeleteAppContainerProfile](https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-deleteappcontainerprofile).
 
 Run #639 passed the profile-deletion retry tests and the full Windows/Ubuntu matrix. The ephemeral owner now retries once after a failed HRESULT and fails closed if the second attempt also fails. Microsoft notes that a failed deletion leaves profile state indeterminate and recommends another call to complete deletion.
+
+
+## 3.13 Python runtime integration probe
+
+The next Windows integration test now copies a minimal CPython runtime into the dedicated worker runtime tree: base executable, top-level DLL dependencies, standard-library `Lib`, extension-module `DLLs`, and optional versioned stdlib zip/`._pth` files. It launches that interpreter with `-I -S -B` inside the existing AppContainer/Job/pipe/ACL harness.
+
+The probe checks request stdin, standard-library and native-extension imports (`ssl`, `sqlite3`), isolated/no-site/no-bytecode flags, `sys.path` containment within the copied runtime, absence of a parent-only environment secret, denied writes to the runtime, and successful writes only to the dedicated temp directory. This is test coverage only; a production `WindowsAppContainerWorkerExecutor` remains unimplemented. CI pending.

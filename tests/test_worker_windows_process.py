@@ -1,8 +1,10 @@
 import ipaddress
+import json
 import os
 import shutil
 import socket
 import tempfile
+import sys
 import threading
 import unittest
 from contextlib import contextmanager
@@ -50,7 +52,7 @@ class WorkerIOValidationTests(unittest.TestCase):
 @unittest.skipUnless(os.name == "nt", "Windows AppContainer process launch")
 class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
     @contextmanager
-    def _worker_session(self, arguments, application_name="cmd.exe"):
+    def _worker_session(self, arguments, application_name="cmd.exe", runtime_builder=None):
         system_root = os.environ["SystemRoot"]
         system32 = os.path.join(system_root, "System32")
         temp_parent = os.path.join(system_root, "Temp")
@@ -60,7 +62,10 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
             with tempfile.TemporaryDirectory(prefix="qqbot-runtime-", dir=temp_parent) as runtime_temp:
                 with app.EphemeralAppContainerProfile.create() as profile:
                     sid = profile.appcontainer_sid
-                    if application_name == "cmd.exe":
+                    if runtime_builder is not None:
+                        application = runtime_builder(runtime_temp)
+                        acl.grant_runtime_read_execute(runtime_temp, sid)
+                    elif application_name == "cmd.exe":
                         application = os.path.join(runtime_temp, application_name)
                         shutil.copy2(os.path.join(system32, application_name), application)
                         acl.grant_runtime_read_execute(runtime_temp, sid)
@@ -77,7 +82,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
                             "LOCALAPPDATA": profile.local_appdata_path,
                             "TEMP": worker_temp,
                             "TMP": worker_temp,
-                            "PATH": system32,
+                            "PATH": system32 + os.pathsep + runtime_temp,
                         }
                     )
         
@@ -108,6 +113,111 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
             stdout_limit=stdout_limit,
             stderr_limit=4096,
         )
+
+
+    def test_isolated_python_runtime_imports_stdlib_and_respects_readonly_boundary(self):
+        def build_runtime(runtime_temp):
+            source_root = os.path.realpath(sys.base_prefix)
+            source_executable = os.path.realpath(getattr(sys, "_base_executable", sys.executable))
+            if not os.path.isfile(source_executable):
+                raise AssertionError("base Python executable is unavailable")
+            shutil.copy2(source_executable, os.path.join(runtime_temp, "python.exe"))
+
+            for name in os.listdir(source_root):
+                source = os.path.join(source_root, name)
+                if os.path.isfile(source) and name.lower().endswith(".dll"):
+                    shutil.copy2(source, os.path.join(runtime_temp, name))
+
+            for directory in ("Lib", "DLLs"):
+                source = os.path.join(source_root, directory)
+                if not os.path.isdir(source):
+                    raise AssertionError(f"Python runtime is missing {directory}")
+                shutil.copytree(
+                    source,
+                    os.path.join(runtime_temp, directory),
+                    ignore=shutil.ignore_patterns("__pycache__", "site-packages", "test", "tests"),
+                )
+
+            version_tag = f"python{sys.version_info.major}{sys.version_info.minor}"
+            for name in os.listdir(source_root):
+                if name.lower() in {f"{version_tag}.zip", f"{version_tag}._pth"}:
+                    source = os.path.join(source_root, name)
+                    if os.path.isfile(source):
+                        shutil.copy2(source, os.path.join(runtime_temp, name))
+            return os.path.join(runtime_temp, "python.exe")
+
+        script = r'''
+import json, os, pathlib, sqlite3, ssl, sys
+request = sys.stdin.buffer.readline()
+runtime_root = pathlib.Path(sys.executable).resolve().parent
+runtime_probe = runtime_root / "_worker_runtime_write_probe"
+temp_probe = pathlib.Path(os.environ["TEMP"]) / "python-worker-temp-probe.txt"
+try:
+    runtime_probe.write_text("must not be writable", encoding="utf-8")
+    runtime_write_denied = False
+except OSError:
+    runtime_write_denied = True
+temp_probe.write_text("TEMP_WRITE_OK", encoding="utf-8")
+with sqlite3.connect(":memory:") as connection:
+    connection.execute("select 1").fetchone()
+root = os.path.normcase(os.path.realpath(str(runtime_root)))
+outside_paths = []
+for item in sys.path:
+    if not item:
+        outside_paths.append(item)
+        continue
+    candidate = os.path.normcase(os.path.realpath(item))
+    try:
+        if os.path.commonpath((root, candidate)) != root:
+            outside_paths.append(item)
+    except ValueError:
+        outside_paths.append(item)
+print(json.dumps({
+    "request_ok": request == b"bounded worker probe input\\r\\n",
+    "python_version": list(sys.version_info[:3]),
+    "isolated": sys.flags.isolated,
+    "no_site": sys.flags.no_site,
+    "dont_write_bytecode": sys.flags.dont_write_bytecode,
+    "site_loaded": "site" in sys.modules,
+    "ssl_available": bool(ssl.OPENSSL_VERSION),
+    "sqlite_available": True,
+    "runtime_write_denied": runtime_write_denied,
+    "temp_write_ok": temp_probe.read_text(encoding="utf-8") == "TEMP_WRITE_OK",
+    "parent_secret_absent": os.environ.get("QQBOT_PARENT_SECRET") is None,
+    "outside_sys_path": outside_paths,
+}, sort_keys=True))
+'''
+        secret_name = "QQBOT_PARENT_SECRET"
+        previous_secret = os.environ.get(secret_name)
+        os.environ[secret_name] = "HOST_ONLY_SECRET_MARKER"
+        try:
+            with self._worker_session(
+                ["-I", "-S", "-B", "-c", script],
+                runtime_builder=build_runtime,
+            ) as (worker, worker_pipes, worker_job, worker_temp, runtime_temp):
+                result = self._execute(worker, worker_pipes, worker_job, timeout_ms=30000)
+                self.assertEqual(result.exit_code, 0, result.stderr.decode("utf-8", errors="replace"))
+                payload = json.loads(result.stdout.decode("utf-8").strip())
+                self.assertTrue(payload["request_ok"])
+                self.assertEqual(payload["python_version"][:2], list(sys.version_info[:2]))
+                self.assertEqual(payload["isolated"], 1)
+                self.assertEqual(payload["no_site"], 1)
+                self.assertEqual(payload["dont_write_bytecode"], 1)
+                self.assertFalse(payload["site_loaded"])
+                self.assertTrue(payload["ssl_available"])
+                self.assertTrue(payload["sqlite_available"])
+                self.assertTrue(payload["runtime_write_denied"])
+                self.assertTrue(payload["temp_write_ok"])
+                self.assertTrue(payload["parent_secret_absent"])
+                self.assertEqual(payload["outside_sys_path"], [])
+                self.assertFalse(os.path.exists(os.path.join(runtime_temp, "_worker_runtime_write_probe")))
+                with open(os.path.join(worker_temp, "python-worker-temp-probe.txt"), "r", encoding="utf-8") as stream:
+                    self.assertEqual(stream.read(), "TEMP_WRITE_OK")
+        finally:
+            if previous_secret is None:
+                os.environ.pop(secret_name, None)
+            else:
+                os.environ[secret_name] = previous_secret
 
     def test_worker_is_created_suspended_assigned_then_resumed_with_bounded_stdio(self):
         with self._worker_session(["/d", "/c", "set /p _= & echo WORKER_OK"]) as (worker, worker_pipes, worker_job, worker_temp, runtime_temp):
