@@ -42,6 +42,7 @@ def record(platform="qq", **overrides):
             "conversation_ref": "qq-conversation-opaque",
             "sender_ref": "qq-sender-opaque",
             "historical": False,
+            "actor_role": "sender",
         }
     else:
         data = {
@@ -68,6 +69,11 @@ def record(platform="qq", **overrides):
             },
             "source_artifact_ref": "surfcore-artifact://bilibili/BV1EPnG6DEJC/subtitle/zh-CN",
             "account_ref": "bili-account-opaque",
+            "context_kind": "video",
+            "context_ref": "BV1EPnG6DEJC",
+            "actor_ref": "subtitle-contributor-opaque",
+            "actor_role": "subtitle_contributor",
+            "content_language": "zh-CN",
         }
     data.update(overrides)
     return data
@@ -161,6 +167,70 @@ class SurfCoreMappingTests(unittest.TestCase):
         ))
         self.assertEqual(mapped.observation_kind, "qq.message.incoming.historical")
         self.assertTrue(mapped.historical)
+
+    def test_bilibili_subtitle_preserves_video_contributor_and_language(self):
+        mapped = map_surfcore_record(record("bilibili"))
+        self.assertEqual(mapped.context_kind, "video")
+        self.assertEqual(mapped.context_ref, "BV1EPnG6DEJC")
+        self.assertEqual(mapped.actor_ref, "subtitle-contributor-opaque")
+        self.assertEqual(mapped.actor_role, "subtitle_contributor")
+        self.assertEqual(mapped.content_language, "zh-CN")
+        event = map_surfcore_record_to_csd_event(record("bilibili"))
+        self.assertEqual(event.payload["context_ref"], "BV1EPnG6DEJC")
+        self.assertEqual(event.payload["actor_role"], "subtitle_contributor")
+        self.assertEqual(event.payload["content_language"], "zh-CN")
+
+    def test_bilibili_comment_preserves_author_and_parent_thread(self):
+        source = record(
+            "bilibili",
+            record_id="BV1EPnG6DEJC:comment:reply-2",
+            observation_kind="bilibili.video.comment",
+            content="A reply in the discussion.",
+            source_ref="surfcore://bilibili/BV1EPnG6DEJC/comment/reply-2",
+            extraction_method="platform_comment",
+            actor_ref="comment-author-opaque",
+            actor_role="comment_author",
+            parent_ref="root-comment-opaque",
+        )
+        source["coverage"]["extraction_method"] = "platform_comment"
+        mapped = map_surfcore_record(source)
+        self.assertEqual(mapped.context_ref, "BV1EPnG6DEJC")
+        self.assertEqual(mapped.actor_ref, "comment-author-opaque")
+        self.assertEqual(mapped.actor_role, "comment_author")
+        self.assertEqual(mapped.parent_ref, "root-comment-opaque")
+        self.assertIsNone(mapped.content_language)
+
+    def test_bilibili_danmaku_preserves_sender_role_without_inventing_identity(self):
+        source = record(
+            "bilibili",
+            record_id="BV1EPnG6DEJC:danmaku:100",
+            observation_kind="bilibili.video.danmaku",
+            content="A danmaku line.",
+            source_ref="surfcore://bilibili/BV1EPnG6DEJC/danmaku/100",
+            extraction_method="platform_danmaku",
+            actor_ref=None,
+            actor_role="danmaku_sender",
+            content_language=None,
+        )
+        source["coverage"]["extraction_method"] = "platform_danmaku"
+        mapped = map_surfcore_record(source)
+        self.assertEqual(mapped.actor_role, "danmaku_sender")
+        self.assertIsNone(mapped.actor_ref)
+
+    def test_bilibili_rejects_mismatched_video_actor_language_and_parent_provenance(self):
+        cases = (
+            ({"context_ref": "BV1OTHER"}, "context_ref must match"),
+            ({"actor_role": "comment_author"}, "actor_role must be"),
+            ({"content_language": "not a language tag!"}, "BCP 47"),
+            ({"parent_ref": "root-comment"}, "only valid for Bilibili comments"),
+        )
+        for changes, message in cases:
+            with self.subTest(changes=changes), self.assertRaisesRegex(ValueError, message):
+                map_surfcore_record(record("bilibili", **changes))
+        with self.assertRaisesRegex(ValueError, "missing provenance"):
+            source = record("bilibili")
+            del source["context_ref"]
+            map_surfcore_record(source)
 
     def test_bilibili_subtitle_preserves_partial_coverage(self):
         mapped = map_surfcore_record(record("bilibili"))
