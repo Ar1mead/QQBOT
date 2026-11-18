@@ -1257,3 +1257,11 @@ Current hard boundary: no production WorkerExecutor, no untrusted adapter execut
 - Each destination is attempted from the host first. The worker only attempts destinations for which the host established a TCP connection, then immediately closes any connection; no HTTP request, metadata token request, or application payload is sent.
 - The worker must fail to connect to every host-positive destination. The test logs which positive-control destinations were actually available; unavailable host routes are not counted as verified coverage.
 - Run pending. Existing loopback and host-private-interface tests remain separate and previously passed in Run #640/#641.
+
+
+## Run #642 — network-probe instrumentation fixture error
+
+- Ubuntu passed. Windows failed in the Python process test before launching the worker because a diagnostic print was inserted before the local `host_targets` list was initialized.
+- This was a test-harness ordering error, not an AppContainer/network-policy failure. The probe itself was not executed, so Run #642 provides no metadata/public network result.
+- Corrected the diagnostic placement to print after the host-side positive-control scan. The network test still performs TCP handshakes only and sends no application or metadata request.
+- Correction pending Run #643.

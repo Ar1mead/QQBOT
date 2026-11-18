@@ -147,7 +147,7 @@ class WindowsAppContainerProcessLaunchTests(unittest.TestCase):
             return os.path.join(runtime_temp, "python.exe")
 
         script = r'''
-import json, os, pathlib, sqlite3, ssl, sys
+import json, os, pathlib, socket, sqlite3, ssl, sys
 request = sys.stdin.buffer.readline()
 runtime_root = pathlib.Path(sys.executable).resolve().parent
 runtime_probe = runtime_root / "_worker_runtime_write_probe"
@@ -170,6 +170,14 @@ try:
     temp_env_within_localappdata = os.path.commonpath((local_appdata_norm, temp_env_norm)) == local_appdata_norm
 except ValueError:
     temp_env_within_localappdata = False
+network_targets = json.loads(sys.argv[2])
+network_results = {}
+for label, address, port in network_targets:
+    try:
+        with socket.create_connection((address, port), timeout=2):
+            network_results[label] = True
+    except OSError:
+        network_results[label] = False
 with sqlite3.connect(":memory:") as connection:
     connection.execute("select 1").fetchone()
 root = os.path.normcase(os.path.realpath(str(runtime_root)))
@@ -199,8 +207,22 @@ print(json.dumps({
     "temp_env_within_localappdata": temp_env_within_localappdata,
     "parent_secret_absent": os.environ.get("QQBOT_PARENT_SECRET") is None,
     "outside_sys_path": outside_paths,
+    "network_results": network_results,
 }, sort_keys=True))
 '''
+        host_targets = []
+        for label, address, port in (
+            ("public_1_1_1_1", "1.1.1.1", 443),
+            ("link_local_metadata", "169.254.169.254", 80),
+        ):
+            try:
+                with socket.create_connection((address, port), timeout=2):
+                    host_targets.append((label, address, port))
+            except OSError:
+                # Only compare against destinations the host itself can reach.
+                # The probe performs a TCP handshake only and sends no payload.
+                continue
+
         print("Host-positive TCP network probe targets:", host_targets)
 
         secret_name = "QQBOT_PARENT_SECRET"
@@ -208,7 +230,9 @@ print(json.dumps({
         os.environ[secret_name] = "HOST_ONLY_SECRET_MARKER"
         try:
             with self._worker_session(
-                lambda worker_temp, runtime_temp: ["-I", "-S", "-B", "-c", script, worker_temp],
+                lambda worker_temp, runtime_temp: [
+                    "-I", "-S", "-B", "-c", script, worker_temp, json.dumps(host_targets),
+                ],
                 runtime_builder=build_runtime,
             ) as (worker, worker_pipes, worker_job, worker_temp, runtime_temp):
                 result = self._execute(worker, worker_pipes, worker_job, timeout_ms=30000)
@@ -228,6 +252,11 @@ print(json.dumps({
                 self.assertTrue(payload["temp_env_within_localappdata"])
                 self.assertTrue(payload["parent_secret_absent"])
                 self.assertEqual(payload["outside_sys_path"], [])
+                self.assertEqual(set(payload["network_results"]), {item[0] for item in host_targets})
+                self.assertTrue(
+                    all(connected is False for connected in payload["network_results"].values()),
+                    "AppContainer unexpectedly connected to a host-reachable network destination",
+                )
                 self.assertFalse(os.path.exists(os.path.join(runtime_temp, "_worker_runtime_write_probe")))
                 with open(os.path.join(worker_temp, "python-worker-temp-probe.txt"), "r", encoding="utf-8") as stream:
                     self.assertEqual(stream.read(), "WORKER_TEMP_WRITE_OK")

@@ -361,3 +361,8 @@ This validates the Python runtime in the low-level launch harness; it does not c
 ### 3.14 Connection-only link-local metadata and public network probes
 
 The Python AppContainer probe now tries TCP handshakes to public `1.1.1.1:443` and link-local metadata `169.254.169.254:80`. It first performs the same TCP connection from the host and only includes destinations that the host can reach. The worker then attempts the same connection and must be denied. No HTTP request or metadata/application payload is sent. The test logs which host-positive destinations were available, so a missing positive control is not misreported as verified isolation. CI pending.
+
+
+### 3.14.1 Run #642 instrumentation correction
+
+Run #642 did not execute the new network probe: the Windows test raised `NameError` because the diagnostic print referenced `host_targets` before the host-positive-control list was initialized. This was test harness ordering only. The print now follows target discovery. No network isolation conclusion is drawn from Run #642; Run #643 must verify the corrected test.
