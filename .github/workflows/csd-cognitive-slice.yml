@@ -17,6 +17,7 @@ on:
       - "tests/test_worker_entrypoint.py"
       - "tests/test_surfcore_worker_result.py"
       - "tests/test_worker_runtime_bundle.py"
+      - "tests/test_worker_runtime_bundle_builder.py"
       - "tests/test_worker_windows_launch_plan.py"
       - "tests/test_worker_windows_process.py"
       - "tests/test_adapter_worker_host.py"
@@ -48,6 +49,7 @@ on:
       - "tests/test_worker_entrypoint.py"
       - "tests/test_surfcore_worker_result.py"
       - "tests/test_worker_runtime_bundle.py"
+      - "tests/test_worker_runtime_bundle_builder.py"
       - "tests/test_worker_windows_launch_plan.py"
       - "tests/test_worker_windows_process.py"
       - "tests/test_adapter_worker_host.py"
@@ -140,6 +142,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_surfcore_worker_result.py" -v
       - name: Run worker runtime bundle manifest tests
         run: python -m unittest discover -s tests -p "test_worker_runtime_bundle.py" -v
+      - name: Run worker runtime bundle builder tests
+        run: python -m unittest discover -s tests -p "test_worker_runtime_bundle_builder.py" -v
       - name: Run Windows worker launch plan tests
         run: python -m unittest discover -s tests -p "test_worker_windows_launch_plan.py" -v
       - name: Run provider-neutral proposal pipeline tests
