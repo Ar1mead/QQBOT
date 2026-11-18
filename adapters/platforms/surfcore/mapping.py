@@ -42,7 +42,17 @@ _REQUIRED_FIELDS = {
     "source_ref", "observed_at", "received_at", "extraction_method",
     "coverage",
 }
-_OPTIONAL_FIELDS = {"account_ref", "source_artifact_ref", "cursor"}
+_OPTIONAL_FIELDS = {
+    "account_ref", "source_artifact_ref", "cursor",
+    "conversation_kind", "conversation_ref", "sender_ref", "historical",
+}
+_QQ_REQUIRED_FIELDS = {
+    "account_ref", "cursor", "conversation_kind", "conversation_ref",
+    "sender_ref", "historical",
+}
+_QQ_ONLY_FIELDS = {
+    "cursor", "conversation_kind", "conversation_ref", "sender_ref", "historical",
+}
 _COVERAGE_FIELDS = {
     "modality", "extraction_method", "complete", "start_ms", "end_ms",
     "missing_ranges_ms", "notes",
@@ -111,6 +121,12 @@ def map_surfcore_record(record: Mapping[str, Any]) -> ObservationEvidence:
     platform = _nonempty(record["platform"], "platform")
     if platform not in _ALLOWED_PLATFORMS:
         raise ValueError("unsupported SurfCore platform")
+    if platform == "qq":
+        missing_qq = _QQ_REQUIRED_FIELDS - keys
+        if missing_qq:
+            raise ValueError(f"QQ record missing provenance fields: {', '.join(sorted(missing_qq))}")
+    elif keys & _QQ_ONLY_FIELDS:
+        raise ValueError("QQ-only provenance fields are not valid for Bilibili records")
     kind = _nonempty(record["observation_kind"], "observation_kind")
     if kind not in _ALLOWED_KINDS[platform]:
         raise ValueError("observation_kind is not allowed for this platform")
@@ -157,10 +173,22 @@ def map_surfcore_record(record: Mapping[str, Any]) -> ObservationEvidence:
         account_ref = _nonempty(account_ref, "account_ref")
     if artifact_ref is not None:
         artifact_ref = _nonempty(artifact_ref, "source_artifact_ref")
+    context_kind = None
+    context_ref = None
+    actor_ref = None
+    source_sequence = None
+    historical = False
     if platform == "qq":
-        if "cursor" not in record:
-            raise ValueError("QQ observation record requires a cursor")
-        _cursor(record["cursor"], "record.cursor")
+        cursor = _cursor(record["cursor"], "record.cursor")
+        context_kind = _nonempty(record["conversation_kind"], "conversation_kind")
+        if context_kind not in {"private", "group"}:
+            raise ValueError("QQ conversation_kind must be private or group")
+        context_ref = _nonempty(record["conversation_ref"], "conversation_ref")
+        actor_ref = _nonempty(record["sender_ref"], "sender_ref")
+        historical = record["historical"]
+        if not isinstance(historical, bool):
+            raise ValueError("QQ historical must be boolean")
+        source_sequence = cursor
     elif "cursor" in record:
         raise ValueError("cursor is only valid for QQ observation records")
 
@@ -197,6 +225,11 @@ def map_surfcore_record(record: Mapping[str, Any]) -> ObservationEvidence:
         coverage=coverage,
         source_artifact_ref=artifact_ref,
         account_ref=account_ref,
+        context_kind=context_kind,
+        context_ref=context_ref,
+        actor_ref=actor_ref,
+        source_sequence=source_sequence,
+        historical=historical,
         untrusted=True,
     )
 
