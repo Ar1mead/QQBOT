@@ -873,4 +873,14 @@ At the time of this update:
 
 - The first ACL commit triggered Run #618 on Ubuntu and Windows. Both jobs passed checkout, Python setup, and `compileall`, then stopped before all Python tests because the pre-existing SurfCore QQ journal test file had a malformed JavaScript string literal at line 170 (`bytes.includes("\\"101\\"")`).
 - Corrected the assertion to use a single-quoted JavaScript string containing the quoted numeric ID. This is a test-source syntax repair only; it does not change journal runtime behavior or the Windows ACL implementation.
-- Run #618 is **failed**, not a Windows ACL test result: the ACL test step was skipped on both platforms. Run #619 includes the ACL pointer/read-back correction and is queued; a new run after this syntax fix is needed to test the new slice.
+- Runs #618 and #619 are **failed** before the ACL test step because both checked out the earlier malformed JavaScript test literal. Run #620, on the syntax-fixed head, subsequently completed successfully on both Ubuntu and Windows.
+
+
+## Windows AppContainer ACL descriptor hosted verification — Run #620
+
+- Run #620 for head `b7af0afa39ee6d807df9015cbbf76f84318b3a87` completed with **Success** on both `ubuntu-latest` and `windows-latest`.
+- Both jobs completed all 33 steps successfully, including Python compileall, the SurfCore QQ journal reference tests, Win64 structure-layout tests, Windows AppContainer ACL descriptor tests, focused CSD/adapter suites, and complete unittest discovery.
+- The Windows ACL integration test successfully created/reused the dedicated AppContainer profile, granted the package SID read/execute on a runtime directory and read/write on a scratch directory, applied the Low Integrity no-write-up label, and passed the helper's read-back checks.
+- This verifies hosted Windows directory-descriptor setup/read-back only. It does **not** prove that a launched AppContainer worker can or cannot access particular files; there is still no process launcher, no inside-worker adversarial filesystem/network test, no Job Object, and no production WorkerExecutor.
+- The corrected journal assertion in the same tested head is a test syntax repair; it does not change the journal implementation.
+- Hosted CI is not owner-local Windows/DSH verification. PR #1 remains **Draft**, **Open**, and **Unmerged**.
