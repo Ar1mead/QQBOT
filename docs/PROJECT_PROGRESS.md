@@ -902,3 +902,13 @@ At the time of this update:
 - Windows CI successfully created an unnamed Job Object, applied kill-on-close, active-process limit 1, matching finite process/job memory limits, and the requested CPU hard cap, then queried the settings back and verified them.
 - This verifies Job Object configuration only. No process has yet been assigned; kill-on-close, timeout, and whole-worker termination have not yet been exercised against a real process.
 - Hosted CI is not local Windows/DSH verification. PR #1 remains **Draft**, **Open**, and **Unmerged**.
+
+
+## Windows STARTUPINFOEX attribute-list construction — implementation slice
+
+- Added `adapters/worker_backends/windows_startup.py` to construct the extended startup attribute list with exactly two attributes: explicit inheritable-handle allowlist and empty-capability AppContainer security descriptor.
+- The helper uses the documented size-probe pattern and requires `ERROR_INSUFFICIENT_BUFFER`; it validates one to three unique valid handles and verifies each has `HANDLE_FLAG_INHERIT`. It keeps the handle array, native attribute-list buffer, and AppContainer capability lease alive.
+- `STARTUPINFOEX.StartupInfo.cb` is set to the full extended structure size. The capability lease must remain open through the eventual `CreateProcessW` call.
+- Added `tests/test_worker_windows_startup.py` for Windows attribute-list creation using inheritable event handles, rejection of non-inheritable/duplicate handles, invalid handle-list shapes, and non-Windows fail-closed behavior. Wired into the existing workflow.
+- This slice does **not** call `CreateProcessW`, create the worker pipes, construct a minimal environment block, assign a process to the Job Object, or resume a suspended thread. No child process has been started by these tests.
+- Hosted CI for this new attribute-list slice is pending. The previous Job Object slice passed Run #621 on Ubuntu and Windows; see the verification section above. PR #1 remains Draft/Open/Unmerged.

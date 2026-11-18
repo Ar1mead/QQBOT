@@ -100,6 +100,21 @@ It queries the Job Object back and rejects any mismatch. The API requires explic
 
 This slice does not yet create or assign a process. It does not test that closing the Job Object kills a real worker, and it does not provide timeout supervision. Those behaviors must be tested when suspended process creation and assignment are implemented.
 
+### 3.6 STARTUPINFOEX attribute-list slice — no process creation yet
+
+The reference module `adapters/worker_backends/windows_startup.py` now builds the two required extended-startup attributes:
+
+- `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`: accepts one to three unique handles only, verifies each handle is valid and marked inheritable, and retains the native handle array.
+- `PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES`: accepts only a live `EmptyAppContainerCapabilities` lease whose package SID is present and whose capability count is exactly zero.
+- Uses the documented two-call `InitializeProcThreadAttributeList` size-probe pattern, requires the expected `ERROR_INSUFFICIENT_BUFFER`, initializes the opaque list, applies both attributes, and retains all referenced buffers and the capability lease.
+- Initializes `STARTUPINFOEX.StartupInfo.cb` to the full extended structure size. The caller must keep both this object and the capability lease alive through the future `CreateProcessW` call.
+
+This is attribute-list construction and handle validation only. It does not call `CreateProcessW`, create anonymous pipes, build the explicit environment block, assign the process to a Job Object, or resume a suspended thread. The Windows tests use inheritable event handles to validate attribute construction without starting a child process.
+
+Additional Microsoft references:
+- [InitializeProcThreadAttributeList](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-initializeprocthreadattributelist): required size probe, initialization, and deletion lifecycle.
+- [UpdateProcThreadAttribute](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute): explicit handle-list and AppContainer security-capability attributes.
+- [Create processes](https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes): avoid inherited handles except the explicitly enumerated list.
 ## 4. Linux backend — parity implementation after Windows
 
 Use a host-installed `bubblewrap` executable selected by an absolute, administrator-reviewed path. Do not use a shell.
