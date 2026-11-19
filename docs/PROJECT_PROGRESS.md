@@ -4,7 +4,7 @@
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
 > Latest code/test checkpoint: `2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c`  
-> Current PR head at documentation refresh: `389be739a20f279a71603e49ee78475b94c28c71`  
+> PR head before this documentation synchronization: `389be739a20f279a71603e49ee78475b94c28c71` (the documentation commits themselves advance the head; refresh live metadata before continuing)  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
