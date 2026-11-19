@@ -81,6 +81,7 @@ on:
       - "tests/test_csd_memory_retrieval.py"
       - "tests/test_csd_semantic_review.py"
       - "tests/test_csd_semantic_review_pipeline.py"
+      - "tests/test_csd_openai_compatible_provider.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   workflow_dispatch:
 
