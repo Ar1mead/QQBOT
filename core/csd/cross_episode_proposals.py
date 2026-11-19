@@ -325,7 +325,13 @@ def validate_cross_episode_proposal_event(
         raise ValueError("cross-episode event contains missing or unsupported fields")
     proposal_id = _text(payload.get("proposal_id"), "proposal_id")
     provider_id = _text(payload.get("provider_id"), "provider_id")
-    _text(payload.get("provider_version"), "provider_version")
+    provider_version = _text(payload.get("provider_version"), "provider_version")
+    if (
+        payload.get("proposal_id") != proposal_id
+        or payload.get("provider_id") != provider_id
+        or payload.get("provider_version") != provider_version
+    ):
+        raise ValueError("cross-episode identity fields must be canonical text")
     schema_version = payload.get("schema_version")
     if (
         not isinstance(schema_version, int)
@@ -372,12 +378,16 @@ def validate_cross_episode_proposal_event(
     if domain not in allowed_domains:
         raise ValueError("cross-episode candidate domain is not allowed for its owner")
     for field in ("statement", "scope", "reasoning_summary"):
-        _text(candidate.get(field), f"candidate.{field}")
+        value = candidate.get(field)
+        if _text(value, f"candidate.{field}") != value:
+            raise ValueError(f"candidate.{field} must be canonical text")
     for field in ("exclusions", "alternatives", "limitations"):
         value = candidate.get(field)
         if not isinstance(value, list) or len(value) > MAX_LIST_ITEMS:
             raise ValueError(f"candidate.{field} must be a bounded list")
         normalized = [_text(item, f"candidate.{field}") for item in value]
+        if normalized != value:
+            raise ValueError(f"candidate.{field} must contain canonical text")
         if len(set(normalized)) != len(normalized):
             raise ValueError(f"candidate.{field} must not contain duplicates")
     confidence = candidate.get("confidence")
