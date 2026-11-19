@@ -534,3 +534,10 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - Actions Run #723（ID `44565792687`）针对该 commit 完成后失败，约 4 秒；Ubuntu / Windows 两个 job 的 steps 都为空，没有分配 runner、没有执行测试命令。这不是代码测试失败，也不是测试通过。
 - 后续仅有验收矩阵和测试 fixture 的小修正，不改变运行时代码。
 - 新增 reviewer 单元测试和组合 fake-transport loop 测试仍未执行；没有真实 API smoke test。
+
+
+## 24. 当前 head 的最终 Actions 检查 — 2026-11-20
+
+- 本条记录前的 branch head：`6ee1548fe9d2575b58a6f646102274a0e40de1f2`。
+- Actions Run #724（ID `44566099273`）约 3 秒后失败；Ubuntu / Windows 两个 job 的 steps 都为空，没有分配 runner，也没有执行测试命令。
+- 这再次确认是 runner 分配问题；没有新的 Python 测试结果，不能据此判断测试通过或代码测试失败。
