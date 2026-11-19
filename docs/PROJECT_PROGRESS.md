@@ -3,20 +3,21 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Latest code/test checkpoint: `d9bb60ac6a2e17962a6940385153a7f19d2a30d1`  
-> PR head before this documentation synchronization: `d9bb60ac6a2e17962a6940385153a7f19d2a30d1`  
+> Latest code/test checkpoint: `151dd814aefb2b102513ea15b473d96f7a646791`  
+> PR head before this documentation synchronization: `151dd814aefb2b102513ea15b473d96f7a646791`  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
 ## Current checkpoint — 2026-11-20 (Recovery-safe references and pending-only cross-episode event; tests pending)
 
-- **Latest code/test checkpoint:** `d9bb60ac6a2e17962a6940385153a7f19d2a30d1`. PR #1 was freshly fetched as Open, Draft=true, Merged=false, targeting `main`; never merge it.
+- **Latest code/test checkpoint:** `151dd814aefb2b102513ea15b473d96f7a646791`. PR #1 was freshly fetched as Open, Draft=true, Merged=false, targeting `main`; never merge it.
 - **Historical-prefix correctness:** `through_sequence` is exclusive. The resolver rejects negative, boolean and non-integer boundaries and converts the event boundary to the inclusive state-version boundary `through_sequence - 1`. If the accepted decision is not yet present in the prefix, it now reports that exact condition rather than an ambiguous missing/ambiguous lineage error.
 - **Recovery-safe resolver:** historical resolution reconstructs accepted grounded memories from integrity-checked immutable decision, grounded-proposal and source-observation events. It does not depend on accepted-memory/proposal projections that may be only partially rebuilt during Recovery.
 - **Atomic reference bundles:** allowlist construction and model-selected reference resolution each run in one SQLite read snapshot (or reuse the caller's transaction).
 - **CSD-owned pending event family:** added `cognition.cross_episode_candidate_proposed.v1`, append/read/list API, and Recovery replay. The event is immutable and pending-shadow only. During append, CSD re-resolves every support and counter-evidence reference inside the same write transaction at the exclusive event prefix; it compares accepted lineage, claim digest, source-event IDs and state version, and recomputes independent support-event count. Persisted events contain lineage/digests but not copied claim text. No preference/self-model state is accepted or revised.
+- **Sensitive-domain guard:** candidate domains are restricted by owner to a small allowlist of non-sensitive user preference domains or AI interest domains. This is only a coarse domain filter; semantic review must still inspect candidate text for sensitive inferences.
 - **Regression tests added:** absent decision before historical boundary; invalid boundary types; partial-projection Recovery resolution; multi-reference single-snapshot behavior; successful pending event append/list/Recovery; digest and boolean-version tampering; stale candidate after a later accepted decision. These tests are in the workflow but **have not been executed**.
-- **CI evidence:** latest code checkpoint `d9bb60a...` has an empty combined status and the available commit-workflow lookup returned no runs. This does not establish pass or failure; no local test execution, Windows verification or real cloud API smoke test is evidenced.
+- **CI evidence:** latest code checkpoint `151dd81...` has an empty combined status; the available commit-workflow lookup (which surfaces PR-triggered runs) returned no runs. Push-triggered workflow execution is not exposed by this lookup, so no CI pass/failure can be verified from the available evidence. No local test execution, Windows verification or real cloud API smoke test is evidenced.
 - **Still blocked:** semantic reviewer v2; decision-time revalidation; CSD preference/self-model reducer and versioned revision events; positive/counter-evidence review; Recovery tests for future revision events. Pending candidates must not affect identity, preferences, goals or Life Engine ranking.
 - **ai-companion-pi design:** preserved in `docs/design/autonomous-life-and-self-development.md`; Private Home, non-forced wakeups, self-selected activities/no-op, long-term projects, governed proactive messaging, graded permissions and outcome learning remain design goals, not runtime capabilities.
 - **Next gate:** test and harden the new event family before expanding it. Then implement a reviewer/decision event with a second authoritative reference revalidation. Do not add a preference reducer until append-time and decision-time gates, positive/counter-evidence handling and Recovery replay all have executable tests.
