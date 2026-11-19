@@ -204,6 +204,7 @@ The first durable cross-episode event family is now implemented as `cognition.cr
 - CSD validates event identity, provider provenance, strict schema, candidate kind/owner separation, reference bounds, duplicate references and the declared independent support-event count.
 - Inside the same append transaction, every reference is re-resolved against the exclusive prefix ending at the new event sequence. The persisted memory/proposal/decision IDs, claim digest, source-event IDs, accepted status and state version must exactly match CSD's canonical resolution.
 - Persisted references omit copied claim text. The immutable event log is the source of truth; the read API derives pending status from the event type.
+- Candidate domains are allowlisted by owner: user-preference candidates are restricted to non-sensitive interaction, communication, creative, dining-environment, media and workflow domains; AI-interest candidates are restricted to research, creative, technical and learning topics. This is a coarse domain boundary, not a semantic classifier; reviewer v2 must still reject sensitive inferences inside otherwise allowed text.
 - Recovery replays the event in sequence order and repeats the same historical validation. A regression test covers successful append/read/Recovery, digest tampering, boolean state-version tampering and stale state.
 - This does not implement decision-time revalidation, semantic reviewer v2, accepted preference/self-model projections, revision history or Life Engine ranking. Those remain blocked.
 
