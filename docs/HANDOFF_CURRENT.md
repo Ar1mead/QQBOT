@@ -3,7 +3,7 @@
 **最后核对：** 2026-11-19（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**核对时分支 HEAD：** `347c1dc3518b1093a7d0f415441d5e14e6c53aeb`  
+**核对时分支 HEAD：** `823f184b5d8bc380d137460dc985124872d081aa`  
 **PR：** #1 — Draft / Open / Unmerged（严禁合并）
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。日期命名的旧交接文件只作为历史记录，不得作为当前状态依据。开始工作时必须重新核对 GitHub 实际状态，文中的 SHA 和 Actions 状态都是本次核对时的快照。
@@ -43,7 +43,7 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 ## 3. 当前仓库和 PR 状态
 
 本次核对：
-- 活动分支 HEAD：`347c1dc3518b1093a7d0f415441d5e14e6c53aeb`。
+- 活动分支 HEAD：`823f184b5d8bc380d137460dc985124872d081aa`。
 - PR #1 head 与该 SHA 一致。
 - PR #1：Draft=true、state=open、merged=false。
 - PR #1 当前规模很大（约 1,268 commits、151 changed files）；这增加了审查、回归定位和发布风险。不要为了缩短流程而合并；应继续按明确验证门槛推进。
@@ -255,7 +255,7 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 
 ### 当前状态与阻塞（本次实时核对）
 - 分支：feature/csd-cognitive-memory-slice
-- 本次核对 HEAD：347c1dc3518b1093a7d0f415441d5e14e6c53aeb
+- 本次核对 HEAD：823f184b5d8bc380d137460dc985124872d081aa
 - PR #1 head 与分支一致；Draft=true、Open、Unmerged。严禁合并。
 - 最近 10 次 Actions runs：#701–#710 均失败。最新 #710（ID 44353015881）的 Ubuntu 和 Windows jobs 均为 runner_id=0、空 runner_name、0 steps；测试没有执行，原因未知。
 - 最后已知完整通过的 Ubuntu/Windows matrix 是 #664；其后的代码改动不能称为 CI 已验证。
@@ -341,7 +341,7 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 
 ### 当前实时状态与下一步
 
-- 当前分支 HEAD：`347c1dc3518b1093a7d0f415441d5e14e6c53aeb`（Progress checkpoint）。
+- 当前分支 HEAD：`823f184b5d8bc380d137460dc985124872d081aa`（Progress checkpoint）。
 - PR #1：Draft=true、Open、Unmerged；严禁合并。
 - 最新 Actions #710：Ubuntu 和 Windows 均为 `runner_id=0`、空 runner_name、0 steps；最近 10 次 #701–#710 均未进入测试步骤，原因未知。
 - 本次只有设计文档和 Progress/Handoff 更新；没有运行时代码修改，没有运行测试，也没有声称通过。
