@@ -10,7 +10,9 @@ from core.csd import (
     GroundedMemoryCandidate,
     GroundedMemoryProposalPipeline,
     GroundedSourceAssertion,
+    append_cross_episode_proposal,
     build_accepted_claim_reference_context,
+    list_cross_episode_proposals,
 )
 from core.csd.cross_episode_proposals import (
     CrossEpisodeProposalError,
@@ -110,11 +112,73 @@ class CrossEpisodeProposalTests(unittest.TestCase):
             result.candidate.supporting_references[0]["source_event_ids"],
             ["evt-cross-episode"],
         )
+        appended = append_cross_episode_proposal(
+            self.store, result, occurred_at="2026-11-20T08:10:00+00:00"
+        )
+        self.assertEqual(appended["status"], "accepted")
         self.assertEqual(self.store.get_state_snapshot()["state_version"], self.version)
+        stored = list_cross_episode_proposals(self.store)
+        self.assertEqual(len(stored), 1)
+        self.assertEqual(stored[0]["proposal_id"], "cross-episode-candidate-1")
+        self.assertEqual(stored[0]["status"], "pending_shadow")
+        self.assertNotIn("claim", stored[0]["payload"]["candidate"]["supporting_references"][0])
         self.assertEqual(
             self.store.get_proposal("cross-episode-memory-proposal")["status"],
             "accepted",
         )
+        recovered = self.store.recover()
+        self.assertTrue(recovered["projection_consistent"])
+        self.assertEqual(len(list_cross_episode_proposals(self.store)), 1)
+
+    def test_append_revalidates_claim_digest_inside_csd_transaction(self):
+        result = build_cross_episode_proposal(
+            self.store,
+            self.payload(),
+            self.context,
+            proposal_id="cross-episode-tampered",
+            provider_id="test.cross_episode_model",
+            provider_version="1",
+            expected_state_version=self.version,
+        )
+        reference = result.candidate.supporting_references[0]
+        reference["claim_digest"] = "sha256:" + ("0" * 64)
+        with self.assertRaisesRegex(ValueError, "stale/tampered"):
+            append_cross_episode_proposal(
+                self.store, result, occurred_at="2026-11-20T08:11:00+00:00"
+            )
+        self.assertEqual(list_cross_episode_proposals(self.store), [])
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], self.version)
+
+    def test_append_rejects_candidate_after_authoritative_state_changes(self):
+        result = build_cross_episode_proposal(
+            self.store,
+            self.payload(),
+            self.context,
+            proposal_id="cross-episode-stale",
+            provider_id="test.cross_episode_model",
+            provider_version="1",
+            expected_state_version=self.version,
+        )
+        self.store.submit_event(CognitiveEvent(
+            event_id="evt-cross-episode-later",
+            occurred_at="2026-11-20T08:12:00+00:00",
+            correlation_id="corr-cross-episode-later",
+            event_type=OBSERVATION_EVENT,
+            source="test.cross_episode",
+            payload={
+                "observation_id": "obs-cross-episode-later",
+                "observation_kind": "text_fixture",
+                "content": "A later independent observation.",
+                "source_ref": "fixture://cross-episode-later",
+                "observed_at": "2026-11-20T08:11:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+        ))
+        with self.assertRaisesRegex(ValueError, "stale"):
+            append_cross_episode_proposal(
+                self.store, result, occurred_at="2026-11-20T08:13:00+00:00"
+            )
+        self.assertEqual(list_cross_episode_proposals(self.store), [])
 
     def test_unknown_authority_fields_and_owner_confusion_fail_closed(self):
         payload = self.payload()
