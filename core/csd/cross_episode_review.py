@@ -7,6 +7,7 @@ authority to change preferences, self-model state, Life Engine ranking, or ASM.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import hashlib
 import json
 import math
@@ -75,6 +76,7 @@ class CrossEpisodeReviewArtifact:
     reviewer_id: str
     reviewer_version: str
     candidate: CrossEpisodeReviewCandidate
+    reviewed_at: str
 
 
 class CrossEpisodeReviewProvider(Protocol):
@@ -363,98 +365,13 @@ class CrossEpisodeReviewPipeline:
             )
 
     def review_proposal(self, proposal_id: str) -> CrossEpisodeReviewArtifact:
-        if not isinstance(proposal_id, str) or not proposal_id.strip():
-            raise ValueError("proposal_id must be non-empty text")
-        if len(proposal_id) > MAX_REVIEWER_ID:
-            raise ValueError("proposal_id exceeds the identity limit")
-
-        # Resolve the candidate, historical claim references and source events in
-        # one stable read snapshot. The provider call happens only after it closes.
-        with self.store._read_tx():
-            matches = [
-                item for item in list_cross_episode_proposals(self.store)
-                if item["proposal_id"] == proposal_id
-            ]
-            if len(matches) != 1:
-                raise CrossEpisodeReviewError("pending cross-episode proposal is missing or ambiguous")
-            row = matches[0]
-            event = self.store.get_event(row["event_id"])
-            if event["event_type"] != CROSS_EPISODE_PROPOSAL_EVENT:
-                raise CrossEpisodeReviewError("target event is not a cross-episode proposal")
-            payload = event["payload"]
-            if row["status"] != "pending_shadow" or payload.get("proposal_id") != proposal_id:
-                raise CrossEpisodeReviewError("only pending-shadow proposals may be reviewed")
-            candidate = payload.get("candidate")
-            if not isinstance(candidate, Mapping):
-                raise CrossEpisodeReviewError("cross-episode candidate payload is malformed")
-            state_version = payload.get("based_on_state_version")
-            if (
-                not isinstance(state_version, int) or isinstance(state_version, bool)
-                or state_version < 0
-            ):
-                raise CrossEpisodeReviewError("candidate state version is invalid")
-            support = _resolve_reference_bundle(
-                self.store, candidate.get("supporting_references"),
-                state_version=state_version, proposal_sequence=event["sequence"],
-                label="supporting_references",
-            )
-            counter = _resolve_reference_bundle(
-                self.store, candidate.get("counter_evidence_references"),
-                state_version=state_version, proposal_sequence=event["sequence"],
-                label="counter_evidence_references",
-            )
-            support_ids = {(item["memory_id"], item["claim_id"]) for item in support}
-            counter_ids = {(item["memory_id"], item["claim_id"]) for item in counter}
-            if support_ids & counter_ids:
-                raise CrossEpisodeReviewError("support and counter-evidence overlap")
-            evidence = _source_evidence(
-                self.store, support, counter, proposal_sequence=event["sequence"]
-            )
-            review_input = {
-                "contract_version": 2,
-                "proposal": {
-                    "proposal_id": proposal_id,
-                    "candidate_kind": candidate.get("candidate_kind"),
-                    "owner": candidate.get("owner"),
-                    "domain": candidate.get("domain"),
-                    "statement": candidate.get("statement"),
-                    "scope": candidate.get("scope"),
-                    "exclusions": candidate.get("exclusions"),
-                    "confidence": candidate.get("confidence"),
-                    "uncertainty": candidate.get("uncertainty"),
-                    "reasoning_summary": candidate.get("reasoning_summary"),
-                    "alternatives": candidate.get("alternatives"),
-                    "limitations": candidate.get("limitations"),
-                    "independent_support_event_count": candidate.get("independent_support_event_count"),
-                },
-                "based_on_state_version": state_version,
-                "proposal_event_id": event["event_id"],
-                "proposal_sequence": event["sequence"],
-                "supporting_references": [
-                    {"reference_key": f"support-{i:02d}", "claim": item["claim"],
-                     "claim_digest": item["claim_digest"]}
-                    for i, item in enumerate(support, start=1)
-                ],
-                "counter_evidence_references": [
-                    {"reference_key": f"counter_evidence-{i:02d}", "claim": item["claim"],
-                     "claim_digest": item["claim_digest"]}
-                    for i, item in enumerate(counter, start=1)
-                ],
-                "source_evidence": evidence[1],
-                "evidence_spans": evidence[0],
-            }
-            serialized = _canonical(review_input)
-            if len(serialized.encode("utf-8")) > MAX_TOTAL_SOURCE_CONTENT_CHARS * 4:
-                raise CrossEpisodeReviewError("complete review input exceeds the byte limit")
-            proposal_digest = _digest(_canonical(payload))
-            review_input_digest = _digest(serialized)
-
-        # Provider is untrusted and receives no store handle or mutation API.
+        snapshot = _build_review_snapshot(self.store, proposal_id)
+        review_input = snapshot["review_input"]
         result = self.provider.review_cross_episode(review_input)
-        support_keys = {f"support-{i:02d}" for i in range(1, len(support) + 1)}
-        counter_keys = {f"counter_evidence-{i:02d}" for i in range(1, len(counter) + 1)}
         self._validate_candidate(
-            result, support_keys=support_keys, counter_keys=counter_keys
+            result,
+            support_keys=set(snapshot["support_keys"]),
+            counter_keys=set(snapshot["counter_keys"]),
         )
         # Freeze provider-supplied sequences before exposing the artifact.
         normalized = CrossEpisodeReviewCandidate(
@@ -471,12 +388,266 @@ class CrossEpisodeReviewPipeline:
         )
         return CrossEpisodeReviewArtifact(
             proposal_id=proposal_id,
-            proposal_event_id=event["event_id"],
-            proposal_sequence=event["sequence"],
-            proposal_digest=proposal_digest,
-            review_input_digest=review_input_digest,
-            based_on_state_version=state_version,
+            proposal_event_id=snapshot["proposal_event_id"],
+            proposal_sequence=snapshot["proposal_sequence"],
+            proposal_digest=snapshot["proposal_digest"],
+            review_input_digest=snapshot["review_input_digest"],
+            based_on_state_version=snapshot["based_on_state_version"],
             reviewer_id=self.provider.reviewer_id,
             reviewer_version=self.provider.reviewer_version,
             candidate=normalized,
+            reviewed_at=datetime.now(timezone.utc).isoformat(),
         )
+
+    def record_review(self, artifact: CrossEpisodeReviewArtifact) -> dict[str, Any]:
+        """Persist an advisory review as a CSD-owned immutable audit event."""
+        if type(artifact) is not CrossEpisodeReviewArtifact:
+            raise TypeError("artifact must be CrossEpisodeReviewArtifact")
+        snapshot = _build_review_snapshot(self.store, artifact.proposal_id)
+        expected = (
+            snapshot["proposal_event_id"], snapshot["proposal_sequence"],
+            snapshot["proposal_digest"], snapshot["review_input_digest"],
+            snapshot["based_on_state_version"],
+        )
+        supplied = (
+            artifact.proposal_event_id, artifact.proposal_sequence,
+            artifact.proposal_digest, artifact.review_input_digest,
+            artifact.based_on_state_version,
+        )
+        if supplied != expected:
+            raise CrossEpisodeReviewError("review artifact is stale or bound to different evidence")
+        self._validate_candidate(
+            artifact.candidate,
+            support_keys=set(snapshot["support_keys"]),
+            counter_keys=set(snapshot["counter_keys"]),
+        )
+        reviewer = {
+            "id": _bounded_text(artifact.reviewer_id, "reviewer_id"),
+            "version": _bounded_text(artifact.reviewer_version, "reviewer_version"),
+        }
+        candidate_payload = {
+            "outcome": artifact.candidate.outcome,
+            "confidence": float(artifact.candidate.confidence),
+            "reasoning_summary": artifact.candidate.reasoning_summary,
+            "supporting_reference_keys": list(artifact.candidate.supporting_reference_keys),
+            "counter_evidence_reference_keys": list(artifact.candidate.counter_evidence_reference_keys),
+            "scope_assessment": artifact.candidate.scope_assessment,
+            "alternative_explanations": list(artifact.candidate.alternative_explanations),
+            "limitations": list(artifact.candidate.limitations),
+            "risk_flags": list(artifact.candidate.risk_flags),
+            "requires_human_review": artifact.candidate.requires_human_review,
+        }
+        payload_without_id = {
+            "schema_version": 1,
+            "proposal_id": artifact.proposal_id,
+            "proposal_event_id": artifact.proposal_event_id,
+            "proposal_sequence": artifact.proposal_sequence,
+            "proposal_digest": artifact.proposal_digest,
+            "review_input_digest": artifact.review_input_digest,
+            "based_on_state_version": artifact.based_on_state_version,
+            "reviewer": reviewer,
+            "reviewed_at": artifact.reviewed_at,
+            "candidate": candidate_payload,
+        }
+        review_id = _digest(_canonical(payload_without_id))
+        payload = {**payload_without_id, "review_id": review_id}
+        event = CognitiveEvent(
+            event_id=f"csd-cross-episode-review:{review_id}",
+            occurred_at=artifact.reviewed_at,
+            correlation_id=f"cross-episode-proposal:{artifact.proposal_id}",
+            event_type=CROSS_EPISODE_REVIEW_EVENT,
+            source=CROSS_EPISODE_REVIEW_SOURCE,
+            payload=payload,
+        )
+        payload_json = self.store._validate_event(event, internal=True)
+        return self.store._append_event(event, payload_json, internal=True)
+
+
+def _build_review_snapshot(
+    store: CognitiveMemoryStore,
+    proposal_id: str,
+    *,
+    before_sequence: int | None = None,
+) -> dict[str, Any]:
+    """Rebuild the exact bounded reviewer input at a historical sequence boundary."""
+    if not isinstance(proposal_id, str) or not proposal_id.strip():
+        raise CrossEpisodeReviewError("proposal_id must be non-empty text")
+    if len(proposal_id) > MAX_REVIEWER_ID:
+        raise CrossEpisodeReviewError("proposal_id exceeds the identity limit")
+
+    def read() -> dict[str, Any]:
+        matches = [
+            item for item in list_cross_episode_proposals(store)
+            if item["proposal_id"] == proposal_id
+            and (before_sequence is None or item["sequence"] < before_sequence)
+        ]
+        if len(matches) != 1:
+            raise CrossEpisodeReviewError("pending cross-episode proposal is missing or ambiguous")
+        row = matches[0]
+        event = store.get_event(row["event_id"])
+        if event["event_type"] != CROSS_EPISODE_PROPOSAL_EVENT:
+            raise CrossEpisodeReviewError("target event is not a cross-episode proposal")
+        payload = event["payload"]
+        if row["status"] != "pending_shadow" or payload.get("proposal_id") != proposal_id:
+            raise CrossEpisodeReviewError("only pending-shadow proposals may be reviewed")
+        if before_sequence is not None and event["sequence"] >= before_sequence:
+            raise CrossEpisodeReviewError("review event must follow its candidate proposal")
+        candidate = payload.get("candidate")
+        if not isinstance(candidate, Mapping):
+            raise CrossEpisodeReviewError("cross-episode candidate payload is malformed")
+        state_version = payload.get("based_on_state_version")
+        if (
+            not isinstance(state_version, int) or isinstance(state_version, bool)
+            or state_version < 0
+        ):
+            raise CrossEpisodeReviewError("candidate state version is invalid")
+        support = _resolve_reference_bundle(
+            store, candidate.get("supporting_references"),
+            state_version=state_version, proposal_sequence=event["sequence"],
+            label="supporting_references",
+        )
+        counter = _resolve_reference_bundle(
+            store, candidate.get("counter_evidence_references"),
+            state_version=state_version, proposal_sequence=event["sequence"],
+            label="counter_evidence_references",
+        )
+        support_ids = {(item["memory_id"], item["claim_id"]) for item in support}
+        counter_ids = {(item["memory_id"], item["claim_id"]) for item in counter}
+        if support_ids & counter_ids:
+            raise CrossEpisodeReviewError("support and counter-evidence overlap")
+        evidence = _source_evidence(
+            store, support, counter, proposal_sequence=event["sequence"]
+        )
+        review_input = {
+            "contract_version": 2,
+            "proposal": {
+                "proposal_id": proposal_id,
+                "candidate_kind": candidate.get("candidate_kind"),
+                "owner": candidate.get("owner"),
+                "domain": candidate.get("domain"),
+                "statement": candidate.get("statement"),
+                "scope": candidate.get("scope"),
+                "exclusions": candidate.get("exclusions"),
+                "confidence": candidate.get("confidence"),
+                "uncertainty": candidate.get("uncertainty"),
+                "reasoning_summary": candidate.get("reasoning_summary"),
+                "alternatives": candidate.get("alternatives"),
+                "limitations": candidate.get("limitations"),
+                "independent_support_event_count": candidate.get("independent_support_event_count"),
+            },
+            "based_on_state_version": state_version,
+            "proposal_event_id": event["event_id"],
+            "proposal_sequence": event["sequence"],
+            "supporting_references": [
+                {"reference_key": f"support-{i:02d}", "claim": item["claim"],
+                 "claim_digest": item["claim_digest"]}
+                for i, item in enumerate(support, start=1)
+            ],
+            "counter_evidence_references": [
+                {"reference_key": f"counter_evidence-{i:02d}", "claim": item["claim"],
+                 "claim_digest": item["claim_digest"]}
+                for i, item in enumerate(counter, start=1)
+            ],
+            "source_evidence": evidence[1],
+            "evidence_spans": evidence[0],
+        }
+        serialized = _canonical(review_input)
+        if len(serialized.encode("utf-8")) > MAX_TOTAL_SOURCE_CONTENT_CHARS * 4:
+            raise CrossEpisodeReviewError("complete review input exceeds the byte limit")
+        return {
+            "proposal_event_id": event["event_id"],
+            "proposal_sequence": event["sequence"],
+            "proposal_digest": _digest(_canonical(payload)),
+            "review_input_digest": _digest(serialized),
+            "based_on_state_version": state_version,
+            "review_input": review_input,
+            "support_keys": tuple(f"support-{i:02d}" for i in range(1, len(support) + 1)),
+            "counter_keys": tuple(
+                f"counter_evidence-{i:02d}" for i in range(1, len(counter) + 1)
+            ),
+        }
+
+    if store._db.in_transaction:
+        return read()
+    with store._read_tx():
+        return read()
+
+
+def validate_cross_episode_review_event(
+    store: CognitiveMemoryStore,
+    event: CognitiveEvent,
+    *,
+    sequence: int,
+) -> None:
+    """Validate a durable reviewer opinion against evidence rebuilt at this event boundary."""
+    payload = event.payload
+    allowed = {
+        "schema_version", "review_id", "proposal_id", "proposal_event_id",
+        "proposal_sequence", "proposal_digest", "review_input_digest",
+        "based_on_state_version", "reviewer", "reviewed_at", "candidate",
+    }
+    if set(payload) != allowed or payload.get("schema_version") != 1:
+        raise CrossEpisodeReviewError("cross-episode review payload fields/schema are invalid")
+    reviewer = payload.get("reviewer")
+    if not isinstance(reviewer, Mapping) or set(reviewer) != {"id", "version"}:
+        raise CrossEpisodeReviewError("reviewer identity fields are invalid")
+    reviewer_id = _bounded_text(reviewer.get("id"), "reviewer.id")
+    reviewer_version = _bounded_text(reviewer.get("version"), "reviewer.version")
+    reviewed_at = payload.get("reviewed_at")
+    if not isinstance(reviewed_at, str) or reviewed_at != event.occurred_at:
+        raise CrossEpisodeReviewError("reviewed_at must match the event occurrence timestamp")
+    proposal_id = _bounded_text(payload.get("proposal_id"), "proposal_id")
+    snapshot = _build_review_snapshot(store, proposal_id, before_sequence=sequence)
+    if (
+        payload.get("proposal_event_id") != snapshot["proposal_event_id"]
+        or payload.get("proposal_sequence") != snapshot["proposal_sequence"]
+        or payload.get("proposal_digest") != snapshot["proposal_digest"]
+        or payload.get("review_input_digest") != snapshot["review_input_digest"]
+        or payload.get("based_on_state_version") != snapshot["based_on_state_version"]
+    ):
+        raise CrossEpisodeReviewError("durable review is stale or bound to altered historical evidence")
+    if event.event_id != f"csd-cross-episode-review:{payload.get('review_id')}":
+        raise CrossEpisodeReviewError("cross-episode review event ID mismatch")
+    if (
+        event.source != CROSS_EPISODE_REVIEW_SOURCE
+        or event.correlation_id != f"cross-episode-proposal:{proposal_id}"
+    ):
+        raise CrossEpisodeReviewError("cross-episode review authority or correlation mismatch")
+    candidate_data = payload.get("candidate")
+    candidate_fields = {
+        "outcome", "confidence", "reasoning_summary", "supporting_reference_keys",
+        "counter_evidence_reference_keys", "scope_assessment", "alternative_explanations",
+        "limitations", "risk_flags", "requires_human_review",
+    }
+    if not isinstance(candidate_data, Mapping) or set(candidate_data) != candidate_fields:
+        raise CrossEpisodeReviewError("durable review candidate fields are invalid")
+    candidate = CrossEpisodeReviewCandidate(
+        outcome=candidate_data["outcome"],
+        confidence=candidate_data["confidence"],
+        reasoning_summary=candidate_data["reasoning_summary"],
+        supporting_reference_keys=candidate_data["supporting_reference_keys"],
+        counter_evidence_reference_keys=candidate_data["counter_evidence_reference_keys"],
+        scope_assessment=candidate_data["scope_assessment"],
+        alternative_explanations=candidate_data["alternative_explanations"],
+        limitations=candidate_data["limitations"],
+        risk_flags=candidate_data["risk_flags"],
+        requires_human_review=candidate_data["requires_human_review"],
+    )
+    CrossEpisodeReviewPipeline._validate_candidate(
+        candidate,
+        support_keys=set(snapshot["support_keys"]),
+        counter_keys=set(snapshot["counter_keys"]),
+    )
+    payload_without_id = dict(payload)
+    review_id = payload_without_id.pop("review_id")
+    if not isinstance(review_id, str) or review_id != _digest(_canonical(payload_without_id)):
+        raise CrossEpisodeReviewError("cross-episode review identity digest mismatch")
+    prior = store._db.execute(
+        "SELECT e.event_id FROM events e JOIN payloads p ON p.payload_ref=e.payload_ref "
+        "WHERE e.event_type=? AND e.sequence<? AND e.event_id<>? "
+        "AND CASE WHEN json_valid(p.payload_json) "
+        "THEN json_extract(p.payload_json,'$.review_id') END=?",
+        (CROSS_EPISODE_REVIEW_EVENT, sequence, event.event_id, review_id),
+    ).fetchone()
+    if prior is not None:
+        raise CrossEpisodeReviewError("duplicate cross-episode review identity in durable history")
