@@ -1891,3 +1891,20 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - **Validation not executed.** The new test is committed but no hosted run is currently associated with the latest head; no local run is claimed.
 - This is groundwork for CSD append-time, decision-time, and Recovery replay validation. It does not yet add cross-episode event persistence or a preference reducer.
 - Next: implement the dedicated pending-shadow event family and re-resolve its canonical references inside both proposal append and decision transactions, using the historical sequence prefix. Keep all outcomes non-accepted until reviewer v2, reducer, and Recovery semantics are complete.
+
+
+## Cross-episode pending event and verification reconciliation — 2026-11-20
+
+- Code/test checkpoint: 855822af2bd5c233f5a9281d8058db53ec6a558d; current PR #1 head before this documentation refresh: 1772b35f514940742a7a27d974586e8d9aacdcfc.
+- Added the CSD-owned cognition.cross_episode_candidate_proposed.v1 event family. It persists only pending-shadow candidates; it does not accept, strengthen, weaken, or revise preferences/self-model state.
+- Append-time validation runs inside the CSD SQLite write transaction and re-resolves every accepted claim reference against the exclusive historical event prefix before the candidate event. The event stores canonical lineage and claim digests, not copied claim text.
+- The same historical-reference validator is wired into direct event reads, duplicate acknowledgement, projection application, and Recovery replay. The event family does not create a mutable projection table; the immutable CSD event log remains authoritative.
+- Candidate kind/owner/domain are constrained by separate allowlists for user preference candidates and AI interest candidates. This is a coarse domain gate only, not semantic sensitive-information detection; reviewer v2 must still inspect candidate text before any authoritative decision.
+- Added focused tests in tests/test_csd_cross_episode_proposals.py, including pending-only persistence, idempotency, claim-digest tampering, stale state, malformed schema, owner/domain confusion, support/counter overlap, and Recovery replay.
+- Workflow .github/workflows/csd-cognitive-slice.yml includes the new test file in both push and pull-request path filters and has a dedicated test step on Ubuntu and Windows.
+- Actions Run #779 (ID 44585188161) for code/test checkpoint 855822a... failed before either matrix job exposed any steps. A rerun (attempt 2) also produced jobs with steps=null and logs_url=null; the available job-log endpoint returned no log artifact. Run #778 (ID 44585172949) showed the same empty-job pattern. No Python test command is known to have executed.
+- Treat this as an unresolved Actions job-startup/runner-allocation problem, not a code-test failure and not a pass. The underlying cause is unknown; do not guess at billing, quota, repository settings, or a GitHub outage. Avoid repeated empty reruns or no-op commits.
+- Static review confirmed the new event type is present in the submit allowlist, event-local validation, projection application, Recovery allowlist, and historical prefix resolver. The resolver re-reads only earlier accepted decision/proposal/source-observation events; no cross-event recursive validation path was found in this review.
+- Static review is not execution evidence. No local test suite, Windows runtime test, or live cloud API smoke test has run.
+- PR #1 remains Draft / Open / Unmerged. Do not merge.
+- Next: continue static contract and integration review while preserving the pending-only boundary. Do not implement authoritative preference/self-model revision until reviewer v2, CSD decision/revision events, Recovery semantics, and executable test evidence are in place.
