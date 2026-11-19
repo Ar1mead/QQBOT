@@ -172,6 +172,29 @@ class SemanticReviewPipelineTests(unittest.TestCase):
         self.assertEqual(provider.calls, [])
         self.assertEqual(self.store.get_semantic_reviews("semantic-pipeline-proposal"), [])
 
+    def test_pipeline_rejects_unbounded_provider_output_before_persisting(self):
+        self.create_pending()
+        provider = FakeSemanticReviewProvider()
+        provider.review_inference = lambda *args, **kwargs: SemanticReviewCandidate(
+            outcome="supported",
+            reasoning_summary="x" * 2001,
+            supporting_claim_ids=["claim-source-1"],
+        )
+        with self.assertRaisesRegex(ValueError, "text limit"):
+            self.pipeline(provider).review_proposal("semantic-pipeline-proposal")
+        self.assertEqual(self.store.get_semantic_reviews("semantic-pipeline-proposal"), [])
+
+        provider = FakeSemanticReviewProvider()
+        provider.review_inference = lambda *args, **kwargs: SemanticReviewCandidate(
+            outcome="supported",
+            reasoning_summary="bounded summary",
+            supporting_claim_ids=["claim-source-1"],
+            alternative_explanations=[f"alternative {i}" for i in range(9)],
+        )
+        with self.assertRaisesRegex(ValueError, "bounded list"):
+            self.pipeline(provider).review_proposal("semantic-pipeline-proposal")
+        self.assertEqual(self.store.get_semantic_reviews("semantic-pipeline-proposal"), [])
+
     def test_provider_failure_before_submission_leaves_no_partial_review_batch(self):
         self.create_pending(self.grounded_candidate(inference_ids=(
             "claim-inference-1", "claim-inference-2"

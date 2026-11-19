@@ -52,6 +52,10 @@ GROUNDED_POLICY_ID = "csd.grounded-memory-text-evidence"
 GROUNDED_POLICY_VERSION = "0.2"
 POLICY_VERSION = "0.1"
 SEMANTIC_REVIEW_CONTRACT_VERSION = "semantic-review.v1"
+MAX_SEMANTIC_REVIEW_TEXT = 2000
+MAX_SEMANTIC_REVIEW_LIST_ITEMS = 8
+MAX_SEMANTIC_REVIEW_SUPPORT_IDS = 32
+MAX_SEMANTIC_REVIEW_ID = 200
 
 
 class CognitiveStoreError(Exception):
@@ -2057,6 +2061,17 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         proposal_digest = _nonempty(payload.get("proposal_digest"), "proposal_digest")
         claim_id = _nonempty(payload.get("claim_id"), "claim_id")
         claim_digest = _nonempty(payload.get("claim_digest"), "claim_digest")
+        for field, value in (
+            ("review_id", review_id),
+            ("proposal_id", proposal_id),
+            ("proposal_event_id", proposal_event_id),
+            ("claim_id", claim_id),
+        ):
+            if len(value) > MAX_SEMANTIC_REVIEW_ID:
+                raise ValueError(f"{field} exceeds the semantic review ID limit")
+        for field, value in (("proposal_digest", proposal_digest), ("claim_digest", claim_digest)):
+            if len(value) > 80:
+                raise ValueError(f"{field} exceeds the digest field limit")
         reviewer = payload.get("reviewer")
         if not isinstance(reviewer, Mapping) or set(reviewer) != {"component", "version"}:
             raise ValueError("reviewer must contain only component and version")
@@ -2069,22 +2084,43 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         outcome = _nonempty(payload.get("outcome"), "review.outcome")
         if outcome not in {"supported", "uncertain", "unsupported", "insufficient_context"}:
             raise ValueError("unsupported semantic review outcome")
-        _nonempty(payload.get("reasoning_summary"), "reasoning_summary")
+        reasoning_summary = _nonempty(payload.get("reasoning_summary"), "reasoning_summary")
+        if len(reasoning_summary) > MAX_SEMANTIC_REVIEW_TEXT:
+            raise ValueError("reasoning_summary exceeds the semantic review text limit")
 
-        def validate_string_list(value: Any, name: str) -> list[str]:
-            if not isinstance(value, list) or any(
-                not isinstance(item, str) or not item.strip() for item in value
+        def validate_string_list(
+            value: Any, name: str, *, max_items: int
+        ) -> list[str]:
+            if (
+                not isinstance(value, list)
+                or len(value) > max_items
+                or any(
+                    not isinstance(item, str)
+                    or not item.strip()
+                    or len(item) > MAX_SEMANTIC_REVIEW_TEXT
+                    for item in value
+                )
             ):
-                raise ValueError(f"{name} must be a string list")
+                raise ValueError(f"{name} must be a bounded string list")
             if len(set(value)) != len(value):
                 raise ValueError(f"{name} must not contain duplicates")
             return value
 
         supporting_ids = validate_string_list(
-            payload.get("supporting_claim_ids"), "supporting_claim_ids"
+            payload.get("supporting_claim_ids"),
+            "supporting_claim_ids",
+            max_items=MAX_SEMANTIC_REVIEW_SUPPORT_IDS,
         )
-        validate_string_list(payload.get("alternative_explanations"), "alternative_explanations")
-        validate_string_list(payload.get("limitations"), "limitations")
+        validate_string_list(
+            payload.get("alternative_explanations"),
+            "alternative_explanations",
+            max_items=MAX_SEMANTIC_REVIEW_LIST_ITEMS,
+        )
+        validate_string_list(
+            payload.get("limitations"),
+            "limitations",
+            max_items=MAX_SEMANTIC_REVIEW_LIST_ITEMS,
+        )
         return {
             "review_id": review_id,
             "proposal_id": proposal_id,

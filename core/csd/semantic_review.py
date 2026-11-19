@@ -18,6 +18,9 @@ from .cognitive import (
     GROUNDED_PROPOSAL_EVENT,
     SEMANTIC_REVIEW_CONTRACT_VERSION,
     SEMANTIC_REVIEW_EVENT,
+    MAX_SEMANTIC_REVIEW_TEXT,
+    MAX_SEMANTIC_REVIEW_LIST_ITEMS,
+    MAX_SEMANTIC_REVIEW_SUPPORT_IDS,
     CognitiveEvent,
     CognitiveMemoryStore,
 )
@@ -96,22 +99,48 @@ class SemanticReviewPipeline:
             raise TypeError("review provider must return SemanticReviewCandidate")
         if candidate.outcome not in ALLOWED_REVIEW_OUTCOMES:
             raise ValueError("unsupported semantic review outcome")
-        if not isinstance(candidate.reasoning_summary, str) or not candidate.reasoning_summary.strip():
-            raise ValueError("reasoning_summary must be a non-empty string")
+        if (
+            not isinstance(candidate.reasoning_summary, str)
+            or not candidate.reasoning_summary.strip()
+            or len(candidate.reasoning_summary) > MAX_SEMANTIC_REVIEW_TEXT
+        ):
+            raise ValueError("reasoning_summary must be non-empty and within the text limit")
 
-        def validate_list(value: Sequence[str], name: str) -> list[str]:
+        def validate_list(
+            value: Sequence[str], name: str, *, max_items: int
+        ) -> list[str]:
             if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
                 raise TypeError(f"{name} must be a sequence of strings")
             result = list(value)
-            if any(not isinstance(item, str) or not item.strip() for item in result):
-                raise ValueError(f"{name} must contain non-empty strings")
+            if (
+                len(result) > max_items
+                or any(
+                    not isinstance(item, str)
+                    or not item.strip()
+                    or len(item) > MAX_SEMANTIC_REVIEW_TEXT
+                    for item in result
+                )
+            ):
+                raise ValueError(f"{name} must be a bounded list of non-empty strings")
             if len(set(result)) != len(result):
                 raise ValueError(f"{name} must not contain duplicates")
             return result
 
-        support_ids = validate_list(candidate.supporting_claim_ids, "supporting_claim_ids")
-        validate_list(candidate.alternative_explanations, "alternative_explanations")
-        validate_list(candidate.limitations, "limitations")
+        support_ids = validate_list(
+            candidate.supporting_claim_ids,
+            "supporting_claim_ids",
+            max_items=MAX_SEMANTIC_REVIEW_SUPPORT_IDS,
+        )
+        validate_list(
+            candidate.alternative_explanations,
+            "alternative_explanations",
+            max_items=MAX_SEMANTIC_REVIEW_LIST_ITEMS,
+        )
+        validate_list(
+            candidate.limitations,
+            "limitations",
+            max_items=MAX_SEMANTIC_REVIEW_LIST_ITEMS,
+        )
         if not set(support_ids).issubset(allowed_supporting_claim_ids):
             raise ValueError("supporting_claim_ids must refer to direct source claims")
         if candidate.outcome == "supported" and not support_ids:

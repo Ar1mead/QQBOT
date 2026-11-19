@@ -972,6 +972,29 @@ class SemanticReviewStoreTests(unittest.TestCase):
         ):
             self.store.recover()
 
+    def test_review_event_rejects_unbounded_text_and_lists(self):
+        self.submit_proposal()
+        oversized_text = self.make_review(
+            review_id="review-oversized-text",
+            reasoning="x" * 2001,
+        )
+        with self.assertRaisesRegex(ValueError, "text limit"):
+            self.store.submit_event(oversized_text)
+
+        oversized_list = self.make_review(review_id="review-oversized-list")
+        payload = dict(oversized_list.payload)
+        payload["alternative_explanations"] = [f"alternative {i}" for i in range(9)]
+        malformed = CognitiveEvent(
+            event_id="evt-review-oversized-list",
+            occurred_at=oversized_list.occurred_at,
+            correlation_id=oversized_list.correlation_id,
+            event_type=oversized_list.event_type,
+            source=oversized_list.source,
+            payload=payload,
+        )
+        with self.assertRaisesRegex(ValueError, "bounded string list"):
+            self.store.submit_event(malformed)
+
     def test_same_review_id_with_changed_content_conflicts(self):
         self.submit_proposal()
         first = self.make_review(review_id="review-conflict")
