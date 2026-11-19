@@ -70,6 +70,14 @@ from .store import (
 )
 
 __all__ = [
+    "CrossEpisodeInterpretationCandidate",
+    "CrossEpisodeProposal",
+    "CrossEpisodeProposalError",
+    "build_cross_episode_proposal",
+    "AcceptedClaimReferenceError",
+    "build_accepted_claim_reference_context",
+    "resolve_accepted_claim_reference",
+    "resolve_selected_accepted_claims",
     "CONTEXT_SCHEMA_VERSION",
     "SELECTOR_ALGORITHM_VERSION",
     "PriorMemoryContextError",
