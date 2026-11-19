@@ -299,6 +299,27 @@ class CrossEpisodeProposalTests(unittest.TestCase):
                 expected_state_version=self.version,
             )
 
+    def test_sensitive_or_unclassified_domains_are_rejected(self):
+        payload = self.payload()
+        payload["domain"] = "health_conditions"
+        with self.assertRaisesRegex(CrossEpisodeProposalError, "non-sensitive domain"):
+            build_cross_episode_proposal(
+                self.store, payload, self.context,
+                proposal_id="candidate-sensitive-domain", provider_id="model",
+                provider_version="1", expected_state_version=self.version,
+            )
+
+        payload = self.payload()
+        payload["candidate_kind"] = "interest_candidate"
+        payload["owner"] = "ai"
+        payload["domain"] = "dining_environment"
+        with self.assertRaisesRegex(CrossEpisodeProposalError, "non-sensitive domain"):
+            build_cross_episode_proposal(
+                self.store, payload, self.context,
+                proposal_id="candidate-wrong-domain-owner", provider_id="model",
+                provider_version="1", expected_state_version=self.version,
+            )
+
     def test_candidate_kind_cannot_conflate_user_preference_and_ai_interest(self):
         payload = self.payload()
         payload["candidate_kind"] = "interest_candidate"
