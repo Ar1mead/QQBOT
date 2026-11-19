@@ -1993,3 +1993,12 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - The ephemeral review artifact now carries a second digest over the canonical, bounded provider input, separate from the candidate event payload digest. This binds the artifact to the exact evidence bundle supplied for review.
 - Added a focused assertion for the input digest. Code commit: `293b4498b9258b6f38009f377183363fc8bd6c62`; test commit: `f3b8e1ac1bbc6a63458bd9dd2907dd9f9871e4d3`.
 - This remains advisory and non-persisting. No test execution evidence is available.
+
+## CSD-owned cross-episode review event — next implementation slice (2026-11-20)
+
+- The previous read-only reviewer-v2 pipeline remains advisory and non-persisting. This next slice will add a separate CSD-authority event that records a bounded review artifact only after re-resolving the proposal and every evidence reference at the review event's own sequence boundary.
+- The event must bind the exact proposal event/digest, exact canonical reviewer-input digest, reviewer identity/version, and normalized review result. It must not accept/reject the candidate, update preference/self-model state, rank Life Engine activities, or trigger ASM.
+- Direct event reads, duplicate acknowledgement, and Recovery must all independently enforce the same event schema and historical evidence contract. Stale artifact/input digest, altered evidence lineage, wrong source/identity, and public submission of the reserved event must fail closed.
+- A review record is an immutable CSD audit fact, not an accepted cognitive belief. Multiple distinct reviewer records may exist for one pending candidate; duplicate event identity is idempotent.
+- Follow-up static inspection caught malformed literal backslash-n sequences in the earlier core/csd/__init__.py export edit. Fixed in commit d30a7fb7af4fae6f0a75dbdd02113ade6d9a07fc. This is a source-level correction; compile/test still not run.
+- Current branch head at planning checkpoint: d30a7fb7af4fae6f0a75dbdd02113ade6d9a07fc. PR #1 remains Draft/Open/Unmerged; do not merge or sync the divergent branch.
