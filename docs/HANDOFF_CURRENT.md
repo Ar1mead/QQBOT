@@ -3,33 +3,27 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**本轮代码核对 HEAD：** `5c05386bd1cd16f9702ee936d3d6b7e48301a54d`（文档提交后需重新核对）  
-**本轮 Progress 最新提交：** `02ff038ba6fd7aa1e92b78e7e1f1cdc2bb682382`  
-**PR：** #1 — Draft / Open / Unmerged（严禁合并）  
-**当前 HEAD：** 每次续接必须从 PR #1 实时读取；文档更新本身也会推进 HEAD。
+**当前分支 HEAD：** `e1c3a74d1dd3d37d3dab3ae4300cadeb0b9b1d1f`  
+**PR：** #1 — 最近一次已确认状态为 Draft / Open / Unmerged；本轮搜索确认仍为 Open，但搜索结果未返回 draft/head_sha 字段  
+**默认分支：** `main`
 
-
-
-> **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。日期命名的旧交接文件只作为历史记录，不得作为当前状态依据。开始工作时必须重新核对 GitHub 实际状态，文中的 SHA 和 Actions 状态都是本次核对时的快照。
+> **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。开始工作时必须重新核对 GitHub 实际状态；文中的 SHA 和 Actions 状态均为本次核对快照。PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
 
 ## 0.1 本轮续接 checkpoint — 2026-11-20
 
-- 本轮重新核对后 PR #1 保持 Open / Draft / Unmerged，活动分支 `feature/csd-cognitive-memory-slice`。最近一次代码核对 HEAD：`5c05386bd1cd16f9702ee936d3d6b7e48301a54d`；随后提交了设计矩阵与进度文档，最终 head 必须重新读取 PR metadata。
-- 对比旧 handoff HEAD `531cde2...` 到代码 checkpoint `5c05386...`：46 commits、10 个变更文件，包含 accepted-claim resolver/tests、cross-episode shadow proposal/tests、exports/workflow 和项目/设计文档。
-- Resolver 当前硬化内容：accepted grounded source_assertion only；核对 memory/proposal/accepted-decision 和 matching grounded proposal event；每条 source event 都通过事件完整性读取且必须是早于 proposal 的 observation/v2；返回 canonical claim digest 和 distinct source event IDs；模型只能选择 pipeline opaque keys；selected key 会重新解析。
-- 隐藏问题修复：resolver 原先分散读取多个 SQLite 快照，before/after state_version 不能证明这些读取属于同一数据库快照。现在所有读取都在一个 read transaction；如果调用方已经持有 CSD transaction，则复用现有事务，避免 nested BEGIN。相关测试已新增，但尚未执行。
-- 新增 `core/csd/cross_episode_proposals.py`：严格 schema v1 的 shadow-only builder。模型只提供 opaque support/counter keys；不允许自行提供 memory/decision/event IDs 或 action 字段。区分 user-owned preference candidate 与 AI-owned interest candidate；保留 scope/exclusions/uncertainty/alternatives/limitations；按 distinct source event IDs 计算支持经历数。结果为 `pending_shadow`，没有持久化、CSD mutation、preference reducer、Life Engine 或 ASM 权限。
-- 新增 `tests/test_csd_cross_episode_proposals.py`（6 项测试），并导出接口、加入 workflow push/PR path filters 和专门测试步骤。测试未执行。
-- 实现提交：resolver atomic snapshot `846bd716...`、snapshot test `a825a7dd...`、source chronology `0c780283...`、active transaction reuse `f5b7f8e7...`、active transaction test `b131824b...`；cross-episode builder `3dd21a39...`、tests `61a9d1ae...`、exports `920b8980...`、workflow `9a8c1bad...`、strict type guard `652c7290...`、exports fix `980ff448...`、malformed field tests `5c05386b...`。
-- 设计文档更新：cross-episode contract `257076fe...`；acceptance matrix `8af764fa...`；Progress 更新 `1a80c6b62f82cd960bc61ef9ec6d3b7a242fed6f`。
-- **未完成关键门槛：** CSD 还没有 cross-episode event family；没有 append-time/decision-time transaction re-resolution；没有 semantic reviewer v2、preference reducer 或 Recovery。shadow candidate 不能升级为 accepted preference/self-model 或活动输入。
-- **CI 状态：** 对最近代码 checkpoint `5c05386...` 查询不到 PR-triggered runs 或 combined statuses；Run #723/#724 之前 jobs steps 为空。没有本地测试、hosted 测试或真实 API smoke test结果。不要标记通过/失败。connector 无法列出仓库全部最新 10 次 Actions runs。
-- 下一步：新增 CSD cross-episode pending event family；在 append 和 decision 两个事务中重解析 accepted memory/decision/claim digest/source-event lineage，并验证 state version。随后才实现 reviewer v2、CSD preference reducer 和 Recovery。
-- PR #1 必须保持 Draft / Open / Unmerged。
-
+- 直接比较活动分支与 `e1c3a74d1dd3d37d3dab3ae4300cadeb0b9b1d1f`，结果为 identical；因此该 SHA 是本次核对的分支 HEAD。
+- 旧进度记录把 `5c05386...` 写成当前实现检查点，已经过时。分支从该检查点到当前 HEAD 前进 16 个提交，变更不只是文档，还包括 `core/csd/accepted_claim_references.py` 和 `tests/test_csd_accepted_claim_references.py`。后续不得继续把 5c05386 当成最新代码状态。
+- 当前 resolver 的静态审查结果：仅允许引用 CSD 已接受的 grounded `source_assertion`；校验 memory/proposal/accepted-decision/proposal-event 关系；验证每个来源事件完整性及其早于 proposal；返回 canonical claim digest 与去重后的 source-event IDs；模型只能选择流水线生成的 opaque reference keys。
+- 历史前缀校验：`through_sequence` 通过事务内 decision replay context 计算该序列前缀的 accepted state version，并要求被引用的 accepted decision 严格早于该边界。resolver 在单个 SQLite read snapshot 中读取；若调用方已有 CSD transaction，则复用该事务。以上为代码静态审查，不代表测试已运行。
+- `core/csd/cross_episode_proposals.py` 仍只生成 `pending_shadow` 候选：用户偏好与 AI 兴趣分开；支持证据与反证分开；按不同 source event 计算支持经历数；没有持久化、CSD mutation、preference reducer、Life Engine 或 ASM 权限。
+- **仍未完成的核心门槛：** cross-episode CSD event family；append-time 和 decision-time 在权威事务内重新解析所有历史引用；reviewer v2 / counter-evidence review；偏好与 self-model reducer；Recovery 顺序重放和篡改测试。任何 shadow candidate 都不得升级为持久偏好、自我模型或活动排序输入。
+- **CI：** 对当前 HEAD `e1c3a74...` 查询 PR-triggered workflow runs 返回空列表；旧 #723/#724 jobs 没有 runner/steps。当前连接器无法完整枚举仓库最近十次 Actions。没有当前 HEAD 测试执行、本机 Windows 验证或真实云 API smoke test 的证据。状态必须记为未验证，不得写成通过或代码测试失败。
+- **ai-companion-pi 设计文档仍在：** `docs/design/autonomous-life-and-self-development.md` 保留私人 Home、多种唤醒、自主活动/休息、长期项目、主动联系治理、分级权限、结果学习，以及不照搬固定四小时唤醒/无限权限/以日记替代身份的原则。该文档是设计提案，不代表功能已经实现。
+- 下一步优先实现 cross-episode event family，并把 append-time、decision-time、Recovery 三处验证统一到同一历史序列边界；继续保持 shadow-only，直到 reviewer v2 与 reducer 具备完整证据和恢复测试。
+- 本轮没有真实平台账号接入、外部副作用、用户本机修改或本机测试。
+- PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
 
 ## 0. 新窗口启动规则
-
 1. 先读取 `docs/PROJECT_PROGRESS.md`，再读取本文件。
 2. 重新读取活动分支 HEAD、PR #1、最近 10 次 GitHub Actions runs，以及最新 run 的 jobs JSON。
 3. 以 GitHub 当前分支、PR 和实际执行记录为准；文档与代码不一致时，以实际代码为准，并修正文档。
