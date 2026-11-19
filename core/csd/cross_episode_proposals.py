@@ -340,7 +340,9 @@ def validate_cross_episode_proposal_event(
         raise ValueError("cross-episode candidate contains missing or unsupported fields")
     kind = candidate.get("candidate_kind")
     owner = candidate.get("owner")
-    if kind not in {"preference_candidate", "interest_candidate"}:
+    if not isinstance(kind, str) or kind not in {
+        "preference_candidate", "interest_candidate"
+    }:
         raise ValueError("cross-episode candidate kind is unsupported")
     if owner != ("user" if kind == "preference_candidate" else "ai"):
         raise ValueError("cross-episode candidate owner does not match its kind")
@@ -354,14 +356,16 @@ def validate_cross_episode_proposal_event(
         if len(set(normalized)) != len(normalized):
             raise ValueError(f"candidate.{field} must not contain duplicates")
     confidence = candidate.get("confidence")
-    if (
-        not isinstance(confidence, (int, float))
-        or isinstance(confidence, bool)
-        or not math.isfinite(float(confidence))
-        or not 0.0 <= float(confidence) <= 1.0
-    ):
+    if not isinstance(confidence, (int, float)) or isinstance(confidence, bool):
         raise ValueError("candidate confidence must be finite and between 0 and 1")
-    if candidate.get("uncertainty") not in {"low", "moderate", "high"}:
+    try:
+        confidence_value = float(confidence)
+    except (OverflowError, ValueError) as exc:
+        raise ValueError("candidate confidence must be finite and between 0 and 1") from exc
+    if not math.isfinite(confidence_value) or not 0.0 <= confidence_value <= 1.0:
+        raise ValueError("candidate confidence must be finite and between 0 and 1")
+    uncertainty = candidate.get("uncertainty")
+    if not isinstance(uncertainty, str) or uncertainty not in {"low", "moderate", "high"}:
         raise ValueError("candidate uncertainty is unsupported")
 
     supports = candidate.get("supporting_references")
