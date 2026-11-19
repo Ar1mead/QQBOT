@@ -3,33 +3,22 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Last implementation checkpoint in this continuation: `5c05386bd1cd16f9702ee936d3d6b7e48301a54` (shadow-only candidate validation; tests not executed)  
+> Current branch HEAD: `e1c3a74d1dd3d37d3dab3ae4300cadeb0b9b1d1f`  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
-## Current checkpoint — 2026-11-20 (cross-episode shadow candidate; validation pending)
+## Current checkpoint — 2026-11-20 (cross-episode resolver audit; implementation still incomplete)
 
-- **Live PR state at the last code verification:** PR #1 Open, Draft=true, Merged=false; branch `feature/csd-cognitive-memory-slice`. The code checkpoint before the current documentation commits was `5c05386bd1cd16f9702ee936d3d6b7e48301a54d`. Always refresh live PR head before continuing.
-- Compared old handoff head `531cde2...` to the latest code checkpoint `5c05386...`: 46 commits across 10 files. The changed files are the accepted-claim resolver/tests, cross-episode shadow candidate module/tests, package exports, workflow, and the relevant project/design documents.
-- Accepted-claim resolver hardening:
-  - only accepted grounded `source_assertion` claims;
-  - memory/proposal/accepted-decision lineage must agree;
-  - proposal event must be the matching grounded proposal;
-  - every source event is integrity-read and must be an earlier observation/v2 event;
-  - canonical claim digest and distinct source event IDs are returned;
-  - model selects only pipeline-generated opaque keys, then selected keys are re-resolved;
-  - all reads occur in one SQLite read snapshot; an already active CSD transaction is reused rather than nested.
-- Added tests for one-snapshot reads and active-transaction reuse, in addition to accepted lineage, opaque keys, duplicates, stale version, unknown references and malformed shapes.
-- Added `core/csd/cross_episode_proposals.py`: strict typed shadow-only candidate builder. It accepts only opaque historical-reference keys, separates user preference candidates from AI interest candidates, retains support and counter-evidence separately, requires scope/uncertainty/alternatives/limitations, computes distinct supporting source-event count, and returns `pending_shadow`. It has no persistence, CSD mutation, preference reducer, Life Engine or ASM access.
-- Added `tests/test_csd_cross_episode_proposals.py` (6 tests) for valid shadow candidate, provenance, forbidden authority fields, owner separation, stale/unknown refs, support/counter overlap and malformed booleans/enums. Exported public APIs and wired both push/PR path filters plus a focused workflow step.
-- **Not implemented:** cross-episode event persistence; CSD append-time and decision-time re-resolution inside authoritative transactions; semantic reviewer v2/counter-evidence review; CSD preference/self-model reducer and Recovery. No candidate can be promoted to durable identity or activity input.
-- **Validation remains unexecuted.** The latest queried code commit `5c05386...` had no PR-triggered workflow runs or combined statuses. Earlier #723/#724 jobs had empty steps. No local tests or real API smoke test have run. This is neither a pass nor a test failure. Available connector cannot enumerate all latest repository runs.
-- Resolver hardening commits: `846bd716...` (single read snapshot), `a825a7dd...` (snapshot regression), `0c780283...` (source-event chronology), `f5b7f8e7...` (reuse active transaction), `b131824b...` (active transaction regression).
-- Cross-episode candidate commits: `3dd21a39...` (builder), `61a9d1ae...` (tests), `920b8980...` (exports), `9a8c1bad...` (workflow), `652c7290...` (strict type hardening), `980ff448...` (public exports), `5c05386b...` (malformed-field tests). Design/acceptance docs updated in `257076fe...` and `8af764fa...`.
-- PR #1 must remain Draft / Open / Unmerged. Never merge.
-
-**Next gate:** implement a dedicated cross-episode event family in CSD. Both append and decision transactions must re-resolve every reference against the authoritative event history and compare accepted decision lineage, claim digest, source-event IDs and state version. Keep outcomes pending/shadow until reviewer v2, CSD reducer and Recovery are implemented.
-
+- **Current branch HEAD was compared directly:** `feature/csd-cognitive-memory-slice` is identical to `e1c3a74d1dd3d37d3dab3ae4300cadeb0b9b1d1f`. The branch is 16 commits ahead of the older `5c05386...` checkpoint; the intervening diff includes updates to `core/csd/accepted_claim_references.py`, its tests, and design/progress/handoff documents. The older checkpoint must not be described as the current code state.
+- **PR #1:** the repository search still finds PR #1 open. The previously verified policy/state is Draft / Open / Unmerged; keep it that way and never merge. The available search result does not expose a fresh head SHA or draft field, so re-check PR metadata before any PR-state decision.
+- **Accepted-claim resolver static audit:** the current implementation resolves accepted grounded `source_assertion` claims, checks memory/proposal/accepted-decision lineage, verifies source events are integrity-valid observations earlier than the proposal, computes a canonical claim digest and distinct source-event IDs, and limits model selection to opaque pipeline keys.
+- **Historical-prefix handling:** `through_sequence` uses the transaction-scoped decision replay context to calculate the accepted-state version at the requested sequence prefix. The referenced accepted decision must exist strictly before that boundary. The resolver opens one SQLite read snapshot or reuses an already active CSD transaction. This is static code review, not an executed test result.
+- **Cross-episode candidate builder:** `core/csd/cross_episode_proposals.py` remains a typed, non-persistent shadow-only builder. It separates user preference candidates from AI interest candidates, retains support and counter-evidence separately, computes support from distinct source event IDs, and cannot write CSD, update preferences, invoke Life Engine, or dispatch ASM actions.
+- **Critical missing gates:** no durable cross-episode event family; no append-time and decision-time reference revalidation inside authoritative CSD transactions; no cross-episode semantic reviewer v2; no preference/self-model reducer; no corresponding Recovery replay and tamper tests. Shadow candidates must not be promoted to durable identity, preference, or activity-ranking input.
+- **Validation:** querying PR-triggered workflow runs for current HEAD `e1c3a74...` returned no runs. Earlier #723/#724 jobs had empty step lists and no runner allocation. The available connector cannot enumerate the repository's latest ten runs. No current-head test execution, local Windows run, or real cloud API smoke test is evidenced. This is **unverified**, not a pass and not a code-test failure.
+- **Architecture reference:** `docs/design/autonomous-life-and-self-development.md` remains present and retains the ai-companion-pi assessment, Private Home, event/timer/self-request wakeups, optional activity/no-op, long-term projects, governed proactive messaging, graded permissions, outcome learning, and the explicit non-adoption of fixed four-hour wakeups/unrestricted tools/diary-as-identity.
+- **Next gate:** implement the dedicated CSD cross-episode event family with fail-closed append-time validation, decision-time revalidation, and Recovery validation against the exact historical sequence prefix. Keep all outcomes pending/shadow until reviewer v2 and the preference/self-model reducer are independently validated.
+- No real platform account access, external side effect, local machine modification, or user-local test was performed in this continuation.
 
 ---
 
