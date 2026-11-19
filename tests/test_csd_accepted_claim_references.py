@@ -125,6 +125,25 @@ class AcceptedClaimReferenceTests(unittest.TestCase):
                         through_sequence=invalid_boundary,
                     )
 
+    def test_historical_prefix_resolution_uses_event_history_during_partial_recovery(self):
+        decision = self.store.get_event(self.memory["decision_event_id"])
+        prefix = int(decision["sequence"]) + 1
+        # Recovery clears/rebuilds these projections incrementally. Historical
+        # validation must therefore be able to rely on immutable events alone.
+        with self.store._tx() as db:
+            db.execute("DELETE FROM accepted_memories")
+            db.execute("DELETE FROM proposals")
+
+        resolved = resolve_accepted_claim_reference(
+            self.store,
+            memory_id=self.memory["memory_id"],
+            claim_id="claim-quiet-table",
+            expected_state_version=1,
+            through_sequence=prefix,
+        )
+        self.assertEqual(resolved["status"], "accepted")
+        self.assertEqual(resolved["decision_event_id"], self.memory["decision_event_id"])
+
     def test_resolution_uses_one_sqlite_read_snapshot(self):
         version = self.store.get_state_snapshot()["state_version"]
         original_read_tx = self.store._read_tx
