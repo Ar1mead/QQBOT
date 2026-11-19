@@ -3,21 +3,21 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Current branch HEAD: `0cd2f94b296691087d3c0b5c5bebbfe3c3e79b60` (latest code/test checkpoint before documentation reconciliation)  
+> Latest code/test checkpoint: `2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c` (documentation commits follow)  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
-## Current checkpoint — 2026-11-20 (historical-prefix boundary correction; tests pending)
+## Current checkpoint — 2026-11-20 (historical-prefix and snapshot consistency hardening; tests pending)
 
-- **Current code/test checkpoint:** `0cd2f94b296691087d3c0b5c5bebbfe3c3e79b60`; the branch was 4 commits ahead of the prior `e1c3a74...` checkpoint before this documentation refresh.
-- **Hidden correctness issue found and fixed:** the resolver treated `through_sequence` as an exclusive boundary when checking whether the accepted decision existed before the candidate event, but passed the same number to CSD's inclusive `state_version_at` calculation. If the boundary equaled the accepted decision's sequence, the decision was incorrectly counted in the historical state version before the later chronology check. This could reject a valid earlier prefix as stale and made the boundary semantics internally inconsistent.
-- **Fix:** `accepted_claim_references.py` now validates `through_sequence` as a non-negative integer (rejecting booleans) before database reads, explicitly converts the exclusive event boundary to the inclusive state-version boundary `through_sequence - 1`, and uses the same converted boundary for before/after snapshot checks.
-- **Regression coverage:** the existing before/after-decision historical-prefix test now exercises the corrected semantics; added invalid-boundary cases for negative, boolean and non-integer inputs. The tests are wired into the workflow, but **have not been executed**.
-- **CI:** workflow-run lookup for test commit `0cd2f94...` returned no PR-triggered runs. This is unverified, not a pass and not a code-test failure. No local Windows test or real cloud API smoke test is evidenced.
-- **Other safety boundaries remain:** resolver only accepts accepted grounded `source_assertion` claims, verifies memory/proposal/decision lineage and source-event chronology/integrity, and runs within one SQLite snapshot or reuses the caller's transaction. The cross-episode builder remains non-persistent and shadow-only.
-- **Still not implemented:** CSD cross-episode event family; append-time and decision-time revalidation inside authoritative transactions; reviewer v2; preference/self-model reducer; Recovery support for cross-episode events. No shadow candidate may become durable preference/self-model state or drive Life Engine ranking.
-- **ai-companion-pi design remains preserved** in `docs/design/autonomous-life-and-self-development.md`; it is a design proposal, not implemented runtime capability.
-- **Next gate:** add the CSD-owned cross-episode pending event family, with append-time validation first. Design its historical-prefix replay path before adding Recovery integration; do not assume the current live-projection resolver can automatically be reused during partial Recovery rebuild.
+- **Latest code/test checkpoint:** `2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c`.
+- **Fixed exclusive historical-boundary semantics:** `through_sequence` means events strictly before the boundary. The resolver validates non-negative integer input (excluding bool) and converts the exclusive event boundary to the inclusive CSD state-version boundary `through_sequence - 1`.
+- **Fixed Recovery-prefix projection dependency:** historical-prefix resolution no longer reads the current accepted-memory/proposal projections. It reconstructs the referenced accepted grounded memory from integrity-checked immutable decision, grounded-proposal and source-observation events before the exclusive boundary. This avoids calling projection-wide consistency checks while Recovery has cleared projections and is rebuilding them incrementally.
+- **Fixed reference-bundle snapshot consistency:** both accepted-claim context construction and model-selected reference re-resolution now wrap the complete bundle in one SQLite read transaction (or reuse the caller's active CSD transaction). A bundle cannot be assembled from separate database snapshots; the shared transaction also avoids rebuilding decision replay indexes for each reference.
+- **Regression coverage added:** exclusive boundary before/after an accepted decision; invalid negative/bool/non-integer boundary; resolution while accepted-memory and proposal projections are absent (partial-Recovery simulation); multiple reference context builds and selected-key re-resolution each use one snapshot. Tests are wired into the workflow but **have not been executed**.
+- **CI:** workflow-run lookup for the latest test commit `2a17a6d...` returned no PR-triggered runs. No current-head CI pass/failure is established; this remains unverified. No local Windows test or real API smoke test is evidenced.
+- **Remaining cross-episode gates:** CSD-owned pending event family; append-time and decision-time revalidation in authoritative transactions; reviewer v2; preference/self-model reducer; Recovery integration and tamper/replay tests. The new event-history resolver is a prerequisite, not completion of Recovery integration.
+- **Architecture:** ai-companion-pi and related autonomous-life design remains in `docs/design/autonomous-life-and-self-development.md`; Private Home, non-forced wakeups, self-selected activities/no-op, long-term projects, governed proactive messaging, graded permissions and outcome learning remain design goals, not implemented runtime features.
+- **Next gate:** implement the pending-only CSD cross-episode event family and append-time revalidation against the exact exclusive historical prefix. Keep acceptance/revision unavailable until reviewer v2, decision-time revalidation, reducer and Recovery all exist.
 - PR #1 must remain Draft / Open / Unmerged. Never merge.
 
 ---
