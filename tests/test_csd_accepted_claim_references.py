@@ -50,13 +50,22 @@ class AcceptedClaimReferenceTests(unittest.TestCase):
                 return [GroundedMemoryCandidate(
                     proposal_id="reference-proposal",
                     memory_kind="episodic_candidate",
-                    source_assertions=[GroundedSourceAssertion(
-                        claim_id="claim-quiet-table",
-                        text=quote,
-                        quoted_text=quote,
-                        start=0,
-                        end=len(quote),
-                    )],
+                    source_assertions=[
+                        GroundedSourceAssertion(
+                            claim_id="claim-quiet-table",
+                            text=quote,
+                            quoted_text=quote,
+                            start=0,
+                            end=len(quote),
+                        ),
+                        GroundedSourceAssertion(
+                            claim_id="claim-quiet-table-alt",
+                            text=quote,
+                            quoted_text=quote,
+                            start=0,
+                            end=len(quote),
+                        ),
+                    ],
                 )]
 
         GroundedMemoryProposalPipeline(self.store, Provider()).propose_from_observation(
@@ -143,6 +152,60 @@ class AcceptedClaimReferenceTests(unittest.TestCase):
         )
         self.assertEqual(resolved["status"], "accepted")
         self.assertEqual(resolved["decision_event_id"], self.memory["decision_event_id"])
+
+    def test_context_build_resolves_multiple_claims_in_one_snapshot(self):
+        version = self.store.get_state_snapshot()["state_version"]
+        original_read_tx = self.store._read_tx
+        entered = []
+
+        def tracked_read_tx():
+            entered.append(True)
+            return original_read_tx()
+
+        self.store._read_tx = tracked_read_tx
+        try:
+            context = build_accepted_claim_reference_context(
+                self.store,
+                [
+                    {"memory_id": self.memory["memory_id"], "claim_id": "claim-quiet-table"},
+                    {"memory_id": self.memory["memory_id"], "claim_id": "claim-quiet-table-alt"},
+                ],
+                expected_state_version=version,
+            )
+        finally:
+            self.store._read_tx = original_read_tx
+        self.assertEqual(len(context), 2)
+        self.assertEqual(len(entered), 1)
+
+    def test_selected_claims_resolve_multiple_keys_in_one_snapshot(self):
+        version = self.store.get_state_snapshot()["state_version"]
+        context = build_accepted_claim_reference_context(
+            self.store,
+            [
+                {"memory_id": self.memory["memory_id"], "claim_id": "claim-quiet-table"},
+                {"memory_id": self.memory["memory_id"], "claim_id": "claim-quiet-table-alt"},
+            ],
+            expected_state_version=version,
+        )
+        original_read_tx = self.store._read_tx
+        entered = []
+
+        def tracked_read_tx():
+            entered.append(True)
+            return original_read_tx()
+
+        self.store._read_tx = tracked_read_tx
+        try:
+            resolved = resolve_selected_accepted_claims(
+                self.store,
+                context,
+                ["historical-claim-0001", "historical-claim-0002"],
+                expected_state_version=version,
+            )
+        finally:
+            self.store._read_tx = original_read_tx
+        self.assertEqual(len(resolved), 2)
+        self.assertEqual(len(entered), 1)
 
     def test_resolution_uses_one_sqlite_read_snapshot(self):
         version = self.store.get_state_snapshot()["state_version"]
