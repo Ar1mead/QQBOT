@@ -9,7 +9,7 @@
 
 ## Current checkpoint — 2026-11-20 (resolver hardening; tests unexecuted)
 
-- **Authoritative live state at this checkpoint:** PR #1 is Open, Draft=true, Merged=false; head branch `feature/csd-cognitive-memory-slice`; head SHA `0c780283a9c0b2fea1180854eea3dc1c92fc7151`. The PR must remain Draft/Open/Unmerged.
+- **Authoritative live state at this checkpoint:** PR #1 is Open, Draft=true, Merged=false; head branch `feature/csd-cognitive-memory-slice`; head SHA `0c780283a9c0b2fea1180854eea3dc1c92fc7151` before this documentation refresh. The PR must remain Draft/Open/Unmerged.
 - Compared the previous handoff head `531cde2f84c600f2295d330c4698c9ebddf5a301` to this live head: 30 commits across 8 files. The changed files are the accepted-claim resolver and tests, package exports, workflow path/step entries, the acceptance matrix, the cross-episode contract, and the two current status documents. No other unrecorded runtime modules were changed in that range.
 - Resolver groundwork is present in `core/csd/accepted_claim_references.py`:
   - only accepted grounded-memory source_assertion claims are eligible;
@@ -18,11 +18,11 @@
   - source events are individually integrity-read and must be earlier observation/v2 events;
   - canonical claim digest and distinct source event IDs are returned;
   - model selection is limited to pipeline-created opaque keys and re-resolves the selected claim;
-  - resolution now occurs inside one SQLite read transaction/snapshot, rather than independent reads with only a before/after version check.
+  - resolution now occurs inside one SQLite read transaction/snapshot, rather than independent reads with only a before/after version check; when called from an existing CSD transaction, it reuses that transaction rather than attempting a nested BEGIN.
 - Added a regression asserting one read snapshot, plus accepted lineage, opaque-key, duplicate, stale-version, unknown-memory/claim and malformed-shape cases. Tests are in `tests/test_csd_accepted_claim_references.py` and wired into both workflow path filters and a focused step.
 - **Still not implemented:** a cross-episode proposal event/schema; append-time and decision-time CSD transaction re-resolution for embedded historical references; reviewer v2 with counter-evidence; preference/self-model reducers and Recovery. The resolver remains read-only groundwork and cannot authorize accepted preferences or Life Engine activity.
 - **Validation is unexecuted.** No local test runner is available in this workflow and the latest commit query for `0c780283...` returned no PR-triggered Actions runs or combined statuses. Earlier Run #723/#724 jobs had empty steps and did not execute tests. Do not call this a pass or test failure. The available connector cannot enumerate the repository's latest 10 workflow runs globally.
-- Current code-level changes since the earlier resolver checkpoint include: one-snapshot transaction hardening (`846bd716b4ce07b324a0329247e458eda009757d`), read-snapshot regression (`a825a7dd59ccb873830650ec3ec9bceae4aa6033`), and explicit proposal/source-event chronology checks (`0c780283a9c0b2fea1180854eea3dc1c92fc7151`).
+- Current code-level changes since the earlier resolver checkpoint include: one-snapshot transaction hardening (`846bd716b4ce07b324a0329247e458eda009757d`), read-snapshot regression (`a825a7dd59ccb873830650ec3ec9bceae4aa6033`), explicit proposal/source-event chronology checks (`0c780283a9c0b2fea1180854eea3dc1c92fc7151`), active-transaction reuse (`f5b7f8e75c7f337da46d1ab3dd8ac2f1eae6fac8`), and active-transaction regression (`b131824ba757fc64fac97508cceef7632b34f259`). Design docs now record the atomic-read and active-transaction requirements.
 - PR #1 remains Draft / Open / Unmerged. Never merge.
 
 **Next gate:** introduce a typed, pending-only cross-episode proposal contract, then re-resolve every referenced accepted memory/decision/claim digest/source event inside both append and decision transactions. Do not implement preference acceptance until reviewer-v2, CSD reducer, and Recovery can replay the same decision deterministically.
