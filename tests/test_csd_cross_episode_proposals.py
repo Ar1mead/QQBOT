@@ -116,6 +116,10 @@ class CrossEpisodeProposalTests(unittest.TestCase):
             self.store, result, occurred_at="2026-11-20T08:10:00+00:00"
         )
         self.assertEqual(appended["status"], "accepted")
+        duplicate = append_cross_episode_proposal(
+            self.store, result, occurred_at="2026-11-20T08:10:00+00:00"
+        )
+        self.assertEqual(duplicate["status"], "duplicate")
         self.assertEqual(self.store.get_state_snapshot()["state_version"], self.version)
         stored = list_cross_episode_proposals(self.store)
         self.assertEqual(len(stored), 1)
