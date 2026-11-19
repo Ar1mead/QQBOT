@@ -15,7 +15,7 @@
 ## 0.1 本轮续接 checkpoint — 2026-11-20
 
 - 本轮重新核对后 PR #1 保持 Open / Draft / Unmerged，活动分支 `feature/csd-cognitive-memory-slice`。最近一次代码核对 HEAD：`5c05386bd1cd16f9702ee936d3d6b7e48301a54d`；随后提交了设计矩阵与进度文档，最终 head 必须重新读取 PR metadata。
-- 对比旧 handoff HEAD `531cde2...` 到代码 checkpoint：30 commits、8 个变更文件，变更集中在 accepted-claim resolver/tests、exports/workflow 和项目/设计文档。
+- 对比旧 handoff HEAD `531cde2...` 到代码 checkpoint `5c05386...`：46 commits、10 个变更文件，包含 accepted-claim resolver/tests、cross-episode shadow proposal/tests、exports/workflow 和项目/设计文档。
 - Resolver 当前硬化内容：accepted grounded source_assertion only；核对 memory/proposal/accepted-decision 和 matching grounded proposal event；每条 source event 都通过事件完整性读取且必须是早于 proposal 的 observation/v2；返回 canonical claim digest 和 distinct source event IDs；模型只能选择 pipeline opaque keys；selected key 会重新解析。
 - 隐藏问题修复：resolver 原先分散读取多个 SQLite 快照，before/after state_version 不能证明这些读取属于同一数据库快照。现在所有读取都在一个 read transaction；如果调用方已经持有 CSD transaction，则复用现有事务，避免 nested BEGIN。相关测试已新增，但尚未执行。
 - 新增 `core/csd/cross_episode_proposals.py`：严格 schema v1 的 shadow-only builder。模型只提供 opaque support/counter keys；不允许自行提供 memory/decision/event IDs 或 action 字段。区分 user-owned preference candidate 与 AI-owned interest candidate；保留 scope/exclusions/uncertainty/alternatives/limitations；按 distinct source event IDs 计算支持经历数。结果为 `pending_shadow`，没有持久化、CSD mutation、preference reducer、Life Engine 或 ASM 权限。
