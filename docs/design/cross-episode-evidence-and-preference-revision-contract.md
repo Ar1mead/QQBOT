@@ -309,7 +309,38 @@ The reserved audit event is now implemented in the active feature branch:
 
 **Important verification gap:** the implementation exists, but the current focused test file contains only the ten read-only pipeline tests. It does not yet contain dedicated tests for `record_review`, public-submit denial, duplicate acknowledgement, direct event-read tampering, or review-event Recovery replay. These are the next required tests; do not treat the durable event as fully verified.
 
-### 3.10 CI workflow repair and current runner status
+### 3.11 Decision-time revalidation contract — design gate (2026-11-20)
+
+The proposal append gate is not an acceptance gate. A future CSD decision path must independently reconstruct and validate the exact evidence at the decision event's exclusive historical sequence boundary; it must not trust the proposal-time snapshot, reviewer artifact, current projection, or model-supplied lineage.
+
+Required decision transaction:
+
+1. Begin one CSD write transaction and determine the next decision event sequence boundary. All reads below must share this transaction.
+2. Load the unique pending-shadow proposal and its immutable proposal event. Reject missing, ambiguous, already-decided, malformed, or non-pending candidates.
+3. Verify the proposal's `based_on_state_version` against the authoritative state version at the decision prefix. If it no longer matches, reject/defer as stale; do not silently refresh the proposal's evidence or reinterpret its original snapshot.
+4. Re-resolve every support and counter-evidence `(memory_id, claim_id)` using the accepted-claim resolver at the decision prefix. Compare the canonical accepted decision/proposal lineage, claim digest, source-event IDs, and state version with the proposal's persisted reference envelope. Never accept copied claim text or reviewer-selected keys as authority.
+5. Recompute distinct independent source-event counts and support/counter overlap from the re-resolved references. Duplicate references and multiple claims from one source event must not inflate independent episode counts.
+6. Load the exact prior CSD-owned review record for this proposal. Verify its event sequence is before the decision, its proposal digest and review-input digest still match the reconstructed snapshot, and its reviewer identity/version and opinion schema pass event-local validation.
+7. Apply deterministic CSD policy to the review outcome. Only an eligible `supported` opinion can proceed to a candidate-specific acceptance policy; `uncertain`, `conflicting`, `unsupported`, `insufficient_context`, sensitive-risk flags, or `requires_human_review` must not auto-accept. A reviewer opinion alone is never sufficient.
+8. Append a CSD-reserved decision event containing the exact proposal/review references, decision-time state version, canonical evidence lineage/digests, policy ID/version, outcome, and deterministic reason. The append and accepted-state reducer update must be atomic and idempotent.
+9. Recovery and direct reads must replay the same event-local checks against the immutable historical prefix and reproduce identical accepted preference versions. Tampered, missing, reordered, duplicate, or post-decision references must fail closed.
+
+Important distinction: proposal staleness is not repaired by merely re-resolving the old references. The decision must either be evaluated against the exact current authoritative prefix under an explicit refresh/reproposal protocol, or remain stale. The first implementation should choose the safer behavior: stale candidate → no acceptance; a new proposal may be created from a newly built snapshot.
+
+Acceptance tests required before implementing the reducer:
+
+- State changes after proposal append but before decision prevent acceptance.
+- Recomputed payload/envelope hashes do not make altered claim digests or source-event lineage valid.
+- Reviewer record created after the decision cannot satisfy the decision's review reference.
+- Reviewer record for another proposal, another review-input digest, or a mismatched reviewer identity cannot be consumed.
+- A `supported` reviewer opinion with stale/invalid references is rejected by CSD.
+- Conflicting, unsupported, insufficient-context, sensitive-risk, and human-review-required opinions cannot auto-accept.
+- Duplicate references and multiple claims from one source episode do not inflate independence.
+- Recovery reproduces the same decision and preference revision history from the event log.
+
+**Status:** design only. No decision-time acceptance API, decision event, preference reducer, or Life Engine integration is implemented by this section.
+
+## 3.10 CI workflow repair and current runner status
 
 A static inspection found literal backslash-`n` sequences in `.github/workflows/csd-cognitive-slice.yml` in both path-filter sections and the cross-episode review test step. These have been replaced with actual YAML line breaks in commit `06408dbf1c577849be92a15bd39a5316a32ea5df`.
 
