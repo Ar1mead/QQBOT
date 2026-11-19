@@ -3,8 +3,8 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**最近代码/测试 checkpoint：** `0e7f213f3489030209cb5e4836c3120cfa586e8e`  
-**本次文档同步前已实时确认的 PR head：** `0e7f213f3489030209cb5e4836c3120cfa586e8e`（文档提交会继续推进 head；下次续接必须重新读取 PR metadata）  
+**最近核对的活动分支 HEAD（本次文档更新前）：** `19419acc0d7dfbcf1d466916f4406e95dc313423`  
+**PR #1 head（本次文档更新前实时核对）：** `19419acc0d7dfbcf1d466916f4406e95dc313423`（本次文档提交会继续推进 head；下次续接必须重新读取 PR metadata）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`
 
@@ -18,13 +18,14 @@
 - **本轮补齐 5 个专门测试：** 成功追加且 state_version 不变；public submit 伪造拒绝；重复投递幂等；在 payload 与 event-envelope hash 均重算后，direct read 仍拒绝被篡改的 reviewed_at；Recovery 重放审查记录且候选仍为 pending_shadow。测试文件：`tests/test_csd_cross_episode_review.py`。
 - **测试执行状态：未执行，不能标绿。** 对应 push Runs #809–#812 的 Ubuntu/Windows jobs 均在 1–2 秒内失败；直接读取 jobs JSON 均显示 `runner_id=0`、空 runner name、`steps=[]`。最新 job-log 下载返回 `BlobNotFound`。因此没有 checkout、compile 或 unittest 命令运行；这不是代码测试失败，也不是通过。
 - **Runner 诊断现状：** workflow YAML 已被解析并创建 Ubuntu/Windows matrix jobs；问题发生在 runner 分配/启动之前。现有 API 暴露的信息无法确定根因，不得猜测 billing、配额、仓库设置或 GitHub 服务状态。后续应继续从 run/check-suite/Actions 配置可见信息收集证据；不要无目的连续重跑。
+- **额度耗尽期间的工作策略（2026-11-20）：** 暂停所有无意义 hosted Actions rerun/push，不要求用户添加付款方式或承担费用；Billing 页面当时显示额度约 12 天后重置。期间继续做低风险静态审查、设计收敛和测试准备，完整个体 AI 目标不变。CSD review-record 专门回归测试尚未执行，必须先在真实 runner 上通过 focused suite，再跑完整 Ubuntu/Windows matrix；在该测试门槛通过前，不实现 preference/self-model reducer，也不接入 Life Engine。若研究 self-hosted runner，先确认不会产生额外费用并取得用户同意。不得公开私有仓库。
 - **Actions 额度/付款方式已由用户确认：** Billing 页面显示 GitHub Free，本月 Actions compute `$12 / $12 included` 已用尽、billable usage `$0`（被 included-use discount 抵扣），Actions storage `0 / 0.5 GB`；用户明确没有付款方式。GitHub 官方计费文档说明：没有有效付款方式时，included compute 用尽后额外 Actions 使用会被阻止。该事实与 hosted Runner 在分配前失败（`runner_id=0`、无 steps）高度吻合，属于当前最有力根因，但 job 数据没有返回明确 billing error 字符串。Billing 页面显示额度约 12 天后重置。禁止未经明确同意添加付款方式或产生费用。零费用候选路径：等待额度重置；另行评估自托管 Runner。不得仅为免费分钟数擅自公开私有仓库。
 - **仓库 Actions 设置已由用户截图核实：** Allow all actions and reusable workflows 已启用；Actions 未禁用；SHA pin 强制未启用；Fork PR workflows 未启用；Workflow permissions 为 Read repository contents and packages；禁止 Actions 创建/批准 PR。工作流 YAML 明确写有 `permissions: contents: read`，与仓库默认权限一致。当前失败 runs 是 feature 分支 push 触发，Fork PR 开关与这些 runs 无关。上述设置不能解释 runner 分配前失败；不要为了排障扩大 token 权限或开启 fork PR workflows。
 - **公开状态页交叉核对：** GitHub Status 对 2026-11-19 标记为无 incidents，当前页面显示 All Systems Operational。这不能排除未公开、区域性或 repository/account-specific 故障。当前 GitHub 只读连接不允许读取 repository Actions permissions/settings endpoints，因此 Actions 配置尚未核实。没有证据支持 billing、额度或 policy 根因；不要盲目重复触发。
 - **一次受控 rerun 结果：** 对 Run #812 执行 failed-jobs rerun（attempt 2）后，Ubuntu/Windows 两个 Job 再次在 2–3 秒内失败，`runner_id=0`、无 steps；两个日志下载仍返回 `BlobNotFound`。这确认问题不是单次瞬时失败，但仍不能确定根因。不要继续无目的重跑。
 - **其他跨经历组件状态：** 历史 accepted-claim resolver、pending-shadow proposal event、Recovery-safe evidence reconstruction、semantic reviewer v2 已实现。reviewer v2 只产生临时 advisory artifact；审查记录也只写审计事件。尚未实现最终 decision-time 第二次权威引用验证、CSD preference/self-model reducer、版本化 strengthen/weaken/narrow/retire 修订历史及其 Recovery 测试。
 - **ai-companion-pi 的完整设计目标仍然保留**于 `docs/design/autonomous-life-and-self-development.md`：Private Home、自主活动/no-op、非强制唤醒、长期项目、自主写作、主动联系治理、分级权限和结果学习仍是项目目标，不把项目缩减为记忆插件。运行时能力仍需逐步实现。
-- **下一步严格顺序：** 先排查 Actions Runner 启动/分配问题；一旦 Runner 可用，先执行 `tests/test_csd_cross_episode_review.py` focused suite，再执行完整 Ubuntu/Windows matrix。只有拿到实际测试步骤和结果才能标记验证完成。随后再做 decision-time revalidation 与 CSD 偏好/自我模型修订 reducer。
+- **下一步严格顺序：** 暂停消耗额度的 hosted-runner 重试；额度重置或经用户同意配置零费用 self-hosted runner 后，先执行 `tests/test_csd_cross_episode_review.py` focused suite，再执行完整 Ubuntu/Windows matrix。等待期间仅做低风险静态审查、设计与测试准备。focused suite 实际通过前，不实现 preference/self-model reducer 或 Life Engine 接线。之后再做 decision-time revalidation、CSD 偏好/自我模型修订 reducer，并逐步恢复完整自主活动能力。
 - PR #1 必须保持 Draft / Open / Unmerged。不要合并，不要同步 fork 分支。
 
 
