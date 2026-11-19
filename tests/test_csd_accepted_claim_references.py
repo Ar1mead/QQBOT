@@ -110,6 +110,21 @@ class AcceptedClaimReferenceTests(unittest.TestCase):
         self.assertEqual(resolved["status"], "accepted")
         self.assertEqual(resolved["decision_event_id"], self.memory["decision_event_id"])
 
+    def test_historical_prefix_boundary_is_exclusive_and_validated(self):
+        version = self.store.get_state_snapshot()["state_version"]
+        for invalid_boundary in (-1, True, 1.5):
+            with self.subTest(boundary=invalid_boundary):
+                with self.assertRaisesRegex(
+                    AcceptedClaimReferenceError, "through_sequence"
+                ):
+                    resolve_accepted_claim_reference(
+                        self.store,
+                        memory_id=self.memory["memory_id"],
+                        claim_id="claim-quiet-table",
+                        expected_state_version=version,
+                        through_sequence=invalid_boundary,
+                    )
+
     def test_resolution_uses_one_sqlite_read_snapshot(self):
         version = self.store.get_state_snapshot()["state_version"]
         original_read_tx = self.store._read_tx
