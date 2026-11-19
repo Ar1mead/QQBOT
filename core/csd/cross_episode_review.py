@@ -21,6 +21,9 @@ from .cognitive import (
     OBSERVATION_EVENT,
     OBSERVATION_EVENT_V2,
     CROSS_EPISODE_PROPOSAL_EVENT,
+    CROSS_EPISODE_REVIEW_EVENT,
+    CROSS_EPISODE_REVIEW_SOURCE,
+    CognitiveEvent,
     CognitiveIntegrityError,
     CognitiveMemoryStore,
 )
