@@ -3,7 +3,7 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Latest code/test checkpoint: `0e7f213f3489030209cb5e4836c3120cfa586e8e`  
+> Latest code/test checkpoint: `b7e170ea525171a1d26c0f9604b863db19010887`  
 > PR head before this documentation synchronization: `0e7f213f3489030209cb5e4836c3120cfa586e8e`  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
@@ -2036,6 +2036,15 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Only after durable event adversarial tests execute successfully should preference/self-model reducer work be considered. It remains unimplemented. Life Engine must continue to ignore pending-shadow candidates and reviewer opinions.
 - PR #1 remains Draft / Open / Unmerged. Feature branch remains divergent from main (last compare: ahead 1467, behind 7). Do not merge, rebase or force-sync without explicit user authorization.
 
+
+## CSD reviewer-v2 audit hardening — 2026-11-20
+
+- 静态审查 `core/csd/cross_episode_review.py` 的 reviewer artifact → durable audit-event 路径后，发现 `record_review()` 未确认 artifact 中的 reviewer ID/version 与当前 pipeline 配置的 provider 身份一致。
+- 已增加 fail-closed 检查：只有 artifact reviewer identity/version 与调用该 pipeline 当前配置完全一致时，才允许进入快照绑定和 CSD append 验证。
+- 新增回归测试 `test_record_review_rejects_artifact_from_different_reviewer_identity`，验证不同 reviewer 配置不能借用另一个 provider 的 artifact 写入审查记录。
+- 此改动仅保护审查意见的来源归属，不赋予 reviewer 任何认知状态权威。审查记录仍然只是不可变审计事件。
+- **验证状态：未执行。** 不运行本地测试、不主动 rerun Actions；下一次正式 CI 检查仍安排在用户确认的额度重置日（预计 2026-12-02，届时先核实额度已恢复）。
+- 当前代码提交：`b7e170ea525171a1d26c0f9604b863db19010887`。PR #1 仍须保持 Draft / Open / Unmerged。
 
 ## Actions 额度耗尽期间的开发策略 — 2026-11-20
 
