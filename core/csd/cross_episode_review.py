@@ -308,7 +308,7 @@ class CrossEpisodeReviewPipeline:
     ) -> None:
         if not isinstance(candidate, CrossEpisodeReviewCandidate):
             raise TypeError("review provider must return CrossEpisodeReviewCandidate")
-        if candidate.outcome not in REVIEW_OUTCOMES:
+        if not isinstance(candidate.outcome, str) or candidate.outcome not in REVIEW_OUTCOMES:
             raise CrossEpisodeReviewError("review outcome is unsupported")
         confidence = candidate.confidence
         if not isinstance(confidence, (int, float)) or isinstance(confidence, bool):
@@ -320,7 +320,10 @@ class CrossEpisodeReviewPipeline:
         if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
             raise CrossEpisodeReviewError("review confidence must be finite and between 0 and 1")
         _bounded_text(candidate.reasoning_summary, "reasoning_summary")
-        if candidate.scope_assessment not in SCOPE_ASSESSMENTS:
+        if (
+            not isinstance(candidate.scope_assessment, str)
+            or candidate.scope_assessment not in SCOPE_ASSESSMENTS
+        ):
             raise CrossEpisodeReviewError("scope assessment is unsupported")
         support = _bounded_list(
             candidate.supporting_reference_keys, "supporting_reference_keys",
@@ -441,6 +444,19 @@ class CrossEpisodeReviewPipeline:
         self._validate_candidate(
             result, support_keys=support_keys, counter_keys=counter_keys
         )
+        # Freeze provider-supplied sequences before exposing the artifact.
+        normalized = CrossEpisodeReviewCandidate(
+            outcome=result.outcome,
+            confidence=float(result.confidence),
+            reasoning_summary=result.reasoning_summary,
+            supporting_reference_keys=tuple(result.supporting_reference_keys),
+            counter_evidence_reference_keys=tuple(result.counter_evidence_reference_keys),
+            scope_assessment=result.scope_assessment,
+            alternative_explanations=tuple(result.alternative_explanations),
+            limitations=tuple(result.limitations),
+            risk_flags=tuple(result.risk_flags),
+            requires_human_review=result.requires_human_review,
+        )
         return CrossEpisodeReviewArtifact(
             proposal_id=proposal_id,
             proposal_event_id=event["event_id"],
@@ -449,5 +465,5 @@ class CrossEpisodeReviewPipeline:
             based_on_state_version=state_version,
             reviewer_id=self.provider.reviewer_id,
             reviewer_version=self.provider.reviewer_version,
-            candidate=result,
+            candidate=normalized,
         )
