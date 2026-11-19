@@ -3,7 +3,7 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**当前 PR head（本次核对）：** `389be739a20f279a71603e49ee78475b94c28c71`  
+**本次文档同步前已实时确认的 PR head：** `389be739a20f279a71603e49ee78475b94c28c71`（之后的文档提交会推进 head；下次续接必须重新读取 PR metadata）  
 **最近代码/测试提交：** `2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c`  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`
@@ -12,7 +12,7 @@
 
 ## 0.1 本轮续接 checkpoint — 2026-11-20
 
-- 本次实时读取 PR #1：`state=open`、`draft=true`、`merged=false`，head `389be739a20f279a71603e49ee78475b94c28c71`，base `main`。
+- 本次文档同步开始前实时读取 PR #1：`state=open`、`draft=true`、`merged=false`，head `389be739a20f279a71603e49ee78475b94c28c71`，base `main`。本次随后提交的文档更新会继续推进 PR head；下次续接必须重新读取。
 - 最近代码/测试提交：`2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c`。其后提交只同步设计、进度和交接文档。
 - **历史前缀边界 bug：** `through_sequence` 是排他边界，state version 按 `through_sequence - 1` 计算；负数、bool、非整数在数据库读取前拒绝。
 - **Recovery 隐患：** 历史引用解析不再依赖当前 accepted-memory/proposal projections；有 `through_sequence` 时从边界之前的不可变 decision、grounded proposal、observation events 重建已接受记忆，避免 Recovery 部分重建 projection 时触发全量 projection 一致性失败。已有回归测试模拟删除这两类 projection 后仍可从事件历史解析。
