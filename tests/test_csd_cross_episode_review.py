@@ -193,6 +193,21 @@ class CrossEpisodeReviewPipelineTests(unittest.TestCase):
             self.pipeline(reviewer).review_proposal("review-cross-episode-proposal")
         self.assertEqual(self.store.get_state_snapshot()["state_version"], before)
 
+    def test_returned_artifact_freezes_provider_sequences(self):
+        alternatives = ["The choice may have been situational."]
+        reviewer = FakeCrossEpisodeReviewer(result=CrossEpisodeReviewCandidate(
+            outcome="supported", confidence=0.7, reasoning_summary="Bounded.",
+            supporting_reference_keys=["support-01"], counter_evidence_reference_keys=[],
+            scope_assessment="fits", alternative_explanations=alternatives,
+        ))
+        artifact = self.pipeline(reviewer).review_proposal("review-cross-episode-proposal")
+        alternatives.append("Mutated after review.")
+        self.assertIsInstance(artifact.candidate.alternative_explanations, tuple)
+        self.assertEqual(
+            artifact.candidate.alternative_explanations,
+            ("The choice may have been situational.",),
+        )
+
     def test_review_rejects_unknown_proposal(self):
         reviewer = FakeCrossEpisodeReviewer()
         with self.assertRaises(CrossEpisodeReviewError):
