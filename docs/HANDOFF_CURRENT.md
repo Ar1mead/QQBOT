@@ -3,7 +3,7 @@
 **最后核对：** 2026-11-19（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**核对时分支 HEAD：** `823f184b5d8bc380d137460dc985124872d081aa`  
+**核对时分支 HEAD：** `2415a4e8c0877d9f85c17718cebea21a1fce512b`  
 **PR：** #1 — Draft / Open / Unmerged（严禁合并）
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。日期命名的旧交接文件只作为历史记录，不得作为当前状态依据。开始工作时必须重新核对 GitHub 实际状态，文中的 SHA 和 Actions 状态都是本次核对时的快照。
@@ -43,7 +43,7 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 ## 3. 当前仓库和 PR 状态
 
 本次核对：
-- 活动分支 HEAD：`823f184b5d8bc380d137460dc985124872d081aa`。
+- 活动分支 HEAD：`2415a4e8c0877d9f85c17718cebea21a1fce512b`。
 - PR #1 head 与该 SHA 一致。
 - PR #1：Draft=true、state=open、merged=false。
 - PR #1 当前规模很大（约 1,268 commits、151 changed files）；这增加了审查、回归定位和发布风险。不要为了缩短流程而合并；应继续按明确验证门槛推进。
@@ -255,7 +255,7 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 
 ### 当前状态与阻塞（本次实时核对）
 - 分支：feature/csd-cognitive-memory-slice
-- 本次核对 HEAD：823f184b5d8bc380d137460dc985124872d081aa
+- 本次核对 HEAD：2415a4e8c0877d9f85c17718cebea21a1fce512b
 - PR #1 head 与分支一致；Draft=true、Open、Unmerged。严禁合并。
 - 最近 10 次 Actions runs：#701–#710 均失败。最新 #710（ID 44353015881）的 Ubuntu 和 Windows jobs 均为 runner_id=0、空 runner_name、0 steps；测试没有执行，原因未知。
 - 最后已知完整通过的 Ubuntu/Windows matrix 是 #664；其后的代码改动不能称为 CI 已验证。
@@ -341,9 +341,19 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 
 ### 当前实时状态与下一步
 
-- 当前分支 HEAD：`823f184b5d8bc380d137460dc985124872d081aa`（Progress checkpoint）。
+- 当前分支 HEAD：`2415a4e8c0877d9f85c17718cebea21a1fce512b`（Progress checkpoint）。
 - PR #1：Draft=true、Open、Unmerged；严禁合并。
 - 最新 Actions #710：Ubuntu 和 Windows 均为 `runner_id=0`、空 runner_name、0 steps；最近 10 次 #701–#710 均未进入测试步骤，原因未知。
 - 本次只有设计文档和 Progress/Handoff 更新；没有运行时代码修改，没有运行测试，也没有声称通过。
 - 下一步：在现有 `GroundedMemoryProposalProvider` 协议后实现严格的云端模型 provider，先用 fake HTTP transport 做测试；API key 只从运行环境读取，不进入仓库。模型只产生 grounded proposal，不能直接写入 CSD accepted state，也不能调用 ASM。
 - 后续再增加带版本的历史记忆上下文入口；之后才接 Life Engine 的真实 deliberator。
+
+
+## 15. Cloud provider → CSD integration test and latest runner state — 2026-11-19
+
+- Added an integration test to `tests/test_csd_openai_compatible_provider.py`: synthetic observation → fake cloud transport → grounded-memory pipeline → pending CSD proposal → explicit CSD evaluation → accepted memory with the original evidence event ID.
+- The test verifies that proposal submission does not itself create an accepted memory. It is committed at `7bd365332f71065dbfaeee31c8563207a07eb586`.
+- **The test has not executed.** Latest run #716 (ID `44549751577`) failed before runner allocation on both Ubuntu and Windows: `runner_id=0`, blank runner names, and zero steps. Runs #714–#716 show the same pattern; no tests ran.
+- Current Progress checkpoint: `2415a4e8c0877d9f85c17718cebea21a1fce512b`. PR #1 head at the last live check was `7bd365332f71065dbfaeee31c8563207a07eb586`; Draft/Open/Unmerged.
+- Next: when runner allocation is restored, run `test_csd_openai_compatible_provider.py` and `test_csd_grounded_proposal_pipeline.py` first, then the full Ubuntu/Windows matrix. Do not keep creating commits just to provoke Actions.
+- After static review, continue with a versioned and bounded prior-memory context contract for cross-session synthesis. Do not silently alter the current provider protocol or pass a database/store object into the model provider.
