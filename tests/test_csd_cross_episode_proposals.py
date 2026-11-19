@@ -159,6 +159,7 @@ class CrossEpisodeProposalTests(unittest.TestCase):
             provider_version="1",
             expected_state_version=self.version,
         )
+        later_quote = "A later independent observation."
         self.store.submit_event(CognitiveEvent(
             event_id="evt-cross-episode-later",
             occurred_at="2026-11-20T08:12:00+00:00",
@@ -168,12 +169,37 @@ class CrossEpisodeProposalTests(unittest.TestCase):
             payload={
                 "observation_id": "obs-cross-episode-later",
                 "observation_kind": "text_fixture",
-                "content": "A later independent observation.",
+                "content": later_quote,
                 "source_ref": "fixture://cross-episode-later",
                 "observed_at": "2026-11-20T08:11:00+00:00",
                 "coverage": {"modality": "text", "complete_for_fixture": True},
             },
         ))
+
+        class LaterProvider:
+            provider_id = "test.cross_episode_later_provider"
+            provider_version = "1"
+
+            def propose_grounded(inner_self, observation, *, state_version):
+                return [GroundedMemoryCandidate(
+                    proposal_id="cross-episode-later-memory-proposal",
+                    memory_kind="episodic_candidate",
+                    source_assertions=[GroundedSourceAssertion(
+                        claim_id="claim-later-observation",
+                        text=later_quote,
+                        quoted_text=later_quote,
+                        start=0,
+                        end=len(later_quote),
+                    )],
+                )]
+
+        GroundedMemoryProposalPipeline(self.store, LaterProvider()).propose_from_observation(
+            "evt-cross-episode-later"
+        )
+        self.store.evaluate_proposal("cross-episode-later-memory-proposal")
+        self.assertEqual(
+            self.store.get_state_snapshot()["state_version"], self.version + 1
+        )
         with self.assertRaisesRegex(ValueError, "stale"):
             append_cross_episode_proposal(
                 self.store, result, occurred_at="2026-11-20T08:13:00+00:00"
