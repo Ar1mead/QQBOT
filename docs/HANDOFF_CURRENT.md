@@ -713,3 +713,42 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - Immediately before this handoff update, PR #1 head was 939970060125c334647b3554b3505a25c3cd9832. This handoff update becomes the next PR head.
 - PR #1 remains Draft / Open / Unmerged; GitHub reports mergeable=false. Do not merge or synchronize divergent branch history.
 - Latest relevant CI Run #781 failed before steps/logs were exposed; no test execution is established.
+
+
+## 0.9 Cross-episode reviewer v2 read-only pipeline — 2026-11-20
+
+### Implemented in the active feature branch
+
+- `core/csd/cross_episode_review.py` now contains:
+  - `CrossEpisodeReviewProvider` protocol;
+  - `CrossEpisodeReviewCandidate` strict provider output;
+  - `CrossEpisodeReviewPipeline.review_proposal(proposal_id)`;
+  - `CrossEpisodeReviewArtifact` ephemeral, digest-bound result.
+- The pipeline only accepts an exact pending-shadow cross-episode candidate.
+- It opens one CSD read snapshot, resolves the candidate event and all support/counter references, and re-resolves each accepted memory/claim pair using the candidate event sequence as an exclusive historical prefix and the recorded state version.
+- Every persisted reference lineage field and claim digest must exactly equal the fresh canonical resolution.
+- Original source observation events are loaded and verified before the candidate event. Each Unicode-codepoint evidence span must exactly match the immutable source content. Duplicate source events are passed once, while evidence-span records preserve claim/reference association.
+- Bounds: each source content <=20,000 chars; all source content <=100,000 chars; complete serialized reviewer input <=400,000 UTF-8 bytes. Oversize or inconsistent evidence is rejected, never truncated.
+- Opaque account references are omitted. The reviewer gets only selected provenance fields and the exact evidence content.
+- The provider runs after the read transaction closes and receives no store handle, CSD mutation tool, or ASM capability.
+- Output is strict: five outcomes, finite confidence, exact selected-reference allowlists, disjoint support/counter sets, scope enum, bounded alternatives/limitations/risk flags, and boolean human-review requirement. `supported` requires support; `conflicting` requires both support and counter-evidence.
+- Returned review artifact is non-authoritative and not persisted. It is bound to proposal ID/event ID/sequence/payload digest/state version/reviewer identity. Provider sequences are copied to tuples before return.
+- Added `tests/test_csd_cross_episode_review.py`, exported interfaces in `core/csd/__init__.py`, and added the focused test step and both path filters to `.github/workflows/csd-cognitive-slice.yml`.
+- Updated `docs/design/cross-episode-evidence-and-preference-revision-contract.md` and `docs/PROJECT_PROGRESS.md`.
+
+### Verification status
+
+- Code/test checkpoint before docs: `a35d016cdc8956e5e64c87947a32b9d3e68a73f0`.
+- Contract update: `ee70ef7983cb0b9636794b856e00d736acc9d4c2`.
+- Progress update: `8a4bd0282b0622b4d71dafcdc231918106c6e64a`.
+- Actions runs #782–#786 all failed before observable test execution. Latest #786 Jobs API returned an empty `jobs` array. Do not label this as Python test failure or passing verification. No local compile/test, Windows runtime test, or live provider API test has run.
+- PR #1 remains Draft / Open / Unmerged; do not merge. Do not rebase/force-sync the divergent branch.
+
+### Next implementation slice
+
+1. Static-audit `cross_episode_review.py` and its tests for malformed persisted event data, reference key association, input bounds and source chronology.
+2. Implement a CSD-owned cross-episode reviewer decision/review event. It must re-resolve evidence again at its own event sequence boundary, bind the exact ephemeral reviewer artifact digest and candidate event identity, validate provider identity and policy, and replay deterministically in Recovery.
+3. Keep reviewer output advisory until that CSD-owned event is implemented. Do not allow it to mutate accepted preferences, AI interests, self-model, Life Engine ranking or ASM.
+4. Only after decision-time revalidation and Recovery are implemented and executable tests pass should the preference/self-model reducer be considered.
+5. Keep the full autonomous-life objective and ai-companion-pi lessons intact: private home, event/AI-requested wake causes, optional autonomous research/creation/retrospection/rest, long-term project continuity, queued proactive messaging, graded permissions and rollback/evaluation. No fixed wake-up cadence or diary quota.
+
