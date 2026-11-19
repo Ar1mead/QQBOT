@@ -406,6 +406,14 @@ class CrossEpisodeReviewPipeline:
         """Persist an advisory review as a CSD-owned immutable audit event."""
         if type(artifact) is not CrossEpisodeReviewArtifact:
             raise TypeError("artifact must be CrossEpisodeReviewArtifact")
+        # Bind the audit attribution to the provider configured on this pipeline.
+        if (
+            artifact.reviewer_id != self.provider.reviewer_id
+            or artifact.reviewer_version != self.provider.reviewer_version
+        ):
+            raise CrossEpisodeReviewError(
+                "review artifact reviewer identity does not match this pipeline provider"
+            )
         snapshot = _build_review_snapshot(self.store, artifact.proposal_id)
         expected = (
             snapshot["proposal_event_id"], snapshot["proposal_sequence"],
