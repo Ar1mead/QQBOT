@@ -200,11 +200,14 @@ P2 可以先实现一个简单的本地/运行时 artifact 目录，但不得因
 
 ## 9. 目前状态与限制
 
-- 本文是新增设计提案，不代表私人 Home、唤醒调度、长期项目管理、技能库或主动消息队列已经实现。
-- 当前 Life Engine 仍是 provider-neutral 的提案/状态脚手架，没有真实云端 deliberator 或生产级调度器。
-- 当前云端 grounded-memory provider 已写入仓库，但新增集成测试尚未执行；真实 API smoke test 未进行。
-- 当前最小认知循环仍缺少历史记忆上下文、语义审查/偏好修订契约、完整 Life Engine deliberation 和运行时接线。
-- 当前 Actions runner allocation 问题仍需单独诊断；不能将未分配 runner 的失败当成测试结果。
+- 本文是已采纳的设计方向，不代表私人 Home、唤醒调度、长期项目管理、技能库或主动消息队列已经实现。
+- 当前 Life Engine 仍是 provider-neutral 的提案/状态脚手架，没有真实云端 deliberator、持续自主活动调度器或主动联系队列。
+- 云端 grounded-memory provider 与 semantic-review provider 已写入仓库；已有 fake-transport 组合测试，但没有真实 API smoke test，也没有可核验的测试执行结果。
+- 历史记忆上下文 selector 已实现第一版，采用确定性的 Unicode lexical overlap，不是向量/语义检索；它只提供有限历史线索，不自动成为新事实证据。
+- 同一 episode 内的 semantic reviewer v1 已存在；跨 episode reviewer v2、decision-time reference revalidation、CSD preference/self-model revision reducer 尚未实现。
+- CSD 已有 pending-shadow cross-episode candidate event，并在 append 与 Recovery 时重新验证历史引用；候选不改变权威状态、不进入 Life Engine 排序。对应测试已添加，但目前没有测试执行证据。
+- 当前 GitHub Actions jobs 持续出现 steps/logs 缺失的启动失败；根因未知。不能将其视为代码测试失败或测试通过，也不能据此宣称系统已验证。
+- 本提案保留 ai-companion-pi 的私人空间、多种唤醒（包括自主请求）、主动联系治理、长期项目连续性等方向；固定四小时唤醒、日记配额和无限工具权限均不采纳。
 - 本提案不改变 PR #1 必须保持 Draft / Open / Unmerged 的规则。
 
 ## 10. 资料来源
