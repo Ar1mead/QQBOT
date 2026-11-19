@@ -703,3 +703,13 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - Reviewer v2 itself is not implemented. Its result must remain advisory; the later CSD-owned review/decision event must independently re-resolve evidence at its own historical sequence before any preference/self-model reducer is considered.
 - PR #1 remains Draft / Open / Unmerged. Do not merge, rebase, or force-sync the divergent feature/main histories.
 - Next: implement the provider-neutral cross-episode reviewer-v2 pipeline as a read-only, non-persisting analysis step. It must use the candidate event's sequence as the exclusive historical boundary, pass exact support/counter bundles plus original source observations, enforce bounded strict output, and remain outside write transactions. Add focused tests; do not claim they pass until a runner actually executes them.
+
+
+## 0.8 Final metadata reconciliation — 2026-11-20
+
+- Code/test checkpoint: 285fb5aeb85b19e25b89a37039c57f683f8e61ae.
+- Cross-episode contract commit: 736a9b2e588edf062fabb0eeb9100051f7afbd2e.
+- Project progress metadata commit: 037e02984fb72be8b8d4109f16e71aabe27ce41d.
+- Immediately before this handoff update, PR #1 head was 939970060125c334647b3554b3505a25c3cd9832. This handoff update becomes the next PR head.
+- PR #1 remains Draft / Open / Unmerged; GitHub reports mergeable=false. Do not merge or synchronize divergent branch history.
+- Latest relevant CI Run #781 failed before steps/logs were exposed; no test execution is established.
