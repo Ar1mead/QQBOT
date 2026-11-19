@@ -150,6 +150,22 @@ class CrossEpisodeProposalTests(unittest.TestCase):
         self.assertEqual(list_cross_episode_proposals(self.store), [])
         self.assertEqual(self.store.get_state_snapshot()["state_version"], self.version)
 
+        result = build_cross_episode_proposal(
+            self.store,
+            self.payload(),
+            self.context,
+            proposal_id="cross-episode-bool-version",
+            provider_id="test.cross_episode_model",
+            provider_version="1",
+            expected_state_version=self.version,
+        )
+        result.candidate.supporting_references[0]["based_on_state_version"] = True
+        with self.assertRaisesRegex(ValueError, "state version"):
+            append_cross_episode_proposal(
+                self.store, result, occurred_at="2026-11-20T08:11:30+00:00"
+            )
+        self.assertEqual(list_cross_episode_proposals(self.store), [])
+
     def test_append_rejects_candidate_after_authoritative_state_changes(self):
         result = build_cross_episode_proposal(
             self.store,
