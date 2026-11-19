@@ -3,21 +3,22 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Latest code/test checkpoint: `2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c` (documentation commits follow)  
+> Latest code/test checkpoint: `2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c`  
+> Current PR head at documentation refresh: `389be739a20f279a71603e49ee78475b94c28c71`  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
-## Current checkpoint — 2026-11-20 (historical-prefix and snapshot consistency hardening; tests pending)
+## Current checkpoint — 2026-11-20 (historical-prefix and reference-bundle hardening; tests pending)
 
-- **Latest code/test checkpoint:** `2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c`.
-- **Fixed exclusive historical-boundary semantics:** `through_sequence` means events strictly before the boundary. The resolver validates non-negative integer input (excluding bool) and converts the exclusive event boundary to the inclusive CSD state-version boundary `through_sequence - 1`.
-- **Fixed Recovery-prefix projection dependency:** historical-prefix resolution no longer reads the current accepted-memory/proposal projections. It reconstructs the referenced accepted grounded memory from integrity-checked immutable decision, grounded-proposal and source-observation events before the exclusive boundary. This avoids calling projection-wide consistency checks while Recovery has cleared projections and is rebuilding them incrementally.
-- **Fixed reference-bundle snapshot consistency:** both accepted-claim context construction and model-selected reference re-resolution now wrap the complete bundle in one SQLite read transaction (or reuse the caller's active CSD transaction). A bundle cannot be assembled from separate database snapshots; the shared transaction also avoids rebuilding decision replay indexes for each reference.
-- **Regression coverage added:** exclusive boundary before/after an accepted decision; invalid negative/bool/non-integer boundary; resolution while accepted-memory and proposal projections are absent (partial-Recovery simulation); multiple reference context builds and selected-key re-resolution each use one snapshot. Tests are wired into the workflow but **have not been executed**.
-- **CI:** workflow-run lookup for the latest test commit `2a17a6d...` returned no PR-triggered runs. No current-head CI pass/failure is established; this remains unverified. No local Windows test or real API smoke test is evidenced.
-- **Remaining cross-episode gates:** CSD-owned pending event family; append-time and decision-time revalidation in authoritative transactions; reviewer v2; preference/self-model reducer; Recovery integration and tamper/replay tests. The new event-history resolver is a prerequisite, not completion of Recovery integration.
-- **Architecture:** ai-companion-pi and related autonomous-life design remains in `docs/design/autonomous-life-and-self-development.md`; Private Home, non-forced wakeups, self-selected activities/no-op, long-term projects, governed proactive messaging, graded permissions and outcome learning remain design goals, not implemented runtime features.
-- **Next gate:** implement the pending-only CSD cross-episode event family and append-time revalidation against the exact exclusive historical prefix. Keep acceptance/revision unavailable until reviewer v2, decision-time revalidation, reducer and Recovery all exist.
+- **Latest code/test checkpoint:** `2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c`; current PR head at this documentation refresh: `389be739a20f279a71603e49ee78475b94c28c71`. PR #1 was freshly fetched as Open, Draft=true, Merged=false, targeting `main`; keep it that way and never merge.
+- **Exclusive historical boundary:** `through_sequence` means events strictly before the boundary. The resolver rejects negative, boolean and non-integer boundaries before DB reads and converts the exclusive event boundary to CSD's inclusive state-version boundary `through_sequence - 1`.
+- **Recovery-safe historical resolution:** when a historical prefix is requested, the resolver reconstructs the accepted grounded memory from integrity-checked immutable decision, grounded-proposal and source-observation events before the boundary. It does not read the current accepted-memory/proposal projections, because Recovery rebuilds those projections incrementally and a projection-wide consistency check would fail midway through replay.
+- **Atomic reference bundles:** both `build_accepted_claim_reference_context` and `resolve_selected_accepted_claims` now process all references in one SQLite read snapshot, or reuse the caller's active CSD transaction. This prevents multi-claim evidence bundles from being assembled across separate snapshots and avoids repeating decision-replay index construction for every reference.
+- **Regression coverage added:** exclusive boundary before/after accepted decision; invalid boundary types; historical resolution with accepted-memory/proposal projections deleted; multi-reference context construction and selected-reference resolution each use one snapshot. The tests are wired into the workflow but **have not been executed**.
+- **CI evidence:** workflow-run lookup for the latest code/test commit `2a17a6d...` returned no PR-triggered runs and combined status is empty. No current-head CI pass/failure is established. No local Windows test or real API smoke test is evidenced.
+- **Remaining cross-episode gates:** pending CSD event family; append-time and decision-time revalidation in authoritative transactions; reviewer v2; preference/self-model reducer; Recovery event integration and tamper/replay tests. The new historical resolver is groundwork, not completed Recovery integration.
+- **ai-companion-pi design:** preserved in `docs/design/autonomous-life-and-self-development.md`; Private Home, self-selected activity/no-op, flexible wakeups, long-term projects, governed proactive messaging, graded permissions and outcome learning remain design goals, not runtime capabilities.
+- **Next gate:** implement the pending-only CSD cross-episode event family with append-time validation against the exact exclusive historical prefix. Do not allow durable preference/self-model acceptance until reviewer v2, decision-time validation, reducer and Recovery all exist and pass.
 - PR #1 must remain Draft / Open / Unmerged. Never merge.
 
 ---
