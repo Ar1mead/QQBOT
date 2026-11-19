@@ -46,7 +46,8 @@ on:
       - "tests/test_csd_cloud_cognitive_loop.py"
       - "tests/test_csd_prior_memory_context.py"
       - "tests/test_csd_accepted_claim_references.py"
-      - "tests/test_csd_cross_episode_proposals.py"\n      - "tests/test_csd_cross_episode_review.py"
+      - "tests/test_csd_cross_episode_proposals.py"
+      - "tests/test_csd_cross_episode_review.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   pull_request:
     paths:
@@ -91,7 +92,8 @@ on:
       - "tests/test_csd_cloud_cognitive_loop.py"
       - "tests/test_csd_prior_memory_context.py"
       - "tests/test_csd_accepted_claim_references.py"
-      - "tests/test_csd_cross_episode_proposals.py"\n      - "tests/test_csd_cross_episode_review.py"
+      - "tests/test_csd_cross_episode_proposals.py"
+      - "tests/test_csd_cross_episode_review.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   workflow_dispatch:
 
@@ -195,7 +197,9 @@ jobs:
         run: python -m unittest discover -s tests -p "test_csd_accepted_claim_references.py" -v
       - name: Run shadow-only cross-episode proposal tests
         run: python -m unittest discover -s tests -p "test_csd_cross_episode_proposals.py" -v
-      - name: Run cross-episode semantic review tests\n        run: python -m unittest discover -s tests -p "test_csd_cross_episode_review.py" -v\n      - name: Run existing persistence baseline tests
+      - name: Run cross-episode semantic review tests
+        run: python -m unittest discover -s tests -p "test_csd_cross_episode_review.py" -v
+      - name: Run existing persistence baseline tests
         run: python -m unittest discover -s tests -p "test_csd_store.py" -v
       - name: Run motivation signal synthesis tests
         run: python -m unittest discover -s tests -p "test_motivation_synthesis.py" -v
