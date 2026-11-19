@@ -3,7 +3,7 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Last implementation checkpoint in this continuation: `57f38d7dd4f2bb5920cb5b0b3ee98e9362149750` (resolver package export repaired; tests not executed)  
+> Last implementation checkpoint in this continuation: `94450f94bc707328c2d5e4692bc386fdb8974e57` (opaque-key selection tests; tests not executed)  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
@@ -13,7 +13,7 @@
 
 - Live PR #1 metadata at the start of this continuation: head branch `feature/csd-cognitive-memory-slice`, head SHA `531cde2f84c600f2295d330c4698c9ebddf5a301`, Draft=true, Open, Unmerged.
 - Compared the code checkpoint `48a4a7fd9caef156cf60549d21326ff59ac18f29` to the live head: seven commits ahead; only Progress/Handoff docs, the minimum-loop matrix, and a small fake-test fixture cleanup changed. No unrecorded runtime implementation was found after the cloud semantic-review provider.
-- Added `core/csd/accepted_claim_references.py`: read-only resolution of source-assertion claims from accepted grounded memories. It verifies accepted-memory projection integrity, accepted proposal/decision lineage, claim uniqueness, claim digest, evidence event IDs, and stable CSD state version. Model-selected pairs are mapped to pipeline-generated opaque keys; duplicate pairs are deduplicated.
+- Added `core/csd/accepted_claim_references.py`: read-only resolution of source-assertion claims from accepted grounded memories. It verifies accepted-memory projection integrity, accepted proposal/decision lineage, claim uniqueness, claim digest, evidence event IDs, and stable CSD state version. The pipeline builds an allowlist of accepted claims under opaque keys; model selection accepts only those keys and re-resolves the underlying claim. Duplicate claim pairs/keys are deduplicated.
 - Added `tests/test_csd_accepted_claim_references.py` for accepted lineage, opaque keys, duplicate references, stale snapshots, missing memory/claim and malformed reference shape. Added the test to the workflow and exported the resolver.
 - **Important incomplete gate:** this is resolver groundwork only. It does not yet revalidate historical references inside a new cross-episode proposal's CSD append and decision transactions; no cross-episode proposal event family, semantic-review-v2, preference reducer, or Recovery projection exists. The resolver is not yet wired into the cloud provider's prompt/pipeline. Do not use its output to accept or persist preferences or drive Life Engine actions.
 - **Validation: unexecuted.** No local tests, GitHub-hosted tests, or live API smoke test were run. New tests are committed but unverified.
