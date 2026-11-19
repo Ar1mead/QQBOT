@@ -273,7 +273,7 @@ class CrossEpisodeReviewPipelineTests(unittest.TestCase):
 
     def test_public_submit_cannot_forge_reserved_review_event(self):
         event = CognitiveEvent(
-            event_id="csd-cross-episode-review:forged",
+            event_id="external-forged-review-event",
             occurred_at="2026-11-20T08:20:00+00:00",
             correlation_id="cross-episode-proposal:review-cross-episode-proposal",
             event_type=CROSS_EPISODE_REVIEW_EVENT,
