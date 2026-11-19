@@ -87,7 +87,7 @@ on:
       - "tests/test_csd_openai_compatible_provider.py"
       - "tests/test_csd_openai_compatible_semantic_review.py"
       - "tests/test_csd_cloud_cognitive_loop.py"
-      - "tests/test_csd_prior_memory_context.py"
+      - "tests/test_csd_prior_memory_context.py"\n      - "tests/test_csd_accepted_claim_references.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   workflow_dispatch:
 
