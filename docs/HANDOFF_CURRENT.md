@@ -396,3 +396,40 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 ### 下一步
 
 继续 P0：静态审查 `OpenAICompatibleGroundedMemoryProvider` 与 `GroundedMemoryProposalPipeline` 的集成测试，runner 恢复后先运行 focused tests，再考虑完整 matrix。随后再设计版本化、有限的历史记忆上下文契约。不得因为新增长期生活机制而跳过认知循环，也不得为触发 CI 而重复提交无意义代码。
+
+
+## 17. P0 Provider 静态审查与下一步 — 2026-11-19
+
+### 本轮代码/CI 修正
+
+- 修复 `tests/test_csd_openai_compatible_provider.py` 中空提案测试的必然 IndexError：空列表返回后原代码仍访问 `result[0]`。现在检查空结果和 transport 调用次数。
+- 将 `CloudProviderCsdIntegrationTests` 移至 `unittest.main()` 入口之前，保证直接运行测试文件时也能发现集成测试。
+- 修正 Provider 最大响应字节数错误提示，使提示与实际上限 262144 bytes 一致。
+- 在 `.github/workflows/csd-cognitive-slice.yml` 的 `pull_request.paths` 中加入 `tests/test_csd_openai_compatible_provider.py`。
+- 最新代码提交：`31f83915b24d4c46cb95e9c9c1b175ccea834610`。PR #1 head 与其一致，Draft/Open/Unmerged。
+
+### 静态审查结论
+
+- `GroundedMemoryProposalPipeline` 先读取 observation 和 CSD state version，调用 provider，再将候选绑定到被分析的 observation event 和 provider provenance，提交 pending proposal event；pipeline 本身不执行 proposal evaluation。
+- 集成测试中 `submitted[0]["status"] == "accepted"` 指事件成功追加，不是 proposal 被接受。随后 `get_proposal(...)[ "status" ] == "pending"` 明确证明 proposal 仍 pending；只有显式 `evaluate_proposal()` 后才接受。此语义与既有 grounded pipeline 测试一致，不要把该断言误改成 pending。
+- Provider 有 HTTPS endpoint、API key、timeout、response-size、严格 JSON、字段 allowlist、offset 类型和 confidence 范围检查。CSD evaluator 负责验证引用是否精确匹配 observation 内容；不能把 Provider 自己的 offset 声明当成可信事实。
+- 目前 Provider 只接收单条 observation 和 state_version；没有历史 accepted-memory context。
+- 当前 `get_memories(query=...)` 仅做 case-insensitive substring filter，不是语义检索；返回 accepted memory，projection 不一致时 fail closed。不能把现有检索接口误称为 semantic search。
+- 仍需进一步验证：真实 endpoint 兼容性、网络异常、响应体上限、重复 JSON key、无效 source span、CSD 拒绝路径及跨会话历史上下文。
+
+### Actions 与验证状态
+
+- 对最新 head `31f83915b24d4c46cb95e9c9c1b175ccea834610` 查询 PR-triggered workflow runs 返回空列表，combined status 也无 checks。此前 Run #716（ID `44549751577`）Ubuntu/Windows jobs 在 runner 分配前失败且无执行 steps。
+- **本轮未运行测试；当前没有可报告的测试通过结果。** 真实 API smoke test 未进行。若 runner 仍不可用，不要反复提交来触发 Actions；继续静态审查和针对性测试设计。
+- PR #1 必须继续保持 Draft / Open / Unmerged，严禁合并。
+
+### 下一步：历史记忆上下文契约
+
+设计并实现一个版本化、大小受限的 prior-memory context selector：
+1. 只从 CSD 已接受且 projection 一致的记忆中选择；pending/rejected/deferred proposals 不得进入上下文。
+2. 在 provider 外部由 pipeline 读取、裁剪和序列化；Provider 仍不接收 store、数据库或文件系统句柄。
+3. 明确上下文 schema version、state version、memory ID、proposal ID、claim ID、epistemic type、uncertainty 和 evidence provenance。
+4. 设定最大条目数、每条最大字符数和总字符/token 预算；超限时采用确定性裁剪并保留截断标记，不可静默丢失来源。
+5. 现有子串检索不等于语义检索。第一版可先用可解释的确定性相关性排序，明确记录算法版本；后续再替换语义检索。
+6. 上下文只帮助模型解释新经历；模型输出仍是候选提案，来源引用必须可验证，CSD 独立决定接受/拒绝。
+7. 覆盖空历史、重复/冲突记忆、不同 epistemic type、预算边界、状态版本变化、重启后可复现等测试。
