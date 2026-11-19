@@ -20,6 +20,10 @@ from .cognitive import (
     CognitiveMemoryStore,
     ProposalIdentityConflict,
 )
+from .openai_compatible_provider import (
+    CloudProposalProviderError,
+    OpenAICompatibleGroundedMemoryProvider,
+)
 from .grounded_proposals import (
     GroundedInference,
     GroundedMemoryCandidate,
@@ -46,6 +50,8 @@ from .store import (
 )
 
 __all__ = [
+    "CloudProposalProviderError",
+    "OpenAICompatibleGroundedMemoryProvider",
     "INTERACTION_EVENT",
     "MOTIVATION_DECISION_EVENT",
     "MOTIVATION_PROPOSAL_EVENT",
