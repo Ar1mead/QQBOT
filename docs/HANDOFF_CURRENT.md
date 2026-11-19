@@ -489,3 +489,14 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 3. 若测试通过，再继续最小认知循环下一缺口：模型对多条历史经历进行有边界的综合，以及偏好/自我模型更新所需的独立语义审查与修订契约。不能把本轮 lexical selector 当作已完成的类人长期记忆。
 
 - Follow-up static review also marks long evidence quote truncation explicitly and adds a regression test for that case. Test remains unexecuted pending hosted runner availability.
+
+
+## 20. 本轮最终核对：prior-memory context — 2026-11-20
+
+- 主实现提交：`0b5bbc8f570a0fddcd218bdf6d15b91ba2b9a050`。
+- 后续修正提交：`34b19557d8f9f37687d1644105dddccc7ffe44c6`，补齐 evidence quote 截断标记和回归测试。
+- 当前 feature branch / PR #1 head：`34b19557d8f9f37687d1644105dddccc7ffe44c6`。
+- PR #1 已实时核实仍为 Draft=true、Open、Unmerged；不得合并。
+- Actions Run #722（ID `44563530149`）针对当前 head 创建后约 3 秒即失败。Ubuntu/Windows 两个 job 的 steps 均为空，未分配 runner、没有执行任何测试命令。这是 runner/基础设施失败，不是代码测试失败，也不是测试通过。
+- 本轮所有新增测试仍未执行；没有本地测试结果，也没有真实云端 API smoke test。
+- 下一步不要为了触发 CI 而反复提交无意义 commit。继续静态审查；runner 恢复后先运行三个 focused tests，再跑完整矩阵。

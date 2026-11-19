@@ -1806,3 +1806,14 @@ Every new module or infrastructure task must state: (a) which user-visible cogni
 Next: inspect the final diff and test fixtures; when a hosted runner becomes available, execute the focused prior-memory selector, grounded pipeline, and cloud provider tests before the full matrix. Then address any failures and only afterward continue toward preference/self-model semantic review.
 
 - Follow-up static review: evidence quote text is also included in the per-item truncation flag; added a regression test for a long quote paired with a short claim. This is still unexecuted test coverage, not a passing result.
+
+
+## P0 prior-memory context commit and Actions check — 2026-11-20
+
+- Main implementation commit: `0b5bbc8f570a0fddcd218bdf6d15b91ba2b9a050`.
+- Follow-up commit: `34b19557d8f9f37687d1644105dddccc7ffe44c6` adds explicit quote-truncation reporting and its regression test.
+- Final branch/PR #1 head at this check: `34b19557d8f9f37687d1644105dddccc7ffe44c6`; PR #1 remains Draft=true, Open, Unmerged.
+- Actions run #722 (ID `44563530149`) was created for this head and completed as failure in approximately three seconds. Both Ubuntu and Windows jobs returned empty step lists; no runner was allocated and no test command executed. Treat this as infrastructure/runner-allocation failure, not a test failure and not a pass.
+- The final change includes the selector, pipeline/provider integration, package exports, selector/pipeline/provider tests, workflow path filters and a dedicated test step, plus Progress/Handoff updates.
+- No local execution or real cloud API smoke test occurred. All new tests remain unverified until a runner can execute them.
+- Do not repeatedly push empty or unrelated commits to trigger Actions. Continue static review, then run focused tests when runner allocation is restored.
