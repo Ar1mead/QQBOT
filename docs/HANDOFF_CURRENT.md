@@ -691,3 +691,15 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - The seven main-only commits after that base are one 2026-11-16 CSD goal-test addition, three Stage 0 documentation commits, and three documentation reverts. The feature branch contains the goal test file with the same 54 test method names, but its contents differ; the relevant README/progress/report files also differ.
 - This does not show a missing test suite, but it does mean the histories are divergent and PR metadata currently reports mergeable=false. Do not merge/rebase/force-sync the branches as part of routine continuation. First inspect a deliberate diff and obtain explicit user authorization for any history synchronization.
 - The active feature branch remains the working branch. Latest code/test checkpoint is 37536152a09f145f9867471dbac40fc7e55c5772; docs-only commits after it do not change runtime/test code.
+
+
+## 0.7 Semantic-review input hardening and reviewer-v2 contract — 2026-11-20
+
+- Latest code/test checkpoint: 285fb5aeb85b19e25b89a37039c57f683f8e61ae.
+- Hardened existing same-episode semantic-review v1. Provider-side and CSD event validation now enforce bounded reasoning text (2,000 chars), bounded alternatives/limitations (8 each), supporting source claim IDs (32), identity fields (200 chars), and digest fields (80 chars).
+- Added regression tests for oversized provider reasoning text, oversized event reasoning text, and oversized alternative-explanation lists. No execution evidence exists yet.
+- Actions Run #781 (ID 44588405212) failed before steps/logs were exposed on both Ubuntu and Windows. This is the same runner/job-startup pattern as prior runs, not a Python test result.
+- Cross-episode contract now has an explicit reviewer-v2 specification: candidate-sequence historical prefix, re-resolved support and counter evidence, source observation content and exact spans, deduplicated source events, strict bounded output, scope/alternative/risk review, human-review flag, and no CSD/ASM authority.
+- Reviewer v2 itself is not implemented. Its result must remain advisory; the later CSD-owned review/decision event must independently re-resolve evidence at its own historical sequence before any preference/self-model reducer is considered.
+- PR #1 remains Draft / Open / Unmerged. Do not merge, rebase, or force-sync the divergent feature/main histories.
+- Next: implement the provider-neutral cross-episode reviewer-v2 pipeline as a read-only, non-persisting analysis step. It must use the candidate event's sequence as the exclusive historical boundary, pass exact support/counter bundles plus original source observations, enforce bounded strict output, and remain outside write transactions. Add focused tests; do not claim they pass until a runner actually executes them.
