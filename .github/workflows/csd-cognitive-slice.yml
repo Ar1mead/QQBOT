@@ -41,6 +41,7 @@ on:
       - "tests/test_csd_memory_retrieval.py"
       - "tests/test_csd_semantic_review.py"
       - "tests/test_csd_semantic_review_pipeline.py"
+      - "tests/test_csd_openai_compatible_provider.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   pull_request:
     paths:
@@ -171,6 +172,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_csd_semantic_review.py" -v
       - name: Run semantic review provider pipeline tests
         run: python -m unittest discover -s tests -p "test_csd_semantic_review_pipeline.py" -v
+      - name: Run OpenAI-compatible grounded provider tests
+        run: python -m unittest discover -s tests -p "test_csd_openai_compatible_provider.py" -v
       - name: Run existing persistence baseline tests
         run: python -m unittest discover -s tests -p "test_csd_store.py" -v
       - name: Run motivation signal synthesis tests
