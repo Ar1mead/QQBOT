@@ -20,7 +20,7 @@ from .cognitive import (
     CognitiveMemoryStore,
     ProposalIdentityConflict,
 )
-from .prior_memory_context import (
+from .accepted_claim_references import (\n    AcceptedClaimReferenceError,\n    resolve_accepted_claim_reference,\n    resolve_selected_accepted_claims,\n)\nfrom .prior_memory_context import (
     CONTEXT_SCHEMA_VERSION,
     SELECTOR_ALGORITHM_VERSION,
     PriorMemoryContextError,
