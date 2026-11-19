@@ -2002,3 +2002,32 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - A review record is an immutable CSD audit fact, not an accepted cognitive belief. Multiple distinct reviewer records may exist for one pending candidate; duplicate event identity is idempotent.
 - Follow-up static inspection caught malformed literal backslash-n sequences in the earlier core/csd/__init__.py export edit. Fixed in commit d30a7fb7af4fae6f0a75dbdd02113ade6d9a07fc. This is a source-level correction; compile/test still not run.
 - Current branch head at planning checkpoint: d30a7fb7af4fae6f0a75dbdd02113ade6d9a07fc. PR #1 remains Draft/Open/Unmerged; do not merge or sync the divergent branch.
+
+
+## Cross-episode reviewer record and CI reconciliation — 2026-11-20
+
+### Implementation status correction
+
+The CSD-owned cross-episode review record was implemented after the earlier progress entries that still described it as the next task.
+
+- Added reserved event type `cognition.cross_episode_review_recorded.v1` and authority source `csd.cross-episode-review-authority.v1`.
+- Added `CrossEpisodeReviewPipeline.record_review(artifact)`. It reconstructs the candidate's canonical evidence snapshot and verifies the artifact's proposal event ID/sequence/payload digest, exact reviewer-input digest, recorded state version, reviewer identity and bounded review output before appending.
+- Durable review identity is deterministic: canonical payload digest excluding `review_id`; event ID is derived from the review ID.
+- Public event submission is blocked for the reserved event type and reserved event-ID namespace. Internal append checks the authority source.
+- One shared event-local validator reconstructs the historical review snapshot and validates chronology, proposal/evidence digests, reviewer fields, candidate schema/reference selections and duplicate review identity. CSD invokes this validator for append, duplicate acknowledgement, direct event reads and Recovery replay.
+- The event is an immutable audit opinion only. It does not accept/reject the underlying preference/interest candidate, create a preference/self-model projection, change goals, rank Life Engine activities or grant ASM permissions.
+- **Verification gap:** current `tests/test_csd_cross_episode_review.py` has ten tests for the read-only reviewer pipeline, but no dedicated durable-record tests yet. Missing coverage includes `record_review` success, reserved public-submit denial, duplicate acknowledgement, direct-read validation/tamper, stale artifact/evidence, and Recovery replay/tamper. Do not call this slice complete or verified.
+
+### CI workflow repair
+
+- Found four literal backslash-`n` sequences in `.github/workflows/csd-cognitive-slice.yml` affecting the push path filter, pull-request path filter and cross-episode review test step. Replaced them with real line breaks.
+- Workflow repair commit: `06408dbf1c577849be92a15bd39a5316a32ea5df`.
+- After the repair, Actions Run #808 (ID `44592352031`) created both Ubuntu and Windows jobs, so the workflow is now being parsed. Both jobs still failed immediately with empty step lists and runner ID `0`; no runner was allocated. The job-log endpoint returned BlobNotFound. No checkout, compile or Python test ran.
+- Therefore the malformed YAML was a confirmed workflow defect, but the remaining failure is a separate runner/job-startup issue whose cause is not yet known. Do not infer a Python test failure or success.
+
+### Current checkpoint and next work
+
+- Durable review-event implementation code is present at branch checkpoint `35e0f4e4f8de195ecae5034c549269a58d6979f6`; workflow repair is `06408dbf1c577849be92a15bd39a5316a32ea5df`; this progress update follows contract reconciliation `fffb5200a4674e59c7f38445b7bcd502ee8d1e18`.
+- Next: add focused durable-review event tests covering append, public submission denial, deterministic duplicate/idempotency, direct get_event validation, stale artifact/evidence, and Recovery. Then diagnose runner allocation without repeatedly triggering runs.
+- Only after durable event adversarial tests execute successfully should preference/self-model reducer work be considered. It remains unimplemented. Life Engine must continue to ignore pending-shadow candidates and reviewer opinions.
+- PR #1 remains Draft / Open / Unmerged. Feature branch remains divergent from main (last compare: ahead 1467, behind 7). Do not merge, rebase or force-sync without explicit user authorization.
