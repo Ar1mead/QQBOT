@@ -1728,3 +1728,14 @@ Every new module or infrastructure task must state: (a) which user-visible cogni
 - Important scope: this adds the cloud provider implementation for grounded memory proposals only. It does not yet add historical-memory context to the provider, connect the provider to a running application/runtime, implement preference/self-model reducers, or connect a real Life Engine deliberator.
 - Current PR head at this checkpoint: `d80f8c02702ddc0135e8ae65d366977f7c3a7b5c`; PR #1 remains Draft/Open/Unmerged.
 - Next: review provider/pipeline integration end-to-end; add a fake-transport integration test that proves the provider creates only a pending CSD proposal and that only explicit CSD evaluation can accept it. Then add a versioned, bounded prior-memory context contract without silently changing the existing provider protocol.
+
+
+## Cloud provider → CSD pending-proposal integration test — 2026-11-19
+
+- Added an integration test in `tests/test_csd_openai_compatible_provider.py` using the fake HTTP transport and a real temporary `CognitiveMemoryStore`.
+- The test submits a synthetic observation, runs the cloud-provider adapter through `GroundedMemoryProposalPipeline`, asserts that the resulting grounded proposal remains pending and normal accepted-memory retrieval is empty, then explicitly invokes CSD evaluation and verifies the accepted memory retains the original observation event ID.
+- This demonstrates the intended authority sequence in test code: provider output → pending proposal → explicit CSD evaluation → accepted memory. The provider itself has no CSD write handle.
+- The test has been committed and is included in the workflow. **It has not executed yet.**
+- Actions run #716 (ID `44549751577`), triggered by this integration-test commit, failed before runner allocation on both Ubuntu and Windows: `runner_id=0`, blank runner names, and empty steps. Runs #714–#716 show the same runner-allocation failure. No test result exists.
+- Current PR head: `7bd365332f71065dbfaeee31c8563207a07eb586`; PR #1 remains Draft/Open/Unmerged.
+- Next: once a real runner is available, run the focused provider/pipeline tests first. Until then, continue static review only and avoid repeatedly triggering Actions with code commits. The next planned code seam is versioned, bounded prior-memory context for later-session synthesis; do not widen the current provider input implicitly.
