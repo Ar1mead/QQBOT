@@ -4,8 +4,8 @@
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
 **本轮起始实时 PR HEAD：** `531cde2f84c600f2295d330c4698c9ebddf5a301`  
-**本轮代码/测试提交：** `720ad9cdd12391c1131629d7c7e46b5c39f4a870`（测试未执行）  
-**本轮文档提交：** `23c0f2c493cde4c2259df8495a537b6b36416974`、`a1b27d9fa03b4dde65a15fe9fd3c8f1398a2980f`、`4af53fe0d8e5c76504513a88ce96b779fc30ed51`、`47899a0bb04755ac5f74b4e982c64b52ad27f337`（后续更新仍会推进 HEAD）  
+**本轮实现/测试提交：** `57f38d7dd4f2bb5920cb5b0b3ee98e9362149750`（package export 修正；测试未执行）  
+**本轮文档提交：** `23c0f2c493cde4c2259df8495a537b6b36416974`、`a1b27d9fa03b4dde65a15fe9fd3c8f1398a2980f`、`4af53fe0d8e5c76504513a88ce96b779fc30ed51`、`47899a0bb04755ac5f74b4e982c64b52ad27f337`、`713b8ad5e1efed366f4e5df35069a23760e037c7`（本文件后续更新仍会推进 HEAD）  
 **文档整理提交：** `62180a925a04d3ba3c9a6666af5b3dc6d013b8c8`、`e572a193283487797214369106e723184d72d4e5`、`ac86d98c01dc50146774cea479f8af72679d3f78`  
 **当前 HEAD：** 每次续接必须从 PR #1 实时读取；本次 handoff 更新本身也会推进 HEAD。  
 **PR：** #1 — Draft / Open / Unmerged（严禁合并）
@@ -23,7 +23,7 @@
 - **测试未执行。** 新测试只有源码静态检查，未在本地或 GitHub Actions 执行；无真实 API smoke test。
 - Run #724（ID `44566099273`）jobs：Windows 135708120696、Ubuntu 135708121260 均 failure 且 steps=[]；Run #723 同样无 steps。当前起始 PR head 查询不到关联 PR-triggered workflow run。可用 connector 没有可靠的仓库最近 10 次全局 runs 列表。
 - 本轮 commits：resolver `867767488e1776a394e13612fe2d0fc589f0b966`；tests `fdc46bd6a6be725b3d42d2b685acf83f3eef1629`；exports `79a4165cef0f66d7eeccd2e63294f2f34a70f0e2`；workflow `fbd7d5c6f30926cfd6b4af676ebb6e3dc2562e89`；identifier guard `720ad9cdd12391c1131629d7c7e46b5c39f4a870`；PR path filter `07f1b4549a37b14039c47150f24c7ea70e889ed9`。
-- PR #1 必须保持 Draft / Open / Unmerged。
+- 修复提交：package exports `57f38d7dd4f2bb5920cb5b0b3ee98e9362149750`；workflow newline `136a7ea85532f5413fd0d742a4de154af3e7a219`；新增 focused-test step `02a1b62ba2c6049a568f2760f76a567e91a605fd`。已静态确认 YAML path filters 在 push/PR 两处均包含新测试文件，且测试步骤存在。\n\nPR #1 必须保持 Draft / Open / Unmerged。
 
 **下一步：** 在静态审查 resolver/test 后，新增独立的 pending-only cross-episode proposal contract，并在 CSD append/decision transaction 内分别 re-resolve accepted decision lineage、claim digest 和 source-event lineage。Preference reducer/Recovery 完成前禁止接受偏好状态。
 
