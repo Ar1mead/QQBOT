@@ -3,7 +3,7 @@
 **最后核对：** 2026-11-19（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**核对时分支 HEAD：** `8e617fd487f8485a03b22432c1310fe03bcb1f77`  
+**核对时分支 HEAD：** `347c1dc3518b1093a7d0f415441d5e14e6c53aeb`  
 **PR：** #1 — Draft / Open / Unmerged（严禁合并）
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。日期命名的旧交接文件只作为历史记录，不得作为当前状态依据。开始工作时必须重新核对 GitHub 实际状态，文中的 SHA 和 Actions 状态都是本次核对时的快照。
@@ -43,7 +43,7 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 ## 3. 当前仓库和 PR 状态
 
 本次核对：
-- 活动分支 HEAD：`8e617fd487f8485a03b22432c1310fe03bcb1f77`。
+- 活动分支 HEAD：`347c1dc3518b1093a7d0f415441d5e14e6c53aeb`。
 - PR #1 head 与该 SHA 一致。
 - PR #1：Draft=true、state=open、merged=false。
 - PR #1 当前规模很大（约 1,268 commits、151 changed files）；这增加了审查、回归定位和发布风险。不要为了缩短流程而合并；应继续按明确验证门槛推进。
@@ -255,7 +255,7 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 
 ### 当前状态与阻塞（本次实时核对）
 - 分支：feature/csd-cognitive-memory-slice
-- 本次核对 HEAD：31482e5ccb9e25f3db201304eaf48533853fd894
+- 本次核对 HEAD：347c1dc3518b1093a7d0f415441d5e14e6c53aeb
 - PR #1 head 与分支一致；Draft=true、Open、Unmerged。严禁合并。
 - 最近 10 次 Actions runs：#701–#710 均失败。最新 #710（ID 44353015881）的 Ubuntu 和 Windows jobs 均为 runner_id=0、空 runner_name、0 steps；测试没有执行，原因未知。
 - 最后已知完整通过的 Ubuntu/Windows matrix 是 #664；其后的代码改动不能称为 CI 已验证。
@@ -314,3 +314,36 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - 本次只新增/更新文档，没有修改运行时代码，没有运行测试，也没有声称功能已经实现。
 - 下一步：盘点现有 CSD / Life Engine API，形成最小认知循环验收矩阵，再接入一个权限受限的云端模型 provider，完成端到端垂直切片。
 - 开始后续工作前，必须重新核对分支实时 HEAD、PR #1 和 Actions。PR #1 继续保持 Draft / Open / Unmerged，严禁合并。
+
+
+## 13. 最小认知循环 API 审计与验收矩阵 — 2026-11-19
+
+已新增：`docs/design/minimum-cognitive-loop-acceptance-matrix.md`。
+
+### 已核实的现有接口
+
+- CSD：`CognitiveMemoryStore.submit_event()`、`get_memories()/get_memory()`、CSD 自有提案评估和 Recovery。
+- Grounded memory：`GroundedMemoryProposalProvider` / `GroundedMemoryProposalPipeline`；pipeline 负责绑定观察事件 ID、provider provenance 和 state_version，模型提案不会自动变成 accepted memory。
+- Life Engine：`LifeSnapshot`、`DeliberationProposal`、`ChoiceProposal`、`validate_life_proposal()`、`LifeEngine.consider()`。
+- CSD-Life adapter：`CognitiveStoreLifeSnapshotReader` 和 `CognitiveStoreLifeProposalSink`；sink 不执行活动。
+
+### 已发现的关键缺口
+
+1. 没有真实云端模型 provider。
+2. Life Engine 当前快照只含 motivation signals/goals，没有 episode text 或已检索的自传式记忆；当前 CSD reader 也不提供 activity options。
+3. Grounded-memory provider 当前只接收单条 observation 和 state_version，尚未接收历史 accepted memories，跨会话综合需要扩展一个版本化上下文契约。
+4. CSD grounded evaluator 检查 schema、来源定位、引用关系、时间顺序和完整性，不等于语义蕴含或事实真伪验证。偏好/自我模型的持久更新需要额外语义审查与修订机制。
+5. Life Engine sink 会对受支持的候选目标提案立即调用 CSD evaluator；在语义审查门槛明确前，模型生成目标应限制在 shadow/候选状态，不能直接触发活动。
+
+### 当前验收矩阵
+
+`LOOP-01` 至 `LOOP-15` 已列出：经历来源与时间、精确引用/offset、模型输出格式错误、provider 超时、CSD 接受/拒绝、过期版本、Recovery、provider 替换、no-op、非法引用、ASM 不执行，以及未来偏好/反证处理。
+
+### 当前实时状态与下一步
+
+- 当前分支 HEAD：`347c1dc3518b1093a7d0f415441d5e14e6c53aeb`（Progress checkpoint）。
+- PR #1：Draft=true、Open、Unmerged；严禁合并。
+- 最新 Actions #710：Ubuntu 和 Windows 均为 `runner_id=0`、空 runner_name、0 steps；最近 10 次 #701–#710 均未进入测试步骤，原因未知。
+- 本次只有设计文档和 Progress/Handoff 更新；没有运行时代码修改，没有运行测试，也没有声称通过。
+- 下一步：在现有 `GroundedMemoryProposalProvider` 协议后实现严格的云端模型 provider，先用 fake HTTP transport 做测试；API key 只从运行环境读取，不进入仓库。模型只产生 grounded proposal，不能直接写入 CSD accepted state，也不能调用 ASM。
+- 后续再增加带版本的历史记忆上下文入口；之后才接 Life Engine 的真实 deliberator。
