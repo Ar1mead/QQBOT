@@ -682,3 +682,12 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - Latest code/test checkpoint remains 37536152a09f145f9867471dbac40fc7e55c5772. No code changed after that checkpoint.
 - Run #780 (ID 44586330403) failed before steps/logs were exposed on both Ubuntu and Windows. No test execution is established.
 - Do not mistake the documentation commits for a code/test checkpoint or claim tests passed. PR #1 remains Draft / Open / Unmerged.
+
+
+## 0.6 PR base-branch divergence — review before any synchronization
+
+- PR #1 remains Draft / Open / Unmerged.
+- Current compare result against main: status=diverged, feature ahead_by=1432, behind_by=7. PR base SHA at creation: 05cfce6211ad072342201697d324d610d0fb40d1.
+- The seven main-only commits after that base are one 2026-11-16 CSD goal-test addition, three Stage 0 documentation commits, and three documentation reverts. The feature branch contains the goal test file with the same 54 test method names, but its contents differ; the relevant README/progress/report files also differ.
+- This does not show a missing test suite, but it does mean the histories are divergent and PR metadata currently reports mergeable=false. Do not merge/rebase/force-sync the branches as part of routine continuation. First inspect a deliberate diff and obtain explicit user authorization for any history synchronization.
+- The active feature branch remains the working branch. Latest code/test checkpoint is 37536152a09f145f9867471dbac40fc7e55c5772; docs-only commits after it do not change runtime/test code.
