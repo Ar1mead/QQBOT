@@ -68,6 +68,7 @@ Implemented on the active feature branch in `core/csd/accepted_claim_references.
 - Read the accepted-memory projection, proposal, decision, proposal event and source events inside one SQLite read snapshot. If called while CSD already owns a transaction, reuse that transaction rather than opening a nested one.
 - Verify the referenced proposal event is the matching grounded-proposal event; verify every source event is an integrity-valid observation/v2 event earlier than the proposal.
 - The pipeline builds an allowlist from selected accepted-memory claims under opaque keys. The model may return only keys from that allowlist; the resolver re-resolves each selected key to canonical memory/claim lineage. Duplicate memory/claim pairs and repeated selected keys are deduplicated.
+- Building the reference allowlist and resolving the model-selected reference bundle each happen inside one SQLite read snapshot (or reuse the caller's active CSD transaction), so a multi-claim bundle is not assembled from independently changing snapshots.
 
 Tests added in `tests/test_csd_accepted_claim_references.py`; they are wired into the workflow, but **have not been executed**.
 
