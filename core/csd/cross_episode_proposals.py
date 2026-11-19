@@ -371,6 +371,8 @@ def validate_cross_episode_proposal_event(
     if owner != ("user" if kind == "preference_candidate" else "ai"):
         raise ValueError("cross-episode candidate owner does not match its kind")
     domain = _text(candidate.get("domain"), "candidate.domain")
+    if candidate.get("domain") != domain:
+        raise ValueError("candidate.domain must be canonical text")
     allowed_domains = (
         USER_PREFERENCE_DOMAINS if kind == "preference_candidate"
         else AI_INTEREST_DOMAINS
