@@ -671,3 +671,14 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - The design contract now distinguishes implemented historical resolver + pending-shadow append/Recovery from unimplemented reviewer v2, decision-time validation and CSD revision reducer. The autonomous-life proposal's status section has also been refreshed to reflect existing prior-memory context, same-episode reviewer v1, and the cross-episode pending event.
 - Next: continue static contract review, preserve pending-only status, and do not let candidates affect Life Engine ranking. Do not repeatedly trigger empty Actions runs. Before implementing accepted preference/self-model changes, complete reviewer v2, CSD decision/revision events, decision-time revalidation, reducer and Recovery tests.
 - PR #1 must remain Draft / Open / Unmerged. Re-fetch live PR metadata before any future work; do not merge.
+
+
+## 0.5 Documentation reconciliation — 2026-11-20
+
+- The cross-episode contract header and implementation sequence now reflect reality: historical resolver and pending-shadow append/Recovery are implemented; reviewer v2, decision-time revalidation and accepted preference/self-model reducer are not.
+- Its implementation details now specify the actual v1 event shape (one candidate per proposal), canonical references, pending-only state and no Life Engine ranking.
+- The autonomous-life proposal's status section now reflects the current code: lexical prior-memory context and same-episode semantic reviewer v1 exist; cross-episode reviewer v2, CSD revision reducer, private home, autonomous scheduler, long-term project management and proactive-contact queue remain future work.
+- Documentation commits: autonomous-life status ce88f05691a1cddaee23528aedc986c02cece1fc; cross-episode contract 9695c44a40a44bcb38672d0ac592172239b6bb02.
+- Latest code/test checkpoint remains 37536152a09f145f9867471dbac40fc7e55c5772. No code changed after that checkpoint.
+- Run #780 (ID 44586330403) failed before steps/logs were exposed on both Ubuntu and Windows. No test execution is established.
+- Do not mistake the documentation commits for a code/test checkpoint or claim tests passed. PR #1 remains Draft / Open / Unmerged.
