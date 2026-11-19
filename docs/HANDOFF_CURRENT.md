@@ -3,7 +3,7 @@
 **最后核对：** 2026-11-19（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**核对时分支 HEAD：** `2415a4e8c0877d9f85c17718cebea21a1fce512b`  
+**本次开始核对时分支 HEAD：** `77549a1ef6146307008b42fb49dd3570e399b0ae`  
 **PR：** #1 — Draft / Open / Unmerged（严禁合并）
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。日期命名的旧交接文件只作为历史记录，不得作为当前状态依据。开始工作时必须重新核对 GitHub 实际状态，文中的 SHA 和 Actions 状态都是本次核对时的快照。
@@ -42,9 +42,9 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 
 ## 3. 当前仓库和 PR 状态
 
-本次核对：
-- 活动分支 HEAD：`2415a4e8c0877d9f85c17718cebea21a1fce512b`。
-- PR #1 head 与该 SHA 一致。
+本次开始核对：
+- 活动分支 HEAD：`77549a1ef6146307008b42fb49dd3570e399b0ae`。
+- PR #1 head 与该 SHA 一致；本次后续文档提交会推进分支 HEAD，下次续接必须重新读取实时状态。
 - PR #1：Draft=true、state=open、merged=false。
 - PR #1 当前规模很大（约 1,268 commits、151 changed files）；这增加了审查、回归定位和发布风险。不要为了缩短流程而合并；应继续按明确验证门槛推进。
 
@@ -357,3 +357,42 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - Current Progress checkpoint: `2415a4e8c0877d9f85c17718cebea21a1fce512b`. PR #1 head at the last live check was `7bd365332f71065dbfaeee31c8563207a07eb586`; Draft/Open/Unmerged.
 - Next: when runner allocation is restored, run `test_csd_openai_compatible_provider.py` and `test_csd_grounded_proposal_pipeline.py` first, then the full Ubuntu/Windows matrix. Do not keep creating commits just to provoke Actions.
 - After static review, continue with a versioned and bounded prior-memory context contract for cross-session synthesis. Do not silently alter the current provider protocol or pass a database/store object into the model provider.
+
+
+## 16. 自主生活与持续成长设计方向 — 2026-11-19
+
+正式设计提案：`docs/design/autonomous-life-and-self-development.md`。该文档汇总了 ai-companion-pi、NeoPsyke、SAKU、Orrin、Generative Agents、PSFN、Argus、Letta、Voyager 和 Tamanitomo 的可借鉴机制，并把它们映射到现有三层架构。
+
+### 已确定的设计共识
+
+- **私人生活空间：** 保存日记、作品、研究、长期项目、技能和待续想法。它只负责活动产物与工作资料；CSD 仍是身份和长期认知状态唯一权威。
+- **时间与唤醒：** 采用定时评估、事件触发和自主请求三种来源。唤醒只触发评估，不强制做事；自主请求不能自行增加预算、改变调度规则或取得新权限。
+- **兴趣和长期项目：** 兴趣可以演化成跨多次活动的项目；支持继续、暂停、恢复、修订、放弃和 no-op，不能每天随机编造任务。
+- **反思和自我修订：** 区分观察事实、AI 自述、模型解释和 CSD 接受的状态。偏好/自我模型必须有来源、置信度、支持证据、反证、适用范围和修订历史。
+- **技能成长：** 只保存经过验证、有适用条件和限制说明的可复用技能；技能不能扩大权限。
+- **结果学习：** 比较活动目标和实际结果，保留失败及因果不确定性，形成后续更新提案。
+- **主动联系：** 先进入待发送队列，检查用户许可、安静时段、频率和重要性；实际发送属于外部副作用，必须走 ASM。
+
+### 对 ai-companion-pi 的明确改进
+
+不直接照搬每四小时 cron、以 Markdown 文件作为唯一身份连续性、模型直接改写核心人格文件、宽泛 unrestricted shell/文件访问、每次醒来强制产出或立即发送消息。固定周期只是一种可配置触发来源，不是产品行为义务。日记是生活产物，不是权威状态；模型自述不是事实。
+
+### 新的实施优先级
+
+- **P0：** 云端模型驱动的最小认知循环（当前首要任务）。
+- **P1：** 经历反思、自我模型和偏好修订。
+- **P2：** 最小私人生活空间；可先做简单 artifact 目录，但不能拖延 P0。
+- **P3：** 兴趣、长期项目与自主活动选择。
+- **P4：** 定时、事件和自主请求唤醒，含预算、冷却、过期和用户边界。
+- **P5：** 技能积累与活动结果评价。
+- **P6：** 主动联系和更多平台扩展。
+
+### 当前真实状态与边界
+
+以上均为已记录的设计方向，不代表对应功能已经实现。当前没有生产级唤醒调度器、私人 Home、长期项目管理、技能库或主动消息队列；Life Engine 仍缺真实 deliberator 和运行时接线。云端 grounded-memory provider 已提交，但其新增集成测试尚未执行；真实 API smoke test 未进行。当前 Actions runner 分配问题仍需单独处理。
+
+本次开始核对时 PR #1 head 为 `77549a1ef6146307008b42fb49dd3570e399b0ae`，PR #1 为 Draft / Open / Unmerged。Run #716（ID `44549751577`）的 Ubuntu/Windows jobs 均失败且未提供执行 steps；这不是测试失败，也不是测试通过。文档提交会推进分支 HEAD，下一窗口必须重新实时核对。
+
+### 下一步
+
+继续 P0：静态审查 `OpenAICompatibleGroundedMemoryProvider` 与 `GroundedMemoryProposalPipeline` 的集成测试，runner 恢复后先运行 focused tests，再考虑完整 matrix。随后再设计版本化、有限的历史记忆上下文契约。不得因为新增长期生活机制而跳过认知循环，也不得为触发 CI 而重复提交无意义代码。
