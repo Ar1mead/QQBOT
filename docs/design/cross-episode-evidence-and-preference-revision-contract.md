@@ -64,7 +64,9 @@ Implemented on the active feature branch in `core/csd/accepted_claim_references.
 - Require the memory's proposal ID, proposal event ID and accepted decision event ID to agree across the memory projection, proposal projection and authoritative decision event.
 - Version 1 accepts only `source_assertion` claims with non-empty evidence lineage. Inference claims are deliberately excluded until recursive provenance and reviewer-v2 semantics are designed.
 - Compute a canonical SHA-256 claim digest from the stored claim; copy distinct source event IDs from its evidence list.
-- Bind resolution to an expected CSD state version and check the version again after resolution.
+- Bind resolution to an expected CSD state version and check it before/after reading.
+- Read the accepted-memory projection, proposal, decision, proposal event and source events inside one SQLite read snapshot. If called while CSD already owns a transaction, reuse that transaction rather than opening a nested one.
+- Verify the referenced proposal event is the matching grounded-proposal event; verify every source event is an integrity-valid observation/v2 event earlier than the proposal.
 - The pipeline builds an allowlist from selected accepted-memory claims under opaque keys. The model may return only keys from that allowlist; the resolver re-resolves each selected key to canonical memory/claim lineage. Duplicate memory/claim pairs and repeated selected keys are deduplicated.
 
 Tests added in `tests/test_csd_accepted_claim_references.py`; they are wired into the workflow, but **have not been executed**.
