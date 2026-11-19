@@ -292,3 +292,23 @@ The reserved review event must bind the exact candidate proposal event identity,
 The same validator must be used for append, duplicate delivery, direct reads, and Recovery. Public event submission cannot forge the reserved event. Event identity must be deterministic and idempotent; distinct reviewers or versions can create distinct records.
 
 This event has no reducer effect on accepted preferences, AI interests, self-model, goals, Life Engine ranking, or ASM permissions. It is an audit record only. Any later decision or preference revision is a separate CSD-owned event with its own policy, evidence revalidation, and Recovery contract.
+
+
+### 3.9 CSD-owned review-record implementation status — 2026-11-20
+
+The reserved audit event is now implemented in the active feature branch:
+
+- Event type: `cognition.cross_episode_review_recorded.v1`; source is reserved as `csd.cross-episode-review-authority.v1`.
+- `CrossEpisodeReviewPipeline.record_review(artifact)` rebuilds the candidate's canonical evidence snapshot, checks the ephemeral artifact's proposal event identity/sequence/payload digest, reviewer-input digest and recorded state version, revalidates the normalized bounded candidate, and appends a CSD-reserved immutable event.
+- The event stores reviewer ID/version, review timestamp, exact proposal and evidence digests, state version, and the normalized bounded opinion. Its deterministic review ID is the digest of the canonical payload excluding the review ID; event ID is derived from that review ID.
+- CSD rejects public submission of the reserved event type and reserved event-ID namespace. Internal append validation checks the reserved source.
+- The shared event-local validator reconstructs the bounded review snapshot at the event's historical boundary, checks proposal chronology and exact digests, validates reviewer/result fields and reference selections, and rejects duplicate review identity.
+- The same event-local validation path is invoked during append, duplicate acknowledgement, direct `get_event` reads and Recovery replay. The review event creates no mutable preference/self-model projection and has no effect on candidate acceptance, Life Engine ranking, goals or ASM.
+
+**Important verification gap:** the implementation exists, but the current focused test file contains only the ten read-only pipeline tests. It does not yet contain dedicated tests for `record_review`, public-submit denial, duplicate acknowledgement, direct event-read tampering, or review-event Recovery replay. These are the next required tests; do not treat the durable event as fully verified.
+
+### 3.10 CI workflow repair and current runner status
+
+A static inspection found literal backslash-`n` sequences in `.github/workflows/csd-cognitive-slice.yml` in both path-filter sections and the cross-episode review test step. These have been replaced with actual YAML line breaks in commit `06408dbf1c577849be92a15bd39a5316a32ea5df`.
+
+After that correction, Actions Run #808 (ID `44592352031`) created both Ubuntu and Windows jobs, confirming the workflow is now parsed. Both jobs still failed immediately with empty step lists and runner ID `0`; the job-log endpoint returned BlobNotFound. No checkout, compile, or test command executed. Therefore the malformed YAML was a real workflow defect, but the remaining failure is still at job/runner allocation and its exact cause is not established.
