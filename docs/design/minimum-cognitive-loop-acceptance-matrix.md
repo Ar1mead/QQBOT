@@ -95,6 +95,7 @@ Slice B is not required to prove the first model-backed autobiographical memory 
 | LOOP-16 | A later observation is processed with accepted history | Provider receives a bounded, versioned, untrusted context containing only accepted memories; pending/rejected proposals are excluded | Prior-memory selector + grounded pipeline |
 | LOOP-17 | Cloud grounded provider emits an inference | Separate cloud semantic reviewer returns an attributed outcome; CSD remains pending until review and its own evaluation; supported is not treated as objective truth | Cloud providers + semantic-review pipeline + CSD |
 | LOOP-18 | Model infers a stable preference from several historical episodes | Not yet supported; no cross-episode evidence reference or preference revision contract may be bypassed | Future cross-memory synthesis contract |
+| LOOP-19 | Pipeline resolves a historical source-assertion claim | Resolver verifies accepted memory/proposal/decision lineage, claim digest, evidence lineage and state version; duplicate pairs deduplicate; append/decision-time revalidation is still required | Accepted-claim resolver groundwork (not full cross-episode proposal support) |
 
 ## 7. Implementation order and gates
 
