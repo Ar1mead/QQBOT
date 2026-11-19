@@ -17,13 +17,13 @@
 
 - 本轮起始实时 PR #1 head：`531cde2f84c600f2295d330c4698c9ebddf5a301`；状态 Draft / Open / Unmerged。
 - 比较 `48a4a7fd9caef156cf60549d21326ff59ac18f29` 到起始 HEAD：7 个提交，只涉及 Progress/Handoff、验收矩阵和组合测试 fixture；没有未记录的运行时代码变更。
-- 新增只读 accepted historical claim resolver：`core/csd/accepted_claim_references.py`。它要求 memory/proposal/decision lineage 一致、accepted projection 完整、source_assertion claim 唯一、证据事件可由 accepted projection 验证，并绑定 state_version 与 canonical claim digest。Pipeline 选择后生成 opaque keys，重复 claim pair 去重。
+- 新增只读 accepted historical claim resolver：`core/csd/accepted_claim_references.py`。它要求 memory/proposal/decision lineage 一致、accepted projection 完整、source_assertion claim 唯一、证据事件可由 accepted projection 验证，并绑定 state_version 与 canonical claim digest。Pipeline 先构造 accepted-claim allowlist，再生成 opaque keys；模型只能选择 allowlist 中的 key，随后 resolver 会重新解析真实 memory/claim lineage，重复 pair/key 去重。
 - 新增 `tests/test_csd_accepted_claim_references.py`，并加入 workflow 与 package exports。
 - **未完成：** 尚未新增 cross-episode proposal event family；resolver 还未接入模型 provider/pipeline；CSD 尚未在 proposal append 和 decision 两处重新解析引用；尚无 semantic reviewer v2、preference reducer、Recovery。所有跨经历解释仍禁止进入 accepted preference state 或驱动 Life Engine。
 - **测试未执行。** 新测试只有源码静态检查，未在本地或 GitHub Actions 执行；无真实 API smoke test。
 - Run #724（ID `44566099273`）jobs：Windows 135708120696、Ubuntu 135708121260 均 failure 且 steps=[]；Run #723 同样无 steps。当前起始 PR head 查询不到关联 PR-triggered workflow run。可用 connector 没有可靠的仓库最近 10 次全局 runs 列表。
 - 本轮 commits：resolver `867767488e1776a394e13612fe2d0fc589f0b966`；tests `fdc46bd6a6be725b3d42d2b685acf83f3eef1629`；exports `79a4165cef0f66d7eeccd2e63294f2f34a70f0e2`；workflow `fbd7d5c6f30926cfd6b4af676ebb6e3dc2562e89`；identifier guard `720ad9cdd12391c1131629d7c7e46b5c39f4a870`；PR path filter `07f1b4549a37b14039c47150f24c7ea70e889ed9`。
-- 修复提交：package exports `57f38d7dd4f2bb5920cb5b0b3ee98e9362149750`；workflow newline `136a7ea85532f5413fd0d742a4de154af3e7a219`；新增 focused-test step `02a1b62ba2c6049a568f2760f76a567e91a605fd`。已静态确认 YAML path filters 在 push/PR 两处均包含新测试文件，且测试步骤存在。
+- 修复提交：package exports `57f38d7dd4f2bb5920cb5b0b3ee98e9362149750`；workflow newline `136a7ea85532f5413fd0d742a4de154af3e7a219`；新增 focused-test step `02a1b62ba2c6049a568f2760f76a567e91a605fd`；opaque-key-only selection `a9aa282b6c2972d1524fafc6ba9271e012484504`；exports `74030ee809e2d3c7c43d634f1a2329d2e000ea0f`；selection tests `94450f94bc707328c2d5e4692bc386fdb8974e57`。已静态确认 YAML path filters 在 push/PR 两处均包含新测试文件，且测试步骤存在。
 
 PR #1 必须保持 Draft / Open / Unmerged。
 
