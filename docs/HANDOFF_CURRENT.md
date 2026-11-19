@@ -659,3 +659,15 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 
 - PR #1 head before this handoff append: 1772b35f514940742a7a27d974586e8d9aacdcfc.
 - The final PR head must be re-fetched after this documentation commit. The code/test checkpoint remains 855822a...
+
+
+## 0.4 Continuation update — duplicate alias rejection and current CI blocker (2026-11-20)
+
+- Latest code/test checkpoint: 37536152a09f145f9867471dbac40fc7e55c5772.
+- Static review found a consistency gap: distinct opaque context keys could resolve to the same accepted memory/claim identity. The CSD append validator already rejected duplicate persisted identities, but the builder did not reject them early.
+- Fixed the builder to reject duplicate resolved claim identities before it returns a CrossEpisodeProposal. Added a regression test using two aliases for one accepted claim.
+- Actions Run #780 (ID 44586330403) for this code/test checkpoint failed before either Ubuntu or Windows job exposed steps. Both jobs returned logs_url=null and steps=null. This repeats the runner/job-startup failure pattern; no test execution is established.
+- No tests are claimed as passing. No local test, Windows runtime verification, or live cloud API smoke test has run.
+- The design contract now distinguishes implemented historical resolver + pending-shadow append/Recovery from unimplemented reviewer v2, decision-time validation and CSD revision reducer. The autonomous-life proposal's status section has also been refreshed to reflect existing prior-memory context, same-episode reviewer v1, and the cross-episode pending event.
+- Next: continue static contract review, preserve pending-only status, and do not let candidates affect Life Engine ranking. Do not repeatedly trigger empty Actions runs. Before implementing accepted preference/self-model changes, complete reviewer v2, CSD decision/revision events, decision-time revalidation, reducer and Recovery tests.
+- PR #1 must remain Draft / Open / Unmerged. Re-fetch live PR metadata before any future work; do not merge.
