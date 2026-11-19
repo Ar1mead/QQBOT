@@ -1817,3 +1817,18 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - The final change includes the selector, pipeline/provider integration, package exports, selector/pipeline/provider tests, workflow path filters and a dedicated test step, plus Progress/Handoff updates.
 - No local execution or real cloud API smoke test occurred. All new tests remain unverified until a runner can execute them.
 - Do not repeatedly push empty or unrelated commits to trigger Actions. Continue static review, then run focused tests when runner allocation is restored.
+
+
+## Cloud semantic reviewer and combined cognitive-loop slice — 2026-11-20
+
+- Added `OpenAICompatibleSemanticReviewProvider` in `core/csd/openai_compatible_provider.py`, implementing the existing `SemanticReviewProvider` protocol.
+- Reuses the HTTPS Chat Completions transport and environment credential names. It has no CSD store, database, filesystem, tools, browser or ASM handle.
+- Receives one pending proposal's inference claim and direct source claims. It returns a strict, bounded opinion: outcome, reasoning summary, supporting source claim IDs, alternatives and limitations. Supporting IDs must be from the supplied direct claims.
+- Added fake-transport unit tests for supported/non-supported outcomes, unknown IDs, unsupported fields, duplicate JSON keys, oversized payloads, timeout handling, invalid source types and endpoint/credential validation.
+- Added combined integration test: persisted observation → OpenAI-compatible grounded provider → pending proposal → OpenAI-compatible semantic reviewer → explicit CSD acceptance. This uses fake transports; it does not contact a live API.
+- Added workflow path filters and dedicated test steps for the semantic reviewer and combined loop.
+- Added `docs/design/cross-episode-evidence-and-preference-revision-contract.md` as the next design gate. It defines immutable historical claim references, independent source-event counting, support/counter-evidence, scoped preference candidates and CSD-owned revision history.
+- Updated the minimum-loop acceptance matrix: prior claims that cloud provider, prior-memory context or semantic review do not exist have been corrected.
+- **Validation status: source-level review only. No tests have been executed locally or by GitHub Actions, and no live API smoke test has been run.** The new tests must not be described as passing.
+- Current branch head will be recorded after the code/docs commit is created and verified.
+

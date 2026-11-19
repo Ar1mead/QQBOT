@@ -500,3 +500,29 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - Actions Run #722（ID `44563530149`）针对当前 head 创建后约 3 秒即失败。Ubuntu/Windows 两个 job 的 steps 均为空，未分配 runner、没有执行任何测试命令。这是 runner/基础设施失败，不是代码测试失败，也不是测试通过。
 - 本轮所有新增测试仍未执行；没有本地测试结果，也没有真实云端 API smoke test。
 - 下一步不要为了触发 CI 而反复提交无意义 commit。继续静态审查；runner 恢复后先运行三个 focused tests，再跑完整矩阵。
+
+
+## 22. 云端语义审查 provider 与组合认知循环 — 2026-11-20
+
+### 新增实现
+
+- `OpenAICompatibleSemanticReviewProvider` 实现现有 `SemanticReviewProvider` protocol。
+- 复用 HTTPS Chat Completions transport 和环境变量凭据；不持有 CSD store、数据库、文件系统、工具、浏览器或 ASM。
+- 输入限制为单个 pending proposal 的 inference claim 与其直接 source claims。
+- 输出严格限定 outcome、reasoning summary、supporting source claim IDs、alternative explanations、limitations；支持 ID 必须来自输入；限制响应/字段长度；异常和未知字段 fail closed。
+- 新增 fake-transport 单元测试，以及 observation → grounded provider → pending proposal → semantic reviewer → CSD 独立接受的组合测试。
+- workflow 新增两个测试文件的 path filters 和独立执行步骤。
+- 新增 `docs/design/cross-episode-evidence-and-preference-revision-contract.md`，定义下一阶段跨 episode 引用、独立事件计数、正反证据、偏好候选与 CSD 修订权威边界。
+- 已修正最小认知循环验收矩阵中过时的“无云 provider / 无 prior context / 无 semantic review”描述。
+
+### 验证边界
+
+- 本轮只做源码静态审查；没有本地执行测试、没有 Actions runner 执行测试、没有真实 API smoke test。
+- 组合测试使用 fake transport，不会连接模型服务。不能把它称为 live API 或通过 CI。
+- 现有 reviewer 只检查同一 proposal 的 inference 与直接 source claims。跨 episode synthesis / preference revision 仍未实现。
+
+### 下一步
+
+1. 静态核对 provider parser、组合测试 fixture、导出和 workflow。
+2. runner 可用后先执行 semantic reviewer tests、cloud loop integration、grounded pipeline、CSD semantic review，再跑完整矩阵。
+3. 接着按 cross-episode contract 实现历史 claim reference resolver；候选保持 pending/shadow，直到 CSD preference reducer 与 Recovery 通过测试。

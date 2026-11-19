@@ -28,7 +28,9 @@ from .prior_memory_context import (
 )
 from .openai_compatible_provider import (
     CloudProposalProviderError,
+    CloudSemanticReviewProviderError,
     OpenAICompatibleGroundedMemoryProvider,
+    OpenAICompatibleSemanticReviewProvider,
 )
 from .grounded_proposals import (
     GroundedInference,
@@ -61,6 +63,8 @@ __all__ = [
     "PriorMemoryContextError",
     "build_prior_memory_context",
     "CloudProposalProviderError",
+    "CloudSemanticReviewProviderError",
+    "OpenAICompatibleSemanticReviewProvider",
     "OpenAICompatibleGroundedMemoryProvider",
     "INTERACTION_EVENT",
     "MOTIVATION_DECISION_EVENT",

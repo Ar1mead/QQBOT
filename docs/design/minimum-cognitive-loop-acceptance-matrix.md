@@ -34,18 +34,18 @@ The first model-backed milestone must prove that an actual cloud model can inter
 5. The current goal sink can immediately evaluate a valid candidate-goal proposal. Until a semantic review gate exists, model-generated goal creation must remain in a restricted/shadow path or be limited to candidate state with explicit evidence and no activity execution.
 6. There is no production user-facing runtime wiring, credential configuration, or end-to-end cloud API test. No provider credentials should be committed to the repository.
 
-## 4. Smallest safe provider integration seam
+## 4. Provider integration boundary
 
-Use the existing provider protocols rather than introducing a new agent framework:
+The first cloud-backed provider seams now exist; keep them behind the existing protocols rather than introducing another agent framework:
 
-- For evidence-grounded episode interpretation, implement a provider for `GroundedMemoryProposalProvider`.
-- For bounded goal/activity deliberation, implement a provider for the existing `Deliberator` protocol.
-- Keep model transport separate from provider-specific domain mapping. Prefer a configurable OpenAI-compatible Chat Completions transport so the model vendor and endpoint can be changed without changing CSD or Life Engine.
-- The provider receives only a bounded, explicitly serialized snapshot/observation. Do not give it a database connection, CSD store object, filesystem access, browser, tool executor, or ASM handle.
-- Parse a strict JSON response into existing typed dataclasses. Reject unknown fields, unknown IDs, unsupported dispositions, malformed evidence references, and invalid state versions before the existing validators run.
-- A timeout, HTTP error, malformed response, or empty proposal must not mutate CSD.
-- Keep credentials in environment/runtime secret configuration. Never store API keys in source, tests, documentation examples, or event payloads.
-- Start with deterministic fake-transport tests. A real provider smoke test requires a separately configured credential and must be reported separately from unit tests.
+- `OpenAICompatibleGroundedMemoryProvider` implements `GroundedMemoryProposalProvider` for source-grounded episode extraction.
+- `OpenAICompatibleSemanticReviewProvider` implements `SemanticReviewProvider` for reviewing an inference against direct source claims in the same proposal.
+- Both use configurable HTTPS Chat Completions endpoints and environment/runtime credentials. Neither receives a CSD store, database connection, filesystem, browser, tool executor, or ASM handle.
+- The grounded pipeline adds the versioned, bounded accepted-memory context. Historical text is untrusted continuity context; it is not proof for a new source assertion.
+- Both providers parse strict JSON into typed proposals/opinions. Unknown fields, duplicate keys, unknown claim IDs, malformed output, oversized content and transport failures fail closed.
+- The semantic reviewer returns an attributed opinion, not truth. The existing review pipeline binds it to immutable proposal/claim digests; CSD alone accepts, rejects, defers or requests more evidence.
+- The combined fake-transport integration test covers observation → grounded provider → pending proposal → semantic review → CSD acceptance. This is not a live API test.
+- Credentials remain outside source, tests, docs and event payloads. A live API smoke test requires separately configured runtime secrets and must be reported separately from fake-transport tests.
 
 ## 5. First vertical slice
 

@@ -42,6 +42,8 @@ on:
       - "tests/test_csd_semantic_review.py"
       - "tests/test_csd_semantic_review_pipeline.py"
       - "tests/test_csd_openai_compatible_provider.py"
+      - "tests/test_csd_openai_compatible_semantic_review.py"
+      - "tests/test_csd_cloud_cognitive_loop.py"
       - "tests/test_csd_prior_memory_context.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   pull_request:
@@ -83,6 +85,8 @@ on:
       - "tests/test_csd_semantic_review.py"
       - "tests/test_csd_semantic_review_pipeline.py"
       - "tests/test_csd_openai_compatible_provider.py"
+      - "tests/test_csd_openai_compatible_semantic_review.py"
+      - "tests/test_csd_cloud_cognitive_loop.py"
       - "tests/test_csd_prior_memory_context.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   workflow_dispatch:
@@ -177,6 +181,10 @@ jobs:
         run: python -m unittest discover -s tests -p "test_csd_semantic_review_pipeline.py" -v
       - name: Run OpenAI-compatible grounded provider tests
         run: python -m unittest discover -s tests -p "test_csd_openai_compatible_provider.py" -v
+      - name: Run OpenAI-compatible semantic-review provider tests
+        run: python -m unittest discover -s tests -p "test_csd_openai_compatible_semantic_review.py" -v
+      - name: Run cloud-backed cognitive loop integration tests
+        run: python -m unittest discover -s tests -p "test_csd_cloud_cognitive_loop.py" -v
       - name: Run bounded prior-memory context tests
         run: python -m unittest discover -s tests -p "test_csd_prior_memory_context.py" -v
       - name: Run existing persistence baseline tests
