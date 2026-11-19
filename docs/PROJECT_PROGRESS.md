@@ -3,7 +3,7 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Latest verified branch / PR #1 head at this checkpoint: `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`  
+> Last code/test checkpoint before documentation reconciliation: `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
@@ -11,7 +11,7 @@ This is the durable hand-off record for continuing work when conversation contex
 
 ## Current status snapshot — 2026-11-20
 
-- PR #1 was freshly fetched: `state=open`, `draft=true`, `merged=false`; its head branch is `feature/csd-cognitive-memory-slice`, and its head SHA matches `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`.
+- At the start of the documentation reconciliation, PR #1 was freshly fetched as `state=open`, `draft=true`, `merged=false`; its head branch was `feature/csd-cognitive-memory-slice`, and its head SHA was `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`. Subsequent commits in this reconciliation update documentation only; always fetch the live head rather than treating that code checkpoint as current.
 - The previous top-level snapshot and next gate incorrectly prioritized Windows Worker/runtime-bundle infrastructure. That priority is superseded by the cognition-first decision recorded later in this ledger and in `docs/HANDOFF_CURRENT.md`.
 - Current P0 code slices present on the branch:
   - `OpenAICompatibleGroundedMemoryProvider`: cloud model proposes grounded memory claims; proposal remains pending until CSD evaluation.
@@ -1856,7 +1856,7 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 ## Current reconciliation — 2026-11-20 (supersedes older next-step notes)
 
 - Re-read the live branch versions of this ledger and `docs/HANDOFF_CURRENT.md`; the older opening snapshot and early handoff sections were stale and have now been reconciled.
-- Live PR #1 metadata: Draft=true, Open, Unmerged; head branch `feature/csd-cognitive-memory-slice`; head SHA `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`.
+- At reconciliation start, live PR #1 metadata was Draft=true, Open, Unmerged; head branch `feature/csd-cognitive-memory-slice`; head SHA `76ea71a9eb310b2641bb1f4186e2b0bb0e4c6ba8f`. Documentation-only commits `62180a925a04d3ba3c9a6666af5b3dc6d013b8c8` and `e572a193283487797214369106e723184d72d4e5` then advanced the branch. The latest HEAD after the final documentation update must be fetched live.
 - The current P0 implementation consists of the cloud grounded-memory provider, accepted prior-memory context selector, cloud semantic reviewer, and fake-transport combined cognitive-loop test. These are committed source/test artifacts, not proof of runtime operation.
 - Current test evidence remains blocked: Run #724 had no allocated runner and zero steps on both Ubuntu and Windows. No tests ran in that workflow. No local suite or live model API test has run.
 - The runner-allocation cause is not established from the available evidence. Do not guess at billing, quota, repository settings, or a GitHub outage. Avoid repeatedly creating commits or rerunning the same empty jobs without a new diagnostic signal.
