@@ -192,6 +192,61 @@ A reference resolver used by append-time validation, decision-time validation, o
 The resolver now accepts an optional `through_sequence` **exclusive** boundary: only events with `sequence < through_sequence` existed in the requested prefix. It verifies that the referenced accepted-decision event exists strictly before that boundary. Because CSD's internal `_authoritative_state_version(..., through_sequence=...)` helper uses an inclusive sequence, the resolver converts the exclusive boundary to `through_sequence - 1` before calculating the state version. This distinction is essential: a decision at the boundary must not leak into the earlier state version. The caller must use the same exclusive boundary for every reference in one event validation. Regression coverage checks the prefix immediately before and immediately after an accepted decision, plus rejection of negative, boolean and non-integer boundaries. The pending-only CSD event now invokes this resolver inside its append transaction and during ordered Recovery replay. Decision-time validation remains a future gate.
 
 
+## 3.5 Existing same-episode semantic-review input bounds
+
+A separate hardening pass found that semantic-review v1 provider output and durable event validation checked field types and duplicate entries but did not cap the lengths of reasoning text or explanation lists. This allowed unnecessarily large model-authored review payloads to enter the event log.
+
+The v1 review path now applies matching bounds before provider output is submitted and again when CSD validates the durable event:
+
+- reasoning summary and each explanation/limitation item: at most 2,000 characters;
+- alternative explanations and limitations: at most 8 items each;
+- supporting source-claim IDs: at most 32;
+- review/proposal/claim identity strings: at most 200 characters;
+- digest fields: at most 80 characters.
+
+This is input-size/schema hardening only. It does not improve semantic truth assessment and does not implement cross-episode reviewer v2. Focused regression tests were added for oversized text and lists, but have not yet been executed.
+
+## 3.6 Cross-episode semantic reviewer v2 — implementation contract
+
+The reviewer must inspect the candidate against both sides of its evidence, not merely repeat the candidate's reasoning. It remains an advisory component, never a CSD authority.
+
+### Input snapshot
+
+The pipeline must load the exact pending-shadow candidate event and resolve all support and counter-evidence references against the historical prefix immediately before that event:
+
+- use the candidate event's sequence as the exclusive `through_sequence` boundary;
+- use the candidate's recorded `based_on_state_version`;
+- re-resolve each memory/claim pair through the CSD accepted-claim resolver;
+- compare every persisted lineage field and claim digest with the fresh resolution;
+- load each referenced source observation from the immutable event log, verify that it precedes the candidate event, and pass the exact claim plus its source evidence span and source content to the reviewer;
+- deduplicate source observations by event ID while preserving which claims/references they support or contradict;
+- bound the total review input size and fail closed rather than silently truncate evidence.
+
+This historical-prefix rule is important: a later accepted memory must not invalidate an earlier candidate or leak into the evidence the reviewer saw when that candidate was created.
+
+### Reviewer output
+
+The provider returns one strict bounded review object containing:
+
+- outcome: `supported`, `uncertain`, `unsupported`, `conflicting`, or `insufficient_context`;
+- reviewer confidence in the review itself, separate from candidate confidence;
+- a concise reasoning summary;
+- selected support-reference keys and counter-evidence-reference keys, each a subset of the exact bundles supplied;
+- scope assessment: `fits`, `too_broad`, `too_narrow`, or `unclear`;
+- bounded alternative explanations and limitations;
+- bounded risk flags, including possible sensitive inference, causal overreach, temporal instability, source ambiguity, and support/counter imbalance;
+- whether independent human review is required.
+
+The provider cannot return event IDs, CSD state changes, accepted preference values, actions, tool grants, or ASM instructions. Unknown fields, invented reference keys, support/counter overlap, malformed confidence, and oversized output fail closed.
+
+### Authority boundary
+
+- Reviewer v2 runs outside CSD write transactions and has no CSD mutation tools.
+- Its result is a non-authoritative review artifact. It cannot accept, reject, strengthen, weaken, narrow, retire, or activate a candidate.
+- A flagged or unclear sensitive inference must remain blocked; absence of a flag is not proof that the candidate is non-sensitive.
+- The subsequent CSD-owned review/decision event must re-resolve all evidence again at its own sequence boundary. The reducer must independently enforce owner/domain policy, state version, explicit user corrections, support/counter balance, and revision history.
+- Until that later event/reducer exists, reviewer v2 output must not affect Life Engine ranking or autonomous action.
+
 ## 3.4 CSD-owned pending cross-episode event
 
 The first durable cross-episode event family is now implemented as `cognition.cross_episode_candidate_proposed.v1`:
