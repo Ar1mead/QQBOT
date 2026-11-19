@@ -12,6 +12,9 @@ from typing import Any, Mapping, Sequence
 
 from .cognitive import (
     DECISION_EVENT,
+    OBSERVATION_EVENT,
+    OBSERVATION_EVENT_V2,
+    GROUNDED_PROPOSAL_EVENT,
     CognitiveIntegrityError,
     CognitiveMemoryStore,
 )
@@ -71,12 +74,15 @@ def _resolve_accepted_claim_reference_in_snapshot(
 
     try:
         proposal = store.get_proposal(proposal_id)
+        proposal_event = store.get_event(proposal_event_id)
         decision = store.get_event(decision_event_id)
     except (KeyError, CognitiveIntegrityError) as exc:
         raise AcceptedClaimReferenceError("accepted memory lineage is inconsistent") from exc
     if (
         proposal["status"] != "accepted"
         or proposal["decision_event_id"] != decision_event_id
+        or proposal_event["event_type"] != GROUNDED_PROPOSAL_EVENT
+        or proposal_event["payload"].get("proposal_id") != proposal_id
         or proposal["proposal_event_id"] != proposal_event_id
         or decision["event_type"] != DECISION_EVENT
         or decision["payload"].get("outcome") != "accepted"
@@ -101,6 +107,7 @@ def _resolve_accepted_claim_reference_in_snapshot(
     evidence = claim.get("evidence")
     if not isinstance(evidence, list) or not evidence:
         raise AcceptedClaimReferenceError("source assertion has no evidence lineage")
+    proposal_sequence = proposal_event["sequence"]
     source_event_ids: list[str] = []
     for item in evidence:
         if not isinstance(item, Mapping):
@@ -108,6 +115,15 @@ def _resolve_accepted_claim_reference_in_snapshot(
         event_id = item.get("event_id")
         if not isinstance(event_id, str) or not event_id:
             raise AcceptedClaimReferenceError("claim evidence event ID is invalid")
+        try:
+            source_event = store.get_event(event_id)
+        except (KeyError, CognitiveIntegrityError) as exc:
+            raise AcceptedClaimReferenceError("claim source event is unavailable or corrupt") from exc
+        if (
+            source_event["event_type"] not in {OBSERVATION_EVENT, OBSERVATION_EVENT_V2}
+            or source_event["sequence"] >= proposal_sequence
+        ):
+            raise AcceptedClaimReferenceError("claim source event is not an earlier observation")
         if event_id not in source_event_ids:
             source_event_ids.append(event_id)
 
