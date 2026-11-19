@@ -46,6 +46,7 @@ on:
       - "tests/test_csd_cloud_cognitive_loop.py"
       - "tests/test_csd_prior_memory_context.py"
       - "tests/test_csd_accepted_claim_references.py"
+      - "tests/test_csd_cross_episode_proposals.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   pull_request:
     paths:
@@ -90,6 +91,7 @@ on:
       - "tests/test_csd_cloud_cognitive_loop.py"
       - "tests/test_csd_prior_memory_context.py"
       - "tests/test_csd_accepted_claim_references.py"
+      - "tests/test_csd_cross_episode_proposals.py"
       - ".github/workflows/csd-cognitive-slice.yml"
   workflow_dispatch:
 
@@ -191,6 +193,8 @@ jobs:
         run: python -m unittest discover -s tests -p "test_csd_prior_memory_context.py" -v
       - name: Run accepted historical claim reference tests
         run: python -m unittest discover -s tests -p "test_csd_accepted_claim_references.py" -v
+      - name: Run shadow-only cross-episode proposal tests
+        run: python -m unittest discover -s tests -p "test_csd_cross_episode_proposals.py" -v
       - name: Run existing persistence baseline tests
         run: python -m unittest discover -s tests -p "test_csd_store.py" -v
       - name: Run motivation signal synthesis tests
