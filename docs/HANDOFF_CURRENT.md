@@ -3,7 +3,9 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**当前分支 / PR #1 HEAD：** `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`  
+**最后代码/测试 checkpoint（文档整理前）：** `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`  
+**文档整理提交：** `62180a925a04d3ba3c9a6666af5b3dc6d013b8c8`、`e572a193283487797214369106e723184d72d4e5`、`ac86d98c01dc50146774cea479f8af72679d3f78`  
+**当前 HEAD：** 每次续接必须从 PR #1 实时读取；本次 handoff 更新本身也会推进 HEAD。  
 **PR：** #1 — Draft / Open / Unmerged（严禁合并）
 
 
@@ -557,9 +559,10 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 ### 实时仓库状态
 
 - 活动分支 / PR #1 head branch：`feature/csd-cognitive-memory-slice`。
-- HEAD：`76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`。
-- PR #1：Draft=true、Open、Unmerged；PR head SHA 与分支 HEAD 一致。
-- 本次更新了 `docs/PROJECT_PROGRESS.md` 与本文件，提交后 HEAD 会再次前进；后续窗口必须重新读取 live HEAD 和 PR metadata，不得复用本 SHA。
+- 最后代码/测试 checkpoint（本轮文档整理前）：`76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`。
+- 本轮已先后提交 Progress/Handoff 文档整理：`62180a925a04d3ba3c9a6666af5b3dc6d013b8c8`、`e572a193283487797214369106e723184d72d4e5`、`ac86d98c01dc50146774cea479f8af72679d3f78`；这些提交只更新项目文档，不改变运行时代码。
+- PR #1 在文档整理开始时为 Draft=true、Open、Unmerged，head branch 与活动分支一致。当前实际 HEAD 会随着本 handoff 更新继续前进；新窗口必须实时读取 PR #1 的 `head_sha`，不要把代码 checkpoint 或上述文档提交 SHA 当成永远最新的 HEAD。
+- PR #1 必须继续保持 Draft / Open / Unmerged，严禁合并。
 
 ### 已提交的 P0 代码切片
 
