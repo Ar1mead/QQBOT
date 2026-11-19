@@ -1,6 +1,6 @@
 # Cross-Episode Evidence and Preference Revision Contract
 
- > Status: design contract with partial read-only resolver groundwork; cross-episode proposal and CSD append/decision revalidation remain unimplemented.
+ > Status: partially implemented — historical claim resolver and CSD-owned pending-shadow proposal event with append-time validation and Recovery replay exist; reviewer v2, decision-time revalidation, and accepted preference/self-model revision remain unimplemented.
 > Updated: 2026-11-20.
 > Scope: allow a model to propose a cautious pattern across multiple accepted episodes without allowing it to write identity state.
 
@@ -176,13 +176,13 @@ CSD must independently re-resolve every historical reference at proposal append 
 
 ## 8. Implementation sequence
 
-1. Add immutable typed historical-reference resolution over accepted CSD memories.
-2. Add cross-episode proposal schema and pending-only pipeline; do not mutate accepted preference state.
-3. Add semantic reviewer v2 that receives exact support and counter-evidence bundles.
-4. Add CSD event-history validation for each referenced accepted decision and claim digest.
-5. Add a separate CSD preference reducer with versioned propose/strengthen/weaken/narrow/retire transitions.
-6. Add Recovery, conflict, stale-state and adversarial reference tests.
-7. Only after the above passes should the Life Engine be allowed to use accepted preference state for activity ranking.
+1. Historical claim-reference resolution over accepted CSD memories — implemented, including exclusive historical-prefix validation.
+2. CSD-owned pending-shadow cross-episode proposal event — implemented with append-time reference revalidation and Recovery replay; focused tests are present but not yet executed.
+3. Semantic reviewer v2 — next; it must receive exact support and counter-evidence bundles and return a bounded, non-authoritative review.
+4. CSD-owned reviewer/decision event — next after reviewer v2; re-resolve every reference at decision time against the exact historical prefix and reject stale or altered lineage.
+5. Separate CSD preference/self-model reducer with versioned propose/strengthen/weaken/narrow/retire transitions and preserved revision history.
+6. Execute focused and adversarial tests, then full Ubuntu/Windows matrix; add any missing Recovery, conflict, duplicate-reference and stale-state coverage revealed by review.
+7. Only after the above is implemented and verified may the Life Engine use accepted preference/self-model state for activity ranking.
 
 ## 9. Explicit non-claims
 
