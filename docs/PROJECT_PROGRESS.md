@@ -1759,3 +1759,18 @@ Every new module or infrastructure task must state: (a) which user-visible cogni
 - 本次开始核对时 PR #1 head 为 `77549a1ef6146307008b42fb49dd3570e399b0ae`，状态 Draft/Open/Unmerged；该 SHA 的 PR-triggered workflow lookup 未返回 runs。此前 Run #716（ID `44549751577`）的 Ubuntu/Windows jobs 均在 runner 分配前失败，jobs 未提供 steps；新增云端 provider 集成测试仍未执行。不要把 runner allocation failure 当成测试结果。
 - PR #1 继续必须保持 Draft / Open / Unmerged，严禁合并。
 - 下一步仍先完成 P0：静态审查云端 provider 与 pipeline 集成测试，等待可用 runner 后执行 focused tests；之后增加版本化、有限的历史记忆上下文契约。不要因新增自主生活方向跳过最小认知循环。
+
+
+## P0 云端 Provider 静态审查与测试修正 — 2026-11-19
+
+- 静态审查 `OpenAICompatibleGroundedMemoryProvider`、`GroundedMemoryProposalPipeline`、CSD accepted-memory retrieval 和新增集成测试。
+- 修正 `test_empty_assertion_result_is_a_valid_no_proposal`：原测试在确认返回空列表后又访问 `result[0]`，必然触发 IndexError；现在验证空提案结果及 transport 调用次数。
+- 将 `CloudProviderCsdIntegrationTests` 移到 `unittest.main()` 入口之前，使直接运行测试文件时也能发现集成测试。
+- 修正 provider 的 `max_response_bytes` 参数错误提示，使其上限与实际校验一致（262144 bytes）。
+- 将 `tests/test_csd_openai_compatible_provider.py` 加入 workflow 的 `pull_request.paths`。此前该测试仅在 push path filter 中，PR 更新可能不会触发测试。
+- 澄清一个容易误读的状态：`GroundedMemoryProposalPipeline.propose_from_observation()` 返回的 `submitted[0]["status"] == "accepted"` 表示提案事件成功写入事件流；它不表示记忆提案已接受。紧接着 `store.get_proposal(...)[ "status" ] == "pending"` 才是 proposal 状态，随后显式调用 `evaluate_proposal()` 才能得到 accepted memory。集成测试中的这一组断言符合既有 pipeline 测试语义，不应误改。
+- 当前 accepted-memory 检索只有大小写不敏感的子串过滤和类型/来源过滤，不是语义检索；它会校验 projection 一致性，但暂不提供按相关性排序的上下文选择。
+- 当前 Provider 只接收单条持久化 observation 和 state_version；尚未接收筛选后的历史 accepted memories。后续历史上下文必须由 pipeline 从 CSD 读取并裁剪，Provider 不得获得 store/DB 句柄。
+- 当前 PR head：`31f83915b24d4c46cb95e9c9c1b175ccea834610`；PR #1 仍 Draft/Open/Unmerged。该 SHA 的 PR-triggered workflow lookup 返回空 runs，combined status 也无 checks；不能据此声称测试执行或通过。此前 Run #716 的 runner allocation failure 仍是最近可见的实际 Actions 失败记录。
+- 本次修改了测试和 workflow 配置，但**没有执行任何测试**；真实云端 API smoke test 也未进行。不要将静态审查或代码提交表述为测试通过。
+- 下一步：设计并实现版本化、大小受限、仅含已接受记忆的 prior-memory context selector/contract；为检索排序、token/字符预算、来源保留、无匹配和过期/冲突状态补测试。Provider 仍只能产生 pending proposal，CSD 仍独立审核接受。
