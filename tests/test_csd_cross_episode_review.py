@@ -186,6 +186,27 @@ class CrossEpisodeReviewPipelineTests(unittest.TestCase):
         with self.assertRaisesRegex(CrossEpisodeReviewError, "must be boolean"):
             self.pipeline(reviewer).review_proposal("review-cross-episode-proposal")
 
+    def test_sensitive_inference_flag_requires_human_review(self):
+        reviewer = FakeCrossEpisodeReviewer(result=CrossEpisodeReviewCandidate(
+            outcome="uncertain", confidence=0.4, reasoning_summary="Potentially sensitive.",
+            supporting_reference_keys=[], counter_evidence_reference_keys=[],
+            scope_assessment="unclear", risk_flags=["sensitive_inference"],
+            requires_human_review=False,
+        ))
+        with self.assertRaisesRegex(CrossEpisodeReviewError, "requires independent human review"):
+            self.pipeline(reviewer).review_proposal("review-cross-episode-proposal")
+
+    def test_provider_subclass_with_extra_fields_is_rejected(self):
+        class ExtendedCandidate(CrossEpisodeReviewCandidate):
+            pass
+        reviewer = FakeCrossEpisodeReviewer(result=ExtendedCandidate(
+            outcome="uncertain", confidence=0.4, reasoning_summary="Extended.",
+            supporting_reference_keys=[], counter_evidence_reference_keys=[],
+            scope_assessment="unclear",
+        ))
+        with self.assertRaises(TypeError):
+            self.pipeline(reviewer).review_proposal("review-cross-episode-proposal")
+
     def test_provider_failure_does_not_change_csd(self):
         reviewer = FakeCrossEpisodeReviewer(failure=TimeoutError("offline"))
         before = self.store.get_state_snapshot()["state_version"]
