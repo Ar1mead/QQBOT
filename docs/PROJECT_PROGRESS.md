@@ -3,7 +3,7 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Last implementation checkpoint in this continuation: `94450f94bc707328c2d5e4692bc386fdb8974e57` (opaque-key selection tests; tests not executed)  
+> Last implementation checkpoint in this continuation: `5c05386bd1cd16f9702ee936d3d6b7e48301a54` (shadow-only candidate validation; tests not executed)  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
@@ -35,7 +35,7 @@
 
 This is the durable hand-off record for continuing work when conversation context is unavailable. Update this file whenever a meaningful work item is completed, its verification status changes, or a decision changes.
 
-## Current status snapshot — 2026-11-20
+## Historical status snapshot — superseded by the current checkpoint above (2026-11-20)
 
 - At the start of the documentation reconciliation, PR #1 was freshly fetched as `state=open`, `draft=true`, `merged=false`; its head branch was `feature/csd-cognitive-memory-slice`, and its head SHA was `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`. Subsequent commits in this reconciliation update documentation only; always fetch the live head rather than treating that code checkpoint as current.
 - The previous top-level snapshot and next gate incorrectly prioritized Windows Worker/runtime-bundle infrastructure. That priority is superseded by the cognition-first decision recorded later in this ledger and in `docs/HANDOFF_CURRENT.md`.
