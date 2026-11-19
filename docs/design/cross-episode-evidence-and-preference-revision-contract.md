@@ -274,6 +274,8 @@ The provider-neutral read-only pipeline is now implemented in `core/csd/cross_ep
 - Output validation enforces the five outcomes, finite reviewer confidence, exact support/counter reference allowlists, non-overlap, scope enum, bounded alternatives/limitations/risk flags, and a strict boolean human-review flag. `supported` requires selected support; `conflicting` requires both support and counter-evidence.
 - The return value is an ephemeral `CrossEpisodeReviewArtifact` bound to proposal event ID, sequence, payload digest, state version, and reviewer identity. No review event is written and no CSD state version changes.
 
+**Reviewer attribution hardening (2026-11-20):** `record_review()` now rejects an artifact unless its reviewer ID and version exactly match the provider identity configured on the pipeline performing the append. This prevents accidental or cross-pipeline misattribution of an otherwise valid artifact. A focused regression test was added; execution remains pending the next CI window. This is provenance hardening only, not a cryptographic trust boundary against hostile code in the same Python process.
+
 This implementation does **not** add a CSD-owned review/decision event, human approval workflow, accepted preference/self-model reducer, or Life Engine integration. Reviewer output remains advisory and must not influence activity ranking or autonomous action. The new focused suite `tests/test_csd_cross_episode_review.py` is wired into Ubuntu/Windows CI, but no execution result is claimed until the workflow exposes actual test steps and results.
 
 
