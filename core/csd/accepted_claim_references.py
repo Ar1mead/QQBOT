@@ -41,8 +41,9 @@ def _resolve_accepted_claim_reference_in_snapshot(
     memory_id: str,
     claim_id: str,
     expected_state_version: int,
+    through_sequence: int | None = None,
 ) -> dict[str, Any]:
-    """Resolve one source-assertion claim against the accepted CSD event history."""
+    """Resolve one source-assertion claim against accepted history at a sequence prefix."""
     if not isinstance(memory_id, str) or not memory_id.strip():
         raise AcceptedClaimReferenceError("memory_id must be non-empty text")
     if not isinstance(claim_id, str) or not claim_id.strip():
@@ -54,7 +55,9 @@ def _resolve_accepted_claim_reference_in_snapshot(
     ):
         raise AcceptedClaimReferenceError("expected_state_version must be non-negative")
 
-    before = store._authoritative_state_version(store._db)
+    before = store._authoritative_state_version(
+        store._db, through_sequence=through_sequence
+    )
     if before != expected_state_version:
         raise AcceptedClaimReferenceError("accepted-claim reference snapshot is stale")
     try:
@@ -127,7 +130,9 @@ def _resolve_accepted_claim_reference_in_snapshot(
         if event_id not in source_event_ids:
             source_event_ids.append(event_id)
 
-    after = store._authoritative_state_version(store._db)
+    after = store._authoritative_state_version(
+        store._db, through_sequence=through_sequence
+    )
     if after != before or after != expected_state_version:
         raise AcceptedClaimReferenceError("CSD state changed while resolving accepted claim")
 
@@ -151,8 +156,13 @@ def resolve_accepted_claim_reference(
     memory_id: str,
     claim_id: str,
     expected_state_version: int,
+    through_sequence: int | None = None,
 ) -> dict[str, Any]:
-    """Resolve one accepted claim inside a single SQLite read snapshot."""
+    """Resolve one accepted claim inside a single SQLite snapshot.
+
+    through_sequence is used by CSD append/decision validation and Recovery to
+    validate against the authoritative history that existed at that event.
+    """
     # A before/after version check across independent transactions is not
     # enough: a projection could otherwise be read from a different database
     # snapshot than the event/decision lineage. Reuse an existing CSD transaction
@@ -163,6 +173,7 @@ def resolve_accepted_claim_reference(
             memory_id=memory_id,
             claim_id=claim_id,
             expected_state_version=expected_state_version,
+            through_sequence=through_sequence,
         )
     with store._read_tx():
         return _resolve_accepted_claim_reference_in_snapshot(
@@ -170,6 +181,7 @@ def resolve_accepted_claim_reference(
             memory_id=memory_id,
             claim_id=claim_id,
             expected_state_version=expected_state_version,
+            through_sequence=through_sequence,
         )
 
 
