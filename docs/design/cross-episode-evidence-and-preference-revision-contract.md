@@ -1,6 +1,6 @@
 # Cross-Episode Evidence and Preference Revision Contract
 
-> Status: design proposal for the next P0 cognitive slice; not implemented.
+ > Status: design contract with partial read-only resolver groundwork; cross-episode proposal and CSD append/decision revalidation remain unimplemented.
 > Updated: 2026-11-20.
 > Scope: allow a model to propose a cautious pattern across multiple accepted episodes without allowing it to write identity state.
 
@@ -55,6 +55,21 @@ Rules:
 - The proposal's \`based_on.state_version\` binds the exact CSD snapshot used to resolve references. A later state change makes the candidate stale and it must be re-evaluated or deferred.
 
 The pipeline should send the model only a bounded allowlist of resolved references and claim contents. The model returns selected reference keys, not arbitrary IDs. The pipeline resolves those keys back to canonical references before persistence.
+
+## 3.1 Partial implementation checkpoint — read-only resolver groundwork
+
+Implemented on the active feature branch in `core/csd/accepted_claim_references.py`:
+
+- Resolve only a claim contained in a CSD accepted-memory projection after projection-integrity validation.
+- Require the memory's proposal ID, proposal event ID and accepted decision event ID to agree across the memory projection, proposal projection and authoritative decision event.
+- Version 1 accepts only `source_assertion` claims with non-empty evidence lineage. Inference claims are deliberately excluded until recursive provenance and reviewer-v2 semantics are designed.
+- Compute a canonical SHA-256 claim digest from the stored claim; copy distinct source event IDs from its evidence list.
+- Bind resolution to an expected CSD state version and check the version again after resolution.
+- Map selected pairs to pipeline-generated opaque keys; duplicate memory/claim pairs are deduplicated.
+
+Tests added in `tests/test_csd_accepted_claim_references.py`; they are wired into the workflow, but **have not been executed**.
+
+This is not yet the full contract above: the resolver is read-only and is not wired into a cross-episode model prompt/pipeline. New proposal append and decision paths do not yet re-resolve these references inside their own CSD transactions. No cross-episode proposal event, preference projection, reviewer v2, reducer, or Recovery exists. Therefore no preference or identity update may be accepted or used for activity ranking on the basis of this resolver.
 
 ## 4. Cross-episode synthesis proposal
 
