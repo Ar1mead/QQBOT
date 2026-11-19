@@ -3,7 +3,7 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**当前分支 HEAD：** `e1c3a74d1dd3d37d3dab3ae4300cadeb0b9b1d1f`  
+**最近代码/测试提交：** `0cd2f94b296691087d3c0b5c5bebbfe3c3e79b60`  
 **PR：** #1 — 最近一次已确认状态为 Draft / Open / Unmerged；本轮搜索确认仍为 Open，但搜索结果未返回 draft/head_sha 字段  
 **默认分支：** `main`
 
@@ -11,16 +11,13 @@
 
 ## 0.1 本轮续接 checkpoint — 2026-11-20
 
-- 直接比较活动分支与 `e1c3a74d1dd3d37d3dab3ae4300cadeb0b9b1d1f`，结果为 identical；因此该 SHA 是本次核对的分支 HEAD。
-- 旧进度记录把 `5c05386...` 写成当前实现检查点，已经过时。分支从该检查点到当前 HEAD 前进 16 个提交，变更不只是文档，还包括 `core/csd/accepted_claim_references.py` 和 `tests/test_csd_accepted_claim_references.py`。后续不得继续把 5c05386 当成最新代码状态。
-- 当前 resolver 的静态审查结果：仅允许引用 CSD 已接受的 grounded `source_assertion`；校验 memory/proposal/accepted-decision/proposal-event 关系；验证每个来源事件完整性及其早于 proposal；返回 canonical claim digest 与去重后的 source-event IDs；模型只能选择流水线生成的 opaque reference keys。
-- 历史前缀校验：`through_sequence` 通过事务内 decision replay context 计算该序列前缀的 accepted state version，并要求被引用的 accepted decision 严格早于该边界。resolver 在单个 SQLite read snapshot 中读取；若调用方已有 CSD transaction，则复用该事务。以上为代码静态审查，不代表测试已运行。
-- `core/csd/cross_episode_proposals.py` 仍只生成 `pending_shadow` 候选：用户偏好与 AI 兴趣分开；支持证据与反证分开；按不同 source event 计算支持经历数；没有持久化、CSD mutation、preference reducer、Life Engine 或 ASM 权限。
-- **仍未完成的核心门槛：** cross-episode CSD event family；append-time 和 decision-time 在权威事务内重新解析所有历史引用；reviewer v2 / counter-evidence review；偏好与 self-model reducer；Recovery 顺序重放和篡改测试。任何 shadow candidate 都不得升级为持久偏好、自我模型或活动排序输入。
-- **CI：** 对当前 HEAD `e1c3a74...` 查询 PR-triggered workflow runs 返回空列表；旧 #723/#724 jobs 没有 runner/steps。当前连接器无法完整枚举仓库最近十次 Actions。没有当前 HEAD 测试执行、本机 Windows 验证或真实云 API smoke test 的证据。状态必须记为未验证，不得写成通过或代码测试失败。
-- **ai-companion-pi 设计文档仍在：** `docs/design/autonomous-life-and-self-development.md` 保留私人 Home、多种唤醒、自主活动/休息、长期项目、主动联系治理、分级权限、结果学习，以及不照搬固定四小时唤醒/无限权限/以日记替代身份的原则。该文档是设计提案，不代表功能已经实现。
-- 下一步优先实现 cross-episode event family，并把 append-time、decision-time、Recovery 三处验证统一到同一历史序列边界；继续保持 shadow-only，直到 reviewer v2 与 reducer 具备完整证据和恢复测试。
-- 本轮没有真实平台账号接入、外部副作用、用户本机修改或本机测试。
+- 本轮修复前，活动分支 HEAD 为 `e1c3a74d1dd3d37d3dab3ae4300cadeb0b9b1d1f`；本轮新增历史前缀边界修复和回归测试，最新代码/测试提交为 `0cd2f94b296691087d3c0b5c5bebbfe3c3e79b60`。之后的提交仅用于同步设计、进度和交接文档。
+- **发现的隐藏 bug：** resolver 的 `through_sequence` 在语义上是排他的（只允许使用 `sequence < boundary` 的历史），但它之前把这个边界直接传给 CSD 的 inclusive state-version 计算。若边界正好等于被引用的 accepted-decision sequence，该决策会提前计入 state version，导致“决策尚未存在”的历史前缀被错误地报成 stale。
+- **已修复：** `accepted_claim_references.py` 先验证边界为非负整数且不是 bool，再把排他边界转换为 `through_sequence - 1`，用于 CSD 的 inclusive state-version 查询；before/after 检查使用同一转换值。
+- **新增测试：** 保留并修正了 accepted decision 前后两个历史前缀的回归场景；增加负数、bool、非整数边界拒绝测试。当前 workflow-run 查询对测试提交 `0cd2f94...` 返回空列表，测试仍未执行，不能宣称通过或失败。
+- **Resolver 现有边界：** 只接受已接受的 grounded `source_assertion`；验证 memory/proposal/decision lineage、proposal event 与来源 observation 的完整性和顺序；单个引用解析在 SQLite snapshot 中完成，或复用已有 CSD transaction。
+- **仍未完成：** CSD cross-episode event family；append-time 和 decision-time 事务内重新验证；reviewer v2；偏好/self-model reducer；Recovery。下一步应先设计 CSD 自己的 pending event 和 append-time validation。尤其不能假定当前依赖 live projections 的 resolver 可直接用于 Recovery 的“逐条事件、部分投影重建”阶段；Recovery 需要明确的历史事件前缀重建/校验路径。
+- `core/csd/cross_episode_proposals.py` 仍然只产出 `pending_shadow`，无持久化和权限。ai-companion-pi 的私人空间、多种唤醒、自主活动/休息、长期项目、受控主动联系、分级权限和结果学习设计仍完整保留在 `docs/design/autonomous-life-and-self-development.md`，未被当作已实现功能。
 - PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
 
 ## 0. 新窗口启动规则
