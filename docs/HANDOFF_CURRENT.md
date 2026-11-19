@@ -3,31 +3,28 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**本轮起始实时 PR HEAD：** `531cde2f84c600f2295d330c4698c9ebddf5a301`  
-**本轮实现/测试提交：** `57f38d7dd4f2bb5920cb5b0b3ee98e9362149750`（package export 修正；测试未执行）  
-**本轮文档提交：** `23c0f2c493cde4c2259df8495a537b6b36416974`、`a1b27d9fa03b4dde65a15fe9fd3c8f1398a2980f`、`4af53fe0d8e5c76504513a88ce96b779fc30ed51`、`47899a0bb04755ac5f74b4e982c64b52ad27f337`、`713b8ad5e1efed366f4e5df35069a23760e037c7`、`46cf38a13814d7b427378be11bb3f3624f840380`、`e88c6eed0102d33d217fb4f59d21a7ab024bf5e6`、`f577fe65f65313578ffdac381b305ca21e086236`（本文件后续更新仍会推进 HEAD）  
-**文档整理提交：** `62180a925a04d3ba3c9a6666af5b3dc6d013b8c8`、`e572a193283487797214369106e723184d72d4e5`、`ac86d98c01dc50146774cea479f8af72679d3f78`  
-**当前 HEAD：** 每次续接必须从 PR #1 实时读取；本次 handoff 更新本身也会推进 HEAD。  
-**PR：** #1 — Draft / Open / Unmerged（严禁合并）
+**本轮代码核对 HEAD：** `0c780283a9c0b2fea1180854eea3dc1c92fc7151`  
+**本轮 Progress 文档提交：** `6e272dab1337cf5eebbc473d7aa2671393765238`  
+**PR：** #1 — Draft / Open / Unmerged（严禁合并）  
+**当前 HEAD：** 文档更新会推进分支；每次续接必须重新读取 PR #1 的实时 head SHA。
+
 
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。日期命名的旧交接文件只作为历史记录，不得作为当前状态依据。开始工作时必须重新核对 GitHub 实际状态，文中的 SHA 和 Actions 状态都是本次核对时的快照。
 
 ## 0.1 本轮续接 checkpoint — 2026-11-20
 
-- 本轮起始实时 PR #1 head：`531cde2f84c600f2295d330c4698c9ebddf5a301`；状态 Draft / Open / Unmerged。
-- 比较 `48a4a7fd9caef156cf60549d21326ff59ac18f29` 到起始 HEAD：7 个提交，只涉及 Progress/Handoff、验收矩阵和组合测试 fixture；没有未记录的运行时代码变更。
-- 新增只读 accepted historical claim resolver：`core/csd/accepted_claim_references.py`。它要求 memory/proposal/decision lineage 一致、accepted projection 完整、source_assertion claim 唯一、证据事件可由 accepted projection 验证，并绑定 state_version 与 canonical claim digest。Pipeline 先构造 accepted-claim allowlist，再生成 opaque keys；模型只能选择 allowlist 中的 key，随后 resolver 会重新解析真实 memory/claim lineage，重复 pair/key 去重。
-- 新增 `tests/test_csd_accepted_claim_references.py`，并加入 workflow 与 package exports。
-- **未完成：** 尚未新增 cross-episode proposal event family；resolver 还未接入模型 provider/pipeline；CSD 尚未在 proposal append 和 decision 两处重新解析引用；尚无 semantic reviewer v2、preference reducer、Recovery。所有跨经历解释仍禁止进入 accepted preference state 或驱动 Life Engine。
-- **测试未执行。** 新测试只有源码静态检查，未在本地或 GitHub Actions 执行；无真实 API smoke test。
-- Run #724（ID `44566099273`）jobs：Windows 135708120696、Ubuntu 135708121260 均 failure 且 steps=[]；Run #723 同样无 steps。当前起始 PR head 查询不到关联 PR-triggered workflow run。可用 connector 没有可靠的仓库最近 10 次全局 runs 列表。
-- 本轮 commits：resolver `867767488e1776a394e13612fe2d0fc589f0b966`；tests `fdc46bd6a6be725b3d42d2b685acf83f3eef1629`；exports `79a4165cef0f66d7eeccd2e63294f2f34a70f0e2`；workflow `fbd7d5c6f30926cfd6b4af676ebb6e3dc2562e89`；identifier guard `720ad9cdd12391c1131629d7c7e46b5c39f4a870`；PR path filter `07f1b4549a37b14039c47150f24c7ea70e889ed9`。
-- 修复提交：package exports `57f38d7dd4f2bb5920cb5b0b3ee98e9362149750`；workflow newline `136a7ea85532f5413fd0d742a4de154af3e7a219`；新增 focused-test step `02a1b62ba2c6049a568f2760f76a567e91a605fd`；opaque-key-only selection `a9aa282b6c2972d1524fafc6ba9271e012484504`；exports `74030ee809e2d3c7c43d634f1a2329d2e000ea0f`；selection tests `94450f94bc707328c2d5e4692bc386fdb8974e57`。已静态确认 YAML path filters 在 push/PR 两处均包含新测试文件，且测试步骤存在。
+- PR #1 在本轮实时核对时：Open / Draft / Unmerged；head branch `feature/csd-cognitive-memory-slice`；head SHA `0c780283a9c0b2fea1180854eea3dc1c92fc7151`。
+- 比较旧 handoff head `531cde2f84c600f2295d330c4698c9ebddf5a301` 到本轮 head：30 commits、8 个变更文件；变更仅涉及 accepted-claim resolver/tests、package exports、CI workflow、验收矩阵、跨经历设计契约和 Progress/Handoff 文档。无其他未记录运行时代码变更。
+- Resolver 已有只读能力：只允许 CSD accepted grounded source_assertion；核对 memory/proposal/accepted decision；核对对应 grounded proposal event；逐条验证 source event 完整性、类型及其早于 proposal；计算 canonical claim digest；提取去重 source event IDs；模型只可选择 pipeline 生成的 opaque keys。
+- **本轮发现并修复的隐藏问题：** resolver 之前用多个独立 SQLite 读事务读取状态、memory projection、proposal 和 decision。仅靠前后 state_version 无法保证这些读取来自同一个数据库快照。现在 resolver 外层使用单个 `_read_tx()`，内部读取共享同一 SQLite snapshot；新增单事务回归测试。
+- 代码提交：单快照解析 `846bd716b4ce07b324a0329247e458eda009757d`；单快照回归 `a825a7dd59ccb873830650ec3ec9bceae4aa6033`；proposal/source-event chronology guard `0c780283a9c0b2fea1180854eea3dc1c92fc7151`。
+- Progress 已更新：`6e272dab1337cf5eebbc473d7aa2671393765238`。本交接文件随后也会提交；因此最终 head 需要再从 PR #1 实时读取。
+- CI：对 `0c780283...` 查询不到 PR-triggered workflow runs，也没有 combined statuses。Run #723/#724 之前 jobs 的 steps 为空，测试命令没有执行。**没有测试通过或失败的结论**；本轮没有本地运行测试。当前可用 connector 不能列出仓库最近 10 次全局 Actions runs。
+- **未完成且不可绕过：** 没有 cross-episode proposal event/schema；没有 CSD append-time 和 decision-time transaction 内对 historical refs 的 re-resolve；没有 reviewer v2/counter-evidence、preference reducer 或 Recovery。Resolver 不得用于接受长期偏好或驱动 Life Engine。
+- 下一步：设计并实现 pending-only cross-episode proposal contract；append 和 decision 两处都要从权威 event log 重解析 accepted memory、decision、claim digest 和 source event lineage。之后才做 reviewer v2、CSD preference reducer 和 Recovery。
+- PR #1 必须保持 Draft / Open / Unmerged。
 
-PR #1 必须保持 Draft / Open / Unmerged。
-
-**下一步：** 在静态审查 resolver/test 后，新增独立的 pending-only cross-episode proposal contract，并在 CSD append/decision transaction 内分别 re-resolve accepted decision lineage、claim digest 和 source-event lineage。Preference reducer/Recovery 完成前禁止接受偏好状态。
 
 ## 0. 新窗口启动规则
 
