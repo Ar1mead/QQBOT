@@ -20,6 +20,12 @@ from .cognitive import (
     CognitiveMemoryStore,
     ProposalIdentityConflict,
 )
+from .cross_episode_proposals import (
+    CrossEpisodeInterpretationCandidate,
+    CrossEpisodeProposal,
+    CrossEpisodeProposalError,
+    build_cross_episode_proposal,
+)
 from .accepted_claim_references import (
     AcceptedClaimReferenceError,
     build_accepted_claim_reference_context,
