@@ -1931,3 +1931,12 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - Latest code/test checkpoint remains 37536152a09f145f9867471dbac40fc7e55c5772; the contract and status changes are documentation-only.
 - Actions Run #780 (ID 44586330403) remains a pre-step failure: both matrix jobs have logs_url=null and steps=null. No tests executed.
 - PR #1 remains Draft / Open / Unmerged.
+
+
+## PR base-branch divergence check — 2026-11-20
+
+- Live PR #1 remains Draft=true, Open, Merged=false; head before this documentation note: e7862ca42d093b78479b0d2d798d945d9eef7c11.
+- Comparing the active feature branch with current main reports status=diverged, ahead_by=1432, behind_by=7; the PR base SHA recorded at creation is 05cfce6211ad072342201697d324d610d0fb40d1.
+- The seven commits on main after that base are dated 2026-11-16: one test commit (7b34af5...) adding tests/test_csd_goals.py, three Stage 0 documentation commits (47e2b9d..., 85f2267..., 92dea5e...), and three documentation reverts (71926ba..., da38ab1..., c5d748d...).
+- The feature branch already contains tests/test_csd_goals.py with the same 54 test method names as main, but the file contents differ; core/csd/README.md, PROJECT_PROGRESS.md and the replay-cost report also differ between branches.
+- This is historical branch divergence, not evidence that the feature branch lacks the goal tests. Do not merge, rebase or force-sync main into the feature branch without a separate content/diff review and explicit user authorization. PR #1 remains unmerged.
