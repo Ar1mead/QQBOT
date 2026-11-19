@@ -763,3 +763,6 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - Latest code commits: `02cc65bcb13afd6a09cfdb0715ed908bd3850fe4`, `682c87bfef982be878a62d500c31e49f958d8335`, and `f3bf41293dc85f921454f1a2d853014cea7d8e79`.
 - Latest visible Actions run #789 still failed before jobs were created; its Jobs API response had an empty `jobs` array. No compile or Python test has executed.
 - Keep the implementation advisory and non-persisting. The next meaningful feature is the CSD-owned decision/review event with independent decision-time evidence re-resolution and Recovery, not a preference reducer.
+
+
+- Final reviewer artifact hardening: the artifact now includes a separate SHA-256 digest over the canonical, bounded provider input, not just the candidate event payload. This binds the ephemeral opinion to the exact evidence snapshot. Code commit `293b4498b9258b6f38009f377183363fc8bd6c62`; test commit `f3b8e1ac1bbc6a63458bd9dd2907dd9f9871e4d3`. Tests remain unexecuted.
