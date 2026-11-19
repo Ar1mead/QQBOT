@@ -140,6 +140,7 @@ class CrossEpisodeReviewPipelineTests(unittest.TestCase):
         artifact = self.pipeline(reviewer).review_proposal("review-cross-episode-proposal")
         self.assertEqual(artifact.candidate.outcome, "supported")
         self.assertTrue(artifact.proposal_digest.startswith("sha256:"))
+        self.assertTrue(artifact.review_input_digest.startswith("sha256:"))
         self.assertEqual(reviewer.transaction_states, [False])
         self.assertEqual(self.store.get_state_snapshot()["state_version"], before)
         self.assertEqual(len(reviewer.calls), 1)
