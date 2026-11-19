@@ -32,7 +32,7 @@ def _claim_digest(claim: Mapping[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(_canonical(claim).encode("utf-8")).hexdigest()
 
 
-def resolve_accepted_claim_reference(
+def _resolve_accepted_claim_reference_in_snapshot(
     store: CognitiveMemoryStore,
     *,
     memory_id: str,
@@ -51,7 +51,7 @@ def resolve_accepted_claim_reference(
     ):
         raise AcceptedClaimReferenceError("expected_state_version must be non-negative")
 
-    before = store.get_state_snapshot()["state_version"]
+    before = store._authoritative_state_version(store._db)
     if before != expected_state_version:
         raise AcceptedClaimReferenceError("accepted-claim reference snapshot is stale")
     try:
@@ -111,7 +111,7 @@ def resolve_accepted_claim_reference(
         if event_id not in source_event_ids:
             source_event_ids.append(event_id)
 
-    after = store.get_state_snapshot()["state_version"]
+    after = store._authoritative_state_version(store._db)
     if after != before or after != expected_state_version:
         raise AcceptedClaimReferenceError("CSD state changed while resolving accepted claim")
 
@@ -127,6 +127,26 @@ def resolve_accepted_claim_reference(
         "status": "accepted",
         "based_on_state_version": expected_state_version,
     }
+
+
+def resolve_accepted_claim_reference(
+    store: CognitiveMemoryStore,
+    *,
+    memory_id: str,
+    claim_id: str,
+    expected_state_version: int,
+) -> dict[str, Any]:
+    """Resolve one accepted claim inside a single SQLite read snapshot."""
+    # A before/after version check across independent transactions is not
+    # enough: a projection could otherwise be read from a different database
+    # snapshot than the event/decision lineage. Keep every read in one snapshot.
+    with store._read_tx():
+        return _resolve_accepted_claim_reference_in_snapshot(
+            store,
+            memory_id=memory_id,
+            claim_id=claim_id,
+            expected_state_version=expected_state_version,
+        )
 
 
 def build_accepted_claim_reference_context(
