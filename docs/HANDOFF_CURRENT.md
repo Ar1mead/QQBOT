@@ -783,3 +783,76 @@ The read-only reviewer v2 implementation is advisory only. Implement the durable
 ### Static inspection correction
 
 The previous export edit in core/csd/__init__.py accidentally inserted literal backslash-n characters. Fixed in d30a7fb7af4fae6f0a75dbdd02113ade6d9a07fc. Confirm this file compiles as part of the next executable verification attempt.
+
+
+## 1.1 Window handoff — reconciled repository state (2026-11-20)
+
+**Use this section as the newest continuation point.** Older entries below contain historical statuses that were true at the time but are now superseded by this section.
+
+### Repository and PR
+
+- Repository: `Ar1mead/QQBOT`.
+- Working branch: `feature/csd-cognitive-memory-slice`.
+- PR #1: Draft / Open / Unmerged; GitHub reports `mergeable=false`.
+- Latest pre-documentation implementation HEAD: `35e0f4e4f8de195ecae5034c549269a58d6979f6`.
+- CI workflow repair: `06408dbf1c577849be92a15bd39a5316a32ea5df`.
+- Cross-episode contract reconciliation: `fffb5200a4674e59c7f38445b7bcd502ee8d1e18`.
+- Progress reconciliation: `3c995b87e927d9e5ada8e167cbc3bf8a2b109f5b`.
+- Re-fetch live PR head and all three document SHAs at the start of the next window; subsequent handoff commit will advance the PR head.
+- Last branch comparison: diverged, feature ahead by 1467 and behind by 7 relative to main. Do not merge, rebase, force-sync or otherwise rewrite/synchronize branch history without explicit user authorization.
+
+### What is implemented now
+
+1. **Cross-episode proposal and historical claim resolution**
+   - Accepted-claim references are re-resolved at exclusive historical sequence boundaries.
+   - Cross-episode candidates remain `pending_shadow`; they are not accepted user preferences or AI interests.
+
+2. **Provider-neutral cross-episode reviewer v2**
+   - `core/csd/cross_episode_review.py` reconstructs exact support/counter evidence and source observations, validates source chronology and quote spans, applies bounded inputs/outputs, and runs the provider outside the CSD transaction.
+   - It returns an advisory artifact bound to proposal payload and canonical reviewer-input digests.
+   - It does not write CSD or authorize actions.
+
+3. **CSD-owned durable review record**
+   - Event type: `cognition.cross_episode_review_recorded.v1`.
+   - Reserved source: `csd.cross-episode-review-authority.v1`.
+   - `CrossEpisodeReviewPipeline.record_review(artifact)` rechecks the artifact against a freshly rebuilt candidate/evidence snapshot before appending.
+   - Event identity is deterministic from canonical payload digest; event ID is derived from the review ID.
+   - Public submission of the reserved event type and event-ID namespace is blocked.
+   - Shared event-local validation checks schema, reviewer identity, proposal chronology and digests, canonical evidence-input digest, candidate output and reference allowlists, and duplicate review identity.
+   - The same validation path is called by append, duplicate acknowledgement, direct `get_event` validation and Recovery replay.
+   - The durable record is an immutable audit opinion only. It does not accept/reject the candidate, update preference/self-model state, alter goals, affect Life Engine ranking, or grant ASM permissions.
+
+### Critical test gap — do not overlook
+
+- `tests/test_csd_cross_episode_review.py` currently contains ten tests for the read-only reviewer pipeline.
+- It does **not** yet test `record_review` or the durable review event.
+- Add tests for:
+  1. successful record append and event payload/identity;
+  2. public `submit_event` rejection of reserved review event and reserved ID namespace;
+  3. deterministic duplicate acknowledgement and altered-content idempotency conflict;
+  4. direct `get_event` validation after event payload/lineage tampering;
+  5. stale/altered ephemeral artifact and changed evidence rejection;
+  6. Recovery replay of valid review events and failure on tampered review history.
+- Also verify that duplicate validation and event-local validation remain deterministic when the event is replayed in order.
+- Until these tests execute, durable review-event implementation is **present but not verified**.
+
+### CI diagnosis and repair
+
+- Earlier static inspection found four literal backslash-`n` sequences in `.github/workflows/csd-cognitive-slice.yml`, affecting both path-filter lists and the new test step. They were replaced by actual line breaks in commit `06408dbf1c577849be92a15bd39a5316a32ea5df`.
+- Actions Run #808 (ID `44592352031`) after that fix created two jobs (Ubuntu and Windows), confirming the workflow YAML now parses.
+- Both jobs immediately failed with empty step lists and runner ID `0`. The step API returned an empty list and the job-log endpoint returned BlobNotFound. No runner was allocated; no checkout, compile or test command ran.
+- This separates the earlier malformed YAML defect from the still-unresolved job/runner startup issue. Do not report Python test pass/failure. Avoid repeatedly triggering Actions runs until the runner issue is investigated.
+
+### Next exact work item
+
+1. Add the six groups of durable-review event tests listed above.
+2. Static-audit `validate_cross_episode_review_event`, especially malformed payload handling, deterministic identity, duplicate query behavior and direct-read/Recovery call paths.
+3. Investigate why Actions creates jobs but allocates no runner (runner ID 0, no steps, no logs). Do not make speculative claims about billing/permissions without evidence.
+4. Obtain actual compile/test execution evidence, ideally focused suite first, then full Ubuntu/Windows matrix.
+5. Only after the CSD review record and Recovery tests pass should the preference/self-model reducer be designed/implemented. Pending candidates and reviewer opinions must remain outside Life Engine ranking until a separate CSD-owned acceptance/revision event exists.
+
+### Preserve the full product objective
+
+Do not narrow the project to a memory plugin. The target remains a persistent individual AI with autobiographical continuity, evolving self-model/preferences/interests, autonomous but bounded internal activity, private home, event- and AI-requested wakeups, long-term project continuity, optional research/creation/retrospection/rest, queued proactive contact, graded external permissions, and action-result evaluation/rollback. Keep the useful `sonopdx/ai-companion-pi` ideas while avoiding fixed wake-up quotas, diary quotas, unrestricted tools, or treating runtime/SurfCore as the owner of identity.
+
+No local test, compile, Windows runtime, or real cloud API smoke test has been executed in this session. No PR merge or branch synchronization was performed.
