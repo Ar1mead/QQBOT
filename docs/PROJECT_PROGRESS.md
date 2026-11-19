@@ -1698,3 +1698,19 @@ Every new module or infrastructure task must state: (a) which user-visible cogni
 - This change is documentation/design only. No runtime code changed and no tests were run or claimed.
 - Architecture document commit: `618f82bfa3893afe831a7eb71ffcc22ed1579f28`.
 - Next: map existing CSD/Life Engine APIs to the new contract, create the compact cognitive-loop acceptance matrix, and identify the smallest safe provider integration seam.
+
+
+## Minimum cognitive loop API audit and acceptance matrix — 2026-11-19
+
+- Added `docs/design/minimum-cognitive-loop-acceptance-matrix.md` (commit `4aa3416bdd4d857541f9b1d29622d33de5a028a3`) after inspecting the actual CSD, grounded-proposal, Life Engine, and existing vertical-slice/test-contract implementations.
+- Confirmed reusable APIs:
+  - `CognitiveMemoryStore.submit_event()`, accepted-memory `get_memories()/get_memory()`, CSD-owned evaluation and Recovery.
+  - `GroundedMemoryProposalProvider` / `GroundedMemoryProposalPipeline`, which bind the exact observation event, provider provenance, and CSD state version while leaving proposals pending.
+  - `LifeSnapshot`, `DeliberationProposal`, `ChoiceProposal`, `validate_life_proposal()`, `LifeEngine.consider()`, and `CognitiveStoreLifeSnapshotReader` / `CognitiveStoreLifeProposalSink`.
+- Confirmed the Life Engine currently sees motivation signals/goals but not episode text or retrieved autobiographical memories; its CSD reader currently supplies no activity options. The existing grounded-memory provider receives one observation and state version, not prior accepted memories.
+- Identified an important semantic limit: grounded CSD evaluation validates schema, evidence references, source spans, chronology, and integrity, but does not establish general semantic entailment or objective truth. Model-derived preference/self-model updates therefore need a separate semantic-review/revision contract before they can safely become durable identity state.
+- Identified that the current Life Engine CSD sink can immediately evaluate supported candidate-goal proposals; keep model-generated goal formation restricted/shadowed until its semantic review gate is explicit. No external activity is executed by this sink.
+- The acceptance matrix defines LOOP-01 through LOOP-15 for observation provenance, exact quote/offset grounding, malformed output, provider failures, CSD decisions, stale versions, Recovery, provider swapping, Life Engine no-op, invalid references, ASM non-dispatch, and future preference/counterevidence behavior.
+- This was a documentation/API-audit checkpoint only. No runtime code changed and no tests were run or claimed.
+- Live repository state at audit: PR #1 head `38a5f752a099eeeba8a1754864e401d0909295a1`, Draft/Open/Unmerged. Latest Actions #710 jobs both had `runner_id=0`, blank runner names, and empty steps; no tests executed. The ten most recent runs #701–#710 all failed before runner allocation; cause unknown.
+- Next implementation: add a strict, configurable cloud-model provider behind the existing grounded-memory provider contract, with fake-transport tests first. Keep credentials outside the repository and keep model output proposal-only.
