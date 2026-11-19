@@ -7,25 +7,28 @@
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
-## Current checkpoint — 2026-11-20 (resolver hardening; tests unexecuted)
+## Current checkpoint — 2026-11-20 (cross-episode shadow candidate; validation pending)
 
-- **Authoritative live state at this checkpoint:** PR #1 is Open, Draft=true, Merged=false; head branch `feature/csd-cognitive-memory-slice`; head SHA `0c780283a9c0b2fea1180854eea3dc1c92fc7151` before this documentation refresh. The PR must remain Draft/Open/Unmerged.
-- Compared the previous handoff head `531cde2f84c600f2295d330c4698c9ebddf5a301` to this live head: 30 commits across 8 files. The changed files are the accepted-claim resolver and tests, package exports, workflow path/step entries, the acceptance matrix, the cross-episode contract, and the two current status documents. No other unrecorded runtime modules were changed in that range.
-- Resolver groundwork is present in `core/csd/accepted_claim_references.py`:
-  - only accepted grounded-memory source_assertion claims are eligible;
+- **Live PR state at the last code verification:** PR #1 Open, Draft=true, Merged=false; branch `feature/csd-cognitive-memory-slice`. The code checkpoint before the current documentation commits was `5c05386bd1cd16f9702ee936d3d6b7e48301a54d`. Always refresh live PR head before continuing.
+- Compared old handoff head `531cde2...` to the previous code checkpoint: 30 commits across 8 files, all changes confined to the historical-claim resolver/tests, exports/workflow, and relevant project/design documentation.
+- Accepted-claim resolver hardening:
+  - only accepted grounded `source_assertion` claims;
   - memory/proposal/accepted-decision lineage must agree;
   - proposal event must be the matching grounded proposal;
-  - source events are individually integrity-read and must be earlier observation/v2 events;
+  - every source event is integrity-read and must be an earlier observation/v2 event;
   - canonical claim digest and distinct source event IDs are returned;
-  - model selection is limited to pipeline-created opaque keys and re-resolves the selected claim;
-  - resolution now occurs inside one SQLite read transaction/snapshot, rather than independent reads with only a before/after version check; when called from an existing CSD transaction, it reuses that transaction rather than attempting a nested BEGIN.
-- Added a regression asserting one read snapshot, plus accepted lineage, opaque-key, duplicate, stale-version, unknown-memory/claim and malformed-shape cases. Tests are in `tests/test_csd_accepted_claim_references.py` and wired into both workflow path filters and a focused step.
-- **Still not implemented:** a cross-episode proposal event/schema; append-time and decision-time CSD transaction re-resolution for embedded historical references; reviewer v2 with counter-evidence; preference/self-model reducers and Recovery. The resolver remains read-only groundwork and cannot authorize accepted preferences or Life Engine activity.
-- **Validation is unexecuted.** No local test runner is available in this workflow and the latest commit query for `0c780283...` returned no PR-triggered Actions runs or combined statuses. Earlier Run #723/#724 jobs had empty steps and did not execute tests. Do not call this a pass or test failure. The available connector cannot enumerate the repository's latest 10 workflow runs globally.
-- Current code-level changes since the earlier resolver checkpoint include: one-snapshot transaction hardening (`846bd716b4ce07b324a0329247e458eda009757d`), read-snapshot regression (`a825a7dd59ccb873830650ec3ec9bceae4aa6033`), explicit proposal/source-event chronology checks (`0c780283a9c0b2fea1180854eea3dc1c92fc7151`), active-transaction reuse (`f5b7f8e75c7f337da46d1ab3dd8ac2f1eae6fac8`), and active-transaction regression (`b131824ba757fc64fac97508cceef7632b34f259`). Design docs now record the atomic-read and active-transaction requirements.
-- PR #1 remains Draft / Open / Unmerged. Never merge.
+  - model selects only pipeline-generated opaque keys, then selected keys are re-resolved;
+  - all reads occur in one SQLite read snapshot; an already active CSD transaction is reused rather than nested.
+- Added tests for one-snapshot reads and active-transaction reuse, in addition to accepted lineage, opaque keys, duplicates, stale version, unknown references and malformed shapes.
+- Added `core/csd/cross_episode_proposals.py`: strict typed shadow-only candidate builder. It accepts only opaque historical-reference keys, separates user preference candidates from AI interest candidates, retains support and counter-evidence separately, requires scope/uncertainty/alternatives/limitations, computes distinct supporting source-event count, and returns `pending_shadow`. It has no persistence, CSD mutation, preference reducer, Life Engine or ASM access.
+- Added `tests/test_csd_cross_episode_proposals.py` (6 tests) for valid shadow candidate, provenance, forbidden authority fields, owner separation, stale/unknown refs, support/counter overlap and malformed booleans/enums. Exported public APIs and wired both push/PR path filters plus a focused workflow step.
+- **Not implemented:** cross-episode event persistence; CSD append-time and decision-time re-resolution inside authoritative transactions; semantic reviewer v2/counter-evidence review; CSD preference/self-model reducer and Recovery. No candidate can be promoted to durable identity or activity input.
+- **Validation remains unexecuted.** The latest queried code commit `5c05386...` had no PR-triggered workflow runs or combined statuses. Earlier #723/#724 jobs had empty steps. No local tests or real API smoke test have run. This is neither a pass nor a test failure. Available connector cannot enumerate all latest repository runs.
+- Resolver hardening commits: `846bd716...` (single read snapshot), `a825a7dd...` (snapshot regression), `0c780283...` (source-event chronology), `f5b7f8e7...` (reuse active transaction), `b131824b...` (active transaction regression).
+- Cross-episode candidate commits: `3dd21a39...` (builder), `61a9d1ae...` (tests), `920b8980...` (exports), `9a8c1bad...` (workflow), `652c7290...` (strict type hardening), `980ff448...` (public exports), `5c05386b...` (malformed-field tests). Design/acceptance docs updated in `257076fe...` and `8af764fa...`.
+- PR #1 must remain Draft / Open / Unmerged. Never merge.
 
-**Next gate:** introduce a typed, pending-only cross-episode proposal contract, then re-resolve every referenced accepted memory/decision/claim digest/source event inside both append and decision transactions. Do not implement preference acceptance until reviewer-v2, CSD reducer, and Recovery can replay the same decision deterministically.
+**Next gate:** implement a dedicated cross-episode event family in CSD. Both append and decision transactions must re-resolve every reference against the authoritative event history and compare accepted decision lineage, claim digest, source-event IDs and state version. Keep outcomes pending/shadow until reviewer v2, CSD reducer and Recovery are implemented.
 
 
 ---
