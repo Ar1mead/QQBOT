@@ -35,6 +35,104 @@ def _claim_digest(claim: Mapping[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(_canonical(claim).encode("utf-8")).hexdigest()
 
 
+def _accepted_memory_from_history_prefix(
+    store: CognitiveMemoryStore,
+    *,
+    memory_id: str,
+    through_sequence: int,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Reconstruct one accepted grounded memory from events before an exclusive boundary.
+
+    This path intentionally avoids current projections: Recovery rebuilds those
+    projections incrementally, so a projection-wide consistency check would
+    incorrectly fail while replay is between earlier and later events.
+    """
+    decision_rows = store._db.execute(
+        "SELECT event_id FROM events WHERE event_type=? AND sequence<? ORDER BY sequence",
+        (DECISION_EVENT, through_sequence),
+    ).fetchall()
+    matching_decisions: list[dict[str, Any]] = []
+    for row in decision_rows:
+        event = store.get_event(row["event_id"])
+        if event["payload"].get("memory_id") == memory_id:
+            matching_decisions.append(event)
+    if len(matching_decisions) != 1:
+        raise AcceptedClaimReferenceError(
+            "historical accepted memory decision is missing or ambiguous"
+        )
+
+    decision_event = matching_decisions[0]
+    decision_payload = decision_event["payload"]
+    if decision_payload.get("outcome") != "accepted":
+        raise AcceptedClaimReferenceError(
+            "historical memory decision is not an accepted decision"
+        )
+    proposal_id = decision_payload.get("proposal_id")
+    proposal_event_id = decision_payload.get("proposal_event_id")
+    if not isinstance(proposal_id, str) or not proposal_id:
+        raise AcceptedClaimReferenceError("historical decision proposal ID is invalid")
+    if not isinstance(proposal_event_id, str) or not proposal_event_id:
+        raise AcceptedClaimReferenceError("historical decision proposal-event ID is invalid")
+
+    try:
+        proposal_event = store.get_event(proposal_event_id)
+    except (KeyError, CognitiveIntegrityError) as exc:
+        raise AcceptedClaimReferenceError(
+            "historical grounded proposal event is unavailable or corrupt"
+        ) from exc
+    if (
+        proposal_event["event_type"] != GROUNDED_PROPOSAL_EVENT
+        or proposal_event["sequence"] >= decision_event["sequence"]
+        or proposal_event["sequence"] >= through_sequence
+        or proposal_event["payload"].get("proposal_id") != proposal_id
+    ):
+        raise AcceptedClaimReferenceError(
+            "historical decision does not reference an earlier grounded proposal"
+        )
+
+    proposal_payload = proposal_event["payload"]
+    evidence_event_ids = store._grounded_evidence_event_ids(proposal_payload)
+    if decision_payload.get("evidence_event_ids") != evidence_event_ids:
+        raise AcceptedClaimReferenceError(
+            "historical decision evidence does not match its grounded proposal"
+        )
+    grounding_outcome, grounding_reason = store._evaluate_grounded_claims(
+        proposal_payload
+    )
+    if grounding_outcome != "accepted":
+        raise AcceptedClaimReferenceError(
+            "historical accepted memory no longer passes evidence validation: "
+            + grounding_reason
+        )
+
+    transition_id = decision_payload.get("transition_id")
+    if not isinstance(transition_id, str) or not transition_id:
+        raise AcceptedClaimReferenceError("historical accepted transition ID is invalid")
+    memory = {
+        "memory_id": memory_id,
+        "memory_kind": proposal_payload["memory_kind"],
+        "claims": proposal_payload["claims"],
+        "evidence_event_ids": evidence_event_ids,
+        "proposal_id": proposal_id,
+        "proposal_event_id": proposal_event_id,
+        "decision_event_id": decision_event["event_id"],
+        "transition_id": transition_id,
+        "created_at": decision_event["occurred_at"],
+        "status": "accepted",
+        "origin": proposal_payload["origin"],
+        "claim_schema": "grounded-memory-claims.v2",
+        "policy": decision_payload["policy"],
+        "semantic_review_event_ids": decision_payload["semantic_review_event_ids"],
+        "semantic_review_status": decision_payload["semantic_review_status"],
+    }
+    proposal_metadata = {
+        "status": "accepted",
+        "decision_event_id": decision_event["event_id"],
+        "proposal_event_id": proposal_event_id,
+    }
+    return memory, proposal_metadata, proposal_event
+
+
 def _resolve_accepted_claim_reference_in_snapshot(
     store: CognitiveMemoryStore,
     *,
@@ -74,27 +172,34 @@ def _resolve_accepted_claim_reference_in_snapshot(
     )
     if before != expected_state_version:
         raise AcceptedClaimReferenceError("accepted-claim reference snapshot is stale")
-    try:
-        memory = store.get_memory(memory_id)
-    except KeyError as exc:
-        raise AcceptedClaimReferenceError("accepted memory is unavailable") from exc
-    if memory.get("status") != "accepted":
-        raise AcceptedClaimReferenceError("only accepted memories may be referenced")
-
-    proposal_id = memory.get("proposal_id")
-    decision_event_id = memory.get("decision_event_id")
-    proposal_event_id = memory.get("proposal_event_id")
-    if not all(isinstance(item, str) and item for item in (
-        proposal_id, decision_event_id, proposal_event_id
-    )):
-        raise AcceptedClaimReferenceError("accepted memory lineage is incomplete")
-
-    try:
-        proposal = store.get_proposal(proposal_id)
-        proposal_event = store.get_event(proposal_event_id)
+    if through_sequence is None:
+        try:
+            memory = store.get_memory(memory_id)
+        except KeyError as exc:
+            raise AcceptedClaimReferenceError("accepted memory is unavailable") from exc
+        if memory.get("status") != "accepted":
+            raise AcceptedClaimReferenceError("only accepted memories may be referenced")
+        proposal_id = memory.get("proposal_id")
+        decision_event_id = memory.get("decision_event_id")
+        proposal_event_id = memory.get("proposal_event_id")
+        if not all(isinstance(item, str) and item for item in (
+            proposal_id, decision_event_id, proposal_event_id
+        )):
+            raise AcceptedClaimReferenceError("accepted memory lineage is incomplete")
+        try:
+            proposal = store.get_proposal(proposal_id)
+            proposal_event = store.get_event(proposal_event_id)
+            decision = store.get_event(decision_event_id)
+        except (KeyError, CognitiveIntegrityError) as exc:
+            raise AcceptedClaimReferenceError("accepted memory lineage is inconsistent") from exc
+    else:
+        memory, proposal, proposal_event = _accepted_memory_from_history_prefix(
+            store, memory_id=memory_id, through_sequence=through_sequence
+        )
+        proposal_id = memory["proposal_id"]
+        decision_event_id = memory["decision_event_id"]
+        proposal_event_id = memory["proposal_event_id"]
         decision = store.get_event(decision_event_id)
-    except (KeyError, CognitiveIntegrityError) as exc:
-        raise AcceptedClaimReferenceError("accepted memory lineage is inconsistent") from exc
     if (
         proposal["status"] != "accepted"
         or proposal["decision_event_id"] != decision_event_id
