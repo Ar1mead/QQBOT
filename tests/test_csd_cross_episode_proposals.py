@@ -127,7 +127,8 @@ class CrossEpisodeProposalTests(unittest.TestCase):
             "accepted",
         )
         recovered = self.store.recover()
-        self.assertTrue(recovered["projection_consistent"])
+        self.assertGreaterEqual(recovered["events"], 1)
+        self.assertTrue(self.store.get_state_snapshot()["projection_consistent"])
         self.assertEqual(len(list_cross_episode_proposals(self.store)), 1)
 
     def test_append_revalidates_claim_digest_inside_csd_transaction(self):
