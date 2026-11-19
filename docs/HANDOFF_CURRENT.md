@@ -3,8 +3,8 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**最近代码/测试 checkpoint：** `855822af2bd5c233f5a9281d8058db53ec6a558d`  
-**本次文档同步前已实时确认的 PR head：** `855822af2bd5c233f5a9281d8058db53ec6a558d`（文档提交会继续推进 head；下次续接必须重新读取 PR metadata）  
+**最近代码/测试 checkpoint：** `0e7f213f3489030209cb5e4836c3120cfa586e8e`  
+**本次文档同步前已实时确认的 PR head：** `0e7f213f3489030209cb5e4836c3120cfa586e8e`（文档提交会继续推进 head；下次续接必须重新读取 PR metadata）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`
 
@@ -12,16 +12,17 @@
 
 ## 0.1 本轮续接 checkpoint — 2026-11-20
 
-- 本轮实时读取 PR #1：Open、Draft=true、Merged=false；base `main`。本轮最新代码/测试 checkpoint 为 `855822af2bd5c233f5a9281d8058db53ec6a558d`。
-- **历史引用边界修复：** `through_sequence` 为排他边界；状态版本使用 `through_sequence - 1`。边界之前不存在 accepted decision 时明确返回“decision did not exist”；非法负数、bool、非整数拒绝。
-- **Recovery-safe resolver：** 有历史前缀时从不可变 decision、grounded proposal 和 observation events 重建 accepted memory，不依赖正在逐条恢复的 projections。多条引用集合在单个 SQLite snapshot 中解析。
-- **新增长期事件：** CSD 已有 pending-only `cognition.cross_episode_candidate_proposed.v1`。append 时在同一写事务中重新解析 support/counter references，验证 memory/proposal/decision lineage、claim digest、source event IDs、accepted 状态和 state version，并重算独立来源事件数。事件只保存引用 lineage/digest，不复制 claim 文本。提供 append 与 list API。
-- **敏感领域限制：** 用户偏好和 AI 兴趣使用不同的非敏感 domain allowlist；事件文本要求 canonical，source-event ID 列表有数量上限。这只是粗粒度分类，reviewer v2 仍必须检查文本内容，不能因 domain 合法就接受敏感推断。
-- **Recovery：** 新事件由事件日志顺序重放，并在重放时再次执行历史引用验证；没有额外可变投影。
-- **测试新增但未执行：** 成功 append/list/Recovery；重复 append 幂等；claim digest 篡改；bool 状态版本；后续接受决策使旧候选 stale；敏感/错配 domain 拒绝；历史边界、部分投影 Recovery 和多引用快照测试。当前 checkpoint `855822a...` combined status 为空；available commit-workflow lookup 仅能返回 PR-triggered runs，未返回记录，无法据此确认 push-triggered workflow 是否执行。不能宣称通过或失败；没有用户本机 Windows 验证或真实云 API smoke test。
-- **明确未实现：** semantic reviewer v2、decision-time revalidation、CSD preference/self-model reducer、版本化修订/退役事件、正反证据审核和 Life Engine 接线。pending-shadow 事件不得成为接受的偏好/身份状态，也不得参与活动排序。
-- **ai-companion-pi 设计仍完整保留**于 `docs/design/autonomous-life-and-self-development.md`，包括 Private Home、自主活动与 no-op、非强制唤醒、长期项目、主动联系治理、分级权限和结果学习；这些仍是设计目标，不是运行时功能。
-- 下一步先确保本轮事件家族通过可执行测试，再做 reviewer/decision event 和决策时第二次权威引用验证。PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
+- 本轮实时核对活动分支 `feature/csd-cognitive-memory-slice` 的 HEAD 与 PR #1 head：代码/测试 checkpoint 为 `0e7f213f3489030209cb5e4836c3120cfa586e8e`；随后仅同步项目文档。PR #1：Open、Draft=true、Merged=false，base `main`。继续禁止合并和同步 fork。
+- **跨经历审查记录事件已实现：** `cognition.cross_episode_review_recorded.v1` 由 CSD 保留 authority source；review event 绑定候选事件 ID/sequence/payload digest、review input digest、state version、reviewer identity/version 和规范化的 bounded opinion。append 时重建候选证据快照并校验 artifact 绑定；事件 ID 基于规范化 payload 确定，重复投递幂等。
+- **事件权威边界：** public `submit_event` 不得提交该保留事件类型或命名空间。append、duplicate acknowledgement、direct `get_event` read 和 Recovery 都使用同一个 event-local validator；审查记录仅是不可变审计事件，不接受候选、不修订偏好/自我模型，也不影响 Life Engine 排序、目标或 ASM。
+- **本轮补齐 5 个专门测试：** 成功追加且 state_version 不变；public submit 伪造拒绝；重复投递幂等；在 payload 与 event-envelope hash 均重算后，direct read 仍拒绝被篡改的 reviewed_at；Recovery 重放审查记录且候选仍为 pending_shadow。测试文件：`tests/test_csd_cross_episode_review.py`。
+- **测试执行状态：未执行，不能标绿。** 对应 push Runs #809–#812 的 Ubuntu/Windows jobs 均在 1–2 秒内失败；直接读取 jobs JSON 均显示 `runner_id=0`、空 runner name、`steps=[]`。最新 job-log 下载返回 `BlobNotFound`。因此没有 checkout、compile 或 unittest 命令运行；这不是代码测试失败，也不是通过。
+- **Runner 诊断现状：** workflow YAML 已被解析并创建 Ubuntu/Windows matrix jobs；问题发生在 runner 分配/启动之前。现有 API 暴露的信息无法确定根因，不得猜测 billing、配额、仓库设置或 GitHub 服务状态。后续应继续从 run/check-suite/Actions 配置可见信息收集证据；不要无目的连续重跑。
+- **其他跨经历组件状态：** 历史 accepted-claim resolver、pending-shadow proposal event、Recovery-safe evidence reconstruction、semantic reviewer v2 已实现。reviewer v2 只产生临时 advisory artifact；审查记录也只写审计事件。尚未实现最终 decision-time 第二次权威引用验证、CSD preference/self-model reducer、版本化 strengthen/weaken/narrow/retire 修订历史及其 Recovery 测试。
+- **ai-companion-pi 的完整设计目标仍然保留**于 `docs/design/autonomous-life-and-self-development.md`：Private Home、自主活动/no-op、非强制唤醒、长期项目、自主写作、主动联系治理、分级权限和结果学习仍是项目目标，不把项目缩减为记忆插件。运行时能力仍需逐步实现。
+- **下一步严格顺序：** 先排查 Actions Runner 启动/分配问题；一旦 Runner 可用，先执行 `tests/test_csd_cross_episode_review.py` focused suite，再执行完整 Ubuntu/Windows matrix。只有拿到实际测试步骤和结果才能标记验证完成。随后再做 decision-time revalidation 与 CSD 偏好/自我模型修订 reducer。
+- PR #1 必须保持 Draft / Open / Unmerged。不要合并，不要同步 fork 分支。
+
 
 ## 0. 新窗口启动规则
 1. 先读取 `docs/PROJECT_PROGRESS.md`，再读取本文件。
@@ -622,7 +623,7 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 
 ### Implemented checkpoint
 
-- Code/test checkpoint: 855822af2bd5c233f5a9281d8058db53ec6a558d.
+- Code/test checkpoint: 0e7f213f3489030209cb5e4836c3120cfa586e8e.
 - Added core/csd/cross_episode_proposals.py and event type cognition.cross_episode_candidate_proposed.v1.
 - Public operations: build_cross_episode_proposal, append_cross_episode_proposal, and list_cross_episode_proposals.
 - The model supplies only opaque historical-reference keys. CSD re-resolves each key against accepted memory/claim lineage and records proposal, decision, claim digest, source event IDs, and state version. Persisted events omit copied claim text.
