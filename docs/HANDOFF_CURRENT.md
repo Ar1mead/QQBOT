@@ -5,7 +5,7 @@
 **活动分支：** `feature/csd-cognitive-memory-slice`  
 **本轮起始实时 PR HEAD：** `531cde2f84c600f2295d330c4698c9ebddf5a301`  
 **本轮实现/测试提交：** `57f38d7dd4f2bb5920cb5b0b3ee98e9362149750`（package export 修正；测试未执行）  
-**本轮文档提交：** `23c0f2c493cde4c2259df8495a537b6b36416974`、`a1b27d9fa03b4dde65a15fe9fd3c8f1398a2980f`、`4af53fe0d8e5c76504513a88ce96b779fc30ed51`、`47899a0bb04755ac5f74b4e982c64b52ad27f337`、`713b8ad5e1efed366f4e5df35069a23760e037c7`（本文件后续更新仍会推进 HEAD）  
+**本轮文档提交：** `23c0f2c493cde4c2259df8495a537b6b36416974`、`a1b27d9fa03b4dde65a15fe9fd3c8f1398a2980f`、`4af53fe0d8e5c76504513a88ce96b779fc30ed51`、`47899a0bb04755ac5f74b4e982c64b52ad27f337`、`713b8ad5e1efed366f4e5df35069a23760e037c7`、`46cf38a13814d7b427378be11bb3f3624f840380`、`e88c6eed0102d33d217fb4f59d21a7ab024bf5e6`、`f577fe65f65313578ffdac381b305ca21e086236`（本文件后续更新仍会推进 HEAD）  
 **文档整理提交：** `62180a925a04d3ba3c9a6666af5b3dc6d013b8c8`、`e572a193283487797214369106e723184d72d4e5`、`ac86d98c01dc50146774cea479f8af72679d3f78`  
 **当前 HEAD：** 每次续接必须从 PR #1 实时读取；本次 handoff 更新本身也会推进 HEAD。  
 **PR：** #1 — Draft / Open / Unmerged（严禁合并）
