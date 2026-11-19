@@ -3,11 +3,13 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Last code/test checkpoint before documentation reconciliation: `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`  
+> Last implementation checkpoint in this continuation: `720ad9cdd12391c1131629d7c7e46b5c39f4a870` (resolver + tests; not executed)  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
 ## Current checkpoint — 2026-11-20 (accepted historical claim resolver groundwork)
+
+- Documentation follow-ups: matrix `4af53fe0d8e5c76504513a88ce96b779fc30ed51`; cross-episode contract `47899a0bb04755ac5f74b4e982c64b52ad27f337`.
 
 - Live PR #1 metadata at the start of this continuation: head branch `feature/csd-cognitive-memory-slice`, head SHA `531cde2f84c600f2295d330c4698c9ebddf5a301`, Draft=true, Open, Unmerged.
 - Compared the code checkpoint `48a4a7fd9caef156cf60549d21326ff59ac18f29` to the live head: seven commits ahead; only Progress/Handoff docs, the minimum-loop matrix, and a small fake-test fixture cleanup changed. No unrecorded runtime implementation was found after the cloud semantic-review provider.
