@@ -366,7 +366,7 @@ class CrossEpisodeReviewPipelineTests(unittest.TestCase):
         self.assertEqual(event["event_type"], CROSS_EPISODE_REVIEW_EVENT)
         self.assertEqual(self.store.get_state_snapshot()["state_version"], before)
         self.assertEqual(
-            self.store.list_cross_episode_proposals()[0]["status"],
+            list_cross_episode_proposals(self.store)[0]["status"],
             "pending_shadow",
         )
 
