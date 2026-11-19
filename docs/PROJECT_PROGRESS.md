@@ -3,8 +3,8 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Latest code/test checkpoint: `b7e170ea525171a1d26c0f9604b863db19010887`  
-> PR head before this documentation synchronization: `0e7f213f3489030209cb5e4836c3120cfa586e8e`  
+> Latest code/test checkpoint: `b7e170ea525171a1d26c0f9604b863db19010887` (latest code change; tests unexecuted)  
+> PR head before this documentation synchronization: `d51775a07fa990dd91edc1f22bcd25645c2d651d`  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
@@ -2037,6 +2037,14 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - PR #1 remains Draft / Open / Unmerged. Feature branch remains divergent from main (last compare: ahead 1467, behind 7). Do not merge, rebase or force-sync without explicit user authorization.
 
 
+## Decision-time revalidation design gate — 2026-11-20
+
+- Audited the existing accepted-claim resolver, cross-episode proposal append path, reviewer-v2 snapshot, review-record append, and the existing generic memory decision pipeline.
+- Existing code does have historical-prefix accepted-claim resolution and append-time cross-episode reference revalidation. It does **not** yet have a CSD decision/acceptance path for cross-episode candidates; review records remain advisory only.
+- Added design contract section 3.11 defining a single-transaction decision-time gate: rebuild exact historical snapshot; reject stale base state; re-resolve every support/counter claim and compare lineage/digests/source events; recompute independent source counts; verify prior review record belongs to the same proposal and exact review-input digest; apply deterministic non-auto-accept conditions; append reserved decision event and reducer update atomically; Recovery/direct-read validation must reproduce the same result.
+- Explicitly chose fail-closed stale behavior: do not silently refresh an old proposal at decision time. A stale candidate must remain unaccepted; any refreshed interpretation needs a new proposal built from a new snapshot.
+- This is documentation/design only. No decision API, preference reducer, or Life Engine connection has been implemented. No tests were run.
+- Latest code change remains `b7e170ea525171a1d26c0f9604b863db19010887`; PR/documentation head at the start of this update was `d51775a07fa990dd91edc1f22bcd25645c2d651d`.
 ## CSD reviewer-v2 audit hardening — 2026-11-20
 
 - 静态审查 `core/csd/cross_episode_review.py` 的 reviewer artifact → durable audit-event 路径后，发现 `record_review()` 未确认 artifact 中的 reviewer ID/version 与当前 pipeline 配置的 provider 身份一致。
