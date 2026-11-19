@@ -1888,3 +1888,14 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - The runner-allocation cause is not established from the available evidence. Do not guess at billing, quota, repository settings, or a GitHub outage. Avoid repeatedly creating commits or rerunning the same empty jobs without a new diagnostic signal.
 - Next implementation: cross-episode accepted-claim reference resolver, with immutable references to accepted memory/proposal/decision/claim/digest/source events; reject stale, unknown, non-accepted, or inconsistent references; count independent source events rather than duplicated claims; keep generated cross-episode interpretations pending/shadow. Then implement semantic support/counterevidence review and CSD-owned preference revision/recovery.
 - All older historical sections remain as a record of prior decisions and checkpoints. Where their “next” instructions conflict with this reconciliation and the cognition-first strategy above, this current reconciliation takes precedence.
+
+
+## Historical-prefix accepted-claim resolution — 2026-11-20
+
+- Extended the accepted-claim resolver with an optional authoritative `through_sequence` boundary. It computes the expected CSD state version from that event-history prefix while retaining the single SQLite snapshot / active-transaction behavior.
+- When a historical prefix is supplied, the accepted decision must already exist strictly before that prefix. This prevents a later accepted memory from being treated as if it had existed when an earlier candidate or decision was recorded.
+- Added a focused regression test covering resolution immediately before and after the accepted decision event.
+- Commits: resolver prefix support `509c6b15...`; decision-sequence guard `239f9f7c...`; regression `a9a70b07...`.
+- **Validation not executed.** The new test is committed but no hosted run is currently associated with the latest head; no local run is claimed.
+- This is groundwork for CSD append-time, decision-time, and Recovery replay validation. It does not yet add cross-episode event persistence or a preference reducer.
+- Next: implement the dedicated pending-shadow event family and re-resolve its canonical references inside both proposal append and decision transactions, using the historical sequence prefix. Keep all outcomes non-accepted until reviewer v2, reducer, and Recovery semantics are complete.
