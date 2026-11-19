@@ -3,8 +3,8 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**最近核对的活动分支 HEAD（本次文档更新前）：** `19419acc0d7dfbcf1d466916f4406e95dc313423`  
-**PR #1 head（本次文档更新前实时核对）：** `19419acc0d7dfbcf1d466916f4406e95dc313423`（本次文档提交会继续推进 head；下次续接必须重新读取 PR metadata）  
+**最近代码提交（本次交接更新前）：** `b7e170ea525171a1d26c0f9604b863db19010887`  
+**PR #1 head（本次交接更新前实时核对）：** `b7e170ea525171a1d26c0f9604b863db19010887`（本次文档提交会继续推进 head；下次续接必须重新读取 PR metadata）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`
 
@@ -15,6 +15,7 @@
 - 本轮实时核对活动分支 `feature/csd-cognitive-memory-slice` 的 HEAD 与 PR #1 head：代码/测试 checkpoint 为 `0e7f213f3489030209cb5e4836c3120cfa586e8e`；随后仅同步项目文档。PR #1：Open、Draft=true、Merged=false，base `main`。继续禁止合并和同步 fork。
 - **跨经历审查记录事件已实现：** `cognition.cross_episode_review_recorded.v1` 由 CSD 保留 authority source；review event 绑定候选事件 ID/sequence/payload digest、review input digest、state version、reviewer identity/version 和规范化的 bounded opinion。append 时重建候选证据快照并校验 artifact 绑定；事件 ID 基于规范化 payload 确定，重复投递幂等。
 - **事件权威边界：** public `submit_event` 不得提交该保留事件类型或命名空间。append、duplicate acknowledgement、direct `get_event` read 和 Recovery 都使用同一个 event-local validator；审查记录仅是不可变审计事件，不接受候选、不修订偏好/自我模型，也不影响 Life Engine 排序、目标或 ASM。
+- **Reviewer v2 审计加固：** `record_review()` 现在要求 artifact 中 reviewer ID/version 与当前 pipeline provider 身份完全一致，防止把另一个 reviewer 生成的 artifact 错记到当前 reviewer 名下。新增测试 `test_record_review_rejects_artifact_from_different_reviewer_identity`。此测试尚未执行；额度重置前不主动测试或重跑 Actions。
 - **本轮补齐 5 个专门测试：** 成功追加且 state_version 不变；public submit 伪造拒绝；重复投递幂等；在 payload 与 event-envelope hash 均重算后，direct read 仍拒绝被篡改的 reviewed_at；Recovery 重放审查记录且候选仍为 pending_shadow。测试文件：`tests/test_csd_cross_episode_review.py`。
 - **测试执行状态：未执行，不能标绿。** 对应 push Runs #809–#812 的 Ubuntu/Windows jobs 均在 1–2 秒内失败；直接读取 jobs JSON 均显示 `runner_id=0`、空 runner name、`steps=[]`。最新 job-log 下载返回 `BlobNotFound`。因此没有 checkout、compile 或 unittest 命令运行；这不是代码测试失败，也不是通过。
 - **Runner 诊断现状：** workflow YAML 已被解析并创建 Ubuntu/Windows matrix jobs；问题发生在 runner 分配/启动之前。现有 API 暴露的信息无法确定根因，不得猜测 billing、配额、仓库设置或 GitHub 服务状态。后续应继续从 run/check-suite/Actions 配置可见信息收集证据；不要无目的连续重跑。
@@ -25,7 +26,7 @@
 - **一次受控 rerun 结果：** 对 Run #812 执行 failed-jobs rerun（attempt 2）后，Ubuntu/Windows 两个 Job 再次在 2–3 秒内失败，`runner_id=0`、无 steps；两个日志下载仍返回 `BlobNotFound`。这确认问题不是单次瞬时失败，但仍不能确定根因。不要继续无目的重跑。
 - **其他跨经历组件状态：** 历史 accepted-claim resolver、pending-shadow proposal event、Recovery-safe evidence reconstruction、semantic reviewer v2 已实现。reviewer v2 只产生临时 advisory artifact；审查记录也只写审计事件。尚未实现最终 decision-time 第二次权威引用验证、CSD preference/self-model reducer、版本化 strengthen/weaken/narrow/retire 修订历史及其 Recovery 测试。
 - **ai-companion-pi 的完整设计目标仍然保留**于 `docs/design/autonomous-life-and-self-development.md`：Private Home、自主活动/no-op、非强制唤醒、长期项目、自主写作、主动联系治理、分级权限和结果学习仍是项目目标，不把项目缩减为记忆插件。运行时能力仍需逐步实现。
-- **下一步严格顺序：** 暂停消耗额度的 hosted-runner 重试；额度重置或经用户同意配置零费用 self-hosted runner 后，先执行 `tests/test_csd_cross_episode_review.py` focused suite，再执行完整 Ubuntu/Windows matrix。等待期间仅做低风险静态审查、设计与测试准备。focused suite 实际通过前，不实现 preference/self-model reducer 或 Life Engine 接线。之后再做 decision-time revalidation、CSD 偏好/自我模型修订 reducer，并逐步恢复完整自主活动能力。
+- **下一步严格顺序：** 额度重置前只做低风险静态审查、设计收敛和测试准备，不执行本地测试、不主动 rerun hosted Actions。预计 2026-12-02 先核实 included usage 已重置，再运行 `tests/test_csd_cross_episode_review.py` focused suite，确认真实 checkout/测试 steps 与结果后才标记通过；随后执行完整 Ubuntu/Windows matrix。专项测试实际通过前，不实现 preference/self-model reducer 或 Life Engine 接线。之后再做 decision-time revalidation、CSD 偏好/自我模型修订 reducer，并逐步恢复完整自主活动能力。
 - PR #1 必须保持 Draft / Open / Unmerged。不要合并，不要同步 fork 分支。
 
 
