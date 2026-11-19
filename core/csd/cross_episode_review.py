@@ -31,6 +31,7 @@ MAX_REVIEW_LIST_ITEMS = 8
 MAX_REVIEW_REFERENCES = 32
 MAX_SOURCE_CONTENT_CHARS = 20_000
 MAX_TOTAL_SOURCE_CONTENT_CHARS = 100_000
+MAX_SOURCE_EVENTS = 64
 MAX_REVIEWER_ID = 200
 MAX_REVIEWER_VERSION = 200
 
@@ -194,8 +195,11 @@ def _source_evidence(
         for reference_index, reference in enumerate(references, start=1):
             claim = reference["claim"]
             evidence = claim.get("evidence")
-            if not isinstance(evidence, list) or not evidence:
-                raise CrossEpisodeReviewError("historical claim has no evidence spans")
+            if (
+                not isinstance(evidence, list) or not evidence
+                or len(evidence) > MAX_REVIEW_REFERENCES
+            ):
+                raise CrossEpisodeReviewError("historical claim has no bounded evidence spans")
             expected_ids = set(reference["source_event_ids"])
             seen_ids: set[str] = set()
             for span in evidence:
@@ -221,6 +225,8 @@ def _source_evidence(
                 if len(content) > MAX_SOURCE_CONTENT_CHARS:
                     raise CrossEpisodeReviewError("source observation exceeds the per-source size limit")
                 if event_id not in sources:
+                    if len(sources) >= MAX_SOURCE_EVENTS:
+                        raise CrossEpisodeReviewError("review evidence exceeds the source-event count limit")
                     total_chars += len(content)
                     if total_chars > MAX_TOTAL_SOURCE_CONTENT_CHARS:
                         raise CrossEpisodeReviewError("review evidence exceeds the total source size limit")
