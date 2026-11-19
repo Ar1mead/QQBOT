@@ -3,13 +3,27 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**最后代码/测试 checkpoint（文档整理前）：** `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`  
+**上次实时核对的 PR HEAD：** `531cde2f84c600f2295d330c4698c9ebddf5a301`（本轮已在其后提交 resolver groundwork，继续以 PR 实时 head 为准）  
 **文档整理提交：** `62180a925a04d3ba3c9a6666af5b3dc6d013b8c8`、`e572a193283487797214369106e723184d72d4e5`、`ac86d98c01dc50146774cea479f8af72679d3f78`  
 **当前 HEAD：** 每次续接必须从 PR #1 实时读取；本次 handoff 更新本身也会推进 HEAD。  
 **PR：** #1 — Draft / Open / Unmerged（严禁合并）
 
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。日期命名的旧交接文件只作为历史记录，不得作为当前状态依据。开始工作时必须重新核对 GitHub 实际状态，文中的 SHA 和 Actions 状态都是本次核对时的快照。
+
+## 0.1 本轮续接 checkpoint — 2026-11-20
+
+- 本轮起始实时 PR #1 head：`531cde2f84c600f2295d330c4698c9ebddf5a301`；状态 Draft / Open / Unmerged。
+- 比较 `48a4a7fd9caef156cf60549d21326ff59ac18f29` 到起始 HEAD：7 个提交，只涉及 Progress/Handoff、验收矩阵和组合测试 fixture；没有未记录的运行时代码变更。
+- 新增只读 accepted historical claim resolver：`core/csd/accepted_claim_references.py`。它要求 memory/proposal/decision lineage 一致、accepted projection 完整、source_assertion claim 唯一、证据事件可由 accepted projection 验证，并绑定 state_version 与 canonical claim digest。Pipeline 选择后生成 opaque keys，重复 claim pair 去重。
+- 新增 `tests/test_csd_accepted_claim_references.py`，并加入 workflow 与 package exports。
+- **未完成：** 尚未新增 cross-episode proposal event family；resolver 还未接入模型 provider/pipeline；CSD 尚未在 proposal append 和 decision 两处重新解析引用；尚无 semantic reviewer v2、preference reducer、Recovery。所有跨经历解释仍禁止进入 accepted preference state 或驱动 Life Engine。
+- **测试未执行。** 新测试只有源码静态检查，未在本地或 GitHub Actions 执行；无真实 API smoke test。
+- Run #724（ID `44566099273`）jobs：Windows 135708120696、Ubuntu 135708121260 均 failure 且 steps=[]；Run #723 同样无 steps。当前起始 PR head 查询不到关联 PR-triggered workflow run。可用 connector 没有可靠的仓库最近 10 次全局 runs 列表。
+- 本轮 commits：resolver `867767488e1776a394e13612fe2d0fc589f0b966`；tests `fdc46bd6a6be725b3d42d2b685acf83f3eef1629`；exports `79a4165cef0f66d7eeccd2e63294f2f34a70f0e2`；workflow `fbd7d5c6f30926cfd6b4af676ebb6e3dc2562e89`；identifier guard `720ad9cdd12391c1131629d7c7e46b5c39f4a870`；PR path filter `07f1b4549a37b14039c47150f24c7ea70e889ed9`。
+- PR #1 必须保持 Draft / Open / Unmerged。
+
+**下一步：** 在静态审查 resolver/test 后，新增独立的 pending-only cross-episode proposal contract，并在 CSD append/decision transaction 内分别 re-resolve accepted decision lineage、claim digest 和 source-event lineage。Preference reducer/Recovery 完成前禁止接受偏好状态。
 
 ## 0. 新窗口启动规则
 
@@ -46,7 +60,7 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 ## 3. 当前仓库和 PR 状态（2026-11-20 实时核对）
 
 - 活动分支：`feature/csd-cognitive-memory-slice`。
-- 当前 HEAD：`76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`。
+- 起始核对时 HEAD：`531cde2f84c600f2295d330c4698c9ebddf5a301`；其后本轮提交了 resolver/test/docs 变更，当前 HEAD 必须重新从 PR #1 实时读取。
 - PR #1 实时读取结果：head branch 与活动分支一致；head SHA 与上述 HEAD 一致；`state=open`、`draft=true`、`merged=false`。
 - PR #1 必须一直保持 Draft / Open / Unmerged，严禁合并。
 - 用户没有在本机克隆或运行仓库；不得声称完成本机验证。
@@ -92,7 +106,7 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 
 ## 5. CI 状态 — 当前验证阻塞（2026-11-20）
 
-- 最新相关执行记录已核对到 Actions Run #724（ID `44566099273`）。
+- 起始核对时最新可见的相关执行记录为 Actions Run #724（ID `44566099273`）；当前 HEAD 查询无关联 PR-triggered run。
 - Run #724 的 Ubuntu 与 Windows jobs 均在约 3 秒内结束为 failure；jobs JSON 中两项均为 `runner_id=0`、runner 名称为空、`steps=[]`。
 - 因此该 run 没有分配 runner，也没有执行任何测试命令。它不是 Python 测试断言失败，也不是测试通过。
 - 当前证据无法确定 runner 分配失败的具体原因。不要猜测 billing、分钟配额、仓库设置或 GitHub 服务状态。
