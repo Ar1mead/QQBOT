@@ -10,7 +10,7 @@
 ## Current checkpoint — 2026-11-20 (cross-episode shadow candidate; validation pending)
 
 - **Live PR state at the last code verification:** PR #1 Open, Draft=true, Merged=false; branch `feature/csd-cognitive-memory-slice`. The code checkpoint before the current documentation commits was `5c05386bd1cd16f9702ee936d3d6b7e48301a54d`. Always refresh live PR head before continuing.
-- Compared old handoff head `531cde2...` to the previous code checkpoint: 30 commits across 8 files, all changes confined to the historical-claim resolver/tests, exports/workflow, and relevant project/design documentation.
+- Compared old handoff head `531cde2...` to the latest code checkpoint `5c05386...`: 46 commits across 10 files. The changed files are the accepted-claim resolver/tests, cross-episode shadow candidate module/tests, package exports, workflow, and the relevant project/design documents.
 - Accepted-claim resolver hardening:
   - only accepted grounded `source_assertion` claims;
   - memory/proposal/accepted-decision lineage must agree;
