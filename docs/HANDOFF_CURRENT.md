@@ -3,8 +3,8 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**最近代码提交（本次交接更新前）：** `b7e170ea525171a1d26c0f9604b863db19010887`  
-**PR #1 head（本次交接更新前实时核对）：** `b7e170ea525171a1d26c0f9604b863db19010887`（本次文档提交会继续推进 head；下次续接必须重新读取 PR metadata）  
+**最近代码提交（本次交接更新前）：** `b7e170ea525171a1d26c0f9604b863db19010887`（reviewer attribution guard；测试未执行）  
+**PR #1 head（本次交接更新前实时核对）：** `d51775a07fa990dd91edc1f22bcd25645c2d651d`（本次文档提交会继续推进 head；下次续接必须重新读取 PR metadata）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`
 
@@ -27,6 +27,7 @@
 - **一次受控 rerun 结果：** 对 Run #812 执行 failed-jobs rerun（attempt 2）后，Ubuntu/Windows 两个 Job 再次在 2–3 秒内失败，`runner_id=0`、无 steps；两个日志下载仍返回 `BlobNotFound`。这确认问题不是单次瞬时失败，但仍不能确定根因。不要继续无目的重跑。
 - **其他跨经历组件状态：** 历史 accepted-claim resolver、pending-shadow proposal event、Recovery-safe evidence reconstruction、semantic reviewer v2 已实现。reviewer v2 只产生临时 advisory artifact；审查记录也只写审计事件。尚未实现最终 decision-time 第二次权威引用验证、CSD preference/self-model reducer、版本化 strengthen/weaken/narrow/retire 修订历史及其 Recovery 测试。
 - **ai-companion-pi 的完整设计目标仍然保留**于 `docs/design/autonomous-life-and-self-development.md`：Private Home、自主活动/no-op、非强制唤醒、长期项目、自主写作、主动联系治理、分级权限和结果学习仍是项目目标，不把项目缩减为记忆插件。运行时能力仍需逐步实现。
+- **Decision-time revalidation 设计已补齐（仅设计，未实现）：** 已审查 `accepted_claim_references.py`、`cross_episode_proposals.py`、`cross_episode_review.py` 与 `cognitive.py` 的现有历史前缀解析、proposal append、review append 和通用 memory decision 路径。当前没有 cross-episode candidate 的 CSD acceptance/decision API。设计契约新增 3.11：决策必须在同一 CSD 写事务中重建决策前缀、拒绝 stale base state、重新解析全部 support/counter refs 并比对 lineage/digest/source IDs、重算独立 episode 数、验证 review 属于同 proposal 且 review-input digest 精确匹配、对不确定/冲突/敏感/需人工复核意见 fail closed，最后原子追加保留 decision event 并更新 reducer；Recovery/direct read 必须复现。旧 proposal 不允许静默刷新，stale 后只能不接受并重新生成 proposal。尚未实现 decision API/reducer，未运行测试。
 - **下一步严格顺序：** 额度重置前只做低风险静态审查、设计收敛和测试准备，不执行本地测试、不主动 rerun hosted Actions。预计 2026-12-02 先核实 included usage 已重置，再运行 `tests/test_csd_cross_episode_review.py` focused suite，确认真实 checkout/测试 steps 与结果后才标记通过；随后执行完整 Ubuntu/Windows matrix。专项测试实际通过前，不实现 preference/self-model reducer 或 Life Engine 接线。之后再做 decision-time revalidation、CSD 偏好/自我模型修订 reducer，并逐步恢复完整自主活动能力。
 - PR #1 必须保持 Draft / Open / Unmerged。不要合并，不要同步 fork 分支。
 
