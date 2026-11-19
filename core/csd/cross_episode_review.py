@@ -234,7 +234,7 @@ def _source_evidence(
                     provenance_fields = (
                         "observation_id", "adapter_id", "adapter_version", "platform",
                         "external_ref", "observation_kind", "content_origin", "modality",
-                        "source_ref", "source_artifact_ref", "observed_at", "received_at",
+                        "source_ref", "source_artifact_ref", "observed_at", "received_at", "coverage",
                         "extraction_method", "content_digest", "untrusted",
                     )
                     provenance = {
@@ -312,7 +312,7 @@ class CrossEpisodeReviewPipeline:
         support_keys: set[str],
         counter_keys: set[str],
     ) -> None:
-        if not isinstance(candidate, CrossEpisodeReviewCandidate):
+        if type(candidate) is not CrossEpisodeReviewCandidate:
             raise TypeError("review provider must return CrossEpisodeReviewCandidate")
         if not isinstance(candidate.outcome, str) or candidate.outcome not in REVIEW_OUTCOMES:
             raise CrossEpisodeReviewError("review outcome is unsupported")
@@ -356,6 +356,10 @@ class CrossEpisodeReviewPipeline:
             raise CrossEpisodeReviewError("review contains an unsupported risk flag")
         if not isinstance(candidate.requires_human_review, bool):
             raise CrossEpisodeReviewError("requires_human_review must be boolean")
+        if "sensitive_inference" in flags and not candidate.requires_human_review:
+            raise CrossEpisodeReviewError(
+                "sensitive-inference risk requires independent human review"
+            )
 
     def review_proposal(self, proposal_id: str) -> CrossEpisodeReviewArtifact:
         if not isinstance(proposal_id, str) or not proposal_id.strip():
