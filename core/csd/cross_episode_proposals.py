@@ -426,6 +426,7 @@ def validate_cross_episode_proposal_event(
             if (
                 not isinstance(source_ids, list)
                 or not source_ids
+                or len(source_ids) > MAX_REFERENCES
                 or any(not isinstance(value, str) or not value.strip() for value in source_ids)
                 or len(set(source_ids)) != len(source_ids)
             ):
