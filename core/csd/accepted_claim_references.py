@@ -56,9 +56,13 @@ def _accepted_memory_from_history_prefix(
         event = store.get_event(row["event_id"])
         if event["payload"].get("memory_id") == memory_id:
             matching_decisions.append(event)
-    if len(matching_decisions) != 1:
+    if not matching_decisions:
         raise AcceptedClaimReferenceError(
-            "historical accepted memory decision is missing or ambiguous"
+            "accepted decision did not exist at the requested historical sequence"
+        )
+    if len(matching_decisions) > 1:
+        raise AcceptedClaimReferenceError(
+            "historical accepted memory decision is ambiguous"
         )
 
     decision_event = matching_decisions[0]
