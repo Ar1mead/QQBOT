@@ -1976,3 +1976,13 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - Code/test implementation checkpoint: `a35d016cdc8956e5e64c87947a32b9d3e68a73f0`. Documentation contract update: `ee70ef7983cb0b9636794b856e00d736acc9d4c2`.
 - PR #1 remains Draft / Open / Unmerged. No merge, rebase or force-sync was performed. The feature branch remains divergent from main; preserve the existing no-sync rule.
 - Next: review the new module/test for contract edge cases, then implement the CSD-owned reviewer decision event with decision-time evidence re-resolution and Recovery semantics. Do not build the preference/self-model reducer or Life Engine integration before that gate is complete and executable tests pass.
+
+
+### Reviewer-v2 static-audit tightening — 2026-11-20
+
+- Follow-up review bounded distinct source observations to 64 and evidence spans per claim to 32, preventing a large number of tiny observations from bypassing character-only limits.
+- V2 source coverage metadata is now included in reviewer provenance; opaque account references remain excluded.
+- Provider output must be the exact declared candidate type, not an extended subclass with extra authority fields. An explicit `sensitive_inference` risk flag requires human review.
+- Added focused tests for immutable returned sequence values, sensitive-risk human-review enforcement, and provider subclass rejection.
+- Latest implementation commits: source-count bound `02cc65bcb13afd6a09cfdb0715ed908bd3850fe4`; output-boundary hardening `682c87bfef982be878a62d500c31e49f958d8335`; tests `f3bf41293dc85f921454f1a2d853014cea7d8e79`.
+- Latest observable Actions run #789 (ID 44590087171) failed and returned an empty Jobs API collection. No test steps executed. Do not call this a Python test failure or a pass.
