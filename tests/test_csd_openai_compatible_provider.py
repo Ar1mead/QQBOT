@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+import tempfile
 import unittest
+
+from core.csd import CognitiveEvent, CognitiveMemoryStore, GroundedMemoryProposalPipeline
+from core.csd.cognitive import OBSERVATION_EVENT
 
 from core.csd.openai_compatible_provider import (
     CloudProposalProviderError,
@@ -130,3 +135,62 @@ class OpenAICompatibleGroundedProviderTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CloudProviderCsdIntegrationTests(unittest.TestCase):
+    def test_cloud_provider_only_creates_pending_proposal_until_csd_evaluates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = CognitiveMemoryStore(Path(directory) / "cloud-provider.sqlite3")
+            try:
+                source_text = "A silver leaf rested on the windowsill. 🍃"
+                store.submit_event(CognitiveEvent(
+                    event_id="evt-cloud-provider-integration",
+                    occurred_at="2026-11-19T10:00:00+00:00",
+                    correlation_id="corr-cloud-provider-integration",
+                    event_type=OBSERVATION_EVENT,
+                    source="test.synthetic_observation",
+                    payload={
+                        "observation_id": "obs-cloud-provider-integration",
+                        "observation_kind": "text_fixture",
+                        "content": source_text,
+                        "source_ref": "fixture://cloud-provider/integration",
+                        "observed_at": "2026-11-19T09:59:00+00:00",
+                        "coverage": {"modality": "text", "complete_for_fixture": True},
+                    },
+                ))
+                candidate = {
+                    "proposal_id": "cloud-provider-integration-proposal",
+                    "memory_kind": "episodic_candidate",
+                    "source_assertions": [{
+                        "claim_id": "source-1",
+                        "text": source_text,
+                        "quoted_text": source_text,
+                        "start": 0,
+                        "end": len(source_text),
+                    }],
+                    "inferences": [],
+                }
+                transport = FakeTransport(candidate)
+                provider = OpenAICompatibleGroundedMemoryProvider(
+                    model="test-model",
+                    base_url="https://example.invalid/v1",
+                    api_key="test-only",
+                    transport=transport,
+                )
+                submitted = GroundedMemoryProposalPipeline(store, provider).propose_from_observation(
+                    "evt-cloud-provider-integration"
+                )
+                self.assertEqual(submitted[0]["status"], "accepted")
+                self.assertEqual(store.get_proposal("cloud-provider-integration-proposal")["status"], "pending")
+                self.assertEqual(store.get_memories(), [])
+
+                decision = store.evaluate_proposal("cloud-provider-integration-proposal")
+                self.assertEqual(decision["status"], "accepted")
+                memories = store.get_memories()
+                self.assertEqual(len(memories), 1)
+                self.assertEqual(
+                    memories[0]["evidence_event_ids"],
+                    ["evt-cloud-provider-integration"],
+                )
+            finally:
+                store.close()
