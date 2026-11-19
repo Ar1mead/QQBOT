@@ -86,6 +86,30 @@ class AcceptedClaimReferenceTests(unittest.TestCase):
         self.assertTrue(result["claim_digest"].startswith("sha256:"))
         self.assertEqual(result["claim"]["claim_id"], "claim-quiet-table")
 
+    def test_resolution_can_validate_an_authoritative_historical_prefix(self):
+        decision = self.store.get_event(self.memory["decision_event_id"])
+        before_decision = int(decision["sequence"])
+        after_decision = before_decision + 1
+
+        with self.assertRaisesRegex(AcceptedClaimReferenceError, "did not exist"):
+            resolve_accepted_claim_reference(
+                self.store,
+                memory_id=self.memory["memory_id"],
+                claim_id="claim-quiet-table",
+                expected_state_version=0,
+                through_sequence=before_decision,
+            )
+
+        resolved = resolve_accepted_claim_reference(
+            self.store,
+            memory_id=self.memory["memory_id"],
+            claim_id="claim-quiet-table",
+            expected_state_version=1,
+            through_sequence=after_decision,
+        )
+        self.assertEqual(resolved["status"], "accepted")
+        self.assertEqual(resolved["decision_event_id"], self.memory["decision_event_id"])
+
     def test_resolution_uses_one_sqlite_read_snapshot(self):
         version = self.store.get_state_snapshot()["state_version"]
         original_read_tx = self.store._read_tx
