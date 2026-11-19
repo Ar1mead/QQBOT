@@ -766,3 +766,20 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 
 
 - Final reviewer artifact hardening: the artifact now includes a separate SHA-256 digest over the canonical, bounded provider input, not just the candidate event payload. This binds the ephemeral opinion to the exact evidence snapshot. Code commit `293b4498b9258b6f38009f377183363fc8bd6c62`; test commit `f3b8e1ac1bbc6a63458bd9dd2907dd9f9871e4d3`. Tests remain unexecuted.
+
+## 1.0 Next slice: CSD-owned cross-episode review record
+
+The read-only reviewer v2 implementation is advisory only. Implement the durable review-record event next, with these invariants:
+
+1. New event type is CSD-reserved; external callers cannot submit it through public submit_event.
+2. Record binds exact pending-shadow proposal event ID/sequence/payload digest, recorded CSD state version, canonical reviewer-input digest, reviewer ID/version, and the normalized bounded reviewer result.
+3. CSD must independently reconstruct the canonical reviewer input at the review event's own sequence boundary. Do not trust the ephemeral artifact's claims merely because it came from the pipeline.
+4. Every accepted claim reference must be re-resolved with the candidate's recorded state version and the proposal event as exclusive historical prefix; source observation chronology and quote spans must be revalidated.
+5. The record must be validated on append, direct get_event, duplicate acknowledgement, and Recovery. Reuse one deterministic validator for all paths.
+6. The record remains an audit opinion only. It cannot accept/reject/revise the candidate, update user preferences or AI interests, alter self-model, rank Life Engine activity, or grant ASM permissions.
+7. Support deterministic/idempotent event identity; allow a distinct reviewer/version/input to produce a distinct review record. Do not introduce a mutable review projection unless a demonstrated query need requires one.
+8. Add tamper, stale evidence, public-submit denial, duplicate, direct-read and Recovery tests. No test may be described as passing before execution evidence exists.
+
+### Static inspection correction
+
+The previous export edit in core/csd/__init__.py accidentally inserted literal backslash-n characters. Fixed in d30a7fb7af4fae6f0a75dbdd02113ade6d9a07fc. Confirm this file compiles as part of the next executable verification attempt.
