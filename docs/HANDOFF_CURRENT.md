@@ -1,10 +1,11 @@
 # 个体 AI 项目 — 当前交接入口
 
-**最后核对：** 2026-11-19（UTC+08:00）  
+**最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**本次开始核对时分支 HEAD：** `77549a1ef6146307008b42fb49dd3570e399b0ae`  
+**当前分支 / PR #1 HEAD：** `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`  
 **PR：** #1 — Draft / Open / Unmerged（严禁合并）
+
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。日期命名的旧交接文件只作为历史记录，不得作为当前状态依据。开始工作时必须重新核对 GitHub 实际状态，文中的 SHA 和 Actions 状态都是本次核对时的快照。
 
@@ -40,13 +41,14 @@
 
 CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确认的内容均视为提案。
 
-## 3. 当前仓库和 PR 状态
+## 3. 当前仓库和 PR 状态（2026-11-20 实时核对）
 
-本次开始核对：
-- 活动分支 HEAD：`77549a1ef6146307008b42fb49dd3570e399b0ae`。
-- PR #1 head 与该 SHA 一致；本次后续文档提交会推进分支 HEAD，下次续接必须重新读取实时状态。
-- PR #1：Draft=true、state=open、merged=false。
-- PR #1 当前规模很大（约 1,268 commits、151 changed files）；这增加了审查、回归定位和发布风险。不要为了缩短流程而合并；应继续按明确验证门槛推进。
+- 活动分支：`feature/csd-cognitive-memory-slice`。
+- 当前 HEAD：`76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`。
+- PR #1 实时读取结果：head branch 与活动分支一致；head SHA 与上述 HEAD 一致；`state=open`、`draft=true`、`merged=false`。
+- PR #1 必须一直保持 Draft / Open / Unmerged，严禁合并。
+- 用户没有在本机克隆或运行仓库；不得声称完成本机验证。
+- 本仓库的历史代码量较大，继续采用小而可审查的提交；不要为制造 CI 运行而提交无意义改动。
 
 ## 4. 已建立的核心基础（不是完整产品）
 
@@ -86,60 +88,65 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - **没有真实 QQ / B站账号连接、登录、数据采集或外部操作。**
 - Linux Bubblewrap worker backend 尚未实现。
 
-## 5. CI 状态 — 当前首要阻塞
+## 5. CI 状态 — 当前验证阻塞（2026-11-20）
 
-本次读取到最近 10 次 Actions runs：#701–#710，均为 failure。
-对最新 Run #710（ID `44353015881`）直接读取 jobs JSON：
-- Windows job：`runner_id=0`、`runner_name=""`、`steps=[]`。
-- Ubuntu job：`runner_id=0`、`runner_name=""`、`steps=[]`。
-- 因此测试步骤没有执行；这是 runner 分配前失败，不是测试断言失败，也不能当作代码通过。
-- 原因未知。不要猜测是 billing、minutes、配额、GitHub 服务或代码导致。
-- 最后一次已知完整 Ubuntu + Windows matrix 通过为 Run #664；它早于之后的 runtime bundle pin/builder、Worker boundary 和 Windows lifecycle 改动。
-- **#664 之后的代码变更目前均不能宣称已完整 CI 验证。**
+- 最新相关执行记录已核对到 Actions Run #724（ID `44566099273`）。
+- Run #724 的 Ubuntu 与 Windows jobs 均在约 3 秒内结束为 failure；jobs JSON 中两项均为 `runner_id=0`、runner 名称为空、`steps=[]`。
+- 因此该 run 没有分配 runner，也没有执行任何测试命令。它不是 Python 测试断言失败，也不是测试通过。
+- 当前证据无法确定 runner 分配失败的具体原因。不要猜测 billing、分钟配额、仓库设置或 GitHub 服务状态。
+- Run #723（ID `44565792687`）也呈现相同的无 runner / 空 steps 模式。Run #722、#723、#724 对应的近期 P0 测试仍未执行。
+- 最新 P0 测试状态：云端 grounded provider、prior-memory selector/pipeline、semantic reviewer 和组合认知循环测试均已编写，但尚无本地或 hosted 执行结果。
+- 没有真实云端 API smoke test；没有用户本机 Windows 验证。
+- 历史 Run #664 的完整 Ubuntu/Windows 通过早于当前多轮变更，不能作为当前 HEAD 的验证依据。
+- 当前 connector 能够读取指定 commit 的 workflow runs 和 run jobs，但没有提供可靠的“仓库最近 10 次 runs”列表接口。本次不声称已完整核验最近 10 次全局运行。
 
-下一步必须先确认 runner 分配是否恢复。如果没有，先做只读诊断，不要靠连续提交代码制造更多无效 runs。
+处理原则：先继续静态审查和代码收敛；只有出现新的 runner 诊断线索或 runner 恢复迹象时才做有针对性的重试。不要重复触发一批已知没有 runner 的空工作流。
 
-## 6. 建议执行顺序
+## 6. 建议执行顺序 — cognition-first（当前有效）
 
-### P0 — 恢复真实 CI 验证
-1. 每次开始先核对最近 runs 和最新 jobs JSON。
-2. runner 恢复后先执行新增的 `tests/test_worker_windows_io.py` 与 `tests/test_worker_windows_handle_cleanup.py`。
-3. 再执行 `test_surfcore_observation_mapping.py`、`test_worker_runtime_bundle.py`、`test_worker_runtime_bundle_builder.py`、`test_worker_windows_launch_plan.py`。
-4. 最后跑完整 Ubuntu / Windows matrix；检查真实执行步骤与日志，不能只看 workflow conclusion。
+### P0 — 完成最小云端认知循环（当前首要工作）
 
-### P1 — 真实 Windows CPython 3.12 bundle 验证
-1. 在真实 Windows CPython 3.12 runtime 上运行 builder。
-2. 检查 manifest 文件列表、canonical digest、`python312._pth` 和排除项。
-3. 从 staging copy 执行 `python.exe -I -S -B app/worker_entrypoint.py`。
-4. 验证 AppContainer 目录祖先 traverse、runtime 只读/可执行、runtime 不可写、worker temp 可写。
-5. 验证 stdin/stdout/stderr、超时、输出上限、异常退出和清理。
-6. 只有真实验证后，才把 manifest SHA-256 pin 安全配置进可信 host config。
+1. 静态审查 `OpenAICompatibleGroundedMemoryProvider`、`prior_memory_context.py`、`OpenAICompatibleSemanticReviewProvider`、对应 pipeline 和测试，确认协议、边界和错误处理一致。
+2. 实现跨经历 accepted-claim reference resolver。引用必须绑定 `memory_id`、`proposal_id`、accepted `decision_event_id`、`claim_id`、canonical claim digest 和 `source_event_ids`。
+3. 解析器只接受 CSD 已接受且 projection 一致的记忆；pending/rejected/deferred/unknown/stale/corrupt 引用一律 fail closed。Pipeline 负责给模型提供不透明 reference keys，不信任模型自由拼接 ID。
+4. CSD 在 proposal append 和最终 decision 时重新解析并校验历史引用及 state version；来源事件相同的多个 claim 不得伪装成多条独立经历。
+5. 首版跨经历解释只形成 pending/shadow candidate；当前 observation 的 source assertions 仍必须引用本次 observation 的精确文本，不能用历史内容冒充当前来源。
+6. 后续再做 reviewer v2（正证据/反证据）和 CSD-owned preference/self-model revision reducer，包含版本、增强/减弱/缩窄/退役、审计历史和 Recovery。
+7. 用 fake transport / 临时 CSD store 补足 focused tests；runner 恢复后先跑 focused suites，再跑完整 Ubuntu/Windows matrix。
 
-### P2 — 完整 Windows executor coordinator
-由 host 严格拥有资源生命周期并按逆序清理：trusted pin、runtime staging/temp、AppContainer profile、ACL、最小环境变量、WorkerPipes、capabilities、STARTUPINFOEX、Job Object、suspended launch/Job assignment/resume、有界 stdio、超时/输出限制、WorkerHost 响应验证、逆序释放。
-若无法确认 Worker 已终止，必须 quarantine / fail closed；不得删除可能仍被进程使用的目录。cleanup errors 不可吞掉。
+### P1 — 验证云端模型接入
 
-### P3 — Linux 与真实平台
-- 实现并验证 Linux Bubblewrap backend。
-- 完成 host-side SurfCore cursor/result metadata validation。
-- 之后才做真实 QQ / B站只读连接和数据接入；外部写操作仍必须由 ASM 授权。
+- 在用户准备好 endpoint/model 和 API credential 后，使用环境变量 `COGNITIVE_MODEL_API_KEY` 做真实 API smoke test；密钥不得进入仓库或日志。
+- 确认 API 响应兼容、timeout/错误处理、成本与响应限制。
+- 将 provider 接入实际应用 runtime 的工作单独列为后续任务；目前“provider 类和 fake-transport 测试存在”不等于应用已运行接入。
 
-### P4 — 从“骨架”走向“个体”
-- 冻结并审查 CSD / ASM 核心协议和安全边界。
-- 接入云端模型 provider，但模型输出只能产生候选/提案，不能直接改写权威状态。
-- 实现真实的持续审议、动机/偏好修订、学习更新、主动活动选择和可停止的自发写作循环。
-- 做长时间运行、故障恢复、状态迁移、记忆质量、错误归因和成本/延迟测试。
-- 明确哪些行为是模型模拟、哪些是系统可验证的状态变化，避免把规则引擎或定时任务包装成“自主意识”。
+### P2 — 跨会话连续性与有限自主活动
 
-## 7. 当前项目的主要风险判断
+- 验证重启、时间推进和模型 provider 替换后 CSD 状态仍可追溯。
+- 让 Life Engine 读取相关经历并评估候选活动；允许 no-op、等待、延后、停止和拒绝。
+- 自主活动的外部副作用必须经 ASM 授权。
 
-1. **验证风险最高：** Actions runner allocation 连续失败，最近多次 workflow 实际没有执行任何步骤；最新代码处于未验证状态。
-2. **安全闭环未完成：** Windows worker 的隔离原语已大量实现，但没有完整 coordinator，也没有真实 runtime bundle + AppContainer 启动验证。此时不能运行不可信插件。
-3. **平台落地缺口：** SurfCore 只是适配基础，QQ/B站真实账号连接和数据流尚不存在。
-4. **认知能力缺口：** CSD/Life Engine 主要是确定性状态与提案骨架，没有真实模型 provider、持续审议和学习更新；不能宣称已经形成自主动机。
-5. **规格与范围风险：** CSD/ASM 规格仍未冻结，PR #1 体量很大。若继续并行堆叠功能，容易扩大未验证面并让审查困难。优先收敛协议、验证安全闭环，再接入新能力。
-6. **性能证据不足：** 目前部分 replay/投影优化有测试，但尚缺少长历史 wall-clock benchmark 和持续运行压力数据。
-7. **用户环境验证缺失：** 用户没有本地克隆仓库；Hosted CI 也不能替代用户 Windows 11 / Python 3.12 环境的最终验证。
+### P3 — 私人写作与个人生活空间
+
+- 私人写作是可选活动，不是定时配额或自动记忆 dump。
+- 保存作品、研究和长期项目产物，但不取代 CSD 的身份状态权威。
+
+### P4 — 按认知循环需要扩展平台与沙箱
+
+- QQ / B站先只读；真实平台连接按独立授权和验证门槛推进。
+- Windows/Linux Worker 与 Runtime 基础设施继续保留，但除非阻塞最小认知循环或发现明确安全缺口，否则暂缓扩建。
+- 任何外部副作用仍需 ASM 授权与结果验证。
+
+## 7. 当前项目的主要风险判断（2026-11-20）
+
+1. **验证阻塞：** 最近可见的 Run #722–#724 未分配 runner、没有 steps，近期新增认知循环测试没有实际执行结果。
+2. **语义能力缺口：** 已有云端 grounded provider、有限历史上下文和单 proposal semantic reviewer，但跨经历证据综合、偏好/自我模型 reducer 尚未实现。
+3. **应用接线缺口：** Provider 与 fake-transport 组合测试已提交，不代表实际应用 runtime 已连接真实云端模型；真实 API smoke test 尚未执行。
+4. **记忆检索限制：** prior-memory selector 是确定性词面重合检索，不是 embedding/vector/语义检索；历史内容是不可信参考，不能独立支撑新事实断言。
+5. **CSD 权威边界：** semantic reviewer 的 supported 只是审查意见，不代表事实真理；CSD 必须验证引用、状态版本和证据，并决定接受/拒绝/延后。
+6. **基础设施验证缺口：** Windows Worker / Runtime Bundle 的底层原语仍有真实 Windows CPython bundle 和 production executor 验证缺口，但目前不是 P0，除非它阻塞安全认知循环。
+7. **用户环境验证缺失：** 用户未本地 clone，不能声称用户 Windows 11 / Python 3.12 环境验证通过。
+8. **PR 风险：** PR #1 很大且必须保持 Draft / Open / Unmerged；禁止为了简化流程而合并。
 
 ## 8. 用户协作约束
 
@@ -541,3 +548,43 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - 本条记录前的 branch head：`6ee1548fe9d2575b58a6f646102274a0e40de1f2`。
 - Actions Run #724（ID `44566099273`）约 3 秒后失败；Ubuntu / Windows 两个 job 的 steps 都为空，没有分配 runner，也没有执行测试命令。
 - 这再次确认是 runner 分配问题；没有新的 Python 测试结果，不能据此判断测试通过或代码测试失败。
+
+
+## 25. 当前状态统一与下一步 — 2026-11-20
+
+本节是当前交接入口的最新状态，优先于本文件前面仍保留的历史快照和旧阶段“下一步”文字。
+
+### 实时仓库状态
+
+- 活动分支 / PR #1 head branch：`feature/csd-cognitive-memory-slice`。
+- HEAD：`76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`。
+- PR #1：Draft=true、Open、Unmerged；PR head SHA 与分支 HEAD 一致。
+- 本次更新了 `docs/PROJECT_PROGRESS.md` 与本文件，提交后 HEAD 会再次前进；后续窗口必须重新读取 live HEAD 和 PR metadata，不得复用本 SHA。
+
+### 已提交的 P0 代码切片
+
+- `core/csd/openai_compatible_provider.py`：`OpenAICompatibleGroundedMemoryProvider` 和 `OpenAICompatibleSemanticReviewProvider`。
+- `core/csd/prior_memory_context.py`：只从 accepted CSD memory projection 选取有界历史上下文；词面检索，不是语义搜索。
+- 对应 fake-transport 单元测试及组合测试：观察事件 → grounded proposal → semantic review → 显式 CSD evaluate/accept。
+- `docs/design/cross-episode-evidence-and-preference-revision-contract.md`：跨经历引用与偏好修订的设计约束。
+
+### 验证状态
+
+- Actions Run #724（ID `44566099273`）：Ubuntu/Windows 两个 jobs 均未分配 runner，steps 为空；没有测试执行。
+- Run #723（ID `44565792687`）有相同 runner allocation failure 模式。
+- 近期 P0 测试均未执行；没有真实云端 API smoke test，也没有用户本机测试。
+- 不得将 runner allocation failure 描述成代码测试失败或测试通过。
+- 当前证据不能确定 GitHub runner 无法分配的根因；避免无依据猜测和重复触发空 jobs。
+
+### 下一步
+
+1. 静态审查当前 provider、pipeline、prior-memory context、semantic reviewer 和组合测试的接口一致性。
+2. 实现严格的跨经历 accepted-claim reference resolver，引用在 proposal append 与 decision 时双重验证。
+3. 加入独立 source-event 计数、防重复引用、stale state、corrupt projection、非 accepted memory 拒绝和 Recovery 测试。
+4. 所有跨经历解释暂时只允许 pending/shadow；完成 semantic reviewer v2 与 CSD preference/self-model revision reducer 后，才允许形成持久偏好变化。
+5. runner 恢复后先执行 focused tests，再执行完整 Ubuntu/Windows matrix。
+6. 不扩建无关 Worker/平台设施；PR #1 永远保持 Draft / Open / Unmerged。
+
+### 新窗口启动语
+
+先读取 `docs/PROJECT_PROGRESS.md` 和 `docs/HANDOFF_CURRENT.md`，然后实时核对活动分支 HEAD、PR #1 状态和可见 Actions runs/jobs。以 GitHub 实际状态为准。当前首要任务是跨经历 accepted-claim reference resolver，不要回到旧的 Windows Worker/runtime 优先路线。PR #1 必须保持 Draft / Open / Unmerged。用户未在本机克隆或运行仓库；不要声称本机验证通过。
