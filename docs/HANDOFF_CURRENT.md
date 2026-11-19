@@ -3,22 +3,24 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
+**当前 PR head（本次核对）：** `389be739a20f279a71603e49ee78475b94c28c71`  
 **最近代码/测试提交：** `2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c`  
-**PR：** #1 — 最近一次已确认状态为 Draft / Open / Unmerged；本轮搜索确认仍为 Open，但搜索结果未返回 draft/head_sha 字段  
+**PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。开始工作时必须重新核对 GitHub 实际状态；文中的 SHA 和 Actions 状态均为本次核对快照。PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
 
 ## 0.1 本轮续接 checkpoint — 2026-11-20
 
-- 最新代码/测试提交：`2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c`；之后仅同步设计、进度和交接文档。
-- **历史前缀 bug 修复：** `through_sequence` 是排他边界；state version 按 `through_sequence - 1` 计算。负数、bool、非整数会在数据库读取前拒绝。
-- **Recovery 隐患修复：** 发现历史引用 resolver 若在 Recovery 部分重建 projection 时调用 `get_memory()`，会触发“当前 projection 必须与完整 event history 一致”的校验，而此时 projection 正处于逐条重建状态。现在只要提供 `through_sequence`，就从该边界之前的不可变 decision、grounded proposal 和 observation events 重建 accepted memory，不再依赖当前 projections。新增了删除 accepted-memory/proposal projections 后仍能成功进行历史引用解析的回归测试。注意：这只是 resolver 支持 Recovery 的基础，Recovery 尚未接入 cross-episode event replay。
-- **多引用一致性修复：** `build_accepted_claim_reference_context` 与 `resolve_selected_accepted_claims` 现在分别在单个 SQLite read snapshot 中处理整个引用集合；如果已有 CSD transaction 则复用。新增多引用场景的单快照测试。
-- **测试状态：** workflow-run lookup 对测试提交 `2a17a6d...` 返回空列表；以上新增测试均未执行。不得宣称通过或失败；没有用户本机 Windows 验证或真实云 API smoke test。
-- **仍未完成：** cross-episode pending event family；append-time/decision-time 权威事务内重验证；reviewer v2；偏好/self-model reducer；Recovery event replay 集成与篡改测试。shadow candidates 仍不得影响持久身份、偏好或 Life Engine 活动排序。
-- **ai-companion-pi 设计仍完整保留**于 `docs/design/autonomous-life-and-self-development.md`，但仍是设计目标，不是运行时能力。
-- 下一步实现 CSD pending-only cross-episode event family 和 append-time revalidation；在没有 reviewer v2、decision-time validation、reducer 与 Recovery 全部通过前，不开放接受/修订路径。
+- 本次实时读取 PR #1：`state=open`、`draft=true`、`merged=false`，head `389be739a20f279a71603e49ee78475b94c28c71`，base `main`。
+- 最近代码/测试提交：`2a17a6d09eb73a4a3c473a4bd07ce69acf209e1c`。其后提交只同步设计、进度和交接文档。
+- **历史前缀边界 bug：** `through_sequence` 是排他边界，state version 按 `through_sequence - 1` 计算；负数、bool、非整数在数据库读取前拒绝。
+- **Recovery 隐患：** 历史引用解析不再依赖当前 accepted-memory/proposal projections；有 `through_sequence` 时从边界之前的不可变 decision、grounded proposal、observation events 重建已接受记忆，避免 Recovery 部分重建 projection 时触发全量 projection 一致性失败。已有回归测试模拟删除这两类 projection 后仍可从事件历史解析。
+- **多引用快照一致性：** 构建历史引用 allowlist 与解析模型选中的引用集合，各自只使用一个 SQLite read snapshot；已有 CSD transaction 时复用。新增多引用单快照测试。
+- **验证状态：** workflow-run 查询对最近代码/测试提交 `2a17a6d...` 返回空列表，combined status 为空；没有当前版本 CI 通过/失败证据。所有新增测试均未执行。没有用户本机 Windows 验证或真实云 API smoke test。
+- **仍未完成：** cross-episode pending event family；append-time/decision-time 权威事务内重新验证；reviewer v2；偏好/self-model reducer；Recovery event replay 集成与篡改测试。shadow candidate 仍不得成为持久偏好/自我模型，也不得影响 Life Engine 排序。
+- **ai-companion-pi 设计完整保留**于 `docs/design/autonomous-life-and-self-development.md`，仍是设计目标，不是运行时功能。
+- 下一步：实现 CSD pending-only cross-episode event family 和 append-time revalidation；保持所有结果 shadow/pending，直到 reviewer v2、decision-time validation、reducer、Recovery 全部具备完整测试。
 - PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
 
 ## 0. 新窗口启动规则
