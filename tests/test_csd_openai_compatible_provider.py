@@ -127,14 +127,10 @@ class OpenAICompatibleGroundedProviderTests(unittest.TestCase):
 
     def test_empty_assertion_result_is_a_valid_no_proposal(self):
         value = proposal(source_assertions=[], inferences=[])
-        provider, _ = self.provider(value)
+        provider, transport = self.provider(value)
         result = provider.propose_grounded(self.observation(), state_version=0)
         self.assertEqual(result, [])
         self.assertEqual(len(transport.calls), 1)
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class CloudProviderCsdIntegrationTests(unittest.TestCase):
@@ -194,3 +190,7 @@ class CloudProviderCsdIntegrationTests(unittest.TestCase):
                 )
             finally:
                 store.close()
+
+
+if __name__ == "__main__":
+    unittest.main()
