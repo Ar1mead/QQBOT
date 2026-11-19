@@ -182,3 +182,10 @@ Until that reducer and its tests exist, cross-episode candidates remain shadow/p
 ## 9. Explicit non-claims
 
 This design does not establish subjective experience, consciousness, objective truth, or a human-like personality. It specifies a traceable mechanism for proposing and revising interpretations while preserving the evidence, uncertainty and authority boundaries.
+
+
+## 3.3 Historical-prefix resolution requirement
+
+A reference resolver used by append-time validation, decision-time validation, or Recovery must evaluate the CSD state that existed immediately before the event being validated. Comparing only with the current state version is incorrect: later accepted decisions must not make an older, valid proposal appear stale, and future accepted decisions must never be visible to an earlier event.
+
+The resolver now accepts an optional `through_sequence` boundary. When supplied, it computes the authoritative state version at that prefix and verifies that the referenced accepted-decision event exists strictly before the prefix. The caller must use the same prefix for every reference in one event validation. This remains read-only groundwork; the cross-episode proposal event family must still invoke it inside its own append and decision transactions, and Recovery must replay projections in sequence order before validating each candidate.
