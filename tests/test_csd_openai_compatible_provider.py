@@ -130,7 +130,7 @@ class OpenAICompatibleGroundedProviderTests(unittest.TestCase):
         provider, _ = self.provider(value)
         result = provider.propose_grounded(self.observation(), state_version=0)
         self.assertEqual(result, [])
-        self.assertEqual(result[0].inferences, ())
+        self.assertEqual(len(transport.calls), 1)
 
 
 if __name__ == "__main__":
