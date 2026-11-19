@@ -1739,3 +1739,23 @@ Every new module or infrastructure task must state: (a) which user-visible cogni
 - Actions run #716 (ID `44549751577`), triggered by this integration-test commit, failed before runner allocation on both Ubuntu and Windows: `runner_id=0`, blank runner names, and empty steps. Runs #714–#716 show the same runner-allocation failure. No test result exists.
 - Current PR head: `7bd365332f71065dbfaeee31c8563207a07eb586`; PR #1 remains Draft/Open/Unmerged.
 - Next: once a real runner is available, run the focused provider/pipeline tests first. Until then, continue static review only and avoid repeatedly triggering Actions with code commits. The next planned code seam is versioned, bounded prior-memory context for later-session synthesis; do not widen the current provider input implicitly.
+
+
+## 自主生活与持续成长设计整合 — 2026-11-19
+
+- 基于对 ai-companion-pi、NeoPsyke、SAKU、Orrin、Generative Agents、PSFN、Argus、Letta、Voyager 和 Tamanitomo 的比较研究，新增正式设计提案：`docs/design/autonomous-life-and-self-development.md`。
+- 该提案是在现有三层认知架构上的能力扩展，不另建平行架构，也不改变 CSD 是长期状态唯一权威、ASM 是外部副作用授权边界的原则。
+- 明确采纳的方向：
+  1. AI 私人生活空间：保存日记、作品、研究、长期项目、技能和待续想法；它是活动产物空间，不是 CSD 的替代品。
+  2. 多来源唤醒评估：定时评估、事件触发、自主请求；唤醒只提供评估机会，不强制执行任务或生成内容。
+  3. 兴趣和长期项目：从信息缺口、重复关注、矛盾和未完成事项形成候选项目，支持继续、暂停、恢复、修订、放弃和 no-op。
+  4. 反思与自我修订：区分观察事实、AI 自述、模型解释和 CSD 接受的状态；偏好需有证据、反证、置信度和修订历史。
+  5. 技能积累：只把经过验证且有适用范围/限制记录的策略纳入可复用技能库。
+  6. 结果学习：比较意图与实际结果，记录失败和因果不确定性，并形成后续更新提案。
+  7. 主动联系：先进入待发送队列，检查用户边界、时段、频率、许可和重要性；实际发送仍需 ASM 授权与结果验证。
+- 对 ai-companion-pi 的改进判断已正式记录：不照搬固定四小时 cron；不以 Markdown 日记作为唯一身份存储；不允许模型自述自动成为事实；不让自主唤醒请求自行授予权限或增加预算；不采用 unrestricted shell/宽泛文件权限；不强制每次醒来都产出；增加长期项目和结果评价。
+- 实施顺序确定为：P0 最小云端模型认知循环；P1 经历反思/自我模型与偏好修订；P2 最小私人生活空间；P3 兴趣、长期项目与活动选择；P4 定时/事件/自主请求唤醒；P5 技能积累与结果评价；P6 主动联系和平台扩展。P2 可先做最小 artifact 目录，但不得拖延 P0。
+- 本次仅为设计文档更新，没有修改运行时代码，没有运行测试，也没有声称这些能力已经实现。
+- 本次开始核对时 PR #1 head 为 `77549a1ef6146307008b42fb49dd3570e399b0ae`，状态 Draft/Open/Unmerged；该 SHA 的 PR-triggered workflow lookup 未返回 runs。此前 Run #716（ID `44549751577`）的 Ubuntu/Windows jobs 均在 runner 分配前失败，jobs 未提供 steps；新增云端 provider 集成测试仍未执行。不要把 runner allocation failure 当成测试结果。
+- PR #1 继续必须保持 Draft / Open / Unmerged，严禁合并。
+- 下一步仍先完成 P0：静态审查云端 provider 与 pipeline 集成测试，等待可用 runner 后执行 focused tests；之后增加版本化、有限的历史记忆上下文契约。不要因新增自主生活方向跳过最小认知循环。
