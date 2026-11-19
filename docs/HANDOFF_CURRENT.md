@@ -608,3 +608,17 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 ### 新窗口启动语
 
 先读取 `docs/PROJECT_PROGRESS.md` 和 `docs/HANDOFF_CURRENT.md`，然后实时核对活动分支 HEAD、PR #1 状态和可见 Actions runs/jobs。以 GitHub 实际状态为准。当前首要任务是跨经历 accepted-claim reference resolver，不要回到旧的 Windows Worker/runtime 优先路线。PR #1 必须保持 Draft / Open / Unmerged。用户未在本机克隆或运行仓库；不要声称本机验证通过。
+
+
+## 0.2 Continuation update — historical-prefix resolver groundwork (2026-11-20)
+
+- Latest implementation commits after the prior checkpoint:
+  - `509c6b15eb8b5db3f718b2c1cd0ab4f7c1b52083`: resolver accepts an optional `through_sequence` and calculates state version at that historical prefix.
+  - `239f9f7c0cc37fdf329ac70ad7d4643bd9bd0c4a`: rejects a claim whose accepted-decision event did not yet exist at the requested prefix.
+  - `a9a70b07080f803213a46fcbd13f71afc8304576`: adds regression coverage for immediately-before/immediately-after decision sequence.
+- Why this matters: append/decision validation and Recovery must judge a candidate against the event history that existed at that exact point, not today's state version. A current-state-only resolver would incorrectly reject valid old candidates after later accepted memories, or could accidentally treat future decisions as historical facts.
+- New optional API: `resolve_accepted_claim_reference(..., through_sequence=N)`. Callers must pass the sequence prefix corresponding to the event being validated and its matching authoritative state version. The default remains current-state behavior for existing callers.
+- Tests are **not executed**; latest commit has no associated PR workflow run visible. No local test result is claimed.
+- Live PR check: #1 Open, Draft=true, Merged=false; branch `feature/csd-cognitive-memory-slice`; head at this update `a9a70b07080f803213a46fcbd13f71afc8304576`.
+- Next implementation: dedicated CSD pending-shadow cross-episode proposal/decision event family, with append-time and decision-time reference re-resolution against the corresponding historical prefix, plus projection rebuild/Recovery. No accepted outcome is allowed yet.
+- PR #1 must remain Draft / Open / Unmerged.
