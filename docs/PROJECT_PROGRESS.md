@@ -1921,3 +1921,13 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - Cross-episode design contract and autonomous-life status sections were reconciled with the actual implementation in documentation commits 5ef0759... / ce88f05... / 34010a7... .
 - Latest code/test checkpoint: 37536152a09f145f9867471dbac40fc7e55c5772. Latest documentation commit at this note: 34010a7eb9775c1bdb1fce2b44eb596196faf847.
 - PR #1 remains Draft / Open / Unmerged. Do not merge.
+
+
+## Design-document consistency refresh — 2026-11-20
+
+- Refreshed the cross-episode contract's status, implementation sections and implementation sequence to distinguish the implemented historical resolver + pending-shadow append/Recovery gate from the still-unimplemented reviewer v2, decision-time gate and preference/self-model reducer.
+- Refreshed the autonomous-life proposal's implementation-status section. It now correctly records the lexical prior-memory selector, same-episode semantic reviewer v1, pending-only cross-episode event, and the still-unimplemented private home, autonomous scheduler, long-term project manager and proactive-contact queue.
+- Cross-episode contract update commit: 9695c44a40a44bcb38672d0ac592172239b6bb02. Autonomous-life status update commit: ce88f05691a1cddaee23528aedc986c02cece1fc.
+- Latest code/test checkpoint remains 37536152a09f145f9867471dbac40fc7e55c5772; the contract and status changes are documentation-only.
+- Actions Run #780 (ID 44586330403) remains a pre-step failure: both matrix jobs have logs_url=null and steps=null. No tests executed.
+- PR #1 remains Draft / Open / Unmerged.
