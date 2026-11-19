@@ -271,6 +271,23 @@ class CrossEpisodeReviewPipelineTests(unittest.TestCase):
             "pending_shadow",
         )
 
+    def test_record_review_rejects_artifact_from_different_reviewer_identity(self):
+        artifact = self.pipeline(FakeCrossEpisodeReviewer()).review_proposal(
+            "review-cross-episode-proposal"
+        )
+        other_reviewer = FakeCrossEpisodeReviewer()
+        other_reviewer.reviewer_id = "test.different_reviewer"
+        other_pipeline = self.pipeline(other_reviewer)
+        with self.assertRaisesRegex(
+            CrossEpisodeReviewError,
+            "reviewer identity does not match this pipeline provider",
+        ):
+            other_pipeline.record_review(artifact)
+        self.assertEqual(
+            self.store._db.execute('SELECT COUNT(*) FROM events WHERE event_type=?', (CROSS_EPISODE_REVIEW_EVENT,)).fetchone()[0],
+            0,
+        )
+
     def test_public_submit_cannot_forge_reserved_review_event(self):
         event = CognitiveEvent(
             event_id="external-forged-review-event",
