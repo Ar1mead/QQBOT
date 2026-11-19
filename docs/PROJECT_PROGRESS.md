@@ -1714,3 +1714,17 @@ Every new module or infrastructure task must state: (a) which user-visible cogni
 - This was a documentation/API-audit checkpoint only. No runtime code changed and no tests were run or claimed.
 - Live repository state at audit: PR #1 head `38a5f752a099eeeba8a1754864e401d0909295a1`, Draft/Open/Unmerged. Latest Actions #710 jobs both had `runner_id=0`, blank runner names, and empty steps; no tests executed. The ten most recent runs #701–#710 all failed before runner allocation; cause unknown.
 - Next implementation: add a strict, configurable cloud-model provider behind the existing grounded-memory provider contract, with fake-transport tests first. Keep credentials outside the repository and keep model output proposal-only.
+
+
+## Proposal-only cloud grounded-memory provider — 2026-11-19
+
+- Added `core/csd/openai_compatible_provider.py` with `OpenAICompatibleGroundedMemoryProvider`, implementing the existing `GroundedMemoryProposalProvider` protocol over configurable HTTPS Chat Completions endpoints.
+- The provider receives only one persisted text observation and a state version. It has no CSD store/database, filesystem, tool executor, or ASM handle. The existing grounded pipeline remains responsible for binding evidence event ID, provider provenance, and state version; CSD remains responsible for evaluation and acceptance.
+- Added strict parsing for the outer API envelope and model JSON, duplicate-key rejection, exact allowlists for source assertions/inferences, bounded counts/text/response sizes, HTTPS endpoint validation, timeout/error handling, and confidence/offset type checks. Empty source-assertion output returns no candidate.
+- Credentials are read from `COGNITIVE_MODEL_API_KEY`; endpoint/model are configurable via `COGNITIVE_MODEL_API_BASE_URL` and constructor model. No credential or user API key was committed.
+- Added `tests/test_csd_openai_compatible_provider.py` with fake-transport cases for valid typed output, bounded request context, unknown authority fields, boolean offsets, unsupported inference, invalid confidence, timeout, HTTPS/key validation, and empty/no-proposal output. Added the test to the Ubuntu/Windows workflow and exported the provider from `core.csd`.
+- Static repository review was performed, but **the new tests have not been executed locally or in CI**. The latest observed Actions run #713 (ID `44549585694`) failed before runner allocation: Ubuntu and Windows both had `runner_id=0`, blank runner names, and zero steps. Runs #711–#713 all show the same pre-runner failure pattern. Do not claim provider tests passed.
+- No real API smoke test was performed; no credential was available/configured in the repository runtime. A real endpoint test remains a separate user-runtime configuration gate.
+- Important scope: this adds the cloud provider implementation for grounded memory proposals only. It does not yet add historical-memory context to the provider, connect the provider to a running application/runtime, implement preference/self-model reducers, or connect a real Life Engine deliberator.
+- Current PR head at this checkpoint: `d80f8c02702ddc0135e8ae65d366977f7c3a7b5c`; PR #1 remains Draft/Open/Unmerged.
+- Next: review provider/pipeline integration end-to-end; add a fake-transport integration test that proves the provider creates only a pending CSD proposal and that only explicit CSD evaluation can accept it. Then add a versioned, bounded prior-memory context contract without silently changing the existing provider protocol.
