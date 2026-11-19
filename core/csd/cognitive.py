@@ -46,6 +46,8 @@ GROUNDED_PROPOSAL_EVENT = "cognition.grounded_memory_candidate_proposed.v1"
 SEMANTIC_REVIEW_EVENT = "cognition.semantic_review_recorded.v1"
 DECISION_EVENT = "cognition.memory_candidate_decided.v1"
 CROSS_EPISODE_PROPOSAL_EVENT = "cognition.cross_episode_candidate_proposed.v1"
+CROSS_EPISODE_REVIEW_EVENT = "cognition.cross_episode_review_recorded.v1"
+CROSS_EPISODE_REVIEW_SOURCE = "csd.cross-episode-review-authority.v1"
 DECISION_SOURCE = "csd.authority.v1"
 POLICY_ID = "csd.memory-provenance-check"
 GROUNDED_POLICY_ID = "csd.grounded-memory-text-evidence"
@@ -489,6 +491,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             or event.event_id.startswith("csd-goal-decision:")
             or event.event_id.startswith("csd-goal-activation-decision:")
             or event.event_id.startswith("csd-goal-pause-resume-decision:")
+            or event.event_id.startswith("csd-cross-episode-review:")
         ):
             raise ValueError("event_id uses a namespace reserved for CSD decisions")
         _nonempty(event.correlation_id, "correlation_id")
@@ -497,12 +500,16 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         _timestamp(event.occurred_at, "occurred_at")
         if not isinstance(event.payload, Mapping):
             raise ValueError("payload must be an object")
-        if event.event_type in {DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT} and not internal:
-            raise ValueError("CSD decision events are reserved for the internal authority path")
+        if event.event_type in {
+            DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT,
+            GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT,
+            CROSS_EPISODE_REVIEW_EVENT,
+        } and not internal:
+            raise ValueError("CSD decision/review events are reserved for the internal authority path")
         if event.event_type not in {
             OBSERVATION_EVENT, OBSERVATION_EVENT_V2, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
             SEMANTIC_REVIEW_EVENT, DECISION_EVENT, CROSS_EPISODE_PROPOSAL_EVENT,
-            INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
+            CROSS_EPISODE_REVIEW_EVENT, INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
             GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
             GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
             GOAL_PAUSE_RESUME_PROPOSAL_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT,
@@ -514,6 +521,8 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             raise ValueError("motivation decision event source must identify CSD authority")
         if event.event_type in {GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT} and event.source != GOAL_DECISION_SOURCE:
             raise ValueError("goal decision event source must identify CSD authority")
+        if event.event_type == CROSS_EPISODE_REVIEW_EVENT and event.source != CROSS_EPISODE_REVIEW_SOURCE:
+            raise ValueError("cross-episode review event source must identify CSD authority")
         if event.event_type == OBSERVATION_EVENT_V2:
             self._validate_observation_v2_event(event)
         if event.event_type == SEMANTIC_REVIEW_EVENT:
@@ -1119,6 +1128,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             elif event.event_type == CROSS_EPISODE_PROPOSAL_EVENT:
                 from .cross_episode_proposals import validate_cross_episode_proposal_event
                 validate_cross_episode_proposal_event(self, event, sequence=sequence)
+            elif event.event_type == CROSS_EPISODE_REVIEW_EVENT:
+                from .cross_episode_review import validate_cross_episode_review_event
+                validate_cross_episode_review_event(self, event, sequence=sequence)
             elif event.event_type in {
                 DECISION_EVENT, MOTIVATION_DECISION_EVENT,
                 GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
@@ -1732,6 +1744,12 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
         if event.event_type == CROSS_EPISODE_PROPOSAL_EVENT:
             from .cross_episode_proposals import validate_cross_episode_proposal_event
             validate_cross_episode_proposal_event(self, event, sequence=sequence)
+            return
+        if event.event_type == CROSS_EPISODE_REVIEW_EVENT:
+            if not internal or event.source != CROSS_EPISODE_REVIEW_SOURCE:
+                raise CognitiveIntegrityError("non-authoritative cross-episode review event")
+            from .cross_episode_review import validate_cross_episode_review_event
+            validate_cross_episode_review_event(self, event, sequence=sequence)
             return
         if event.event_type == DECISION_EVENT:
             if not internal or event.source != DECISION_SOURCE:
@@ -2986,8 +3004,18 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     DECISION_EVENT, MOTIVATION_DECISION_EVENT, GOAL_BATCH_DECISION_EVENT,
                     GOAL_ACTIVATION_DECISION_EVENT, GOAL_PAUSE_RESUME_DECISION_EVENT,
                 }
-                internal = event.event_type in decision_types and event.source == DECISION_SOURCE
-                if event.event_type in decision_types and not internal:
+                internal = (
+                    (event.event_type in decision_types and event.source == DECISION_SOURCE)
+                    or (
+                        event.event_type == CROSS_EPISODE_REVIEW_EVENT
+                        and event.source == CROSS_EPISODE_REVIEW_SOURCE
+                    )
+                )
+                if (
+                    event.event_type in decision_types and not internal
+                ) or (
+                    event.event_type == CROSS_EPISODE_REVIEW_EVENT and not internal
+                ):
                     raise CognitiveIntegrityError("forged decision event in durable history")
                 try:
                     canonical_payload_json = self._validate_event(
@@ -3005,7 +3033,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     OBSERVATION_EVENT, OBSERVATION_EVENT_V2,
                     PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
                     SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
-                    CROSS_EPISODE_PROPOSAL_EVENT,
+                    CROSS_EPISODE_PROPOSAL_EVENT, CROSS_EPISODE_REVIEW_EVENT,
                     INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
                     GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
                     GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
