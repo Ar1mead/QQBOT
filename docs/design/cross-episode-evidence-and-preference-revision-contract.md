@@ -73,6 +73,21 @@ Tests added in `tests/test_csd_accepted_claim_references.py`; they are wired int
 
 This is not yet the full contract above: the resolver is read-only and is not wired into a cross-episode model prompt/pipeline. New proposal append and decision paths do not yet re-resolve these references inside their own CSD transactions. No cross-episode proposal event, preference projection, reviewer v2, reducer, or Recovery exists. Therefore no preference or identity update may be accepted or used for activity ranking on the basis of this resolver.
 
+## 3.2 Partial implementation checkpoint — shadow-only candidate contract
+
+Added `core/csd/cross_episode_proposals.py` with a typed, non-persistent proposal builder:
+
+- Strict schema v1 and exact field allowlist; model output cannot inject memory IDs, decision IDs, event IDs, action fields, or persistence authority.
+- Model output selects only opaque support/counter-evidence keys from the pipeline's resolved allowlist. The builder re-resolves every selected key against CSD at the expected state version.
+- Requires at least one support reference; counter-evidence may be empty but is separately typed and cannot reuse a support key.
+- Computes independent support-event count from distinct source event IDs, not the number of claims/keys.
+- Separates user-owned `preference_candidate` from AI-owned `interest_candidate`; mismatched ownership is rejected.
+- Requires explicit scope, exclusions, uncertainty, alternatives and limitations. The result is always `pending_shadow` / `shadow`.
+
+This builder does not append an event, persist a candidate, change accepted memory, create a preference, or call Life Engine/ASM. One accepted episode can produce a shadow candidate for schema/testing purposes, but the independent event count exposes that it is only one episode; no reducer is allowed to promote it.
+
+Tests in `tests/test_csd_cross_episode_proposals.py` cover valid shadow output, provenance retention, authority-field rejection, owner separation, unknown/stale keys, support/counter overlap, and malformed booleans/enums. The tests are wired into both workflow path filters and a focused CI step, but **have not been executed**.
+
 ## 4. Cross-episode synthesis proposal
 
 Do not overload the existing single-observation \`GroundedMemoryCandidate\` schema. Introduce a separate versioned proposal family after this design is accepted.
