@@ -94,7 +94,7 @@ class OpenAICompatibleGroundedMemoryProvider:
             raise ValueError("COGNITIVE_MODEL_API_KEY or api_key is required")
         if not isinstance(timeout_seconds, (int, float)) or isinstance(timeout_seconds, bool) or not 1 <= timeout_seconds <= 120:
             raise ValueError("timeout_seconds must be between 1 and 120")
-        if not isinstance(max_response_bytes, int) or isinstance(max_response_bytes, bool) or not 1024 <= max_response_bytes <= 1048576:
+        if not isinstance(max_response_bytes, int) or isinstance(max_response_bytes, bool) or not 1024 <= max_response_bytes <= 262144:
             raise ValueError("max_response_bytes must be between 1024 and 1048576")
         self.timeout_seconds = float(timeout_seconds)
         self.max_response_bytes = max_response_bytes
@@ -178,7 +178,8 @@ class OpenAICompatibleGroundedMemoryProvider:
             if not isinstance(content_text, str):
                 raise ValueError("message content must be a JSON string")
             result = _strict_json(content_text)
-            return [self._parse_candidate(result)]
+            candidate = self._parse_candidate(result)
+            return [] if not candidate.source_assertions else [candidate]
         except (UnicodeDecodeError, ValueError, TypeError, KeyError, IndexError) as exc:
             raise CloudProposalProviderError("cloud provider returned an invalid grounded proposal") from exc
 
