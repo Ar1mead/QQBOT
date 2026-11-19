@@ -70,6 +70,7 @@ class CrossEpisodeReviewArtifact:
     proposal_event_id: str
     proposal_sequence: int
     proposal_digest: str
+    review_input_digest: str
     based_on_state_version: int
     reviewer_id: str
     reviewer_version: str
@@ -186,7 +187,7 @@ def _source_evidence(
     counter: Sequence[Mapping[str, Any]],
     *,
     proposal_sequence: int,
-) -> tuple[dict[str, Any], ...]:
+) -> tuple[tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
     claim_rows: list[dict[str, Any]] = []
     sources: dict[str, dict[str, Any]] = {}
     total_chars = 0
@@ -446,6 +447,7 @@ class CrossEpisodeReviewPipeline:
             if len(serialized.encode("utf-8")) > MAX_TOTAL_SOURCE_CONTENT_CHARS * 4:
                 raise CrossEpisodeReviewError("complete review input exceeds the byte limit")
             proposal_digest = _digest(_canonical(payload))
+            review_input_digest = _digest(serialized)
 
         # Provider is untrusted and receives no store handle or mutation API.
         result = self.provider.review_cross_episode(review_input)
@@ -472,6 +474,7 @@ class CrossEpisodeReviewPipeline:
             proposal_event_id=event["event_id"],
             proposal_sequence=event["sequence"],
             proposal_digest=proposal_digest,
+            review_input_digest=review_input_digest,
             based_on_state_version=state_version,
             reviewer_id=self.provider.reviewer_id,
             reviewer_version=self.provider.reviewer_version,
