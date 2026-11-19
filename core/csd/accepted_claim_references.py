@@ -155,7 +155,15 @@ def resolve_accepted_claim_reference(
     """Resolve one accepted claim inside a single SQLite read snapshot."""
     # A before/after version check across independent transactions is not
     # enough: a projection could otherwise be read from a different database
-    # snapshot than the event/decision lineage. Keep every read in one snapshot.
+    # snapshot than the event/decision lineage. Reuse an existing CSD transaction
+    # when called from an append/decision gate; otherwise create one read snapshot.
+    if store._db.in_transaction:
+        return _resolve_accepted_claim_reference_in_snapshot(
+            store,
+            memory_id=memory_id,
+            claim_id=claim_id,
+            expected_state_version=expected_state_version,
+        )
     with store._read_tx():
         return _resolve_accepted_claim_reference_in_snapshot(
             store,
