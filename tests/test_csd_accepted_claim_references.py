@@ -86,6 +86,27 @@ class AcceptedClaimReferenceTests(unittest.TestCase):
         self.assertTrue(result["claim_digest"].startswith("sha256:"))
         self.assertEqual(result["claim"]["claim_id"], "claim-quiet-table")
 
+    def test_resolution_uses_one_sqlite_read_snapshot(self):
+        version = self.store.get_state_snapshot()["state_version"]
+        original_read_tx = self.store._read_tx
+        entered = []
+
+        def tracked_read_tx():
+            entered.append(True)
+            return original_read_tx()
+
+        self.store._read_tx = tracked_read_tx
+        try:
+            resolve_accepted_claim_reference(
+                self.store,
+                memory_id=self.memory["memory_id"],
+                claim_id="claim-quiet-table",
+                expected_state_version=version,
+            )
+        finally:
+            self.store._read_tx = original_read_tx
+        self.assertEqual(len(entered), 1)
+
     def test_only_model_selected_pairs_become_opaque_reference_keys(self):
         version = self.store.get_state_snapshot()["state_version"]
         context = build_accepted_claim_reference_context(
