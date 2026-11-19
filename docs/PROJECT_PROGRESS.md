@@ -1774,3 +1774,16 @@ Every new module or infrastructure task must state: (a) which user-visible cogni
 - 当前 PR head：`31f83915b24d4c46cb95e9c9c1b175ccea834610`；PR #1 仍 Draft/Open/Unmerged。该 SHA 的 PR-triggered workflow lookup 返回空 runs，combined status 也无 checks；不能据此声称测试执行或通过。此前 Run #716 的 runner allocation failure 仍是最近可见的实际 Actions 失败记录。
 - 本次修改了测试和 workflow 配置，但**没有执行任何测试**；真实云端 API smoke test 也未进行。不要将静态审查或代码提交表述为测试通过。
 - 下一步：设计并实现版本化、大小受限、仅含已接受记忆的 prior-memory context selector/contract；为检索排序、token/字符预算、来源保留、无匹配和过期/冲突状态补测试。Provider 仍只能产生 pending proposal，CSD 仍独立审核接受。
+
+
+## P0 继续推进：Provider/CI 修正记录 — 2026-11-19
+
+- Provider 静态审查和测试修正已完成一轮，代码提交：
+  - `3a24712d67f25c956c274a8cfabd6f4bc17ed0b4`：修复空提案测试对空列表继续索引的问题。
+  - `57fc10f29f5adbf84728f8004e5bc6056462dd85`：将 Provider 测试加入 `pull_request.paths`。
+  - `e056dcf929d660adec3e5450935dff1b8f94e2d7`：修正 transport 断言变量，并将集成测试类移到 `unittest.main()` 之前。
+  - `31f83915b24d4c46cb95e9c9c1b175ccea834610`：修正最大响应字节数错误提示。
+- 集成测试的 event submit status 与 proposal status 含义已核实：事件写入成功的状态不等于 proposal 接受；CSD proposal 在显式 evaluate 前保持 pending。
+- PR #1 head 为 `31f83915b24d4c46cb95e9c9c1b175ccea834610`，仍 Draft/Open/Unmerged。该 head 没有可见 PR-triggered workflow runs 或 combined status checks；不能报告测试通过。
+- 本轮没有本地运行时或 CI runner 执行测试。测试结果仍为“未验证”，真实 API smoke test 未进行。
+- 下一开发切口：增加有版本号、确定性排序和严格字符预算的 prior-memory context。当前 accepted-memory 检索是子串过滤，不是语义检索；Provider 不得直接读取 store。上下文只能由 pipeline 从 CSD accepted-memory projection 读取并裁剪，再作为不可信历史参考传给模型；所有新提案仍须引用当前 observation 并由 CSD 单独审核。
