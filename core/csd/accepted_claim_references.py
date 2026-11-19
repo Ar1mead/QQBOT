@@ -323,26 +323,37 @@ def build_accepted_claim_reference_context(
         raise AcceptedClaimReferenceError("at most 64 historical claims may enter context")
     context: dict[str, dict[str, Any]] = {}
     identities: set[tuple[str, str]] = set()
-    for reference in references:
-        if not isinstance(reference, Mapping) or set(reference) != {"memory_id", "claim_id"}:
-            raise AcceptedClaimReferenceError("each reference must contain only memory_id and claim_id")
-        memory_id = reference.get("memory_id")
-        claim_id = reference.get("claim_id")
-        if (not isinstance(memory_id, str) or not memory_id.strip()
-                or not isinstance(claim_id, str) or not claim_id.strip()):
-            raise AcceptedClaimReferenceError("memory_id and claim_id must be non-empty strings")
-        identity = (memory_id, claim_id)
-        if identity in identities:
-            continue
-        identities.add(identity)
-        resolved = resolve_accepted_claim_reference(
-            store, memory_id=memory_id, claim_id=claim_id,
-            expected_state_version=expected_state_version,
-        )
-        key = f"historical-claim-{len(context) + 1:04d}"
-        context[key] = resolved
-    return context
 
+    def resolve_all() -> None:
+        for reference in references:
+            if not isinstance(reference, Mapping) or set(reference) != {"memory_id", "claim_id"}:
+                raise AcceptedClaimReferenceError(
+                    "each reference must contain only memory_id and claim_id"
+                )
+            memory_id = reference.get("memory_id")
+            claim_id = reference.get("claim_id")
+            if (not isinstance(memory_id, str) or not memory_id.strip()
+                    or not isinstance(claim_id, str) or not claim_id.strip()):
+                raise AcceptedClaimReferenceError(
+                    "memory_id and claim_id must be non-empty strings"
+                )
+            identity = (memory_id, claim_id)
+            if identity in identities:
+                continue
+            identities.add(identity)
+            resolved = resolve_accepted_claim_reference(
+                store, memory_id=memory_id, claim_id=claim_id,
+                expected_state_version=expected_state_version,
+            )
+            key = f"historical-claim-{len(context) + 1:04d}"
+            context[key] = resolved
+
+    if store._db.in_transaction:
+        resolve_all()
+    else:
+        with store._read_tx():
+            resolve_all()
+    return context
 
 def resolve_selected_accepted_claims(
     store: CognitiveMemoryStore,
@@ -351,7 +362,7 @@ def resolve_selected_accepted_claims(
     *,
     expected_state_version: int,
 ) -> dict[str, dict[str, Any]]:
-    """Resolve model-selected opaque keys; arbitrary model-supplied IDs are never accepted."""
+    """Resolve model-selected opaque keys in one authoritative SQLite snapshot."""
     if not isinstance(selected_context, Mapping) or len(selected_context) > 64:
         raise AcceptedClaimReferenceError("selected_context must be a bounded reference mapping")
     if not isinstance(selected_reference_keys, Sequence) or isinstance(
@@ -363,24 +374,36 @@ def resolve_selected_accepted_claims(
 
     resolved: dict[str, dict[str, Any]] = {}
     seen: set[str] = set()
-    for key in selected_reference_keys:
-        if not isinstance(key, str) or not key.strip():
-            raise AcceptedClaimReferenceError("historical reference keys must be non-empty strings")
-        if key in seen:
-            continue
-        seen.add(key)
-        reference = selected_context.get(key)
-        if not isinstance(reference, Mapping):
-            raise AcceptedClaimReferenceError("model selected an unknown historical reference key")
-        memory_id = reference.get("memory_id")
-        claim_id = reference.get("claim_id")
-        if (not isinstance(memory_id, str) or not memory_id.strip()
-                or not isinstance(claim_id, str) or not claim_id.strip()):
-            raise AcceptedClaimReferenceError("selected context reference is malformed")
-        # Re-resolve instead of trusting even the pipeline's previously built
-        # object: the CSD projection and snapshot may have changed meanwhile.
-        resolved[key] = resolve_accepted_claim_reference(
-            store, memory_id=memory_id, claim_id=claim_id,
-            expected_state_version=expected_state_version,
-        )
+
+    def resolve_all() -> None:
+        for key in selected_reference_keys:
+            if not isinstance(key, str) or not key.strip():
+                raise AcceptedClaimReferenceError(
+                    "historical reference keys must be non-empty strings"
+                )
+            if key in seen:
+                continue
+            seen.add(key)
+            reference = selected_context.get(key)
+            if not isinstance(reference, Mapping):
+                raise AcceptedClaimReferenceError(
+                    "model selected an unknown historical reference key"
+                )
+            memory_id = reference.get("memory_id")
+            claim_id = reference.get("claim_id")
+            if (not isinstance(memory_id, str) or not memory_id.strip()
+                    or not isinstance(claim_id, str) or not claim_id.strip()):
+                raise AcceptedClaimReferenceError("selected context reference is malformed")
+            # Re-resolve instead of trusting even the pipeline's previously built
+            # object: the CSD projection and snapshot may have changed meanwhile.
+            resolved[key] = resolve_accepted_claim_reference(
+                store, memory_id=memory_id, claim_id=claim_id,
+                expected_state_version=expected_state_version,
+            )
+
+    if store._db.in_transaction:
+        resolve_all()
+    else:
+        with store._read_tx():
+            resolve_all()
     return resolved
