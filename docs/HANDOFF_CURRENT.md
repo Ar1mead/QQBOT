@@ -3,7 +3,9 @@
 **最后核对：** 2026-11-20（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**上次实时核对的 PR HEAD：** `531cde2f84c600f2295d330c4698c9ebddf5a301`（本轮已在其后提交 resolver groundwork，继续以 PR 实时 head 为准）  
+**本轮起始实时 PR HEAD：** `531cde2f84c600f2295d330c4698c9ebddf5a301`  
+**本轮代码/测试提交：** `720ad9cdd12391c1131629d7c7e46b5c39f4a870`（测试未执行）  
+**本轮文档提交：** `23c0f2c493cde4c2259df8495a537b6b36416974`、`a1b27d9fa03b4dde65a15fe9fd3c8f1398a2980f`、`4af53fe0d8e5c76504513a88ce96b779fc30ed51`、`47899a0bb04755ac5f74b4e982c64b52ad27f337`（后续更新仍会推进 HEAD）  
 **文档整理提交：** `62180a925a04d3ba3c9a6666af5b3dc6d013b8c8`、`e572a193283487797214369106e723184d72d4e5`、`ac86d98c01dc50146774cea479f8af72679d3f78`  
 **当前 HEAD：** 每次续接必须从 PR #1 实时读取；本次 handoff 更新本身也会推进 HEAD。  
 **PR：** #1 — Draft / Open / Unmerged（严禁合并）
