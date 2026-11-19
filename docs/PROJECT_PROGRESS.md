@@ -7,21 +7,26 @@
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
-## Current checkpoint — 2026-11-20 (accepted historical claim resolver groundwork)
+## Current checkpoint — 2026-11-20 (resolver hardening; tests unexecuted)
 
-- Documentation follow-ups: matrix `4af53fe0d8e5c76504513a88ce96b779fc30ed51`; cross-episode contract `47899a0bb04755ac5f74b4e982c64b52ad27f337`.
+- **Authoritative live state at this checkpoint:** PR #1 is Open, Draft=true, Merged=false; head branch `feature/csd-cognitive-memory-slice`; head SHA `0c780283a9c0b2fea1180854eea3dc1c92fc7151`. The PR must remain Draft/Open/Unmerged.
+- Compared the previous handoff head `531cde2f84c600f2295d330c4698c9ebddf5a301` to this live head: 30 commits across 8 files. The changed files are the accepted-claim resolver and tests, package exports, workflow path/step entries, the acceptance matrix, the cross-episode contract, and the two current status documents. No other unrecorded runtime modules were changed in that range.
+- Resolver groundwork is present in `core/csd/accepted_claim_references.py`:
+  - only accepted grounded-memory source_assertion claims are eligible;
+  - memory/proposal/accepted-decision lineage must agree;
+  - proposal event must be the matching grounded proposal;
+  - source events are individually integrity-read and must be earlier observation/v2 events;
+  - canonical claim digest and distinct source event IDs are returned;
+  - model selection is limited to pipeline-created opaque keys and re-resolves the selected claim;
+  - resolution now occurs inside one SQLite read transaction/snapshot, rather than independent reads with only a before/after version check.
+- Added a regression asserting one read snapshot, plus accepted lineage, opaque-key, duplicate, stale-version, unknown-memory/claim and malformed-shape cases. Tests are in `tests/test_csd_accepted_claim_references.py` and wired into both workflow path filters and a focused step.
+- **Still not implemented:** a cross-episode proposal event/schema; append-time and decision-time CSD transaction re-resolution for embedded historical references; reviewer v2 with counter-evidence; preference/self-model reducers and Recovery. The resolver remains read-only groundwork and cannot authorize accepted preferences or Life Engine activity.
+- **Validation is unexecuted.** No local test runner is available in this workflow and the latest commit query for `0c780283...` returned no PR-triggered Actions runs or combined statuses. Earlier Run #723/#724 jobs had empty steps and did not execute tests. Do not call this a pass or test failure. The available connector cannot enumerate the repository's latest 10 workflow runs globally.
+- Current code-level changes since the earlier resolver checkpoint include: one-snapshot transaction hardening (`846bd716b4ce07b324a0329247e458eda009757d`), read-snapshot regression (`a825a7dd59ccb873830650ec3ec9bceae4aa6033`), and explicit proposal/source-event chronology checks (`0c780283a9c0b2fea1180854eea3dc1c92fc7151`).
+- PR #1 remains Draft / Open / Unmerged. Never merge.
 
-- Live PR #1 metadata at the start of this continuation: head branch `feature/csd-cognitive-memory-slice`, head SHA `531cde2f84c600f2295d330c4698c9ebddf5a301`, Draft=true, Open, Unmerged.
-- Compared the code checkpoint `48a4a7fd9caef156cf60549d21326ff59ac18f29` to the live head: seven commits ahead; only Progress/Handoff docs, the minimum-loop matrix, and a small fake-test fixture cleanup changed. No unrecorded runtime implementation was found after the cloud semantic-review provider.
-- Added `core/csd/accepted_claim_references.py`: read-only resolution of source-assertion claims from accepted grounded memories. It verifies accepted-memory projection integrity, accepted proposal/decision lineage, claim uniqueness, claim digest, evidence event IDs, and stable CSD state version. The pipeline builds an allowlist of accepted claims under opaque keys; model selection accepts only those keys and re-resolves the underlying claim. Duplicate claim pairs/keys are deduplicated.
-- Added `tests/test_csd_accepted_claim_references.py` for accepted lineage, opaque keys, duplicate references, stale snapshots, missing memory/claim and malformed reference shape. Added the test to the workflow and exported the resolver.
-- **Important incomplete gate:** this is resolver groundwork only. It does not yet revalidate historical references inside a new cross-episode proposal's CSD append and decision transactions; no cross-episode proposal event family, semantic-review-v2, preference reducer, or Recovery projection exists. The resolver is not yet wired into the cloud provider's prompt/pipeline. Do not use its output to accept or persist preferences or drive Life Engine actions.
-- **Validation: unexecuted.** No local tests, GitHub-hosted tests, or live API smoke test were run. New tests are committed but unverified.
-- Actions Run #724 (ID `44566099273`) jobs were re-read: Windows job 135708120696 and Ubuntu job 135708121260 both completed with failure; both expose empty step lists. Run #723 has the same empty-step result. Current PR head `531cde2...` has no associated PR-triggered workflow run in the available lookup. This connector cannot list the repository's latest 10 runs globally.
-- Current continuation commits: resolver `867767488e1776a394e13612fe2d0fc589f0b966`; tests `fdc46bd6a6be725b3d42d2b685acf83f3eef1629`; exports `79a4165cef0f66d7eeccd2e63294f2f34a70f0e2`; initial workflow `fbd7d5c6f30926cfd6b4af676ebb6e3dc2562e89`; identifier guard `720ad9cdd12391c1131629d7c7e46b5c39f4a870`; PR workflow path fix `07f1b4549a37b14039c47150f24c7ea70e889ed9`; package-export syntax repair `57f38d7dd4f2bb5920cb5b0b3ee98e9362149750`; workflow literal-newline repair `136a7ea85532f5413fd0d742a4de154af3e7a219`; dedicated focused-test step `02a1b62ba2c6049a568f2760f76a567e91a605fd`; opaque-key-only resolver `a9aa282b6c2972d1524fafc6ba9271e012484504`; resolver export `74030ee809e2d3c7c43d634f1a2329d2e000ea0f`; opaque-key regression tests `94450f94bc707328c2d5e4692bc386fdb8974e57`.
-- PR #1 remains Draft / Open / Unmerged. Do not merge.
+**Next gate:** introduce a typed, pending-only cross-episode proposal contract, then re-resolve every referenced accepted memory/decision/claim digest/source event inside both append and decision transactions. Do not implement preference acceptance until reviewer-v2, CSD reducer, and Recovery can replay the same decision deterministically.
 
-**Next gate:** statically inspect the new resolver/tests, then implement a dedicated cross-episode pending proposal contract whose CSD append-time and decision-time paths independently re-resolve accepted decision lineage and claim digests against the event log. Keep all outcomes pending/shadow until semantic review v2 and CSD-owned preference reducer/Recovery are complete.
 
 ---
 
