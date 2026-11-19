@@ -56,40 +56,37 @@ Rules:
 
 The pipeline should send the model only a bounded allowlist of resolved references and claim contents. The model returns selected reference keys, not arbitrary IDs. The pipeline resolves those keys back to canonical references before persistence.
 
-## 3.1 Partial implementation checkpoint — read-only resolver groundwork
+## 3.1 Historical reference resolver and append-time validation
 
-Implemented on the active feature branch in `core/csd/accepted_claim_references.py`:
+Implemented on the active feature branch in core/csd/accepted_claim_references.py:
 
-- Resolve only a claim contained in a CSD accepted-memory projection after projection-integrity validation.
-- Require the memory's proposal ID, proposal event ID and accepted decision event ID to agree across the memory projection, proposal projection and authoritative decision event.
-- Version 1 accepts only `source_assertion` claims with non-empty evidence lineage. Inference claims are deliberately excluded until recursive provenance and reviewer-v2 semantics are designed.
-- Compute a canonical SHA-256 claim digest from the stored claim; copy distinct source event IDs from its evidence list.
-- Bind resolution to an expected CSD state version and check it before/after reading.
-- Read the accepted-memory projection, proposal, decision, proposal event and source events inside one SQLite read snapshot. If called while CSD already owns a transaction, reuse that transaction rather than opening a nested one.
-- Verify the referenced proposal event is the matching grounded-proposal event; verify every source event is an integrity-valid observation/v2 event earlier than the proposal.
-- The pipeline builds an allowlist from selected accepted-memory claims under opaque keys. The model may return only keys from that allowlist; the resolver re-resolves each selected key to canonical memory/claim lineage. Duplicate memory/claim pairs and repeated selected keys are deduplicated.
-- Building the reference allowlist and resolving the model-selected reference bundle each happen inside one SQLite read snapshot (or reuse the caller's active CSD transaction), so a multi-claim bundle is not assembled from independently changing snapshots.
+- Resolve only source_assertion claims contained in CSD-accepted grounded memories; inference claims remain excluded until recursive provenance and reviewer-v2 semantics are designed.
+- Require the memory, grounded proposal, accepted decision, claim and source-observation lineage to agree.
+- Compute a canonical SHA-256 digest from the stored claim and copy source event IDs from its evidence lineage; the model cannot invent or rewrite these values.
+- Bind resolution to an expected CSD state version and one SQLite snapshot. If CSD already owns a transaction, reuse it.
+- Support an exclusive through_sequence boundary. Historical resolution reconstructs accepted memories from immutable events before that boundary, so Recovery does not depend on projections that are still being rebuilt.
+- The pipeline exposes only bounded opaque reference keys. Model-selected keys are re-resolved by CSD before use.
+- Repeated selected keys are rejected/deduplicated at the selector boundary as appropriate; the cross-episode builder now rejects two different opaque keys that resolve to the same memory/claim identity, before an unpersistable candidate can be produced.
 
-Tests added in `tests/test_csd_accepted_claim_references.py`; they are wired into the workflow, but **have not been executed**.
+Tests are present in tests/test_csd_accepted_claim_references.py and tests/test_csd_cross_episode_proposals.py. They are wired into the workflow but have not been executed because the current Actions jobs fail before exposing test steps.
 
-This is not yet the full contract above: the resolver is read-only and is not wired into a cross-episode model prompt/pipeline. New proposal append and decision paths do not yet re-resolve these references inside their own CSD transactions. No cross-episode proposal event, preference projection, reviewer v2, reducer, or Recovery exists. Therefore no preference or identity update may be accepted or used for activity ranking on the basis of this resolver.
+## 3.2 CSD-owned pending-shadow candidate event
 
-Historical-prefix calls now reconstruct the accepted grounded memory directly from integrity-checked immutable proposal/decision/source events before the exclusive sequence boundary, rather than reading current accepted-memory/proposal projections. This is required for Recovery, which clears and rebuilds projections incrementally: a projection-wide consistency check cannot be used halfway through replay. A regression test deletes those projections and confirms that a historical-prefix resolution can still be reconstructed from event history. This remains a resolver-level primitive; the Recovery loop has not yet been extended to validate cross-episode events.
+Implemented in core/csd/cross_episode_proposals.py and core/csd/cognitive.py:
 
-## 3.2 Partial implementation checkpoint — shadow-only candidate contract
+- Strict schema v1 and exact field allowlists; model output cannot inject authority fields, CSD event IDs, direct state mutations, actions or ASM dispatch instructions.
+- The builder resolves only opaque support/counter-evidence keys from the pipeline context, re-resolving each against the expected CSD state.
+- Requires at least one support reference; counter-evidence is separately typed and cannot overlap support. Repeated aliases of the same historical claim are rejected.
+- Computes independent support-event count from distinct underlying source event IDs, not claim/key count.
+- Separates user-owned preference_candidate from AI-owned interest_candidate, with separate coarse domain allowlists.
+- Requires explicit scope, exclusions, uncertainty, alternatives and limitations. Every result is pending_shadow / shadow.
+- append_cross_episode_proposal persists a CSD-owned immutable event. In the same SQLite write transaction, CSD re-resolves every reference against the exclusive event-history prefix and verifies canonical lineage, claim digest, source-event IDs, accepted status, state version and independent-event count.
+- Persisted events omit copied claim text. The event log remains the source of truth; list_cross_episode_proposals derives pending status from the event.
+- Direct reads, duplicate acknowledgement, projection application and Recovery replay repeat the same validation. No mutable projection table is introduced and pending events do not advance authoritative state_version.
 
-Added `core/csd/cross_episode_proposals.py` with a typed, non-persistent proposal builder:
+Tests cover pending-only append/read, idempotency, provenance, digest and state-version tampering, stale state, owner/domain confusion, support/counter overlap, duplicate alias keys, and Recovery replay. The tests are not executed yet.
 
-- Strict schema v1 and exact field allowlist; model output cannot inject memory IDs, decision IDs, event IDs, action fields, or persistence authority.
-- Model output selects only opaque support/counter-evidence keys from the pipeline's resolved allowlist. The builder re-resolves every selected key against CSD at the expected state version.
-- Requires at least one support reference; counter-evidence may be empty but is separately typed and cannot reuse a support key.
-- Computes independent support-event count from distinct source event IDs, not the number of claims/keys.
-- Separates user-owned `preference_candidate` from AI-owned `interest_candidate`; mismatched ownership is rejected.
-- Requires explicit scope, exclusions, uncertainty, alternatives and limitations. The result is always `pending_shadow` / `shadow`.
-
-This builder does not append an event, persist a candidate, change accepted memory, create a preference, or call Life Engine/ASM. One accepted episode can produce a shadow candidate for schema/testing purposes, but the independent event count exposes that it is only one episode; no reducer is allowed to promote it.
-
-Tests in `tests/test_csd_cross_episode_proposals.py` cover valid shadow output, provenance retention, authority-field rejection, owner separation, unknown/stale keys, support/counter overlap, and malformed booleans/enums. The tests are wired into both workflow path filters and a focused CI step, but **have not been executed**.
+Not implemented: cross-episode semantic reviewer v2, decision-time revalidation, CSD-owned accepted preference/self-model projection and revision reducer, or Life Engine use of such state. A pending candidate must never be treated as an accepted preference or drive autonomous action.
 
 ## 4. Cross-episode synthesis proposal
 
