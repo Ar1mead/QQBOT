@@ -1961,3 +1961,18 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - Latest handoff update before this note: 939970060125c334647b3554b3505a25c3cd9832.
 - Latest observable Actions run for code checkpoint #781 is a pre-step failure on both matrix jobs (steps/logs unavailable); no tests executed.
 - PR #1 is still Draft / Open / Unmerged and GitHub reports mergeable=false. The feature/main history remains diverged; no synchronization action was taken.
+
+
+## Cross-episode semantic reviewer v2 — read-only pipeline implementation (2026-11-20)
+
+- Added `core/csd/cross_episode_review.py`: provider-neutral `CrossEpisodeReviewPipeline`, strict `CrossEpisodeReviewCandidate`, and an ephemeral `CrossEpisodeReviewArtifact`.
+- The pipeline reads one exact pending-shadow proposal and re-resolves every persisted support/counter reference through the accepted-claim resolver at the candidate event's exclusive sequence boundary, using its recorded CSD state version. Persisted lineage and claim digests must exactly match fresh resolution.
+- It reloads original immutable source observations, validates quote spans against the exact source content, deduplicates source events while retaining per-claim evidence-span mappings, and excludes opaque account identity references from provider input.
+- Input bounds: 20,000 characters per source observation, 100,000 total source-content characters, plus a 400,000-byte ceiling for the complete serialized review input. Oversized input fails closed; no silent truncation.
+- Provider execution occurs after the read snapshot closes. The provider receives no store handle or CSD/ASM mutation capability. Output validates outcome, finite reviewer confidence, support/counter allowlists and non-overlap, scope, alternatives, limitations, risk flags and strict human-review boolean. Result sequences are frozen before returning.
+- The pipeline does not write review events, mutate CSD state, accept/reject/revise candidates, or affect Life Engine ranking. A later CSD-owned decision/revision event and its own decision-time historical revalidation are still required.
+- Added `tests/test_csd_cross_episode_review.py` with coverage for ephemeral/no-write behavior, source evidence, unknown keys, conflicting-outcome requirements, invalid risk flags/human-review type, provider failure, unknown proposal and account-reference exclusion. Exported the public API and wired the focused suite into both Ubuntu and Windows workflow paths.
+- Static review only; no Python test or compile command has executed in an observable runner. Actions runs #782–#786 all ended in failure; the latest run #786 (ID 44589821137) returned an empty jobs collection from the Jobs API. This continues the pre-step runner/job-startup failure pattern and is not a test failure or pass.
+- Code/test implementation checkpoint: `a35d016cdc8956e5e64c87947a32b9d3e68a73f0`. Documentation contract update: `ee70ef7983cb0b9636794b856e00d736acc9d4c2`.
+- PR #1 remains Draft / Open / Unmerged. No merge, rebase or force-sync was performed. The feature branch remains divergent from main; preserve the existing no-sync rule.
+- Next: review the new module/test for contract edge cases, then implement the CSD-owned reviewer decision event with decision-time evidence re-resolution and Recovery semantics. Do not build the preference/self-model reducer or Life Engine integration before that gate is complete and executable tests pass.
