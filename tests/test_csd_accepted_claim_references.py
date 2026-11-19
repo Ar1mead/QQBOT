@@ -13,6 +13,7 @@ from core.csd import (
 )
 from core.csd.accepted_claim_references import (
     AcceptedClaimReferenceError,
+    build_accepted_claim_reference_context,
     resolve_accepted_claim_reference,
     resolve_selected_accepted_claims,
 )
@@ -87,7 +88,7 @@ class AcceptedClaimReferenceTests(unittest.TestCase):
 
     def test_only_model_selected_pairs_become_opaque_reference_keys(self):
         version = self.store.get_state_snapshot()["state_version"]
-        result = resolve_selected_accepted_claims(
+        context = build_accepted_claim_reference_context(
             self.store,
             [
                 {"memory_id": self.memory["memory_id"], "claim_id": "claim-quiet-table"},
@@ -95,10 +96,20 @@ class AcceptedClaimReferenceTests(unittest.TestCase):
             ],
             expected_state_version=version,
         )
+        self.assertEqual(list(context), ["historical-claim-0001"])
+        result = resolve_selected_accepted_claims(
+            self.store, context, ["historical-claim-0001"],
+            expected_state_version=version,
+        )
         self.assertEqual(list(result), ["historical-claim-0001"])
         self.assertEqual(
             result["historical-claim-0001"]["claim_id"], "claim-quiet-table"
         )
+        with self.assertRaises(AcceptedClaimReferenceError):
+            resolve_selected_accepted_claims(
+                self.store, context, ["model-invented-memory-id"],
+                expected_state_version=version,
+            )
 
     def test_stale_snapshot_and_unknown_memory_fail_closed(self):
         version = self.store.get_state_snapshot()["state_version"]
@@ -127,7 +138,7 @@ class AcceptedClaimReferenceTests(unittest.TestCase):
                 expected_state_version=version,
             )
         with self.assertRaises(AcceptedClaimReferenceError):
-            resolve_selected_accepted_claims(
+            build_accepted_claim_reference_context(
                 self.store,
                 [{"memory_id": self.memory["memory_id"], "claim_id": "claim-quiet-table",
                   "decision_event_id": "model-invented"}],
@@ -136,12 +147,16 @@ class AcceptedClaimReferenceTests(unittest.TestCase):
 
     def test_repeated_claim_reference_does_not_inflate_independent_event_count(self):
         version = self.store.get_state_snapshot()["state_version"]
-        refs = resolve_selected_accepted_claims(
+        context = build_accepted_claim_reference_context(
             self.store,
             [
                 {"memory_id": self.memory["memory_id"], "claim_id": "claim-quiet-table"},
                 {"memory_id": self.memory["memory_id"], "claim_id": "claim-quiet-table"},
             ],
+            expected_state_version=version,
+        )
+        refs = resolve_selected_accepted_claims(
+            self.store, context, ["historical-claim-0001", "historical-claim-0001"],
             expected_state_version=version,
         )
         independent_events = {
