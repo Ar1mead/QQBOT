@@ -8,13 +8,18 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Mapping, Sequence
 
 from .accepted_claim_references import (
     AcceptedClaimReferenceError,
     resolve_selected_accepted_claims,
 )
-from .cognitive import CognitiveMemoryStore
+from .cognitive import (
+    CROSS_EPISODE_PROPOSAL_EVENT,
+    CognitiveEvent,
+    CognitiveMemoryStore,
+)
 
 
 SCHEMA_VERSION = 1
@@ -206,3 +211,253 @@ def build_cross_episode_proposal(
         based_on_state_version=expected_state_version,
         candidate=candidate,
     )
+
+
+_PERSISTED_REFERENCE_FIELDS = (
+    "memory_id", "proposal_id", "decision_event_id", "proposal_event_id",
+    "claim_id", "claim_digest", "source_event_ids", "status",
+    "based_on_state_version",
+)
+
+
+def _persisted_reference(reference: Mapping[str, Any]) -> dict[str, Any]:
+    """Drop copied claim text; persist only canonical lineage and its digest."""
+    return {
+        "memory_id": reference["memory_id"],
+        "proposal_id": reference["proposal_id"],
+        "decision_event_id": reference["decision_event_id"],
+        "proposal_event_id": reference["proposal_event_id"],
+        "claim_id": reference["claim_id"],
+        "claim_digest": reference["claim_digest"],
+        "source_event_ids": list(reference["source_event_ids"]),
+        "status": reference["status"],
+        "based_on_state_version": reference["based_on_state_version"],
+    }
+
+
+def _proposal_event_payload(proposal: CrossEpisodeProposal) -> dict[str, Any]:
+    candidate = proposal.candidate
+    return {
+        "proposal_id": proposal.proposal_id,
+        "schema_version": proposal.schema_version,
+        "provider_id": proposal.provider_id,
+        "provider_version": proposal.provider_version,
+        "based_on_state_version": proposal.based_on_state_version,
+        "candidate": {
+            "candidate_kind": candidate.candidate_kind,
+            "owner": candidate.owner,
+            "domain": candidate.domain,
+            "statement": candidate.statement,
+            "scope": candidate.scope,
+            "exclusions": list(candidate.exclusions),
+            "confidence": candidate.confidence,
+            "uncertainty": candidate.uncertainty,
+            "reasoning_summary": candidate.reasoning_summary,
+            "alternatives": list(candidate.alternatives),
+            "limitations": list(candidate.limitations),
+            "supporting_references": [
+                _persisted_reference(item) for item in candidate.supporting_references
+            ],
+            "counter_evidence_references": [
+                _persisted_reference(item) for item in candidate.counter_evidence_references
+            ],
+            "independent_support_event_count": candidate.independent_support_event_count,
+        },
+    }
+
+
+def append_cross_episode_proposal(
+    store: CognitiveMemoryStore,
+    proposal: CrossEpisodeProposal,
+    *,
+    occurred_at: str | None = None,
+) -> dict[str, Any]:
+    """Persist a pending-only candidate; CSD revalidates every reference in-transaction."""
+    if not isinstance(proposal, CrossEpisodeProposal):
+        raise TypeError("proposal must be a CrossEpisodeProposal")
+    if proposal.status != "pending_shadow" or proposal.candidate.status != "shadow":
+        raise CrossEpisodeProposalError("only pending shadow proposals may be persisted")
+    proposal_id = _text(proposal.proposal_id, "proposal_id")
+    provider_id = _text(proposal.provider_id, "provider_id")
+    timestamp = occurred_at or datetime.now(timezone.utc).isoformat()
+    event = CognitiveEvent(
+        event_id=f"csd-cross-episode-proposal:{proposal_id}",
+        occurred_at=timestamp,
+        correlation_id=f"cross-episode-proposal:{proposal_id}",
+        event_type=CROSS_EPISODE_PROPOSAL_EVENT,
+        source=f"cross-episode.pipeline:{provider_id}",
+        payload=_proposal_event_payload(proposal),
+    )
+    return store.submit_event(event)
+
+
+def validate_cross_episode_proposal_event(
+    store: CognitiveMemoryStore,
+    event: CognitiveEvent,
+    *,
+    sequence: int,
+) -> None:
+    """Validate a pending event against the exact CSD history before its sequence."""
+    payload = event.payload
+    allowed_payload = {
+        "proposal_id", "schema_version", "provider_id", "provider_version",
+        "based_on_state_version", "candidate",
+    }
+    if not isinstance(payload, Mapping) or set(payload) != allowed_payload:
+        raise ValueError("cross-episode event contains missing or unsupported fields")
+    proposal_id = _text(payload.get("proposal_id"), "proposal_id")
+    provider_id = _text(payload.get("provider_id"), "provider_id")
+    _text(payload.get("provider_version"), "provider_version")
+    schema_version = payload.get("schema_version")
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or schema_version != SCHEMA_VERSION
+    ):
+        raise ValueError("unsupported cross-episode event schema version")
+    state_version = payload.get("based_on_state_version")
+    if (
+        not isinstance(state_version, int)
+        or isinstance(state_version, bool)
+        or state_version < 0
+    ):
+        raise ValueError("based_on_state_version must be a non-negative integer")
+    if (
+        event.event_id != f"csd-cross-episode-proposal:{proposal_id}"
+        or event.correlation_id != f"cross-episode-proposal:{proposal_id}"
+        or event.source != f"cross-episode.pipeline:{provider_id}"
+    ):
+        raise ValueError("cross-episode event identity/source mismatch")
+
+    candidate = payload.get("candidate")
+    candidate_fields = {
+        "candidate_kind", "owner", "domain", "statement", "scope", "exclusions",
+        "confidence", "uncertainty", "reasoning_summary", "alternatives",
+        "limitations", "supporting_references", "counter_evidence_references",
+        "independent_support_event_count",
+    }
+    if not isinstance(candidate, Mapping) or set(candidate) != candidate_fields:
+        raise ValueError("cross-episode candidate contains missing or unsupported fields")
+    kind = candidate.get("candidate_kind")
+    owner = candidate.get("owner")
+    if kind not in {"preference_candidate", "interest_candidate"}:
+        raise ValueError("cross-episode candidate kind is unsupported")
+    if owner != ("user" if kind == "preference_candidate" else "ai"):
+        raise ValueError("cross-episode candidate owner does not match its kind")
+    for field in ("domain", "statement", "scope", "reasoning_summary"):
+        _text(candidate.get(field), f"candidate.{field}")
+    for field in ("exclusions", "alternatives", "limitations"):
+        value = candidate.get(field)
+        if not isinstance(value, list) or len(value) > MAX_LIST_ITEMS:
+            raise ValueError(f"candidate.{field} must be a bounded list")
+        normalized = [_text(item, f"candidate.{field}") for item in value]
+        if len(set(normalized)) != len(normalized):
+            raise ValueError(f"candidate.{field} must not contain duplicates")
+    confidence = candidate.get("confidence")
+    if (
+        not isinstance(confidence, (int, float))
+        or isinstance(confidence, bool)
+        or not math.isfinite(float(confidence))
+        or not 0.0 <= float(confidence) <= 1.0
+    ):
+        raise ValueError("candidate confidence must be finite and between 0 and 1")
+    if candidate.get("uncertainty") not in {"low", "moderate", "high"}:
+        raise ValueError("candidate uncertainty is unsupported")
+
+    supports = candidate.get("supporting_references")
+    counters = candidate.get("counter_evidence_references")
+    if not isinstance(supports, list) or not 1 <= len(supports) <= MAX_REFERENCES:
+        raise ValueError("supporting references must contain 1 to 32 items")
+    if not isinstance(counters, list) or len(counters) > MAX_REFERENCES:
+        raise ValueError("counter-evidence references must be a bounded list")
+    if len(supports) + len(counters) > 64:
+        raise ValueError("cross-episode event exceeds the total reference limit")
+
+    resolved_by_identity: dict[tuple[str, str], dict[str, Any]] = {}
+    def validate_bundle(items: list[Any]) -> list[dict[str, Any]]:
+        validated: list[dict[str, Any]] = []
+        for item in items:
+            if not isinstance(item, Mapping) or set(item) != set(_PERSISTED_REFERENCE_FIELDS):
+                raise ValueError("persisted historical reference has an invalid schema")
+            memory_id = _text(item.get("memory_id"), "reference.memory_id")
+            claim_id = _text(item.get("claim_id"), "reference.claim_id")
+            identity = (memory_id, claim_id)
+            if identity in resolved_by_identity:
+                raise ValueError("cross-episode event repeats a historical claim reference")
+            if item.get("status") != "accepted":
+                raise ValueError("cross-episode references must identify accepted memories")
+            if item.get("based_on_state_version") != state_version:
+                raise ValueError("historical reference state version does not match proposal")
+            source_ids = item.get("source_event_ids")
+            if (
+                not isinstance(source_ids, list)
+                or not source_ids
+                or any(not isinstance(value, str) or not value.strip() for value in source_ids)
+                or len(set(source_ids)) != len(source_ids)
+            ):
+                raise ValueError("historical reference source event IDs are invalid")
+            digest = item.get("claim_digest")
+            if (
+                not isinstance(digest, str)
+                or not digest.startswith("sha256:")
+                or len(digest) != 71
+            ):
+                raise ValueError("historical reference claim digest is invalid")
+            resolved = resolve_accepted_claim_reference(
+                store,
+                memory_id=memory_id,
+                claim_id=claim_id,
+                expected_state_version=state_version,
+                through_sequence=sequence,
+            )
+            canonical = _persisted_reference(resolved)
+            if dict(item) != canonical:
+                raise ValueError("historical reference lineage or claim digest is stale/tampered")
+            resolved_by_identity[identity] = canonical
+            validated.append(canonical)
+        return validated
+
+    validated_supports = validate_bundle(supports)
+    validated_counters = validate_bundle(counters)
+    support_identities = {(item["memory_id"], item["claim_id"]) for item in validated_supports}
+    counter_identities = {(item["memory_id"], item["claim_id"]) for item in validated_counters}
+    if support_identities & counter_identities:
+        raise ValueError("a historical claim cannot be both support and counter-evidence")
+    independent_events = {
+        event_id
+        for reference in validated_supports
+        for event_id in reference["source_event_ids"]
+    }
+    declared_count = candidate.get("independent_support_event_count")
+    if (
+        not isinstance(declared_count, int)
+        or isinstance(declared_count, bool)
+        or declared_count != len(independent_events)
+    ):
+        raise ValueError("independent support event count does not match validated evidence")
+
+
+def list_cross_episode_proposals(
+    store: CognitiveMemoryStore,
+) -> list[dict[str, Any]]:
+    """Read pending-only cross-episode proposals from the immutable event log."""
+    def read_all() -> list[dict[str, Any]]:
+        rows = store._db.execute(
+            "SELECT event_id FROM events WHERE event_type=? ORDER BY sequence",
+            (CROSS_EPISODE_PROPOSAL_EVENT,),
+        ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            event = store.get_event(row["event_id"])
+            result.append({
+                "sequence": event["sequence"],
+                "event_id": event["event_id"],
+                "proposal_id": event["payload"]["proposal_id"],
+                "status": "pending_shadow",
+                "payload": event["payload"],
+            })
+        return result
+    if store._db.in_transaction:
+        return read_all()
+    with store._read_tx():
+        return read_all()
