@@ -73,6 +73,8 @@ Tests added in `tests/test_csd_accepted_claim_references.py`; they are wired int
 
 This is not yet the full contract above: the resolver is read-only and is not wired into a cross-episode model prompt/pipeline. New proposal append and decision paths do not yet re-resolve these references inside their own CSD transactions. No cross-episode proposal event, preference projection, reviewer v2, reducer, or Recovery exists. Therefore no preference or identity update may be accepted or used for activity ranking on the basis of this resolver.
 
+Historical-prefix calls now reconstruct the accepted grounded memory directly from integrity-checked immutable proposal/decision/source events before the exclusive sequence boundary, rather than reading current accepted-memory/proposal projections. This is required for Recovery, which clears and rebuilds projections incrementally: a projection-wide consistency check cannot be used halfway through replay. A regression test deletes those projections and confirms that a historical-prefix resolution can still be reconstructed from event history. This remains a resolver-level primitive; the Recovery loop has not yet been extended to validate cross-episode events.
+
 ## 3.2 Partial implementation checkpoint — shadow-only candidate contract
 
 Added `core/csd/cross_episode_proposals.py` with a typed, non-persistent proposal builder:
