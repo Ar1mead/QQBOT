@@ -108,7 +108,12 @@ def build_cross_episode_proposal(
     }
     if set(model_payload) != allowed:
         raise CrossEpisodeProposalError("model payload contains missing or unsupported fields")
-    if model_payload.get("schema_version") != SCHEMA_VERSION:
+    schema_version = model_payload.get("schema_version")
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or schema_version != SCHEMA_VERSION
+    ):
         raise CrossEpisodeProposalError("unsupported cross-episode schema version")
     supplied_version = model_payload.get("based_on_state_version")
     if (
@@ -125,21 +130,22 @@ def build_cross_episode_proposal(
         raise CrossEpisodeProposalError("expected_state_version must be non-negative")
     kind = model_payload.get("candidate_kind")
     owner = model_payload.get("owner")
-    if kind not in {"preference_candidate", "interest_candidate"}:
+    if not isinstance(kind, str) or kind not in {"preference_candidate", "interest_candidate"}:
         raise CrossEpisodeProposalError("candidate_kind is not supported in v1")
     expected_owner = "user" if kind == "preference_candidate" else "ai"
     if owner != expected_owner:
         raise CrossEpisodeProposalError("candidate owner does not match candidate kind")
     confidence = model_payload.get("confidence")
-    if (
-        not isinstance(confidence, (int, float))
-        or isinstance(confidence, bool)
-        or not math.isfinite(float(confidence))
-        or not 0.0 <= float(confidence) <= 1.0
-    ):
+    if not isinstance(confidence, (int, float)) or isinstance(confidence, bool):
+        raise CrossEpisodeProposalError("confidence must be a finite number from 0 to 1")
+    try:
+        confidence_value = float(confidence)
+    except (OverflowError, ValueError) as exc:
+        raise CrossEpisodeProposalError("confidence must be a finite number from 0 to 1") from exc
+    if not math.isfinite(confidence_value) or not 0.0 <= confidence_value <= 1.0:
         raise CrossEpisodeProposalError("confidence must be a finite number from 0 to 1")
     uncertainty = model_payload.get("uncertainty")
-    if uncertainty not in {"low", "moderate", "high"}:
+    if not isinstance(uncertainty, str) or uncertainty not in {"low", "moderate", "high"}:
         raise CrossEpisodeProposalError("uncertainty must be low, moderate, or high")
 
     support_keys = _keys(model_payload.get("support_reference_keys"), "support_reference_keys")
@@ -182,7 +188,7 @@ def build_cross_episode_proposal(
         statement=_text(model_payload.get("statement"), "statement"),
         scope=_text(model_payload.get("scope"), "scope"),
         exclusions=_text_list(model_payload.get("exclusions"), "exclusions"),
-        confidence=float(confidence),
+        confidence=confidence_value,
         uncertainty=uncertainty,
         reasoning_summary=_text(model_payload.get("reasoning_summary"), "reasoning_summary"),
         alternatives=_text_list(model_payload.get("alternatives"), "alternatives"),
