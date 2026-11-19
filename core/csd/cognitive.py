@@ -45,6 +45,7 @@ PROPOSAL_EVENT = "cognition.memory_candidate_proposed.v1"
 GROUNDED_PROPOSAL_EVENT = "cognition.grounded_memory_candidate_proposed.v1"
 SEMANTIC_REVIEW_EVENT = "cognition.semantic_review_recorded.v1"
 DECISION_EVENT = "cognition.memory_candidate_decided.v1"
+CROSS_EPISODE_PROPOSAL_EVENT = "cognition.cross_episode_candidate_proposed.v1"
 DECISION_SOURCE = "csd.authority.v1"
 POLICY_ID = "csd.memory-provenance-check"
 GROUNDED_POLICY_ID = "csd.grounded-memory-text-evidence"
@@ -496,7 +497,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             raise ValueError("CSD decision events are reserved for the internal authority path")
         if event.event_type not in {
             OBSERVATION_EVENT, OBSERVATION_EVENT_V2, PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
-            SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
+            SEMANTIC_REVIEW_EVENT, DECISION_EVENT, CROSS_EPISODE_PROPOSAL_EVENT,
             INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
             GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
             GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
@@ -1111,6 +1112,9 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             elif event.event_type == GOAL_PAUSE_RESUME_PROPOSAL_EVENT:
                 from .goals import _validate_goal_pause_resume_proposal
                 _validate_goal_pause_resume_proposal(event)
+            elif event.event_type == CROSS_EPISODE_PROPOSAL_EVENT:
+                from .cross_episode_proposals import validate_cross_episode_proposal_event
+                validate_cross_episode_proposal_event(self, event, sequence=sequence)
             elif event.event_type in {
                 DECISION_EVENT, MOTIVATION_DECISION_EVENT,
                 GOAL_BATCH_DECISION_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
@@ -1720,6 +1724,10 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
             return
         if event.event_type == SEMANTIC_REVIEW_EVENT:
             self._validate_semantic_review_event(db, event, current_sequence=sequence)
+            return
+        if event.event_type == CROSS_EPISODE_PROPOSAL_EVENT:
+            from .cross_episode_proposals import validate_cross_episode_proposal_event
+            validate_cross_episode_proposal_event(self, event, sequence=sequence)
             return
         if event.event_type == DECISION_EVENT:
             if not internal or event.source != DECISION_SOURCE:
@@ -2961,6 +2969,7 @@ class CognitiveMemoryStore(CognitiveMotivationMixin, CognitiveGoalLifecycleMixin
                     OBSERVATION_EVENT, OBSERVATION_EVENT_V2,
                     PROPOSAL_EVENT, GROUNDED_PROPOSAL_EVENT,
                     SEMANTIC_REVIEW_EVENT, DECISION_EVENT,
+                    CROSS_EPISODE_PROPOSAL_EVENT,
                     INTERACTION_EVENT, MOTIVATION_PROPOSAL_EVENT, MOTIVATION_DECISION_EVENT,
                     GOAL_BATCH_PROPOSAL_EVENT, GOAL_BATCH_DECISION_EVENT,
                     GOAL_ACTIVATION_PROPOSAL_EVENT, GOAL_ACTIVATION_DECISION_EVENT,
