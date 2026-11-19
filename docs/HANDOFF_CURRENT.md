@@ -4,7 +4,7 @@
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
 **本轮代码核对 HEAD：** `5c05386bd1cd16f9702ee936d3d6b7e48301a54d`（文档提交后需重新核对）  
-**本轮 Progress 提交：** `1a80c6b62f82cd960bc61ef9ec6d3b7a242fed6f`  
+**本轮 Progress 最新提交：** `ad61212cddced9464e53e0fb69aaa46d65435e72`  
 **PR：** #1 — Draft / Open / Unmerged（严禁合并）  
 **当前 HEAD：** 每次续接必须从 PR #1 实时读取；文档更新本身也会推进 HEAD。
 
@@ -60,7 +60,7 @@
 
 CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确认的内容均视为提案。
 
-## 3. 当前仓库和 PR 状态（2026-11-20 实时核对）
+## 3. 历史仓库和 PR 状态快照（已由本文件 §0.1 更新）
 
 - 活动分支：`feature/csd-cognitive-memory-slice`。
 - 起始核对时 HEAD：`531cde2f84c600f2295d330c4698c9ebddf5a301`；其后本轮提交了 resolver/test/docs 变更，当前 HEAD 必须重新从 PR #1 实时读取。
@@ -107,7 +107,7 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - **没有真实 QQ / B站账号连接、登录、数据采集或外部操作。**
 - Linux Bubblewrap worker backend 尚未实现。
 
-## 5. CI 状态 — 当前验证阻塞（2026-11-20）
+## 5. 历史 CI 状态快照（当前状态见本文件 §0.1）
 
 - 起始核对时最新可见的相关执行记录为 Actions Run #724（ID `44566099273`）；当前 HEAD 查询无关联 PR-triggered run。
 - Run #724 的 Ubuntu 与 Windows jobs 均在约 3 秒内结束为 failure；jobs JSON 中两项均为 `runner_id=0`、runner 名称为空、`steps=[]`。
