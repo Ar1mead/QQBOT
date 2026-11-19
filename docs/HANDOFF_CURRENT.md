@@ -433,3 +433,31 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 5. 现有子串检索不等于语义检索。第一版可先用可解释的确定性相关性排序，明确记录算法版本；后续再替换语义检索。
 6. 上下文只帮助模型解释新经历；模型输出仍是候选提案，来源引用必须可验证，CSD 独立决定接受/拒绝。
 7. 覆盖空历史、重复/冲突记忆、不同 epistemic type、预算边界、状态版本变化、重启后可复现等测试。
+
+
+## 18. 本轮 P0 修正与当前验证状态 — 2026-11-19
+
+### 已提交的修正
+
+- `3a24712d67f25c956c274a8cfabd6f4bc17ed0b4`：修复空提案测试必然访问空列表索引的问题。
+- `57fc10f29f5adbf84728f8004e5bc6056462dd85`：把 Provider 测试路径加入 workflow 的 `pull_request.paths`。
+- `e056dcf929d660adec3e5450935dff1b8f94e2d7`：修正测试中的 transport 变量，并把集成测试类移到 `unittest.main()` 入口之前。
+- `31f83915b24d4c46cb95e9c9c1b175ccea834610`：修正 Provider 响应大小限制的错误提示（上限 262144 bytes）。
+- Provider 与 CSD pipeline 的静态审查确认：事件提交结果的 `status=accepted` 只表示事件追加成功；proposal 在显式 CSD evaluate 前仍为 pending。不要把两种状态混淆。
+
+### 验证边界
+
+- PR #1 最新 head：`31f83915b24d4c46cb95e9c9c1b175ccea834610`。
+- PR #1 状态仍为 Draft / Open / Unmerged。
+- 最新 head 的 PR-triggered workflow runs 查询为空，combined status 没有 checks；本轮没有任何测试执行结果。此前 Run #716 的 runner allocation failure 仍是最近可见的 Actions 执行失败记录。
+- 不要声称测试通过；真实云端 API smoke test 尚未进行。
+
+### 下一步
+
+继续 P0，先建立 versioned prior-memory context contract/selector。现有 `CognitiveMemoryStore.get_memories()` 只支持大小写不敏感子串过滤、memory kind、epistemic type 和 evidence event 过滤；不是语义检索，也没有相关性排序。新上下文必须：
+- 仅使用已接受且 projection 一致的记忆；
+- 在 pipeline 内读取、选择和裁剪，Provider 不持有 store/DB；
+- 包含 schema version、state version、memory/proposal/claim IDs、epistemic type、uncertainty 和 evidence provenance；
+- 有确定性排序、最大条数、单条/总字符预算和明确截断标记；
+- 明确将历史文本视为不可信数据，不作为指令；
+- 不允许模型只凭历史上下文生成无当前证据支撑的事实；输出仍是 pending proposal，CSD 继续独立审核。
