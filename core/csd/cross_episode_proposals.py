@@ -193,6 +193,14 @@ def build_cross_episode_proposal(
         raise CrossEpisodeProposalError(f"historical reference validation failed: {exc}") from exc
     if len(resolved) != len(set(selected_keys)):
         raise CrossEpisodeProposalError("historical reference selection was not fully resolved")
+    selected_claim_identities = {
+        (resolved[key]["memory_id"], resolved[key]["claim_id"])
+        for key in selected_keys
+    }
+    if len(selected_claim_identities) != len(selected_keys):
+        raise CrossEpisodeProposalError(
+            "the same historical claim cannot be selected through multiple reference keys"
+        )
 
     supporting = tuple(resolved[key] for key in support_keys)
     counter = tuple(resolved[key] for key in counter_keys)

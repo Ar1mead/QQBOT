@@ -275,6 +275,23 @@ class CrossEpisodeProposalTests(unittest.TestCase):
                 expected_state_version=self.version,
             )
 
+    def test_alias_keys_cannot_duplicate_the_same_historical_claim(self):
+        payload = self.payload()
+        context = dict(self.context)
+        context["historical-claim-alias"] = dict(
+            self.context["historical-claim-0001"]
+        )
+        payload["support_reference_keys"] = [
+            "historical-claim-0001",
+            "historical-claim-alias",
+        ]
+        with self.assertRaisesRegex(CrossEpisodeProposalError, "multiple reference keys"):
+            build_cross_episode_proposal(
+                self.store, payload, context,
+                proposal_id="candidate-duplicate-alias", provider_id="model",
+                provider_version="1", expected_state_version=self.version,
+            )
+
     def test_boolean_schema_version_and_unhashable_enums_fail_closed(self):
         payload = self.payload()
         payload["schema_version"] = True
