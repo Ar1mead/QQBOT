@@ -1986,3 +1986,10 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - Added focused tests for immutable returned sequence values, sensitive-risk human-review enforcement, and provider subclass rejection.
 - Latest implementation commits: source-count bound `02cc65bcb13afd6a09cfdb0715ed908bd3850fe4`; output-boundary hardening `682c87bfef982be878a62d500c31e49f958d8335`; tests `f3bf41293dc85f921454f1a2d853014cea7d8e79`.
 - Latest observable Actions run #789 (ID 44590087171) failed and returned an empty Jobs API collection. No test steps executed. Do not call this a Python test failure or a pass.
+
+
+### Exact reviewer-input digest binding
+
+- The ephemeral review artifact now carries a second digest over the canonical, bounded provider input, separate from the candidate event payload digest. This binds the artifact to the exact evidence bundle supplied for review.
+- Added a focused assertion for the input digest. Code commit: `293b4498b9258b6f38009f377183363fc8bd6c62`; test commit: `f3b8e1ac1bbc6a63458bd9dd2907dd9f9871e4d3`.
+- This remains advisory and non-persisting. No test execution evidence is available.
