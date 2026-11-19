@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import hashlib
+import json
 import tempfile
 import unittest
 
@@ -14,6 +16,11 @@ from core.csd import (
     build_accepted_claim_reference_context,
 )
 from core.csd.cross_episode_proposals import build_cross_episode_proposal
+from core.csd.cognitive import (
+    CognitiveIntegrityError,
+    CROSS_EPISODE_REVIEW_EVENT,
+    CROSS_EPISODE_REVIEW_SOURCE,
+)
 from core.csd.cross_episode_review import (
     CrossEpisodeReviewCandidate,
     CrossEpisodeReviewError,
@@ -228,6 +235,136 @@ class CrossEpisodeReviewPipelineTests(unittest.TestCase):
         self.assertEqual(
             artifact.candidate.alternative_explanations,
             ("The choice may have been situational.",),
+        )
+
+    def test_record_review_appends_immutable_audit_event_without_state_transition(self):
+        reviewer = FakeCrossEpisodeReviewer()
+        pipeline = self.pipeline(reviewer)
+        artifact = pipeline.review_proposal("review-cross-episode-proposal")
+        before = self.store.get_state_snapshot()["state_version"]
+
+        recorded = pipeline.record_review(artifact)
+        event = self.store.get_event(recorded["event_id"])
+
+        self.assertEqual(recorded["status"], "accepted")
+        self.assertEqual(event["event_type"], CROSS_EPISODE_REVIEW_EVENT)
+        self.assertEqual(event["source"], CROSS_EPISODE_REVIEW_SOURCE)
+        self.assertEqual(
+            event["correlation_id"],
+            "cross-episode-proposal:review-cross-episode-proposal",
+        )
+        self.assertEqual(event["payload"]["proposal_event_id"], artifact.proposal_event_id)
+        self.assertEqual(event["payload"]["proposal_digest"], artifact.proposal_digest)
+        self.assertEqual(event["payload"]["review_input_digest"], artifact.review_input_digest)
+        self.assertEqual(event["payload"]["based_on_state_version"], artifact.based_on_state_version)
+        self.assertEqual(event["payload"]["reviewer"], {
+            "id": "test.cross_episode_reviewer",
+            "version": "0.1",
+        })
+        self.assertEqual(event["payload"]["candidate"]["outcome"], "supported")
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], before)
+        self.assertEqual(
+            self.store.list_cross_episode_proposals()[0]["status"],
+            "pending_shadow",
+        )
+
+    def test_public_submit_cannot_forge_reserved_review_event(self):
+        event = CognitiveEvent(
+            event_id="csd-cross-episode-review:forged",
+            occurred_at="2026-11-20T08:20:00+00:00",
+            correlation_id="cross-episode-proposal:review-cross-episode-proposal",
+            event_type=CROSS_EPISODE_REVIEW_EVENT,
+            source=CROSS_EPISODE_REVIEW_SOURCE,
+            payload={},
+        )
+        with self.assertRaisesRegex(ValueError, "reserved for the internal authority path"):
+            self.store.submit_event(event)
+        self.assertEqual(
+            self.store._db.execute(
+                "SELECT COUNT(*) FROM events WHERE event_type=?",
+                (CROSS_EPISODE_REVIEW_EVENT,),
+            ).fetchone()[0],
+            0,
+        )
+
+    def test_record_review_duplicate_delivery_is_idempotent(self):
+        pipeline = self.pipeline(FakeCrossEpisodeReviewer())
+        artifact = pipeline.review_proposal("review-cross-episode-proposal")
+
+        first = pipeline.record_review(artifact)
+        second = pipeline.record_review(artifact)
+
+        self.assertEqual(first["status"], "accepted")
+        self.assertEqual(second["status"], "duplicate")
+        self.assertEqual(first["event_id"], second["event_id"])
+        self.assertEqual(first["sequence"], second["sequence"])
+        self.assertEqual(
+            self.store._db.execute(
+                "SELECT COUNT(*) FROM events WHERE event_type=?",
+                (CROSS_EPISODE_REVIEW_EVENT,),
+            ).fetchone()[0],
+            1,
+        )
+
+    def test_direct_review_event_read_rejects_rehashed_payload_tampering(self):
+        pipeline = self.pipeline(FakeCrossEpisodeReviewer())
+        artifact = pipeline.review_proposal("review-cross-episode-proposal")
+        recorded = pipeline.record_review(artifact)
+        row = self.store._db.execute(
+            "SELECT occurred_at,received_at,correlation_id,event_type,source,"
+            "payload_ref,payload_json FROM events e "
+            "JOIN payloads p ON p.payload_ref=e.payload_ref WHERE event_id=?",
+            (recorded["event_id"],),
+        ).fetchone()
+        payload = json.loads(row["payload_json"])
+        payload["reviewed_at"] = "not-the-event-occurrence-time"
+        payload_json = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False,
+        )
+        payload_ref = "sha256:" + hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+        tampered_event = CognitiveEvent(
+            event_id=recorded["event_id"],
+            occurred_at=row["occurred_at"],
+            correlation_id=row["correlation_id"],
+            event_type=row["event_type"],
+            source=row["source"],
+            payload=payload,
+        )
+        event_digest = self.store._event_digest(
+            tampered_event, payload_ref, row["received_at"]
+        )
+
+        # Simulate offline storage corruption while keeping both hashes valid.
+        self.store._db.execute("DROP TRIGGER payloads_no_update")
+        self.store._db.execute("DROP TRIGGER events_no_update")
+        self.store._db.execute(
+            "INSERT INTO payloads(payload_ref,payload_json) VALUES (?,?)",
+            (payload_ref, payload_json),
+        )
+        self.store._db.execute(
+            "UPDATE events SET payload_ref=?,event_digest=? WHERE event_id=?",
+            (payload_ref, event_digest, recorded["event_id"]),
+        )
+
+        with self.assertRaises(CognitiveIntegrityError):
+            self.store.get_event(recorded["event_id"])
+
+    def test_recovery_replays_review_record_without_accepting_candidate(self):
+        pipeline = self.pipeline(FakeCrossEpisodeReviewer())
+        artifact = pipeline.review_proposal("review-cross-episode-proposal")
+        recorded = pipeline.record_review(artifact)
+        before = self.store.get_state_snapshot()["state_version"]
+
+        recovered = self.store.recover()
+
+        self.assertGreaterEqual(recovered["events"], 4)
+        event = self.store.get_event(recorded["event_id"])
+        self.assertEqual(event["event_type"], CROSS_EPISODE_REVIEW_EVENT)
+        self.assertEqual(self.store.get_state_snapshot()["state_version"], before)
+        self.assertEqual(
+            self.store.list_cross_episode_proposals()[0]["status"],
+            "pending_shadow",
         )
 
     def test_review_rejects_unknown_proposal(self):
