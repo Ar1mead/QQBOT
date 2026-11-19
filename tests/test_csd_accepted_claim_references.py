@@ -107,6 +107,17 @@ class AcceptedClaimReferenceTests(unittest.TestCase):
             self.store._read_tx = original_read_tx
         self.assertEqual(len(entered), 1)
 
+    def test_resolution_reuses_an_existing_csd_transaction(self):
+        version = self.store.get_state_snapshot()["state_version"]
+        with self.store._tx():
+            result = resolve_accepted_claim_reference(
+                self.store,
+                memory_id=self.memory["memory_id"],
+                claim_id="claim-quiet-table",
+                expected_state_version=version,
+            )
+            self.assertEqual(result["status"], "accepted")
+
     def test_only_model_selected_pairs_become_opaque_reference_keys(self):
         version = self.store.get_state_snapshot()["state_version"]
         context = build_accepted_claim_reference_context(
