@@ -1,8 +1,8 @@
-"""Typed, shadow-only cross-episode interpretation candidates.
+"""Typed cross-episode candidates with CSD-owned pending-only persistence.
 
-This module validates model-authored synthesis against pipeline-resolved
-accepted-claim references. It deliberately has no persistence, CSD mutation,
-preference reducer, Life Engine, or ASM access.
+This module validates model-authored synthesis against accepted-claim
+references. Persistence creates immutable pending-shadow events only; it does
+not accept preferences, mutate self-model state, rank activities, or access ASM.
 """
 from __future__ import annotations
 
@@ -390,7 +390,12 @@ def validate_cross_episode_proposal_event(
                 raise ValueError("cross-episode event repeats a historical claim reference")
             if item.get("status") != "accepted":
                 raise ValueError("cross-episode references must identify accepted memories")
-            if item.get("based_on_state_version") != state_version:
+            reference_version = item.get("based_on_state_version")
+            if (
+                not isinstance(reference_version, int)
+                or isinstance(reference_version, bool)
+                or reference_version != state_version
+            ):
                 raise ValueError("historical reference state version does not match proposal")
             source_ids = item.get("source_event_ids")
             if (
