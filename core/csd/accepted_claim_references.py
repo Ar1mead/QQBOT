@@ -55,8 +55,22 @@ def _resolve_accepted_claim_reference_in_snapshot(
     ):
         raise AcceptedClaimReferenceError("expected_state_version must be non-negative")
 
+    if through_sequence is not None and (
+        not isinstance(through_sequence, int)
+        or isinstance(through_sequence, bool)
+        or through_sequence < 0
+    ):
+        raise AcceptedClaimReferenceError(
+            "through_sequence must be a non-negative integer or None"
+        )
+    # through_sequence is an exclusive event-sequence boundary: only events
+    # with sequence < boundary existed in the historical prefix. The CSD
+    # helper accepts an inclusive boundary, so convert explicitly.
+    state_version_boundary = (
+        None if through_sequence is None else through_sequence - 1
+    )
     before = store._authoritative_state_version(
-        store._db, through_sequence=through_sequence
+        store._db, through_sequence=state_version_boundary
     )
     if before != expected_state_version:
         raise AcceptedClaimReferenceError("accepted-claim reference snapshot is stale")
@@ -113,12 +127,6 @@ def _resolve_accepted_claim_reference_in_snapshot(
     proposal_sequence = proposal_event["sequence"]
     decision_sequence = decision["sequence"]
     if through_sequence is not None:
-        if (
-            not isinstance(through_sequence, int)
-            or isinstance(through_sequence, bool)
-            or through_sequence < 0
-        ):
-            raise AcceptedClaimReferenceError("through_sequence must be a non-negative integer")
         if decision_sequence >= through_sequence:
             raise AcceptedClaimReferenceError(
                 "accepted decision did not exist at the requested historical sequence"
@@ -143,7 +151,7 @@ def _resolve_accepted_claim_reference_in_snapshot(
             source_event_ids.append(event_id)
 
     after = store._authoritative_state_version(
-        store._db, through_sequence=through_sequence
+        store._db, through_sequence=state_version_boundary
     )
     if after != before or after != expected_state_version:
         raise AcceptedClaimReferenceError("CSD state changed while resolving accepted claim")
