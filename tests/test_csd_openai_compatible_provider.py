@@ -124,7 +124,7 @@ class OpenAICompatibleGroundedProviderTests(unittest.TestCase):
         value = proposal(source_assertions=[], inferences=[])
         provider, _ = self.provider(value)
         result = provider.propose_grounded(self.observation(), state_version=0)
-        self.assertEqual(result[0].source_assertions, ())
+        self.assertEqual(result, [])
         self.assertEqual(result[0].inferences, ())
 
 
