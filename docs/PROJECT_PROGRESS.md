@@ -1908,3 +1908,16 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - Static review is not execution evidence. No local test suite, Windows runtime test, or live cloud API smoke test has run.
 - PR #1 remains Draft / Open / Unmerged. Do not merge.
 - Next: continue static contract and integration review while preserving the pending-only boundary. Do not implement authoritative preference/self-model revision until reviewer v2, CSD decision/revision events, Recovery semantics, and executable test evidence are in place.
+
+
+## Duplicate historical-reference alias guard — 2026-11-20
+
+- Follow-up static review found that two distinct opaque keys could resolve to the same accepted memory/claim pair. The append-time event validator already rejected repeated claim identities, but the proposal builder could create a candidate that would only fail later during persistence.
+- Updated the builder to reject duplicate resolved (memory_id, claim_id) identities before returning a proposal.
+- Added a regression test that aliases the same accepted claim under two different context keys and expects fail-closed rejection.
+- Code/test commit: 37536152a09f145f9867471dbac40fc7e55c5772.
+- Actions Run #780 (ID 44586330403) was created for this commit and failed before either Ubuntu or Windows job exposed steps; both jobs returned logs_url=null and steps=null. No test command is known to have executed.
+- This is a proposal-boundary consistency fix, not a test pass. The focused suite remains unexecuted.
+- Cross-episode design contract and autonomous-life status sections were reconciled with the actual implementation in documentation commits 5ef0759... / ce88f05... / 34010a7... .
+- Latest code/test checkpoint: 37536152a09f145f9867471dbac40fc7e55c5772. Latest documentation commit at this note: 34010a7eb9775c1bdb1fce2b44eb596196faf847.
+- PR #1 remains Draft / Open / Unmerged. Do not merge.
