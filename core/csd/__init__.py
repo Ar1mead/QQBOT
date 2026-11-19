@@ -22,6 +22,7 @@ from .cognitive import (
 )
 from .accepted_claim_references import (
     AcceptedClaimReferenceError,
+    build_accepted_claim_reference_context,
     resolve_accepted_claim_reference,
     resolve_selected_accepted_claims,
 )
