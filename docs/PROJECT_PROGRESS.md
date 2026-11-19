@@ -1951,3 +1951,13 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - Actions Run #781 (ID 44588405212) for commit 285fb5a... failed before either Ubuntu or Windows job exposed any steps; both jobs returned steps=null and logs_url=null. No test command is known to have executed.
 - This change hardens the existing v1 review input contract; it does not implement reviewer v2 or authorize any preference/self-model revision.
 - Latest code/test checkpoint: 285fb5aeb85b19e25b89a37039c57f683f8e61ae. PR #1 remains Draft / Open / Unmerged; no merge/rebase was performed.
+
+
+## Final metadata reconciliation for this continuation — 2026-11-20
+
+- Latest code/test checkpoint: 285fb5aeb85b19e25b89a37039c57f683f8e61ae.
+- Latest cross-episode contract commit: 736a9b2e588edf062fabb0eeb9100051f7afbd2e.
+- Latest project progress update before this note: 3233df75a14b39b086bafce7c1756df8adcce16b.
+- Latest handoff update before this note: 939970060125c334647b3554b3505a25c3cd9832.
+- Latest observable Actions run for code checkpoint #781 is a pre-step failure on both matrix jobs (steps/logs unavailable); no tests executed.
+- PR #1 is still Draft / Open / Unmerged and GitHub reports mergeable=false. The feature/main history remains diverged; no synchronization action was taken.
