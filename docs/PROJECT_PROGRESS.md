@@ -3,7 +3,7 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Last implementation checkpoint in this continuation: `720ad9cdd12391c1131629d7c7e46b5c39f4a870` (resolver + tests; not executed)  
+> Last implementation checkpoint in this continuation: `57f38d7dd4f2bb5920cb5b0b3ee98e9362149750` (resolver package export repaired; tests not executed)  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
@@ -18,7 +18,7 @@
 - **Important incomplete gate:** this is resolver groundwork only. It does not yet revalidate historical references inside a new cross-episode proposal's CSD append and decision transactions; no cross-episode proposal event family, semantic-review-v2, preference reducer, or Recovery projection exists. The resolver is not yet wired into the cloud provider's prompt/pipeline. Do not use its output to accept or persist preferences or drive Life Engine actions.
 - **Validation: unexecuted.** No local tests, GitHub-hosted tests, or live API smoke test were run. New tests are committed but unverified.
 - Actions Run #724 (ID `44566099273`) jobs were re-read: Windows job 135708120696 and Ubuntu job 135708121260 both completed with failure; both expose empty step lists. Run #723 has the same empty-step result. Current PR head `531cde2...` has no associated PR-triggered workflow run in the available lookup. This connector cannot list the repository's latest 10 runs globally.
-- Current continuation commits: resolver `867767488e1776a394e13612fe2d0fc589f0b966`; tests `fdc46bd6a6be725b3d42d2b685acf83f3eef1629`; exports `79a4165cef0f66d7eeccd2e63294f2f34a70f0e2`; initial workflow `fbd7d5c6f30926cfd6b4af676ebb6e3dc2562e89`; identifier guard `720ad9cdd12391c1131629d7c7e46b5c39f4a870`; PR workflow path fix `07f1b4549a37b14039c47150f24c7ea70e889ed9`.
+- Current continuation commits: resolver `867767488e1776a394e13612fe2d0fc589f0b966`; tests `fdc46bd6a6be725b3d42d2b685acf83f3eef1629`; exports `79a4165cef0f66d7eeccd2e63294f2f34a70f0e2`; initial workflow `fbd7d5c6f30926cfd6b4af676ebb6e3dc2562e89`; identifier guard `720ad9cdd12391c1131629d7c7e46b5c39f4a870`; PR workflow path fix `07f1b4549a37b14039c47150f24c7ea70e889ed9`; package-export syntax repair `57f38d7dd4f2bb5920cb5b0b3ee98e9362149750`; workflow literal-newline repair `136a7ea85532f5413fd0d742a4de154af3e7a219`; dedicated focused-test step `02a1b62ba2c6049a568f2760f76a567e91a605fd`.
 - PR #1 remains Draft / Open / Unmerged. Do not merge.
 
 **Next gate:** statically inspect the new resolver/tests, then implement a dedicated cross-episode pending proposal contract whose CSD append-time and decision-time paths independently re-resolve accepted decision lineage and claim digests against the event log. Keep all outcomes pending/shadow until semantic review v2 and CSD-owned preference reducer/Recovery are complete.
