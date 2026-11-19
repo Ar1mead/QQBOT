@@ -129,9 +129,9 @@ class OpenAICompatibleCognitiveLoopIntegrationTests(unittest.TestCase):
             "not a truth oracle",
             review_calls[0]["messages"][0]["content"],
         )
+        reviewed_payload = json.loads(review_calls[0]["messages"][1]["content"])
         self.assertEqual(
-            review_calls[0]["messages"][1]["content"] and
-            json.loads(review_calls[0]["messages"][1]["content"])["inference_claim"]["claim_id"],
+            reviewed_payload["inference_claim"]["claim_id"],
             "claim-quiet-preference-hypothesis",
         )
 

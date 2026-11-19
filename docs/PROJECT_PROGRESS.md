@@ -1832,3 +1832,11 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - **Validation status: source-level review only. No tests have been executed locally or by GitHub Actions, and no live API smoke test has been run.** The new tests must not be described as passing.
 - Current branch head will be recorded after the code/docs commit is created and verified.
 
+
+
+## Post-commit check for semantic-review provider — 2026-11-20
+
+- Implementation commit: `48a4a7fd9caef156cf60549d21326ff59ac18f29`.
+- Actions Run #723 (ID `44565792687`) was created for that commit and completed as failure after about four seconds. Both Ubuntu and Windows jobs returned empty step lists; no runner was allocated and no test command executed. This is not a code-test failure and not a pass.
+- Follow-up documentation/test-fixture cleanup is being committed separately; it does not change runtime behavior.
+- New semantic-review unit tests and combined fake-transport loop test remain unexecuted. No live API smoke test has occurred.

@@ -1,7 +1,7 @@
 # Minimum Cognitive Loop — API Mapping and Acceptance Matrix
 
 > Status: implementation checkpoint and test plan, not a frozen CSD specification.
-> Updated: 2026-11-19 (UTC+08:00)
+> Updated: 2026-11-20 (UTC+08:00)
 > Scope: identify the smallest safe, model-backed cognitive slice using the current CSD and Life Engine APIs.
 
 ## 1. Purpose
@@ -92,15 +92,18 @@ Slice B is not required to prove the first model-backed autobiographical memory 
 | LOOP-13 | Deliberator requests an external activity | Not executed by Life Engine/CSD sink; requires ASM authorization | ASM boundary |
 | LOOP-14 | One ambiguous event suggests a personal preference | Keep it as tentative interpretation; do not silently rewrite identity | Future semantic-review/state contract |
 | LOOP-15 | Repeated evidence and explicit correction conflict | Preserve both evidence streams and revision lineage; no silent overwrite | Future preference/self-model reducer |
+| LOOP-16 | A later observation is processed with accepted history | Provider receives a bounded, versioned, untrusted context containing only accepted memories; pending/rejected proposals are excluded | Prior-memory selector + grounded pipeline |
+| LOOP-17 | Cloud grounded provider emits an inference | Separate cloud semantic reviewer returns an attributed outcome; CSD remains pending until review and its own evaluation; supported is not treated as objective truth | Cloud providers + semantic-review pipeline + CSD |
+| LOOP-18 | Model infers a stable preference from several historical episodes | Not yet supported; no cross-episode evidence reference or preference revision contract may be bypassed | Future cross-memory synthesis contract |
 
 ## 7. Implementation order and gates
 
-1. Add provider parser/transport unit tests using a fake HTTP transport; no network or credential required.
-2. Add a configurable cloud provider behind the existing grounded-memory provider protocol.
-3. Add the end-to-end fake-provider test from observation through CSD acceptance and Recovery.
-4. Add bounded prior-memory context to a versioned provider contract; do not silently widen the existing v1 provider input.
-5. Run focused tests and full CI when GitHub runners are available. The current Actions failure is before runner allocation and is not a test result.
-6. Perform a real API smoke test only after runtime credentials are configured outside the repository.
+1. Keep deterministic fake-transport tests for both grounded extraction and semantic review; no network or credential is required for these tests.
+2. Verify the combined cloud-provider → pending proposal → semantic review → CSD acceptance integration test.
+3. Run focused tests and full CI when GitHub runners are available; runner-allocation failures are not test results.
+4. Configure credentials only in a future runtime secret store, then perform a separately reported live API smoke test.
+5. Define a versioned cross-episode evidence-reference contract and adversarial tests before allowing multiple historical memories to support a preference candidate.
+6. Add a CSD-owned preference/self-model proposal, review, revision and retirement contract; never allow direct model writes to identity state.
 7. Add the Life Engine cloud deliberator as a separate slice; preserve no-op and the ASM boundary.
 
 ## 8. Explicit non-claims

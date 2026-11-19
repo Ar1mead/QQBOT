@@ -526,3 +526,11 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 1. 静态核对 provider parser、组合测试 fixture、导出和 workflow。
 2. runner 可用后先执行 semantic reviewer tests、cloud loop integration、grounded pipeline、CSD semantic review，再跑完整矩阵。
 3. 接着按 cross-episode contract 实现历史 claim reference resolver；候选保持 pending/shadow，直到 CSD preference reducer 与 Recovery 通过测试。
+
+
+## 23. Semantic-review provider commit and Actions status — 2026-11-20
+
+- Semantic-review provider implementation commit: `48a4a7fd9caef156cf60549d21326ff59ac18f29`.
+- Actions Run #723（ID `44565792687`）针对该 commit 完成后失败，约 4 秒；Ubuntu / Windows 两个 job 的 steps 都为空，没有分配 runner、没有执行测试命令。这不是代码测试失败，也不是测试通过。
+- 后续仅有验收矩阵和测试 fixture 的小修正，不改变运行时代码。
+- 新增 reviewer 单元测试和组合 fake-transport loop 测试仍未执行；没有真实 API smoke test。
