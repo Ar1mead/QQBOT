@@ -1,28 +1,32 @@
 # Project Progress Ledger
 
 > Repository: `Ar1mead/QQBOT`  
-> Last updated: 2026-11-19 (UTC+08:00)  
+> Last updated: 2026-11-20 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
+> Latest verified branch / PR #1 head at this checkpoint: `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`  
 > Default branch: `main`  
-> Merge policy: work remains on feature branches until reviewed; do not assume anything is merged to `main`.
+> PR #1 policy: Draft / Open / Unmerged — never merge.
 
 This is the durable hand-off record for continuing work when conversation context is unavailable. Update this file whenever a meaningful work item is completed, its verification status changes, or a decision changes.
 
-## Current status snapshot — 2026-11-19 00:09 UTC+08:00
+## Current status snapshot — 2026-11-20
 
-- Latest code/test checkpoint before documentation-only updates: `caa4dc780eb40641c5828cb624af60876aaf92c4`.
-- Latest confirmed full CI matrix remains Run #664, which passed Ubuntu and Windows before the later launch-plan, bundle-pinning, Worker mapping-boundary, and package-builder changes.
-- Runs #665–#695 failed before runner allocation on both matrix jobs: no steps executed and no runner was assigned; no useful job logs were available. The cause remains unknown. Do not describe any changes after Run #664 as CI-passed.
-- Protocol v4, fixed Worker entrypoint, and isolated Python subprocess test were included in the last confirmed green matrix.
-- Windows low-level primitives already exist: AppContainer profile/capability setup, ACL helpers, explicit environment, Job Object policy, STARTUPINFOEX handle allowlist, anonymous pipes, suspended process launch, and bounded concurrent stdio/timeout/overflow supervision.
-- Windows launch-plan builder now requires a host-pinned runtime manifest digest. The loader requires canonical manifest bytes; the pin is checked against the typed manifest when staging and again before launch-plan creation. This is implemented but CI-unverified.
-- SurfCore worker mapping has been separated from host CSD event creation. The Worker-safe QQ batch validator returns untrusted ObservationEvidence only; CSD event construction is lazy and remains host-side. Added an isolated-import regression test to ensure the worker mapping path does not import CSD modules. This is implemented but CI-unverified.
-- A deterministic runtime bundle builder now exists at `adapters/worker_backends/runtime_bundle_builder.py`. It selects a fixed Worker source closure, copies a CPython 3.12 runtime tree, excludes site-packages/tests/bytecode, normalizes optional `python312._pth`, emits sorted canonical manifest bytes, and reports the manifest SHA-256. Synthetic builder tests were added; no real CPython bundle has yet been built or launched.
-- Still missing: provision the builder's output digest into trusted host configuration and implement the production executor. The source bundle root must be protected from untrusted writes.
-- No production `WindowsAppContainerWorkerExecutor` composes the primitives. No Linux Bubblewrap backend, live SurfCore ingress, real QQ/Bilibili connection, or owner-local Windows/DSH verification exists.
-- PR #1 remains Draft/Open/Unmerged.
+- PR #1 was freshly fetched: `state=open`, `draft=true`, `merged=false`; its head branch is `feature/csd-cognitive-memory-slice`, and its head SHA matches `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`.
+- The previous top-level snapshot and next gate incorrectly prioritized Windows Worker/runtime-bundle infrastructure. That priority is superseded by the cognition-first decision recorded later in this ledger and in `docs/HANDOFF_CURRENT.md`.
+- Current P0 code slices present on the branch:
+  - `OpenAICompatibleGroundedMemoryProvider`: cloud model proposes grounded memory claims; proposal remains pending until CSD evaluation.
+  - `prior_memory_context.py`: bounded, deterministic lexical retrieval of accepted CSD memories; this is not semantic/vector search.
+  - `OpenAICompatibleSemanticReviewProvider`: bounded review of an inference claim against direct source claims; review is advisory, CSD retains decision authority.
+  - Fake-transport integration test covers observation → grounded proposal → semantic review → explicit CSD acceptance.
+- Cross-episode evidence reference resolution and CSD preference/self-model revision reducers are not implemented yet. The next code task is a strict accepted-memory claim-reference resolver; cross-episode candidates must remain pending/shadow until CSD revision and Recovery gates exist.
+- Validation is **not green** for the recent P0 work. Actions Run #724 (ID `44566099273`) completed as failure in about three seconds; both Ubuntu and Windows jobs had empty step lists and no runner allocation, so no test command ran. This is a runner-startup/allocation failure, not a code-test failure and not a pass.
+- The latest relevant Actions evidence inspected is Run #724. Do not claim that all recent runs or tests passed; no local test run and no live cloud API smoke test have been performed.
+- The latest confirmed full CI pass recorded historically is Run #664, which predates substantial later Worker/runtime changes. It does not verify the current branch.
+- No production application/runtime wiring of the cloud provider is complete. No user-local Windows verification has occurred.
+- PR #1 must remain Draft / Open / Unmerged. Do not merge it.
 
-Next gate: obtain an executable CI matrix, validate the builder and pin-binding changes, build and run a real CPython 3.12 bundle on Windows, then define trusted host pin provisioning and compose the production Windows executor lifecycle.
+**Current next gate:** statically review the current cloud-provider / prior-context / semantic-review interfaces and tests, then implement the cross-episode accepted-claim reference resolver with revalidation at append/decision time. Do not resume unrelated Worker/runtime expansion unless it blocks the minimum safe cognitive loop.
+
 
 ---
 
@@ -1847,3 +1851,14 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - Latest branch head at the time of this note was `6ee1548fe9d2575b58a6f646102274a0e40de1f2`.
 - Actions Run #724 (ID `44566099273`) completed as failure after approximately three seconds. Ubuntu and Windows jobs both have empty step lists; no runner was allocated and no test command executed.
 - This confirms the same runner-allocation blocker. No new code test result exists; do not infer pass/fail of the Python suite from this run.
+
+
+## Current reconciliation — 2026-11-20 (supersedes older next-step notes)
+
+- Re-read the live branch versions of this ledger and `docs/HANDOFF_CURRENT.md`; the older opening snapshot and early handoff sections were stale and have now been reconciled.
+- Live PR #1 metadata: Draft=true, Open, Unmerged; head branch `feature/csd-cognitive-memory-slice`; head SHA `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`.
+- The current P0 implementation consists of the cloud grounded-memory provider, accepted prior-memory context selector, cloud semantic reviewer, and fake-transport combined cognitive-loop test. These are committed source/test artifacts, not proof of runtime operation.
+- Current test evidence remains blocked: Run #724 had no allocated runner and zero steps on both Ubuntu and Windows. No tests ran in that workflow. No local suite or live model API test has run.
+- The runner-allocation cause is not established from the available evidence. Do not guess at billing, quota, repository settings, or a GitHub outage. Avoid repeatedly creating commits or rerunning the same empty jobs without a new diagnostic signal.
+- Next implementation: cross-episode accepted-claim reference resolver, with immutable references to accepted memory/proposal/decision/claim/digest/source events; reject stale, unknown, non-accepted, or inconsistent references; count independent source events rather than duplicated claims; keep generated cross-episode interpretations pending/shadow. Then implement semantic support/counterevidence review and CSD-owned preference revision/recovery.
+- All older historical sections remain as a record of prior decisions and checkpoints. Where their “next” instructions conflict with this reconciliation and the cognition-first strategy above, this current reconciliation takes precedence.
