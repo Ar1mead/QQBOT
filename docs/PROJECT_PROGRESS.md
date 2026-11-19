@@ -1804,3 +1804,5 @@ Every new module or infrastructure task must state: (a) which user-visible cogni
 - PR #1 must remain Draft / Open / Unmerged.
 
 Next: inspect the final diff and test fixtures; when a hosted runner becomes available, execute the focused prior-memory selector, grounded pipeline, and cloud provider tests before the full matrix. Then address any failures and only afterward continue toward preference/self-model semantic review.
+
+- Follow-up static review: evidence quote text is also included in the per-item truncation flag; added a regression test for a long quote paired with a short claim. This is still unexecuted test coverage, not a passing result.

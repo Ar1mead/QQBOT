@@ -92,6 +92,8 @@ def _record(memory: Mapping[str, Any], text_limit: int) -> dict[str, Any]:
                     and not isinstance(locator[key], bool)
                 }
             quoted = item.get("quoted_text")
+            if isinstance(quoted, str) and len(quoted) > text_limit:
+                was_truncated = True
             provenance.append({
                 "event_id": _required(item.get("event_id"), "evidence event_id"),
                 "locator": safe_locator,

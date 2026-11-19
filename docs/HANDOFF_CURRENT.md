@@ -487,3 +487,5 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 1. 先审查本轮完整 diff 和测试 fixture。
 2. runner 可用后，优先执行 `test_csd_prior_memory_context.py`、`test_csd_grounded_proposal_pipeline.py`、`test_csd_openai_compatible_provider.py`，再执行完整 matrix。
 3. 若测试通过，再继续最小认知循环下一缺口：模型对多条历史经历进行有边界的综合，以及偏好/自我模型更新所需的独立语义审查与修订契约。不能把本轮 lexical selector 当作已完成的类人长期记忆。
+
+- Follow-up static review also marks long evidence quote truncation explicitly and adds a regression test for that case. Test remains unexecuted pending hosted runner availability.

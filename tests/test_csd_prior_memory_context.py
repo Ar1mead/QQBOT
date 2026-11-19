@@ -113,6 +113,18 @@ class PriorMemoryContextSelectorTests(unittest.TestCase):
         self.assertLessEqual(len(result["memories"][0]["claims"][0]["text"]), 40)
         self.assertEqual(result["truncated_memory_ids"][0], "long")
 
+    def test_quote_truncation_is_reported_even_when_claim_text_is_short(self):
+        item = memory("quote-only", "coffee")
+        item["claims"][0]["evidence"][0]["quoted_text"] = "coffee " * 100
+        result = build_prior_memory_context(
+            [item], "coffee", state_version=1, per_item_chars=32
+        )
+        self.assertTrue(result["memories"][0]["truncated"])
+        self.assertIn("quote-only", result["truncated_memory_ids"])
+        self.assertLessEqual(
+            len(result["memories"][0]["claims"][0]["evidence"][0]["quoted_text"]), 32
+        )
+
     def test_context_retains_claim_type_uncertainty_and_evidence_provenance(self):
         result = build_prior_memory_context(
             [memory("grounded", "coffee after lunch")], "coffee", state_version=5
