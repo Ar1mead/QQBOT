@@ -164,6 +164,34 @@ class CrossEpisodeProposalTests(unittest.TestCase):
                 expected_state_version=self.version,
             )
 
+    def test_boolean_schema_version_and_unhashable_enums_fail_closed(self):
+        payload = self.payload()
+        payload["schema_version"] = True
+        with self.assertRaises(CrossEpisodeProposalError):
+            build_cross_episode_proposal(
+                self.store, payload, self.context,
+                proposal_id="candidate", provider_id="model", provider_version="1",
+                expected_state_version=self.version,
+            )
+
+        payload = self.payload()
+        payload["candidate_kind"] = []
+        with self.assertRaises(CrossEpisodeProposalError):
+            build_cross_episode_proposal(
+                self.store, payload, self.context,
+                proposal_id="candidate", provider_id="model", provider_version="1",
+                expected_state_version=self.version,
+            )
+
+        payload = self.payload()
+        payload["uncertainty"] = {}
+        with self.assertRaises(CrossEpisodeProposalError):
+            build_cross_episode_proposal(
+                self.store, payload, self.context,
+                proposal_id="candidate", provider_id="model", provider_version="1",
+                expected_state_version=self.version,
+            )
+
     def test_candidate_kind_cannot_conflate_user_preference_and_ai_interest(self):
         payload = self.payload()
         payload["candidate_kind"] = "interest_candidate"
