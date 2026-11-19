@@ -2035,3 +2035,14 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Next: add focused durable-review event tests covering append, public submission denial, deterministic duplicate/idempotency, direct get_event validation, stale artifact/evidence, and Recovery. Then diagnose runner allocation without repeatedly triggering runs.
 - Only after durable event adversarial tests execute successfully should preference/self-model reducer work be considered. It remains unimplemented. Life Engine must continue to ignore pending-shadow candidates and reviewer opinions.
 - PR #1 remains Draft / Open / Unmerged. Feature branch remains divergent from main (last compare: ahead 1467, behind 7). Do not merge, rebase or force-sync without explicit user authorization.
+
+
+## Actions 额度耗尽期间的开发策略 — 2026-11-20
+
+- **暂停消耗 GitHub-hosted Actions 额度的尝试。** 用户提供的 Billing 页面显示 GitHub Free，本月 Actions compute 已用完（$12.00 used / $12.00 included），billable usage 为 $0（included usage discount 抵扣），Actions storage 为 0 GB / 0.5 GB；用户确认没有付款方式。页面当时显示 included usage 约 12 天后重置。
+- 这与 Ubuntu/Windows jobs 在 Runner 分配前失败（runner_id=0、空 runner name、steps=[]）高度吻合，是目前最有力的故障解释；但 job payload 未返回明确 billing 错误，故记录为高可信诊断，不伪称已由错误日志直接证实。
+- **费用约束：** 不要求用户添加银行卡，不启用付费超额用量，不调整预算来产生费用；未经用户明确授权，不执行任何可能产生费用的操作。不得为了免费 Actions 分钟擅自将私有仓库改为公开。
+- **等待期策略：** 在 included usage 重置前，不再盲目 rerun 或 push 无意义提交触发 hosted runners。额度重置后，先运行 tests/test_csd_cross_episode_review.py focused suite；确认实际出现 checkout/测试 steps 后，再跑完整 Ubuntu/Windows matrix。未实际执行的测试继续标记为未验证。
+- **研发不暂停：** 继续推进个体 AI 的完整目标，不把项目缩减为记忆插件。等待期可做低风险静态审查、设计收敛、测试审查和不依赖 Actions 的代码准备；但不得越过既定验证门槛。特别是 CSD 审查记录事件的专门回归测试尚未执行，因此在其 adversarial tests 实际通过前，不开始偏好/自我模型 reducer 的实现或 Life Engine 接线。
+- **下一阶段门槛顺序：** (1) 静态复核并补强 CSD review-record 测试/实现；(2) hosted runner 恢复或经用户同意配置零费用 self-hosted runner 后，先执行 focused suite；(3) focused suite 通过后再执行完整 Ubuntu/Windows matrix；(4) 再推进 decision-time evidence revalidation 与 CSD-owned preference/self-model revision events/reducer；(5) 最后才评估 Life Engine 对已接受修订的读取与自主活动影响。Pending candidates 和 advisory review records 始终不得直接改变身份、偏好、目标或活动排序。
+- **PR 安全约束不变：** PR #1 保持 Draft / Open / Unmerged；不合并、不 rebase、不 force-sync、不擅自同步分叉分支。
