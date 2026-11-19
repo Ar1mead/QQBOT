@@ -1940,3 +1940,14 @@ Next: inspect the final diff and test fixtures; when a hosted runner becomes ava
 - The seven commits on main after that base are dated 2026-11-16: one test commit (7b34af5...) adding tests/test_csd_goals.py, three Stage 0 documentation commits (47e2b9d..., 85f2267..., 92dea5e...), and three documentation reverts (71926ba..., da38ab1..., c5d748d...).
 - The feature branch already contains tests/test_csd_goals.py with the same 54 test method names as main, but the file contents differ; core/csd/README.md, PROJECT_PROGRESS.md and the replay-cost report also differ between branches.
 - This is historical branch divergence, not evidence that the feature branch lacks the goal tests. Do not merge, rebase or force-sync main into the feature branch without a separate content/diff review and explicit user authorization. PR #1 remains unmerged.
+
+
+## Semantic-review payload hardening and reviewer-v2 contract — 2026-11-20
+
+- Code commit: 285fb5aeb85b19e25b89a37039c57f683f8e61ae.
+- Static review found same-episode semantic-review v1 accepted unbounded reasoning text, explanation/limitation lists, and support-ID lists. Both provider-side validation and CSD durable-event validation now enforce matching limits: 2,000 characters per text field/item, 8 alternative explanations, 8 limitations, 32 supporting claim IDs, 200-character identity strings, and 80-character digest fields.
+- Added regression tests at the provider pipeline and CSD event boundaries for oversized reasoning text and oversized explanation lists. These tests are present but not executed.
+- New design contract section defines reviewer v2's exact historical-prefix input snapshot, support and counter-evidence bundles, source-observation provenance, output schema, risk flags, size limits, and non-authoritative boundary. It explicitly prohibits silent truncation and requires a later CSD-owned decision event to re-resolve evidence.
+- Actions Run #781 (ID 44588405212) for commit 285fb5a... failed before either Ubuntu or Windows job exposed any steps; both jobs returned steps=null and logs_url=null. No test command is known to have executed.
+- This change hardens the existing v1 review input contract; it does not implement reviewer v2 or authorize any preference/self-model revision.
+- Latest code/test checkpoint: 285fb5aeb85b19e25b89a37039c57f683f8e61ae. PR #1 remains Draft / Open / Unmerged; no merge/rebase was performed.
