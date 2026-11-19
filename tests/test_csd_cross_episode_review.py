@@ -15,7 +15,10 @@ from core.csd import (
     append_cross_episode_proposal,
     build_accepted_claim_reference_context,
 )
-from core.csd.cross_episode_proposals import build_cross_episode_proposal
+from core.csd.cross_episode_proposals import (
+    build_cross_episode_proposal,
+    list_cross_episode_proposals,
+)
 from core.csd.cognitive import (
     CognitiveIntegrityError,
     CROSS_EPISODE_REVIEW_EVENT,
@@ -264,7 +267,7 @@ class CrossEpisodeReviewPipelineTests(unittest.TestCase):
         self.assertEqual(event["payload"]["candidate"]["outcome"], "supported")
         self.assertEqual(self.store.get_state_snapshot()["state_version"], before)
         self.assertEqual(
-            self.store.list_cross_episode_proposals()[0]["status"],
+            list_cross_episode_proposals(self.store)[0]["status"],
             "pending_shadow",
         )
 
