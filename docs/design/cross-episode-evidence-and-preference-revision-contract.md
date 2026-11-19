@@ -280,3 +280,5 @@ This implementation does **not** add a CSD-owned review/decision event, human ap
 ### Reviewer-v2 static-audit tightening
 
 A follow-up static audit added a 64-event ceiling for distinct source observations and a 32-span ceiling per referenced claim, in addition to the existing character and serialized-byte bounds. V2 observation coverage metadata is passed through as provenance, while opaque account identity remains excluded. Provider output must be the exact declared candidate dataclass (not an extended subclass), and an explicit `sensitive_inference` risk flag requires `requires_human_review=true`. These are fail-closed review-interface constraints, not a semantic guarantee that the model will detect every sensitive inference. Regression tests were added; execution remains unverified because the hosted workflow still exposes no runnable job steps.
+
+The ephemeral artifact also records a digest of the exact canonical reviewer input, separately from the candidate-event payload digest. This makes the historical evidence bundle itself auditable without persisting the review or granting it authority.
