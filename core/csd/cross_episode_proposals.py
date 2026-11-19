@@ -27,6 +27,14 @@ SCHEMA_VERSION = 1
 MAX_TEXT = 2000
 MAX_REFERENCES = 32
 MAX_LIST_ITEMS = 8
+USER_PREFERENCE_DOMAINS = frozenset({
+    "communication_style", "creative_preferences", "dining_environment",
+    "environment_preferences", "interaction_preferences", "media_preferences",
+    "workflow_preferences",
+})
+AI_INTEREST_DOMAINS = frozenset({
+    "creative_topics", "learning_topics", "research_topics", "technical_topics",
+})
 
 
 class CrossEpisodeProposalError(ValueError):
@@ -141,6 +149,15 @@ def build_cross_episode_proposal(
     expected_owner = "user" if kind == "preference_candidate" else "ai"
     if owner != expected_owner:
         raise CrossEpisodeProposalError("candidate owner does not match candidate kind")
+    domain = _text(model_payload.get("domain"), "domain")
+    allowed_domains = (
+        USER_PREFERENCE_DOMAINS if kind == "preference_candidate"
+        else AI_INTEREST_DOMAINS
+    )
+    if domain not in allowed_domains:
+        raise CrossEpisodeProposalError(
+            "candidate domain is not an allowed non-sensitive domain for its owner"
+        )
     confidence = model_payload.get("confidence")
     if not isinstance(confidence, (int, float)) or isinstance(confidence, bool):
         raise CrossEpisodeProposalError("confidence must be a finite number from 0 to 1")
@@ -190,7 +207,7 @@ def build_cross_episode_proposal(
     candidate = CrossEpisodeInterpretationCandidate(
         candidate_kind=kind,
         owner=owner,
-        domain=_text(model_payload.get("domain"), "domain"),
+        domain=domain,
         statement=_text(model_payload.get("statement"), "statement"),
         scope=_text(model_payload.get("scope"), "scope"),
         exclusions=_text_list(model_payload.get("exclusions"), "exclusions"),
@@ -347,7 +364,14 @@ def validate_cross_episode_proposal_event(
         raise ValueError("cross-episode candidate kind is unsupported")
     if owner != ("user" if kind == "preference_candidate" else "ai"):
         raise ValueError("cross-episode candidate owner does not match its kind")
-    for field in ("domain", "statement", "scope", "reasoning_summary"):
+    domain = _text(candidate.get("domain"), "candidate.domain")
+    allowed_domains = (
+        USER_PREFERENCE_DOMAINS if kind == "preference_candidate"
+        else AI_INTEREST_DOMAINS
+    )
+    if domain not in allowed_domains:
+        raise ValueError("cross-episode candidate domain is not allowed for its owner")
+    for field in ("statement", "scope", "reasoning_summary"):
         _text(candidate.get(field), f"candidate.{field}")
     for field in ("exclusions", "alternatives", "limitations"):
         value = candidate.get(field)
