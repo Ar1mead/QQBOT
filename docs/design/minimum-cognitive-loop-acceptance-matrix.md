@@ -27,7 +27,7 @@ The first model-backed milestone must prove that an actual cloud model can inter
 
 ## 3. Critical gaps
 
-1. There is no real cloud-model provider implementation.
+1. OpenAI-compatible grounded-memory and semantic-review provider implementations now exist, but neither has been smoke-tested against a live API and neither is wired into a production user-facing runtime.
 2. The Life Engine snapshot is a motivation/goal snapshot, not a complete autobiographical context. It has no episode text or retrieved-memory context.
 3. The grounded-memory provider receives one observation and state version; it does not yet receive prior accepted memories for cross-session synthesis.
 4. CSD's grounded evaluator validates source location and structure, not broad semantic entailment, truth, personal significance, or psychological interpretation.
