@@ -752,3 +752,14 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 4. Only after decision-time revalidation and Recovery are implemented and executable tests pass should the preference/self-model reducer be considered.
 5. Keep the full autonomous-life objective and ai-companion-pi lessons intact: private home, event/AI-requested wake causes, optional autonomous research/creation/retrospection/rest, long-term project continuity, queued proactive messaging, graded permissions and rollback/evaluation. No fixed wake-up cadence or diary quota.
 
+
+
+### 0.9.1 Reviewer-v2 follow-up audit
+
+- Added a maximum of 64 distinct source observation events and 32 evidence spans per claim. This complements the 20,000-character per-source, 100,000-character total-source, and 400,000-byte complete-input limits.
+- V2 observation coverage metadata is included in provenance. Opaque account references remain excluded.
+- Reviewer output requires the exact `CrossEpisodeReviewCandidate` type; subclasses are rejected to prevent additional undeclared authority fields. Explicit `sensitive_inference` risk requires `requires_human_review=True`.
+- Added regressions for immutable artifact sequence fields, sensitive-inference human-review enforcement, and provider subclass rejection.
+- Latest code commits: `02cc65bcb13afd6a09cfdb0715ed908bd3850fe4`, `682c87bfef982be878a62d500c31e49f958d8335`, and `f3bf41293dc85f921454f1a2d853014cea7d8e79`.
+- Latest visible Actions run #789 still failed before jobs were created; its Jobs API response had an empty `jobs` array. No compile or Python test has executed.
+- Keep the implementation advisory and non-persisting. The next meaningful feature is the CSD-owned decision/review event with independent decision-time evidence re-resolution and Recovery, not a preference reducer.
