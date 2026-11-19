@@ -111,6 +111,18 @@ def _resolve_accepted_claim_reference_in_snapshot(
     if not isinstance(evidence, list) or not evidence:
         raise AcceptedClaimReferenceError("source assertion has no evidence lineage")
     proposal_sequence = proposal_event["sequence"]
+    decision_sequence = decision["sequence"]
+    if through_sequence is not None:
+        if (
+            not isinstance(through_sequence, int)
+            or isinstance(through_sequence, bool)
+            or through_sequence < 0
+        ):
+            raise AcceptedClaimReferenceError("through_sequence must be a non-negative integer")
+        if decision_sequence >= through_sequence:
+            raise AcceptedClaimReferenceError(
+                "accepted decision did not exist at the requested historical sequence"
+            )
     source_event_ids: list[str] = []
     for item in evidence:
         if not isinstance(item, Mapping):
