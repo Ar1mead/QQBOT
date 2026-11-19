@@ -183,3 +183,17 @@ At the time this document was written:
 - The architecture is a design contract, not evidence of human consciousness or proof of completed behavior.
 
 The next implementation task is to map the current CSD and Life Engine APIs onto this contract, write the smallest acceptance matrix, and implement one end-to-end cloud-model-backed vertical slice without granting the model direct state or action authority.
+
+
+## 10. Autonomous life and continuous-development extension
+
+The companion design is extended by the separate proposal `docs/design/autonomous-life-and-self-development.md`. It adds a private activity/artifact space, configurable timer/event/self-request wake evaluations, long-running interests/projects, evidence-based reflection, validated skill accumulation, outcome learning, and a governed proactive-contact queue.
+
+This extension does not replace the three layers or change authority:
+- CSD remains the only durable identity/state authority.
+- Life Engine evaluates wake opportunities, projects, activities, rest, and no-op; a wake trigger never forces work.
+- Private Home stores artifacts and working materials, not authoritative identity state.
+- Model-generated reflections and self-descriptions remain proposals, not facts.
+- ASM continues to authorize external side effects, including proactive messages.
+
+Do not copy ai-companion-pi's fixed four-hour schedule or broad tool permissions as defaults. The new proposal is a design direction only; its implementation remains behind the P0 cognitive-loop milestone.
