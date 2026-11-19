@@ -282,3 +282,13 @@ This implementation does **not** add a CSD-owned review/decision event, human ap
 A follow-up static audit added a 64-event ceiling for distinct source observations and a 32-span ceiling per referenced claim, in addition to the existing character and serialized-byte bounds. V2 observation coverage metadata is passed through as provenance, while opaque account identity remains excluded. Provider output must be the exact declared candidate dataclass (not an extended subclass), and an explicit `sensitive_inference` risk flag requires `requires_human_review=true`. These are fail-closed review-interface constraints, not a semantic guarantee that the model will detect every sensitive inference. Regression tests were added; execution remains unverified because the hosted workflow still exposes no runnable job steps.
 
 The ephemeral artifact also records a digest of the exact canonical reviewer input, separately from the candidate-event payload digest. This makes the historical evidence bundle itself auditable without persisting the review or granting it authority.
+
+## 3.8 CSD-owned cross-episode review record
+
+A provider review may be recorded as an immutable CSD audit event, but recording an opinion does not accept the underlying preference/interest candidate.
+
+The reserved review event must bind the exact candidate proposal event identity, sequence, payload digest, recorded state version, canonical evidence-input digest, reviewer identity/version, and normalized bounded review output. At append time, CSD independently reconstructs the evidence input and re-resolves all accepted-claim lineage at the candidate proposal's exclusive historical boundary. The event itself must occur later than the proposal, and validation must also establish the evidence prefix is still valid immediately before the review event.
+
+The same validator must be used for append, duplicate delivery, direct reads, and Recovery. Public event submission cannot forge the reserved event. Event identity must be deterministic and idempotent; distinct reviewers or versions can create distinct records.
+
+This event has no reducer effect on accepted preferences, AI interests, self-model, goals, Life Engine ranking, or ASM permissions. It is an audit record only. Any later decision or preference revision is a separate CSD-owned event with its own policy, evidence revalidation, and Recovery contract.
