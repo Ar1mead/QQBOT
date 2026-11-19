@@ -13,6 +13,7 @@ from typing import Any, Mapping, Sequence
 
 from .accepted_claim_references import (
     AcceptedClaimReferenceError,
+    resolve_accepted_claim_reference,
     resolve_selected_accepted_claims,
 )
 from .cognitive import (
