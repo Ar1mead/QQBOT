@@ -616,3 +616,46 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - Live PR check: #1 Open, Draft=true, Merged=false; branch `feature/csd-cognitive-memory-slice`; head at this update `a9a70b07080f803213a46fcbd13f71afc8304576`.
 - Next implementation: dedicated CSD pending-shadow cross-episode proposal/decision event family, with append-time and decision-time reference re-resolution against the corresponding historical prefix, plus projection rebuild/Recovery. No accepted outcome is allowed yet.
 - PR #1 must remain Draft / Open / Unmerged.
+
+
+## 0.3 Continuation update — CSD cross-episode pending candidates (2026-11-20)
+
+### Implemented checkpoint
+
+- Code/test checkpoint: 855822af2bd5c233f5a9281d8058db53ec6a558d.
+- Added core/csd/cross_episode_proposals.py and event type cognition.cross_episode_candidate_proposed.v1.
+- Public operations: build_cross_episode_proposal, append_cross_episode_proposal, and list_cross_episode_proposals.
+- The model supplies only opaque historical-reference keys. CSD re-resolves each key against accepted memory/claim lineage and records proposal, decision, claim digest, source event IDs, and state version. Persisted events omit copied claim text.
+- Append-time revalidation is inside the same SQLite write transaction and uses the event's exclusive historical sequence prefix. Direct reads, duplicate acknowledgement, projection application, and Recovery replay use the same validator.
+- The event is pending-shadow only. It does not advance authoritative CSD state version and cannot mutate user preference or AI self-model state.
+- User preference and AI interest candidates have separate owner/domain allowlists. This is only a coarse category filter; do not treat it as a sensitive-content classifier or as approval.
+- Focused tests cover idempotency, source provenance, claim digest tampering, stale state, malformed fields, owner/domain confusion, support/counter overlap, and Recovery replay.
+
+### Static audit findings
+
+- Confirmed the new event type is present in the public submit allowlist, _validate_event_local_shape, _apply_projection_event, and Recovery's durable-event allowlist.
+- Recovery rebuilds the event stream and revalidates the historical references at each cross-episode event's original sequence. No mutable projection table is used for these pending candidates.
+- The resolver follows only earlier accepted decision, grounded proposal, and observation events; this review found no recursive call back into cross-episode event validation.
+- This is source-level review only. No test execution is claimed.
+
+### CI status — still blocked before test steps
+
+- Workflow path filters and the dedicated test_csd_cross_episode_proposals.py step are present for both push and pull_request events.
+- Actions Run #779 (ID 44585188161), code/test SHA 855822a..., failed with both matrix jobs exposing no steps. Rerun attempt 2 still returned steps=null and logs_url=null; no job log artifact was available.
+- Run #778 (ID 44585172949) showed the same empty-job failure pattern.
+- The evidence indicates failure before a test command became observable; it does not establish a Python test failure or a passing test. The root cause is unknown. Do not speculate about repository billing/settings or GitHub service health.
+- No local tests, local Windows 11 / Python 3.12.14 verification, or live cloud API smoke test have run.
+
+### Next actions
+
+1. Keep PR #1 Draft / Open / Unmerged. Never merge without explicit user authorization.
+2. Continue static review and interface/Recovery contract checks; avoid repeated no-op commits or reruns that produce empty jobs.
+3. Keep all cross-episode interpretations pending/shadow. Do not let them affect Life Engine decisions or accepted preference/self-model state.
+4. Before authoritative revision, implement reviewer v2 plus CSD-owned decision/revision events, including support/counter-evidence, scope, alternatives, uncertainty, evidence lineage, state-version revalidation, replay, and rollback/history.
+5. Once a runner actually executes steps, run the focused cross-episode suite first, then the CSD focused suites and full Ubuntu/Windows matrix. Until then, mark tests as not executed.
+6. Preserve the full autonomous-life target and the ai-companion-pi design lessons: private home, multiple wake-up causes including AI-requested wake, optional autonomous research/creation/retrospection/rest, long-term project continuity, queued proactive messaging, graded permissions, and rollback/evaluation. Do not reduce the project to a memory plugin or fixed periodic journal task.
+
+### Live branch metadata at this documentation update
+
+- PR #1 head before this handoff append: 1772b35f514940742a7a27d974586e8d9aacdcfc.
+- The final PR head must be re-fetched after this documentation commit. The code/test checkpoint remains 855822a...
