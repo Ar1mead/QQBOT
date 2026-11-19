@@ -7,6 +7,22 @@
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
+## Current checkpoint — 2026-11-20 (accepted historical claim resolver groundwork)
+
+- Live PR #1 metadata at the start of this continuation: head branch `feature/csd-cognitive-memory-slice`, head SHA `531cde2f84c600f2295d330c4698c9ebddf5a301`, Draft=true, Open, Unmerged.
+- Compared the code checkpoint `48a4a7fd9caef156cf60549d21326ff59ac18f29` to the live head: seven commits ahead; only Progress/Handoff docs, the minimum-loop matrix, and a small fake-test fixture cleanup changed. No unrecorded runtime implementation was found after the cloud semantic-review provider.
+- Added `core/csd/accepted_claim_references.py`: read-only resolution of source-assertion claims from accepted grounded memories. It verifies accepted-memory projection integrity, accepted proposal/decision lineage, claim uniqueness, claim digest, evidence event IDs, and stable CSD state version. Model-selected pairs are mapped to pipeline-generated opaque keys; duplicate pairs are deduplicated.
+- Added `tests/test_csd_accepted_claim_references.py` for accepted lineage, opaque keys, duplicate references, stale snapshots, missing memory/claim and malformed reference shape. Added the test to the workflow and exported the resolver.
+- **Important incomplete gate:** this is resolver groundwork only. It does not yet revalidate historical references inside a new cross-episode proposal's CSD append and decision transactions; no cross-episode proposal event family, semantic-review-v2, preference reducer, or Recovery projection exists. The resolver is not yet wired into the cloud provider's prompt/pipeline. Do not use its output to accept or persist preferences or drive Life Engine actions.
+- **Validation: unexecuted.** No local tests, GitHub-hosted tests, or live API smoke test were run. New tests are committed but unverified.
+- Actions Run #724 (ID `44566099273`) jobs were re-read: Windows job 135708120696 and Ubuntu job 135708121260 both completed with failure; both expose empty step lists. Run #723 has the same empty-step result. Current PR head `531cde2...` has no associated PR-triggered workflow run in the available lookup. This connector cannot list the repository's latest 10 runs globally.
+- Current continuation commits: resolver `867767488e1776a394e13612fe2d0fc589f0b966`; tests `fdc46bd6a6be725b3d42d2b685acf83f3eef1629`; exports `79a4165cef0f66d7eeccd2e63294f2f34a70f0e2`; initial workflow `fbd7d5c6f30926cfd6b4af676ebb6e3dc2562e89`; identifier guard `720ad9cdd12391c1131629d7c7e46b5c39f4a870`; PR workflow path fix `07f1b4549a37b14039c47150f24c7ea70e889ed9`.
+- PR #1 remains Draft / Open / Unmerged. Do not merge.
+
+**Next gate:** statically inspect the new resolver/tests, then implement a dedicated cross-episode pending proposal contract whose CSD append-time and decision-time paths independently re-resolve accepted decision lineage and claim digests against the event log. Keep all outcomes pending/shadow until semantic review v2 and CSD-owned preference reducer/Recovery are complete.
+
+---
+
 This is the durable hand-off record for continuing work when conversation context is unavailable. Update this file whenever a meaningful work item is completed, its verification status changes, or a decision changes.
 
 ## Current status snapshot — 2026-11-20
