@@ -24,7 +24,9 @@ from .cross_episode_proposals import (
     CrossEpisodeInterpretationCandidate,
     CrossEpisodeProposal,
     CrossEpisodeProposalError,
+    append_cross_episode_proposal,
     build_cross_episode_proposal,
+    list_cross_episode_proposals,
 )
 from .accepted_claim_references import (
     AcceptedClaimReferenceError,
@@ -73,7 +75,9 @@ __all__ = [
     "CrossEpisodeInterpretationCandidate",
     "CrossEpisodeProposal",
     "CrossEpisodeProposalError",
+    "append_cross_episode_proposal",
     "build_cross_episode_proposal",
+    "list_cross_episode_proposals",
     "AcceptedClaimReferenceError",
     "build_accepted_claim_reference_context",
     "resolve_accepted_claim_reference",
