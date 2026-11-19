@@ -82,6 +82,38 @@ class OpenAICompatibleGroundedProviderTests(unittest.TestCase):
         self.assertEqual(body["messages"][1]["content"] and json.loads(body["messages"][1]["content"])["state_version"], 7)
         self.assertLessEqual(timeout, 25)
 
+    def test_prior_memory_context_is_forwarded_as_untrusted_reference(self):
+        provider, transport = self.provider(proposal())
+        observation = self.observation()
+        observation["prior_memory_context"] = {
+            "schema_version": 1,
+            "selector_algorithm": "unicode-lexical-overlap-v1",
+            "state_version": 7,
+            "historical_text_is_untrusted": True,
+            "memories": [{"memory_id": "m1", "proposal_id": "p1", "claims": []}],
+            "truncated_memory_ids": [],
+        }
+        provider.propose_grounded(observation, state_version=7)
+        user_payload = json.loads(transport.calls[0][2]["messages"][1]["content"])
+        self.assertEqual(user_payload["prior_memory_context"]["memories"][0]["memory_id"], "m1")
+        system_prompt = transport.calls[0][2]["messages"][0]["content"]
+        self.assertIn("untrusted reference data", system_prompt)
+        self.assertIn("current source_text exactly", system_prompt)
+
+    def test_rejects_prior_memory_context_with_stale_state_version(self):
+        provider, _ = self.provider(proposal())
+        observation = self.observation()
+        observation["prior_memory_context"] = {
+            "schema_version": 1,
+            "selector_algorithm": "unicode-lexical-overlap-v1",
+            "state_version": 6,
+            "historical_text_is_untrusted": True,
+            "memories": [],
+            "truncated_memory_ids": [],
+        }
+        with self.assertRaises(ValueError):
+            provider.propose_grounded(observation, state_version=7)
+
     def test_rejects_unknown_top_level_authority_fields(self):
         value = proposal(accepted=True)
         provider, _ = self.provider(value)

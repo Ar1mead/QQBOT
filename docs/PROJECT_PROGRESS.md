@@ -1787,3 +1787,20 @@ Every new module or infrastructure task must state: (a) which user-visible cogni
 - PR #1 head 为 `31f83915b24d4c46cb95e9c9c1b175ccea834610`，仍 Draft/Open/Unmerged。该 head 没有可见 PR-triggered workflow runs 或 combined status checks；不能报告测试通过。
 - 本轮没有本地运行时或 CI runner 执行测试。测试结果仍为“未验证”，真实 API smoke test 未进行。
 - 下一开发切口：增加有版本号、确定性排序和严格字符预算的 prior-memory context。当前 accepted-memory 检索是子串过滤，不是语义检索；Provider 不得直接读取 store。上下文只能由 pipeline 从 CSD accepted-memory projection 读取并裁剪，再作为不可信历史参考传给模型；所有新提案仍须引用当前 observation 并由 CSD 单独审核。
+
+
+## P0 versioned prior-memory context — 2026-11-20
+
+- Added `core/csd/prior_memory_context.py` with context schema v1 and deterministic selector algorithm `unicode-lexical-overlap-v1`.
+- Retrieval is deliberately lexical, not semantic: English/alphanumeric word tokens and CJK bigrams are matched against the current observation; ties prefer newer ISO-8601 memories, then stable memory ID order.
+- Context contains CSD state version, memory/proposal/claim IDs, memory kind, claim epistemic type, uncertainty, evidence event IDs/locators/quoted spans, and explicit untrusted-history metadata.
+- Bounds: at most 8 memories, 1200 characters per memory text/claim text, 8000 serialized JSON characters by default; oversized records are deterministically truncated and carry per-record plus `truncated_memory_ids` flags.
+- Pipeline now retrieves only the CSD accepted-memory projection via `get_memories()`, which checks projection consistency; it snapshots state version before and after retrieval and aborts if the version changes or projection becomes inconsistent. The provider receives an augmented observation mapping containing the bounded context, not a store/database handle.
+- Provider validates context schema/state-version/untrusted marker, caps it at 8 memories and 12000 serialized characters, and is instructed that historical content is untrusted reference material. New source assertions must still quote the current observation exactly; history alone cannot support a new factual assertion.
+- Added selector tests for empty history, English/CJK matching, deterministic relevance/tie/recency order, duplicate IDs, non-accepted records, provenance, truncation/budget, and invalid input. Added pipeline integration coverage for accepted-memory retrieval and provider context forwarding, plus provider context validation tests.
+- Added the new test to both workflow path filters and a dedicated Actions step.
+- **Validation status: static source review only. No local tests or hosted CI tests have been executed for this change.** The previous runner-allocation failures remain unresolved; do not claim test success. No real API smoke test has been run.
+- This is a first lexical continuity layer, not semantic memory search, preference formation, self-model revision, or a running application integration. Model output remains a pending proposal and CSD remains the only acceptance authority.
+- PR #1 must remain Draft / Open / Unmerged.
+
+Next: inspect the final diff and test fixtures; when a hosted runner becomes available, execute the focused prior-memory selector, grounded pipeline, and cloud provider tests before the full matrix. Then address any failures and only afterward continue toward preference/self-model semantic review.

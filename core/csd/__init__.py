@@ -20,6 +20,12 @@ from .cognitive import (
     CognitiveMemoryStore,
     ProposalIdentityConflict,
 )
+from .prior_memory_context import (
+    CONTEXT_SCHEMA_VERSION,
+    SELECTOR_ALGORITHM_VERSION,
+    PriorMemoryContextError,
+    build_prior_memory_context,
+)
 from .openai_compatible_provider import (
     CloudProposalProviderError,
     OpenAICompatibleGroundedMemoryProvider,
@@ -50,6 +56,10 @@ from .store import (
 )
 
 __all__ = [
+    "CONTEXT_SCHEMA_VERSION",
+    "SELECTOR_ALGORITHM_VERSION",
+    "PriorMemoryContextError",
+    "build_prior_memory_context",
     "CloudProposalProviderError",
     "OpenAICompatibleGroundedMemoryProvider",
     "INTERACTION_EVENT",

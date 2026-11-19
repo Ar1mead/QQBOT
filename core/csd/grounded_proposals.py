@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from typing import Any, Mapping, Protocol, Sequence
 import uuid
 
+from .prior_memory_context import build_prior_memory_context
+
 from .cognitive import (
     GROUNDED_PROPOSAL_EVENT,
     OBSERVATION_EVENT,
@@ -197,9 +199,26 @@ class GroundedMemoryProposalPipeline:
                 "accepted-memory projection is out of sync; run Recovery before proposal generation"
             )
         state_version = int(state["state_version"])
+        prior_memories = self.store.get_memories()
+        after_retrieval = self.store.get_state_snapshot()
+        if not after_retrieval["projection_consistent"]:
+            raise CognitiveIntegrityError(
+                "CSD projection became inconsistent during prior-memory retrieval"
+            )
+        if int(after_retrieval["state_version"]) != state_version:
+            raise CognitiveIntegrityError(
+                "CSD state changed while selecting prior-memory context; retry proposal generation"
+            )
+        context = build_prior_memory_context(
+            prior_memories,
+            observation["payload"].get("content", ""),
+            state_version=state_version,
+        )
+        provider_observation = dict(observation)
+        provider_observation["prior_memory_context"] = context
 
         candidates = self.provider.propose_grounded(
-            observation,
+            provider_observation,
             state_version=state_version,
         )
         if not isinstance(candidates, Sequence) or isinstance(candidates, (str, bytes)):

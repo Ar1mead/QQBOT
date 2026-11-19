@@ -461,3 +461,29 @@ CSD / ASM 的完整规格仍未冻结；架构文档中未明确标记为已确�
 - 有确定性排序、最大条数、单条/总字符预算和明确截断标记；
 - 明确将历史文本视为不可信数据，不作为指令；
 - 不允许模型只凭历史上下文生成无当前证据支撑的事实；输出仍是 pending proposal，CSD 继续独立审核。
+
+
+## 19. P0：版本化历史记忆上下文已实现（待测试）— 2026-11-20
+
+### 本轮代码切片
+
+- 新增 `core/csd/prior_memory_context.py`：context schema v1，selector algorithm `unicode-lexical-overlap-v1`。
+- 第一版是确定性词面检索，不是语义检索：英文/数字词 token + 中文 Han bigram；按重合 token 数排序，同分时优先较新的 ISO-8601 时间，再按 memory ID 稳定排序。
+- 上下文记录包含 state version、memory/proposal/claim IDs、memory kind、epistemic type、uncertainty、evidence event IDs、locator 和 quote provenance。
+- 默认限制：最多 8 条；每条记忆/claim 文本最多 1200 字符；整个序列化 JSON 最多 8000 字符。截断保留来源元数据，并记录每条的 `truncated` 和整体 `truncated_memory_ids`。
+- Pipeline 通过 CSD `get_memories()` 读取 accepted-memory projection（该接口会验证 projection consistency），在读取前后检查 state version；若版本变化或 projection 不一致则 fail closed。Provider 只收到带 `prior_memory_context` 的 observation mapping，不会收到 store/DB。
+- OpenAI-compatible provider 校验 schema version、state version、untrusted 标记、最多 8 条和 12000 字符硬上限。系统提示明确历史内容是不可信参考，不是指令或新事实证据；新 source assertions 仍必须引用当前 observation 的精确文本。
+- 新增 selector、pipeline integration 和 provider context tests，并将测试加入 Ubuntu/Windows workflow 的 path filters 与独立步骤。
+
+### 边界与验证
+
+- 该实现只提供第一版词面连续性检索，不是语义搜索，不形成偏好/人格，也没有把模型接入实际运行应用。
+- 只有 accepted memories 可以进入上下文；pending/rejected/deferred 不会由 `get_memories()` 返回。模型仍只产生 pending proposal，CSD 独立决定接受或拒绝。
+- **本轮尚未运行任何测试。** 仅完成静态代码审查；Hosted Actions runner 之前持续在分配 runner 前失败。不能声称测试通过；真实云端 API smoke test 也未进行。
+- PR #1 继续保持 Draft / Open / Unmerged，严禁合并。
+
+### 下一步
+
+1. 先审查本轮完整 diff 和测试 fixture。
+2. runner 可用后，优先执行 `test_csd_prior_memory_context.py`、`test_csd_grounded_proposal_pipeline.py`、`test_csd_openai_compatible_provider.py`，再执行完整 matrix。
+3. 若测试通过，再继续最小认知循环下一缺口：模型对多条历史经历进行有边界的综合，以及偏好/自我模型更新所需的独立语义审查与修订契约。不能把本轮 lexical selector 当作已完成的类人长期记忆。
