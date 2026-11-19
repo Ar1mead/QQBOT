@@ -19,7 +19,7 @@
 - Resolver 已有只读能力：只允许 CSD accepted grounded source_assertion；核对 memory/proposal/accepted decision；核对对应 grounded proposal event；逐条验证 source event 完整性、类型及其早于 proposal；计算 canonical claim digest；提取去重 source event IDs；模型只可选择 pipeline 生成的 opaque keys。
 - **本轮发现并修复的隐藏问题：** resolver 之前用多个独立 SQLite 读事务读取状态、memory projection、proposal 和 decision。仅靠前后 state_version 无法保证这些读取来自同一个数据库快照。现在 resolver 外层使用单个 `_read_tx()`，内部读取共享同一 SQLite snapshot；新增单事务回归测试。
 - 代码提交：单快照解析 `846bd716b4ce07b324a0329247e458eda009757d`；单快照回归 `a825a7dd59ccb873830650ec3ec9bceae4aa6033`；proposal/source-event chronology guard `0c780283a9c0b2fea1180854eea3dc1c92fc7151`。
-- Progress 已更新：`6e272dab1337cf5eebbc473d7aa2671393765238`。本交接文件随后也会提交；因此最终 head 需要再从 PR #1 实时读取。
+- Progress 更新提交：`6e272dab1337cf5eebbc473d7aa2671393765238`；本轮设计文档提交：`be178a6e7bbe6facde22f27cf1c06c6c178ac157`、`dbc12a81af1c148b57db7db2c6a24a25fc1a4c6a`。本文件随后也会提交；因此最终 head 需要再从 PR #1 实时读取。
 - CI：对 `0c780283...` 查询不到 PR-triggered workflow runs，也没有 combined statuses。Run #723/#724 之前 jobs 的 steps 为空，测试命令没有执行。**没有测试通过或失败的结论**；本轮没有本地运行测试。当前可用 connector 不能列出仓库最近 10 次全局 Actions runs。
 - **未完成且不可绕过：** 没有 cross-episode proposal event/schema；没有 CSD append-time 和 decision-time transaction 内对 historical refs 的 re-resolve；没有 reviewer v2/counter-evidence、preference reducer 或 Recovery。Resolver 不得用于接受长期偏好或驱动 Life Engine。
 - 下一步：设计并实现 pending-only cross-episode proposal contract；append 和 decision 两处都要从权威 event log 重解析 accepted memory、decision、claim digest 和 source event lineage。之后才做 reviewer v2、CSD preference reducer 和 Recovery。
