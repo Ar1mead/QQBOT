@@ -260,3 +260,18 @@ The first durable cross-episode event family is now implemented as `cognition.cr
 - This does not implement decision-time revalidation, semantic reviewer v2, accepted preference/self-model projections, revision history or Life Engine ranking. Those remain blocked.
 
 The test cases are added to the repository workflow, but the current branch has no verified CI execution yet.
+
+## 3.7 Cross-episode reviewer v2 — implementation status (2026-11-20)
+
+The provider-neutral read-only pipeline is now implemented in `core/csd/cross_episode_review.py`:
+
+- It targets exactly one existing `pending_shadow` proposal and reads the proposal, accepted claim lineage, and source observations inside one SQLite read snapshot.
+- It re-resolves every persisted support and counter-evidence reference through `resolve_accepted_claim_reference`, using the candidate event sequence as the exclusive historical boundary and the candidate's recorded state version. Every persisted lineage field and claim digest must match the fresh resolution.
+- It retrieves the immutable source observation events and verifies each quote's Unicode-codepoint range against the original source content. Source events are deduplicated by event ID while the evidence-span records preserve their reference key and claim association.
+- Source content is bounded to 20,000 characters per observation and 100,000 characters in total; the complete serialized reviewer input has an additional byte ceiling. Oversized or inconsistent evidence is rejected, never silently truncated.
+- Opaque account identity references are excluded from the reviewer input. Only bounded provenance fields needed to interpret the observation are passed.
+- The provider is called only after the read snapshot closes. The provider receives no store handle, CSD mutation API, or ASM capability.
+- Output validation enforces the five outcomes, finite reviewer confidence, exact support/counter reference allowlists, non-overlap, scope enum, bounded alternatives/limitations/risk flags, and a strict boolean human-review flag. `supported` requires selected support; `conflicting` requires both support and counter-evidence.
+- The return value is an ephemeral `CrossEpisodeReviewArtifact` bound to proposal event ID, sequence, payload digest, state version, and reviewer identity. No review event is written and no CSD state version changes.
+
+This implementation does **not** add a CSD-owned review/decision event, human approval workflow, accepted preference/self-model reducer, or Life Engine integration. Reviewer output remains advisory and must not influence activity ranking or autonomous action. The new focused suite `tests/test_csd_cross_episode_review.py` is wired into Ubuntu/Windows CI, but no execution result is claimed until the workflow exposes actual test steps and results.
