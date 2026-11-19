@@ -90,21 +90,20 @@ Not implemented: cross-episode semantic reviewer v2, decision-time revalidation,
 
 ## 4. Cross-episode synthesis proposal
 
-Do not overload the existing single-observation \`GroundedMemoryCandidate\` schema. Introduce a separate versioned proposal family after this design is accepted.
+Do not overload the existing single-observation GroundedMemoryCandidate schema. The first separate, versioned CSD-owned pending-only proposal family is implemented as cognition.cross_episode_candidate_proposed.v1.
 
-Minimum fields:
+The current v1 event supports one interpretation candidate per proposal and includes:
 
-- stable \`proposal_id\`, proposal schema/contract version, provider identity/version;
-- \`based_on.state_version\`;
-- one or more typed interpretation claims;
-- each interpretation's statement, epistemic type, uncertainty label/confidence, reasoning summary, alternatives and limitations;
-- a bounded list of historical claim references selected from the pipeline-provided context;
-- explicit support and counter-evidence reference lists;
-- explicit scope (what situations the interpretation applies to and what it does not claim);
-- a candidate kind, initially limited to \`preference_candidate\` and \`interest_candidate\`;
-- no action instructions, no direct CSD mutation, no ASM dispatch fields.
+- stable proposal_id, schema version, provider identity/version and based_on_state_version;
+- candidate kind and owner, currently limited to user preference candidates and AI interest candidates;
+- an allowlisted non-sensitive domain, statement, scope and exclusions;
+- confidence, uncertainty, reasoning summary, alternatives and limitations;
+- bounded supporting and counter-evidence references selected from pipeline-provided opaque keys;
+- an independent support-event count derived from distinct underlying source event IDs.
 
-The first implementation should not support broad self-model/personality edits. Keep the first candidate domain narrow and observable.
+It contains no action instructions, direct CSD mutation fields, tool grants or ASM dispatch fields. The CSD append path re-resolves every reference and persists only canonical lineage/digests. The event remains pending_shadow / shadow; it is not an accepted preference and cannot drive Life Engine ranking.
+
+Future schema versions may support multiple interpretation claims per proposal, but only with explicit per-claim evidence bundles and bounded review semantics. The first implementation deliberately avoids broad self-model/personality edits and keeps candidate domains narrow and observable.
 
 ## 5. Preference candidate and revision semantics
 
