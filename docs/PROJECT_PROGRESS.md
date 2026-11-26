@@ -41,6 +41,14 @@ This is the durable hand-off record for continuing work when conversation contex
 - Documentation reconciliation found and corrected below: the design contract's earlier verification-gap paragraph still claimed the review-event tests did not exist, contradicting the current test file and handoff. No implementation or test status was upgraded.
 
 
+## Live repository audit — 2026-11-26 (continued)
+
+- Focused static review covered `cross_episode_review.py`, `cross_episode_proposals.py`, the CSD append/read/Recovery paths in `cognitive.py`, and `tests/test_csd_cross_episode_review.py`.
+- Positive consistency findings: `list_cross_episode_proposals()` rebuilds proposal entries from immutable events rather than trusting a partially rebuilt projection; review snapshot reconstruction resolves accepted claims and source observations from historical event data; the review event is revalidated inside the append write transaction by the projection-event path; direct `get_event` validates the target review against the proposal/evidence prefix before its sequence; Recovery replays events in sequence and applies the same review event-local validator after its proposal and evidence predecessors. These are static findings only, not runtime verification.
+- New design risk identified: one proposal/snapshot may accumulate multiple immutable reviewer opinions. A future decision must not select an implicit latest/favorable review and thereby hide an earlier uncertain or conflicting opinion. Design §3.11 now requires exact review event IDs, complete prior matching review-set accounting and a reviewed-set digest; the first implementation must fail closed on multiple non-identical opinions unless a separately versioned CSD-owned supersession/adjudication protocol is defined. Corresponding future acceptance tests were added to the design contract.
+- No implementation or tests were changed or executed. This is a design-only hardening step; existing six focused review-record tests remain unexecuted.
+
+
 ## Historical status snapshot — superseded by the current checkpoint above (2026-11-20)
 
 - At the start of the documentation reconciliation, PR #1 was freshly fetched as `state=open`, `draft=true`, `merged=false`; its head branch was `feature/csd-cognitive-memory-slice`, and its head SHA was `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`. Subsequent commits in this reconciliation update documentation only; always fetch the live head rather than treating that code checkpoint as current.
