@@ -1160,3 +1160,13 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - 下一步：继续静态追踪 host-side CSD append、日志、prompt、projection 和 Recovery 的所有 identity-reference 入口；将 Stage 1A 设计收敛为可验证的 host attestation/provenance contract，再进入 Stage 1A 实现。Stage 1B canonical subject registry、Stage 1C key/database coordinated recovery 仍按原顺序。
 - 本轮只做静态审查与文档更新，没有改代码、测试或执行任何测试；没有本地测试、Actions rerun、外部账号操作或付费使用。测试门槛不变：约 2026-12-02 先检查 Billing；额度恢复后先跑 `tests/test_csd_cross_episode_review.py`，通过后再跑完整 Ubuntu/Windows matrix。不得添加付款方式、开启付费超额或公开私有仓库。
 - PR #1 必须保持 Draft / Open / Unmerged；不合并、不同步 fork。
+
+## 14. 最新续接补充 — 2026-11-27（CSD 来源认证与提示词最小化审查）
+
+- 进一步核对 `worker_protocol.py`、`WorkerHost`、`csd_mapping.py`、CSD append/direct read/Recovery、prior-memory context 和云端 provider。
+- CSD Observation v2 是完整事件载荷，当前没有单独的 observation projection；`get_event()` 会返回完整 payload。Recovery 重新执行现有 Observation v2 校验，但该校验只验证身份引用非空，不认证签发来源。
+- 公开 `submit_event()` 接受 Observation v2。事件 ID、correlation ID 和 source 字符串的一致性检查不等于可信主机认证，因为调用者可以自行构造匹配字段。新 host-attested Observation 事件必须只允许可信主机内部路径创建。
+- 已有提示词最小化措施值得保留：云端 provider 接收当前 source text、observation event ID 和受限 prior-memory context；后者只保留 evidence event ID、locator kind/unit/start/end 和 quoted text，不复制 account/context/actor 引用。检查到的 WorkerHost、worker entrypoint 诊断为通用错误，QQ journal 只记录粗粒度 reason code；这只是已检查路径，不是全仓库无泄漏证明。
+- 设计 §3.26 已补充修正：正常 QQ journal 已对关键身份引用使用 HMAC，但 Python mapping/protocol/CSD 没有认证这些引用的签发者；生产密钥供应和 journal-to-host 认证链仍未实现。
+- Stage 1A 现在要求：可信 journal→host 的认证来源协议、只允许内部主机路径创建的 host-attested Observation 事件、拒绝 public-submit 伪造，以及 direct read/Recovery 对认证证明的重复验证。仅有 HMAC 字符串格式或自报 source 字段不够。具体使用 host-side re-pseudonymization 还是签名/MAC 批次证明，需先确认 SurfCore 实际信任位置和密钥保管方式。
+- 本轮无源代码/测试变更，无测试执行；无本地测试、compile、Actions rerun、外部平台操作或付费。Stage 0 Billing-first 门槛不变。
