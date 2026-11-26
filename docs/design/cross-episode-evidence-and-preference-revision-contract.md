@@ -1210,3 +1210,33 @@ This also differs from `docs/design/surfcore-qq-observation-journal-v1.md`, whic
 6. Add a subject-resolution test proving that two account-scoped sender references do not become one canonical user subject without an explicit authorized link.
 
 **Status:** source/spec mismatch confirmed by static inspection. This is a design finding only; no source or test changes/execution. The Stage 0 Billing-first hosted-test gate remains unchanged.
+
+## 3.26 QQ journal HMAC exists, but CSD still lacks authenticated observation provenance — correction and end-to-end trace (2026-11-27)
+
+This section refines §§3.22–3.25 after a source-level trace of the live branch. The earlier §3.22 wording was too broad when it described the normal QQ journal path as if it directly emitted raw QQ identifiers.
+
+### What is already implemented
+
+- `integrations/surfcore-qq-journal/observation-journal.mjs` derives `account_ref`, `conversation_ref`, `sender_ref`, `external_ref`, and `record_id` using domain-separated HMAC-SHA-256. Its `validateRecord()` checks the `hmac:v1:<64 lowercase hex>` shape for those references before appending the journal record.
+- The journal's failure diagnostics use coarse reason codes and do not include message bodies, raw IDs, or credentials in the inspected path.
+- Therefore, in the intended journal path, the Python mapper's unkeyed SHA-256 `observation_id` input (`platform/account_ref/record_id`) is derived from already-HMACed QQ references. It is not evidence that raw numeric QQ IDs are directly hashed into the durable event. The observation ID remains a deterministic event identifier, not an identity credential, canonical subject ID, or authenticity proof.
+
+### Remaining trust-boundary gaps
+
+- `createObservationJournal()` receives `hmacKey` and `secureDirectory` from its caller. The checked-in tests use a fixed fixture key and no-op ACL callback. This module does not implement production key generation, protected key storage, rotation, authenticated journal-to-host delivery, or coordinated key/database recovery.
+- Python `map_surfcore_record()` validates reference fields mainly as non-empty strings. The worker protocol reconstructs `ObservationEvidence` using the same non-empty-field contract. The existing mapping tests even use plain fixture values such as `record_id="message:11"` and `external_ref="11"` in a worker-safe QQ batch. Thus the HMAC output of the intended journal is not independently enforced at the Python host boundary; a different or compromised upstream result can supply raw or forged references.
+- CSD `_validate_observation_v2()` checks identity-reference fields are non-empty, not authenticated. `submit_event()` accepts Observation v2 through its public path; `_validate_observation_v2_event()` checks deterministic event ID/correlation/source strings, but those strings are caller-supplied and are not proof of trusted origin. A self-declared `source` string is not host attestation.
+- CSD persists the complete Observation v2 payload in the immutable event store. Observation v2 currently has no separate durable projection (`_apply_projection_event` validates and returns). `get_event()` returns the full payload; Recovery re-runs the same schema checks and therefore cannot upgrade unverified identity provenance into authenticated provenance.
+- The inspected model-provider path sends the current source text, observation event ID, and bounded prior-memory context. The prior-memory context allowlists only evidence event ID, locator kind/unit/start/end, and quoted text; it does not copy account/context/actor reference fields. This is a useful existing minimization boundary, but it does not make unsafe durable payloads acceptable.
+- The inspected WorkerHost/worker-entrypoint diagnostics are generic, and the QQ journal logs coarse reason codes. No raw identity-reference logging was found in these inspected paths; this is not a repository-wide proof that no other caller logs such data.
+
+### Required Stage 1A refinement
+
+1. Keep the existing QQ journal HMAC pseudonymization; do not replace it with plain hashes or raw-ID persistence.
+2. Do not treat an HMAC-looking string or a caller-supplied adapter/source label as proof of authenticity. Shape validation is necessary but insufficient.
+3. Establish an authenticated journal-to-trusted-host provenance contract. Candidate mechanisms to evaluate are (a) host-side pseudonymization from a trusted raw identity tuple available only to the host, or (b) a versioned authenticated journal record/batch envelope (for example, a MAC/signature over canonical record bytes and request/cursor binding) verifiable by the host without giving the key to the worker. Select one only after confirming the actual SurfCore trust placement and key custody.
+4. Add a new versioned host-attested Observation event/API, reachable only through the trusted in-process host boundary. Public `submit_event()` must not create that attested family. Keep legacy Observation v2 accepted only as explicitly unbound evidence; never infer canonical subject identity from its raw or merely opaque-looking references.
+5. Direct read and Recovery must validate the same host-attestation proof and identity/key version lineage. An event hash proves stored bytes were not changed; it does not prove who issued those bytes.
+6. Focused adversarial tests must cover raw-ID injection, forged HMAC-shaped references, public-submit forgery, replayed/stale journal pages, cross-account/actor confusion, and consistent direct-read/Recovery rejection. Also assert that identity metadata is not added to model prompts or diagnostics.
+
+**Status:** static audit/design only. No source code or tests changed or executed. The Stage 0 Billing-first verification gate remains mandatory before source/test implementation.
