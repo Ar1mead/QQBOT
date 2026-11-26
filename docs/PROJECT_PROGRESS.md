@@ -59,6 +59,16 @@ This is the durable hand-off record for continuing work when conversation contex
 - No source code or tests changed or ran. The existing six cross-episode review-record tests remain unexecuted; implementation gate remains closed until the focused suite and full Ubuntu/Windows matrix pass after Actions usage resets.
 
 
+## Live repository audit — 2026-11-26 (Motivation and Goal lifecycle)
+
+- Reviewed `core/csd/motivation.py`, `core/csd/goals.py`, their event/projection/replay paths, and the focused test inventories. No source or test files were changed and no tests were executed.
+- Motivation has immutable per-signal version rows plus a latest projection reconciled against accepted decision events. Updates target an exact signal version, preserve prior support/counter-evidence, and stale global/target versions defer rather than rebase. Pause/resolve are new versions. Distinct voluntary encounters, not passive exposure alone, drive interest maturity.
+- Critical semantic boundary: Motivation `origin_class` classifies evidence origin, not ownership. It cannot establish whether a signal is a user preference or an AI-owned interest. Future preference/self-model data needs an explicit owner/subject schema; do not infer ownership from this field.
+- Goals preserve exact historical motivation signal version references. Candidate batch, activation and pause/resume are CSD decisions; accepted versions are immutable and Recovery reconstructs version history/latest projection. One accepted multi-goal batch advances shared state_version once; each separate activation/pause/resume event advances it once.
+- Goal activation and pause/resume change intention state only, not execution or capability. Current lifecycle lacks explicit completed/abandoned/expired/blocked/superseded and outcome-learning semantics. These must be designed before claiming complete autonomous project lifecycle; attempted actions or elapsed time cannot imply completion.
+- Added design §3.13 to record these reuse boundaries and future requirements. No implementation gate changed: six cross-episode review-record tests remain unexecuted; wait until the scheduled Actions quota check, run focused suite first, then full Ubuntu/Windows matrix before any preference/self-model reducer or Life Engine wiring.
+
+
 ## Historical status snapshot — superseded by the current checkpoint above (2026-11-20)
 
 - At the start of the documentation reconciliation, PR #1 was freshly fetched as `state=open`, `draft=true`, `merged=false`; its head branch was `feature/csd-cognitive-memory-slice`, and its head SHA was `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`. Subsequent commits in this reconciliation update documentation only; always fetch the live head rather than treating that code checkpoint as current.
