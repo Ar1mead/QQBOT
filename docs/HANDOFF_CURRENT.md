@@ -942,3 +942,12 @@ No local test, compile, Windows runtime, or real cloud API smoke test has been e
 5. Re-fetch live branch/PR/Actions state at the start of the next continuation. Keep PR #1 Draft / Open / Unmerged. Do not merge, rebase, force-sync or synchronize the fork.
 
 No source code or tests were modified or executed in this continuation. No local environment, QQ/Bilibili account, DSH runtime, SurfCore integration, or external side effect was touched.
+
+
+### Final document synchronization — 2026-11-26
+
+- Immediately before this final handoff update, live PR #1 head was `86d771d15ecba4f3fbfc3b506bd17af115c1a951`; it was Open / Draft / Unmerged and targeted `main`.
+- Progress ledger blob SHA: `a1a3dc8bcbf96a47fdd73d8580d45a80f81b172b`.
+- Design contract blob SHA: `d712bc343a625430bf612d30145573c3128a25b3`.
+- The next commit updates this handoff only. Re-fetch the live PR head and document SHAs next time; do not assume the pre-update SHA is still HEAD.
+- No code/tests changed; no tests were run. The next formal verification checkpoint remains around 2026-12-02, subject to Billing confirmation.
