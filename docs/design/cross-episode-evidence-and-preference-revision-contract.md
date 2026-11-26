@@ -733,3 +733,51 @@ Before AI-owned interest revisions can rely on voluntary-choice evidence, a futu
 - A valid attested choice remains evidence only; it does not directly accept an interest, change self-model or authorize Life Engine/ASM activity.
 
 **Status:** static audit and design clarification only. The current interaction event remains in place for existing Motivation semantics. No attested-choice event/API, canonical AI subject binding, choice-option resolver or new tests were implemented or executed. This finding does not change the existing hosted-test gate.
+
+
+## 3.19 End-to-end observation actor and claim-subject binding — static audit (2026-11-26)
+
+The §3.18 review focused on AI-side choices. A final pass traced identity from external observation into interaction evidence and then into Motivation/Goal.
+
+### Current observation identity fields
+
+Observation v2 records adapter/platform provenance and permits optional `account_ref`, `context_kind`, `context_ref`, `actor_ref`, `actor_role` and `parent_ref`. The event is required to remain untrusted, and the CSD checks the content digest, adapter identity/source shape and field consistency.
+
+These fields preserve useful provenance, but `actor_ref` is optional and is supplied as part of external adapter evidence. It is not, by itself, a canonical CSD subject identity or proof that the actor is the owner of a preference claim.
+
+### Missing cross-event binding
+
+The current interaction validator requires a non-empty `subject_ref`. For user-request and platform-recommendation origins it checks that `origin_event_id` points to an earlier observation of the expected observation kind. The inspected path does not additionally require:
+
+- the interaction `subject_ref` to resolve to a canonical user/AI subject registry;
+- the interaction subject to match the actor/account identity resolved from the referenced observation;
+- the claim subject in a later preference candidate to match the interaction subject;
+- the candidate subject to be distinct from the message speaker when the statement is explicitly about another person;
+- a host-issued AI-individual identity for internally generated interactions.
+
+Consequently, event chronology and observation-kind checks establish that an earlier event exists, but do not yet establish end-to-end identity continuity from observed actor → interaction subject → motivation signal subject → cross-episode claim subject. A model-proposed `subject_ref` or a non-empty string must not be treated as proof of that continuity.
+
+### Required end-to-end identity contract
+
+A future versioned subject registry/binding layer should define:
+
+1. **Canonical subject IDs:** CSD/host-issued opaque IDs for each supported user and AI individual. IDs are stable within the declared identity scope, not derived directly from display names, QQ numbers or arbitrary model output.
+2. **Account/actor mapping:** trusted adapter context maps a platform account + actor identity to a canonical subject under an explicit account-linking policy. External `actor_ref` remains untrusted provenance until the host validates that mapping.
+3. **Evidence actor vs claim subject:** preserve who authored or performed the observed event separately from whom the claim describes. A message from user A about user B is not evidence that the preference belongs to user A. Third-party preference/personality inference should be excluded from the initial scope unless a separate consent and privacy design is approved.
+4. **Interaction binding:** a user-requested interaction must bind to the canonical subject represented by its source observation; an AI-internal interaction must bind to the host-configured AI-individual ID. The caller/model cannot choose a different subject.
+5. **Motivation and goal binding:** each signal and goal retains the exact canonical subject ID and source-event lineage. Origin classification remains a separate provenance attribute and cannot substitute for subject identity.
+6. **Cross-episode binding:** every candidate and eventual accepted revision binds the same canonical subject ID across all supporting/counter-evidence. Mixed-subject evidence must be split into separately supported claims or rejected; it cannot be pooled to increase confidence.
+7. **Lifecycle and Recovery:** identity mappings are versioned and auditable. Account relinking, account removal or subject retirement must not silently rewrite historical subjects; Recovery must replay the identity mapping version that applied when each event was accepted.
+
+### Required tests
+
+- An observation with a missing or untrusted actor reference cannot silently become a canonical user identity.
+- A user-request interaction cannot claim a different subject from the host-resolved actor in its source observation.
+- A message authored by one user but describing another person cannot create a preference claim about the speaker or the third party by default.
+- Two users' evidence cannot be combined into one preference or interest candidate.
+- An AI-internal interaction cannot use a user subject ID, and a user interaction cannot use the AI-individual ID.
+- Motivation signal, Goal and cross-episode candidate subject references must remain consistent with their historical source lineage.
+- Account relinking or subject retirement does not rewrite historical event meaning; direct reads and Recovery preserve the historical identity mapping version.
+- Model-generated subject IDs, aliases or account mappings are rejected unless resolved by the trusted host/CSD registry.
+
+**Status:** static audit/design only. Existing observation v2 and interaction events preserve provenance but do not yet provide the complete canonical subject registry or end-to-end actor/subject binding above. No code or tests were changed or executed. The existing verification gate remains unchanged.
