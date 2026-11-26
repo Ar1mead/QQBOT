@@ -1005,3 +1005,64 @@ Stages 2–4 in §3.21 remain unchanged after these stages pass.
 - A key rotation interrupted at any point is idempotently resumable and never creates a second subject for the same actor.
 
 **Status:** static audit and sequence refinement only. No host identity service, key provider, new observation schema, subject event family, backup coordinator or tests were implemented or executed. Stage 0 remains mandatory before any source/test changes.
+
+
+## 3.24 Stage 1 acceptance matrix and bounded source footprint — preparation only (2026-11-26)
+
+This section turns Stages 1A–1C into reviewable gates. The file names below are a proposed minimal footprint, not a requirement to create every module if an existing module is the correct owner.
+
+### Stage 1A — privacy-safe host references
+
+**Likely source footprint**
+
+- A trusted host module such as `adapters/identity_references.py`: IdentityKeyProvider protocol, canonical HMAC input encoding, key-version metadata, purpose-separated pseudonymization and fail-closed behavior.
+- `adapters/csd_mapping.py`: require a host-validated/pseudonymized evidence object for the new host-attested observation path; do not let raw worker evidence flow directly into CSD.
+- `core/csd/cognitive.py` and, if separation is justified, `core/csd/identity.py`: add the versioned host-attested observation event family, reserved event identity/source rules, event-local validation, direct-read checks, append/replay handling and legacy v2 non-binding behavior.
+- Keep `adapters/platforms/surfcore/mapping.py` worker-safe. It may parse raw external references as transient untrusted DTO values but must not receive or derive identity keys.
+
+**Focused tests**
+
+- New `tests/test_adapter_identity_references.py`: HMAC domain separation, canonical encoding, key versioning, no raw-value leakage, deterministic resolution, invalid/missing key fail-closed, rotation primitives.
+- New `tests/test_csd_observation_identity_boundary.py`: host-attested schema validation, public-submit forgery rejection, raw reference rejection, append/direct-read/Recovery integrity, legacy v2 remains unbound.
+- Extend `tests/test_surfcore_observation_mapping.py`, `tests/test_csd_observation_v2.py` and `tests/test_adapter_worker_host.py` only where required to prove the raw-worker → trusted-host → CSD boundary.
+
+**Gate:** focused Stage 1A tests pass on hosted CI, then the full Ubuntu/Windows matrix passes before Stage 1B begins.
+
+### Stage 1B — canonical subject registry
+
+**Likely source footprint**
+
+- A CSD-owned identity family module (for example `core/csd/identity.py`) defining reserved subject-registration, actor-binding, relink and revocation event schemas/reducers.
+- `core/csd/cognitive.py` integration for event allowlist, reserved event IDs/sources, append-time checks, event-local validation, direct reads, Recovery replay and identity projection consistency.
+- A trusted host-facing adapter service that resolves verified platform actor tuples through the pseudonym service and asks CSD to create/revoke bindings. No model/provider/worker API can call this authority path.
+
+**Focused tests**
+
+- New `tests/test_csd_identity_registry.py`: only internal host path can create bindings; AI identity stable; QQ senders distinct; group/bot account not a user; conflicting/ambiguous binding fails; explicit relink/revoke; idempotency; state/identity version increments exactly once; tampering and Recovery.
+- New `tests/test_csd_identity_subject_scope.py` if multi-account and subject-class cases are too large for one file.
+- Extend `tests/test_csd_cognitive.py` only for generic event-store invariants that the new family must share.
+
+**Gate:** focused Stage 1B suites pass on hosted CI, then the full Ubuntu/Windows matrix passes before observation-to-Motivation/Goal binding work begins.
+
+### Stage 1C — coordinated key and database recovery
+
+**Likely source footprint**
+
+- A host backup/restore coordinator (module location to be decided with the runtime/bootstrap layer) that treats the SQLite database and protected key bundle as one versioned recovery set.
+- Minimal CSD metadata for identity key ID/version and backup-set identity; never persist key bytes in SQLite.
+- No key retrieval or restore operation is exposed to the worker, model or ordinary adapter.
+
+**Focused tests**
+
+- New `tests/test_identity_backup_recovery.py`: coordinated backup/restore preserves pseudonym-to-subject resolution; database-only restore is identity-incomplete; missing key fails closed; interrupted rotation is resumable; stale or mismatched key/database pair is rejected.
+- Use the current cognitive store's actual database backup/restore path. Do not assume tests for the separate `CSDStore` class automatically cover `CognitiveMemoryStore`.
+
+**Gate:** focused Stage 1C tests and full Ubuntu/Windows matrix pass before any production identity binding is enabled.
+
+### Workflow and test-cost handling
+
+The current `.github/workflows/csd-cognitive-slice.yml` push and pull-request path filters include `core/csd/**` and `adapters/**`, so any source implementation in those directories will trigger the matrix. The workflow explicitly lists the existing relevant adapter/CSD tests, but a new standalone test file should also be added to the explicit path list so that a test-only follow-up commit cannot be silently skipped.
+
+Until the previously agreed Billing reset check, do not add any of these source/test files and do not trigger the workflow. Documentation-only updates do not match the current code/test path filters. After the gate opens, run one focused suite at a time and inspect actual runner allocation and steps before requesting the full matrix.
+
+**Status:** test and file-footprint plan only. No source/test files were created or changed; no tests or Actions were run.
