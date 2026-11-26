@@ -1084,3 +1084,16 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Historical immutable events that already contain raw identifiers must not be silently rewritten. They remain legacy/unverified; a deployed database requires a separately approved retention/sanitization/rebuild policy including backups and exports.
 - No source code or tests changed or executed. No local tests, compile checks, Actions reruns, platform operations or paid usage.
 - Next: audit the existing CSD storage/backup configuration and worker trust boundary to ensure the proposed key provider can be placed outside untrusted workers and that no logs/export paths bypass pseudonymization. Then consolidate Stage 1 acceptance criteria. Do not implement before the Stage 0 focused/full hosted test gate.
+
+
+## 1.11 Trusted-host placement and revised first implementation slice — 2026-11-26
+
+- Further static audit: `WorkerHost` takes an injected `WorkerExecutor`; it does not itself provide OS isolation. The worker design says the production Windows executor and Linux sandbox backend are not implemented. Do not pass identity keys, CSD paths or subject authority into workers.
+- Current SurfCore worker mapping returns raw platform references in ObservationEvidence; host-only CSD mapping copies them directly into public-submittable Observation v2 events. The current CSD constructor opens a SQLite path with WAL/FULL defaults and immutable event/payload tables, but there is no identity key provider or coordinated key/database backup service.
+- Design §3.23 revises the first implementation:
+  - **Stage 1A first:** host-side pseudonymization of raw platform references and a new host-attested Observation path, before any durable event/log/prompt/projection. Legacy Observation v2 remains unbound.
+  - **Stage 1B:** CSD-reserved canonical subject registration and account/actor binding/revocation events with identity_version and Recovery validation.
+  - **Stage 1C:** coordinated database+key backup/restore, explicit identity-incomplete state on key loss, and versioned resumable key rotation.
+- Worker remains an untrusted offline transformer. Raw identifiers can cross its bounded response only transiently; trusted host pseudonymizes immediately. CSD public submit cannot forge host-attested observation or identity-binding authority.
+- No source code or tests changed or executed. No local tests, compile checks, Actions reruns, platform operations or paid usage.
+- Next: consolidate the Stage 1A/1B/1C acceptance tests and determine the smallest source-file/test-file touch set, including exact workflow path triggers. Do not start implementation before Stage 0 focused and full hosted test gates pass.
