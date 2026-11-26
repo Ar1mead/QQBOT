@@ -2298,3 +2298,10 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Existing `qq-public-feed.jsonl` is a separate group feed that persists group/sender IDs and sender display name. It must not be repurposed as CSD observation ingress; broader local-file privacy is a separate review.
 - Bridge already imports `hardenDir`; `src/state-acl.mjs` exports `hardenFile`. These are candidate ACL primitives, not yet integrated with the journal key lifecycle.
 - No local SurfCore files were read or modified, no account connected, no live messages read. No source/test change or execution. Stage 0 gate unchanged.
+
+## Live continuation audit — 2026-11-27 (legacy bridge identifier logging)
+
+- Targeted review of current SurfCore v0.8.9 `src/bridge.js` and `src/sensitive.js` found existing local paths that retain raw QQ identifiers: `convKey(kind,id)` includes the raw conversation ID; unauthorized/deny logs interpolate that key and sender ID; the log redactor targets paths/secrets but not QQ numeric IDs; and `qq-public-feed.jsonl` persists groupId/senderId/senderName.
+- This is a legacy SurfCore log/feed issue, not proof of an active CSD ingress. It means the project must not claim that all local logs/files are free of raw QQ IDs. The new journal still must guarantee no raw identifiers in its own records, diagnostics, CSD, prompts or projections.
+- Keep the legacy feed separate. If the whole installation needs a stronger privacy guarantee, track a separate SurfCore change with schema versioning, future-write redaction/pseudonymization and explicit historical log/feed/backup retention handling. Do not silently rewrite or delete old files.
+- No source/local file changes, no tests, no QQ account operations. Stage 0 gate unchanged.
