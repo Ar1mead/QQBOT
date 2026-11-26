@@ -1147,3 +1147,16 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Added design §3.28. Required resolution: bind all pseudonyms to account stream scope (or formally derive per-account keys), use unambiguous canonical tuple encoding, preserve same-account deduplication, retain v1 as legacy, and never infer canonical user identity across accounts without explicit CSD-authorized linking.
 - Add same-key/two-account tests for account, conversation, sender, external-message and record references; also test explicit-only canonical subject linking.
 - This is design-only. No source/test changes or execution; no local tests, Actions reruns, platform operations or paid usage. Keep Stage 0 closed until the Billing-first check around 2026-12-02; then run `tests/test_csd_cross_episode_review.py` first and only proceed to the full Ubuntu/Windows matrix if actual runners and test steps execute.
+
+## 13. 当前续接补充 — 2026-11-27（QQ 身份脱敏与可信主机边界）
+
+- 本轮重新读取活动分支 `feature/csd-cognitive-memory-slice`：HEAD `ee465fbf5527bb5abcc9194678150e013735530e`；PR #1 仍为 Open / Draft / Unmerged。最近可见的该分支 Actions 仍是 Run #814（2026-11-19），runner 分配前失败；不能视为测试结果。
+- **修正上一轮简写：** QQ Observation Journal 正常路径已经使用 domain-separated HMAC-SHA-256 生成账号、会话、发送者、消息和记录引用，并在 Node journal 内检查 `hmac:v1:<64 hex>` 格式。不能再笼统表述为“QQ 日志模块把原始 QQ 号直接写进 CSD”。
+- **真正未闭合的风险：** Python `map_surfcore_record()` 对 `record_id/external_ref/account_ref/conversation_ref/sender_ref/source_ref` 等字段主要只做非空字符串检查；host-only conversion 随后把这些值传入 `adapters/csd_mapping.py`，该模块原样复制到 CSD Observation v2。CSD 对相关引用也没有可信签发证明。因此，正常 journal 的 HMAC 输出是好的，但 CSD 持久化边界仍信任了未经主机独立验证的 worker DTO。恶意/异常上游结果可以注入原始 ID 或伪造引用。
+- HMAC 格式检查本身只能验证形状，不能证明某个值确实由可信 journal/key owner 生成。Stage 1A 必须设计真正的 host-side provenance/attestation enforcement；测试要覆盖 raw-ID injection、伪造 HMAC-shaped refs、跨 account/actor/context 混淆，以及日志/提示词/投影的泄漏路径。
+- QQ journal 的 `createObservationJournal()` 由调用者传入 `hmacKey` 与 `secureDirectory` 回调。当前测试使用固定测试密钥和 no-op ACL callback。仓库尚无完整生产密钥生成、受保护存储、key rotation、journal-to-host authentication、与 `CognitiveMemoryStore` 协调备份恢复的实现。Journal 设计文档描述了目标要求，不代表生产密钥生命周期已经落地。
+- `observation_id` 的无密钥 SHA-256 是对 platform/account_ref/record_id 的确定性派生；正常 QQ 路径中 account_ref 与 record_id 已经是 HMAC 引用。该 observation_id 不是 canonical subject ID，也不是来源认证凭据。
+- `WorkerHost` 只负责协议/结构验证和 evidence 重建；它不创建 OS 沙箱。生产 Windows executor 与 Linux sandbox 仍未完成。身份密钥、CSD 路径和 canonical subject authority 不得进入 worker。
+- 下一步：继续静态追踪 host-side CSD append、日志、prompt、projection 和 Recovery 的所有 identity-reference 入口；将 Stage 1A 设计收敛为可验证的 host attestation/provenance contract，再进入 Stage 1A 实现。Stage 1B canonical subject registry、Stage 1C key/database coordinated recovery 仍按原顺序。
+- 本轮只做静态审查与文档更新，没有改代码、测试或执行任何测试；没有本地测试、Actions rerun、外部账号操作或付费使用。测试门槛不变：约 2026-12-02 先检查 Billing；额度恢复后先跑 `tests/test_csd_cross_episode_review.py`，通过后再跑完整 Ubuntu/Windows matrix。不得添加付款方式、开启付费超额或公开私有仓库。
+- PR #1 必须保持 Draft / Open / Unmerged；不合并、不同步 fork。
