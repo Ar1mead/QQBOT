@@ -41,6 +41,14 @@
 - No tests were run, no code was changed, no Actions rerun was requested, and no paid usage was enabled. Continue the existing plan: wait until around 2026-12-02, inspect Billing first, then run the focused review suite only if included usage has actually reset; run the full Ubuntu/Windows matrix only after the focused suite passes.
 
 
+### 0.3 Continued static audit — 2026-11-26
+
+- Reviewed the full cross-episode review validator and the CSD append/direct-read/Recovery paths. Static consistency checks: proposal listing is reconstructed from immutable events, not an incomplete projection; source claims/observations are historically re-resolved; append projection validation runs inside the write transaction; direct read validates the review against the earlier proposal/evidence prefix; Recovery replays in sequence and invokes the same event-local review validator. No tests were run, so these are code-inspection findings only.
+- Found a future decision-policy hazard: the same proposal/snapshot can have multiple immutable review opinions. A decision must never implicitly choose the latest or favorable opinion and omit an earlier uncertain/conflicting one. Design §3.11 now requires exact review event IDs, accounting for the complete matching prior review set, a reviewed-set digest, and fail-closed handling of multiple non-identical opinions unless a separately versioned CSD-owned supersession/adjudication protocol is introduced.
+- Future tests added to the design contract: omitted/duplicated/reordered/post-decision review IDs rejected; exact reviewed-set digest enforced; a later favorable review cannot hide an earlier uncertain/conflicting opinion.
+- This is design-only. No source code or tests changed; all six existing focused review-record tests remain unexecuted. Keep the 2026-12-02-or-Billing-reset checkpoint and do not trigger Actions before checking the actual included-usage balance.
+
+
 ## 0. 新窗口启动规则
 1. 先读取 `docs/PROJECT_PROGRESS.md`，再读取本文件。
 2. 重新读取活动分支 HEAD、PR #1、最近 10 次 GitHub Actions runs，以及最新 run 的 jobs JSON。
