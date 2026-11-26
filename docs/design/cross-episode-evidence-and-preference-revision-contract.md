@@ -1135,3 +1135,42 @@ Therefore, do not describe the normal dedicated QQ journal → DTO path as curre
 - Add tests for key-provider/bootstrap integration, sender/conversation/account namespace separation, group sender identity isolation, production-key persistence across restart, missing/mismatched key fail-closed behavior, rotation and coordinated journal+CSD restore. Retain the existing no-raw-identifier journal tests.
 
 **Status:** existing QQ journal HMAC pseudonymization and tests are confirmed by source inspection; key lifecycle and downstream CSD enforcement remain incomplete. Design only; no source/test changes or test execution. The Stage 0 Billing-first gate remains unchanged.
+
+
+## 3.27 QQ journal record integrity and key-rotation continuity — static audit (2026-11-27)
+
+The §3.26 review confirmed that the dedicated QQ journal protects identifier references with domain-separated HMACs. A further inspection of its recovery and paging paths found two separate integrity/continuity gaps that must be addressed before the journal is treated as a durable trusted source.
+
+### Record-body integrity is not currently authenticated
+
+- `opaqueRef()` authenticates only the derived identifier references (account, conversation, sender, source message and record identity). It does not authenticate the complete persisted record or its message content.
+- `recover()` parses canonical JSON and checks schema, HMAC-shaped reference strings, account stream reference and cursor order, but it cannot recompute the original identifiers from those pseudonyms and does not verify a MAC/digest over the full record body.
+- Consequently, a complete JSONL record can have its `content` or other mutable-looking fields changed while retaining the existing opaque references and still satisfy the current structural checks. The current tests cover malformed lines, duplicate JSON keys, truncated tails and absence of raw identifiers, but not valid-schema content tampering.
+- `readPage()` re-reads and parses the file after `open()`, but does not rerun `validateRecord()` or any record-integrity check. A file changed after recovery can therefore be returned without the recovery-time validation being repeated.
+
+### Key rotation has no record-level version or continuity protocol
+
+- The persisted references use the literal prefix `hmac:v1:`, which identifies the reference scheme but carries no key ID/version.
+- `streamRef` is derived from the current key and raw `accountId`. Recovery requires every historical record's `account_ref` to equal that newly derived value. Reopening an existing journal with a replacement key therefore fails validation rather than supporting a controlled rotation.
+- The journal currently has no key ring, per-record key identifier, dual-key verification window, rotation checkpoint or atomic rewrite/segment transition. The existing `hmac:v1` label must not be mistaken for key rotation support.
+
+### Required design before production use
+
+1. Authenticate the complete canonical record envelope, including content, references, cursor, schema and timestamps, with a domain-separated MAC or an equivalently strong append-only integrity construction. Keep confidentiality as a separate concern; HMAC is integrity/authenticity, not encryption.
+2. Include an explicit key identifier/version in the authenticated record format. Recovery and page reads must resolve the exact key version and verify the record before exposing it to downstream mapping.
+3. Define a stable opaque journal-stream identity that does not silently change when the active HMAC key rotates. Keep it distinct from key-derived account pseudonyms and from the canonical CSD user subject.
+4. Specify a key ring and rotation protocol: old keys remain verification-only for historical records until a verified migration/retention boundary; new writes use the active key; interrupted rotation is resumable; missing, unknown or mismatched keys fail closed without creating a new identity.
+5. Revalidate each returned page record (including canonical encoding, cursor continuity and record MAC) rather than relying only on a one-time `open()` recovery scan. Detect post-open modification and report journal degradation without returning unverified records.
+6. Coordinate journal, CSD database, key metadata and key material in one backup/restore set. A database-only or journal-only restore must be explicitly marked incomplete where identity resolution/integrity cannot be proven.
+
+### Additional adversarial tests
+
+- Modify only message content while preserving all HMAC-shaped references; recovery and page reads reject the record.
+- Modify actor/conversation metadata, cursor, timestamps or coverage and recompute ordinary JSON; authenticated record validation rejects it.
+- Modify a record after `open()` but before `readPage()`; no unverified record is returned.
+- Reopen with the correct historical key ID after rotation and verify old records; unknown/missing key IDs fail closed.
+- Rotate to a new key, append new records, restart, and verify both historical and new records with deterministic cursor continuity.
+- Interrupt rotation/backup at each boundary and prove recovery is resumable or remains explicitly unavailable; it must never silently mint a new stream identity.
+- Verify a key rotation does not merge two QQ senders, change canonical CSD subjects, or retroactively bind legacy observations.
+
+**Status:** static code/test inspection and design only. No source/test changes or executions. The existing Stage 0 Billing-first hosted-test gate remains unchanged.
