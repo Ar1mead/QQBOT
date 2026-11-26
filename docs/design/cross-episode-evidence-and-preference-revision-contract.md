@@ -1066,3 +1066,40 @@ The current `.github/workflows/csd-cognitive-slice.yml` push and pull-request pa
 Until the previously agreed Billing reset check, do not add any of these source/test files and do not trigger the workflow. Documentation-only updates do not match the current code/test path filters. After the gate opens, run one focused suite at a time and inspect actual runner allocation and steps before requesting the full matrix.
 
 **Status:** test and file-footprint plan only. No source/test files were created or changed; no tests or Actions were run.
+
+
+## 3.25 Close legacy Observation v2 write bypasses before enabling identity protection — static code audit (2026-11-26)
+
+A follow-up source audit found that the §3.22–3.24 design is not yet closed against the current public write paths:
+
+- `adapters/platforms/surfcore/mapping.py` exposes `map_surfcore_record_to_csd_event()` and `map_surfcore_qq_batch()`. Both can turn raw SurfCore DTO references into CSD Observation v2 events by calling the generic `adapters/csd_mapping.py` converter. Their docstrings call these host-only paths, but the functions live in the worker-safe mapping module and are callable helpers, not an enforced host boundary.
+- `adapters/csd_mapping.py::observation_evidence_to_csd_event()` copies `account_ref`, `context_ref`, `actor_ref`, `external_ref`, `source_ref`, `source_artifact_ref`, `parent_ref` and the observation identity into the durable payload without a pseudonymization/attestation step.
+- `core/csd/cognitive.py::_validate_event()` includes `OBSERVATION_EVENT_V2` in the public event allowlist. `submit_event()` calls this public validation path. The current v2 validator checks non-empty reference strings, digest/coverage correctness and `untrusted=true`; it does not establish that identity-bearing references are opaque or host-attested.
+- The current internal-only guard is for decision/review event families. Observation v2 has no equivalent host-attested append boundary. A caller can therefore continue writing new raw-reference v2 events even after a separate host pseudonym service is introduced unless this legacy write route is explicitly closed.
+
+### Required compatibility rule
+
+Do not solve this by deleting historical Observation v2 support or rewriting immutable events. Separate three operations:
+
+1. **Historical compatibility:** direct reads, integrity validation and Recovery continue to understand already-persisted Observation v2 records under their original schema. Such records remain explicitly legacy/unbound and cannot establish canonical subject identity.
+2. **New public writes:** the generic public `submit_event()` path must no longer accept raw identity-bearing Observation v2 writes once the new host-attested path is introduced. A caller-supplied `source`, adapter ID, manifest, opaque-looking string or self-declared flag is not proof of host authority. If a narrowly scoped public non-identity v2 fixture/evidence route is retained, its exact allowed fields and non-binding semantics must be explicit and cannot carry account/actor/conversation identifiers.
+3. **New trusted writes:** a separate versioned host-attested observation append path must accept only the host-transformed schema, verify its reserved event family/source and canonical pseudonym/key-version envelope, and be callable only through the controlled trusted-host/CSD boundary. The CSD event-local validator, direct reads, duplicate acknowledgement and Recovery must all validate the same schema and chronology.
+
+### Mapper and worker boundary corrections
+
+- Keep `adapters/platforms/surfcore/mapping.py` as a pure worker-safe DTO-to-untrusted-evidence mapper. Remove or relocate the CSD event-conversion helpers from this module into the trusted host mapping layer; do not rely on a docstring or lazy import as a security boundary.
+- The trusted host must validate worker output, pseudonymize identity-bearing fields, and only then construct the new host-attested CSD event. Raw references must not enter logs, exception diagnostics, durable queues, prompts, projections or event payloads before transformation.
+- The current `WorkerHost` is an injected-executor interface, not an OS sandbox. No production Windows executor/Linux sandbox is implemented. Do not claim protection against untrusted worker code until the actual process isolation gates pass; until then, only trusted project-owned adapter code may run in-process, and the identity key must remain inaccessible to any separately executed worker.
+- Preserve a documented legacy/unbound state for old v2 events. Do not infer or retroactively attach canonical user subjects from their raw reference fields. Any historical sanitization remains a separately approved immutable-history migration/rebuild with backup/export retention handling.
+
+### Additional adversarial acceptance tests
+
+- A new raw-reference Observation v2 event submitted through public `submit_event()` is rejected after the migration gate, while an existing legacy v2 event remains readable and replayable through Recovery.
+- Direct use of the old SurfCore CSD-conversion helpers cannot create a raw-reference durable event; the worker-safe module exposes no CSD event-construction route.
+- A forged host-attested event, source string, adapter manifest or pseudonym-shaped caller value is rejected by the public API.
+- The trusted host path pseudonymizes account, actor, conversation and resource references before CSD mapping; raw inputs are absent from durable payloads, projections, logs and model context.
+- New host-attested events pass append, duplicate acknowledgement, direct-read integrity validation and Recovery; tampering with key version, pseudonym namespace, host-attestation envelope or event chronology is rejected even if payload/envelope digests are recomputed.
+- Existing legacy v2 events remain unbound after restart, key rotation, database-only restore and coordinated restore; no legacy field silently becomes a canonical subject.
+- Production identity-key use remains disabled for untrusted adapters until the real target-OS worker isolation gate is met.
+
+**Status:** source-level gap confirmed; design only. No source/test changes, test runs, local checks, Actions reruns or external platform operations were performed. The 2026-12-02 Billing-first Stage 0 gate remains unchanged.
