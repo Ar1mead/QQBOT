@@ -2221,3 +2221,13 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - This means adding an HMAC helper alone would leave a bypass. Design §3.25 now requires separate historical v2 read/Recovery compatibility, closure of raw v2 public new-write paths, a new reserved host-attested write path, relocation of CSD conversion out of the worker-safe mapper, and adversarial append/direct-read/Recovery tests.
 - The worker host remains an injected-executor interface, not a production OS sandbox. Identity keys must remain host-only; do not claim untrusted worker isolation until the real Windows/Linux isolation gates pass.
 - Design-only update. No source/test files changed or created, no tests/compile checks/local tests/Actions reruns, no platform operations and no paid usage. PR #1 remains Open/Draft/Unmerged. The Stage 0 Billing-first checkpoint around 2026-12-02 remains unchanged.
+
+
+## Live continuation audit — 2026-11-26 (existing QQ journal HMAC boundary)
+
+- A deeper source check qualified the prior identity-privacy finding: `integrations/surfcore-qq-journal/observation-journal.mjs` already applies HMAC-SHA-256 with domain separation to QQ account, conversation, sender, source-message and record references before persisting its JSONL journal. It requires a host-supplied 32-byte key and a secure-directory ACL callback, validates `hmac:v1` reference shapes on recovery, and rejects malformed journal records.
+- The existing Node test explicitly verifies that a captured private QQ journal record does not contain the raw bot account ID, sender ID or source message ID. Therefore, the normal dedicated QQ journal path must not be described as currently persisting raw QQ IDs.
+- Remaining gaps: no repository-owned key provider/bootstrap, key ID/version, rotation or dual-key migration, coordinated journal+CSD backup/restore, or proven production key storage. The HMAC key and directory ACL remain caller-supplied responsibilities.
+- The downstream Python mapper still derives a second unkeyed SHA-256 observation ID from the references and accepts arbitrary DTO values; it does not itself enforce that inputs came from the protected QQ journal. The generic public CSD Observation v2 path also remains able to accept raw reference strings from other callers.
+- Updated design §3.26 to distinguish the existing QQ journal protection from the still-open generic mapper/CSD bypass and key-lifecycle work. Reuse the existing domain-separated HMAC behavior where appropriate rather than inventing an unrelated scheme.
+- Static/design only; no source/test changes or execution, no Actions reruns, no local tests, no platform operations or paid usage. Stage 0 Billing-first gate remains unchanged.
