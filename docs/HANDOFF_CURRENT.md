@@ -1127,3 +1127,13 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Still missing: repository-owned key bootstrap/provider, key ID/version, rotation/dual-key migration, coordinated journal+CSD backup/restore, and proof that production bootstrap securely stores and restores the caller-supplied key. The Python mapper accepts arbitrary DTO references and does not prove they came from the HMAC-protected journal; generic public CSD Observation v2 submission remains a raw-reference bypass for other callers.
 - Design §3.26 records the positive existing implementation and remaining gaps. Reuse its HMAC domain separation where possible; do not introduce a second pseudonym scheme without a compatibility reason.
 - No source/test changes or execution; no local tests, compile checks, Actions reruns, external platform operations or paid usage. Stage 0 remains Billing-first around 2026-12-02.
+
+
+## 1.15 QQ journal record integrity and key-rotation continuity — 2026-11-27
+
+- Re-read the actual Node journal and tests after §1.14. Existing `opaqueRef()` HMACs protect identifier pseudonyms, but do not authenticate the complete JSONL record body or message content. `recover()` checks canonical JSON, schema, opaque-reference shape, account stream reference and cursor order; it does not verify a record-level MAC. A valid-schema content edit can pass those structural checks.
+- `readPage()` rereads/parses the file after `open()` without rerunning `validateRecord()` or checking authenticated record integrity. Post-open file modification can therefore be returned without a fresh integrity check.
+- Key rotation is not supported by the current format: `hmac:v1` is a scheme prefix, not a key ID; `streamRef` is derived from the current key; recovery requires historical account refs to match it. Replacing the key breaks reopening unless a future versioned migration/key-ring protocol is designed.
+- Added design §3.27 requiring full-record MAC/authentication, explicit key ID/version, stable stream identity independent of active key, dual-key verification/rotation, page-time validation, resumable rotation and coordinated journal+CSD+key backup/restore.
+- Additional tests must cover content-only tampering, post-open modification, key-ID resolution, old/new records across rotation, interrupted rotation and restore mismatch. Existing tests for malformed JSON, duplicate keys, truncated tails and raw-ID absence do not cover these cases.
+- No source or test changes/execution, local tests, compile checks, Actions reruns, platform operations or paid usage. PR #1 remains Open / Draft / Unmerged; no merge/rebase/fork sync. Stage 0 Billing-first checkpoint around 2026-12-02 remains in force.
