@@ -1195,3 +1195,10 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - 现有 `qq-public-feed.jsonl` 是另一条仅群聊使用的 feed，当前会保存 groupId、senderId、senderName。它不能作为 CSD 观察日志来源；若项目以后要求整个本机持久化文件都不保留原始标识，需要单独审查这条旧路径。
 - Bridge 已使用 `hardenDir` 收紧 state 目录，`src/state-acl.mjs` 还提供 `hardenFile`。这些是后续密钥/日志文件 ACL 的候选工具，但尚未接入 journal 密钥生命周期。
 - 没有读取或修改本机 SurfCore 文件，没有连接 QQ 账号，也没有读取真实消息。无代码/测试修改或测试执行；Stage 0 测试门槛不变。
+
+## 18. 最新续接补充 — 2026-11-27（旧 Bridge 日志中的 QQ 原始标识）
+
+- 对当前 SurfCore v0.8.9 的 `src/bridge.js` / `src/sensitive.js` 做了定向检查，发现旧本地路径仍会保留 QQ 原始标识：`convKey(kind,id)` 包含原始会话 ID；未授权/黑名单诊断日志会写入该 key 和发送者 ID；日志脱敏规则主要针对路径/密钥，不会遮蔽 QQ 数字 ID；`qq-public-feed.jsonl` 也会保存 groupId/senderId/senderName。
+- 这是 SurfCore 旧日志/feed 的问题，不代表 CSD Journal 已经运行。不能宣称整个本机日志/文件都没有 QQ 原始 ID。新 Journal 自身仍必须保证原始标识不进入其记录、诊断、CSD、提示词或投影。
+- 不复用旧 feed。若项目最终要求全安装范围的隐私保证，另立 SurfCore 变更，处理未来日志脱敏/伪名化、feed schema 版本和历史日志/备份保留；不得静默改写或删除旧文件。
+- 本轮无源代码/本机文件变更，无测试或 QQ 账号操作。Stage 0 门槛不变。
