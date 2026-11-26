@@ -2193,3 +2193,13 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Added design §3.22 requiring host-side pseudonymization before CSD append, keyed/domain-separated references, distinct namespaces for account/actor/conversation/resource, protected host key custody, explicit key rotation/loss behavior, coordinated key+database backup, and a reviewed policy for legacy events that already contain raw identifiers.
 - New writes must not persist raw QQ identifiers or credentials in CSD events/projections/logs/model context. Legacy immutable events are not rewritten or silently rebound; they remain unverified until an explicit migration/retention policy is approved.
 - This is design-only. No code/tests changed or executed; no local tests, compile checks, Actions reruns, external platform operations or paid usage. Stage 0 Billing-first verification gate around 2026-12-02 remains unchanged.
+
+
+## Live continuation audit — 2026-11-26 (trusted-host placement and revised first slice)
+
+- Audited the worker and persistence boundary after §3.22. `WorkerHost` accepts an injected executor; it is not itself an OS sandbox, and the worker design explicitly says the production Windows executor and Linux sandbox are not implemented.
+- Current worker-safe SurfCore mapping emits raw account/context/actor references in ObservationEvidence; host-only CSD mapping copies them directly into a public-submittable Observation v2 event. No identity service or key provider exists.
+- `CognitiveMemoryStore` uses a caller-supplied SQLite path (WAL/FULL defaults) and immutable event/payload tables, but has no identity-key or coordinated backup/restore contract. Event replay cannot recreate a missing external HMAC key.
+- Added design §3.23 and revised the first implementation into Stage 1A (host-side identifier pseudonymization and host-attested observation path), Stage 1B (CSD canonical subject registry/bindings), and Stage 1C (coordinated key/database backup, restore and rotation).
+- Critical placement: worker never receives identity key, CSD path or subject authority. Raw identifiers may be transient worker output only; trusted host pseudonymizes before durable CSD/log/prompt/projection paths. Legacy Observation v2 stays explicitly unbound.
+- No code or tests changed or executed. No local tests, compile checks, Actions reruns, external account operations or paid usage. Stage 0 Billing-first focused/full hosted test gate remains unchanged.
