@@ -425,3 +425,74 @@ Do not reuse Motivation/Goal payloads as the preference/self-model schema. Futur
 A static inspection found literal backslash-`n` sequences in `.github/workflows/csd-cognitive-slice.yml` in both path-filter sections and the cross-episode review test step. These have been replaced with actual YAML line breaks in commit `06408dbf1c577849be92a15bd39a5316a32ea5df`.
 
 After that correction, Actions Run #808 (ID `44592352031`) created both Ubuntu and Windows jobs, confirming the workflow is now parsed. Both jobs still failed immediately with empty step lists and runner ID `0`; the job-log endpoint returned BlobNotFound. No checkout, compile, or test command executed. Therefore the malformed YAML was a real workflow defect, but the remaining failure is still at job/runner allocation and its exact cause is not established.
+
+
+## 3.14 Goal outcome, lifecycle and learning boundary — design only (2026-11-26)
+
+The current Goal implementation creates and activates intentions and supports pause/resume. It does not yet define a complete outcome lifecycle. This section specifies the boundary required before autonomous project execution can safely treat goals as completed, abandoned or replaced.
+
+### Separate four different facts
+
+Do not collapse the following into one goal status:
+
+1. **Intention state** — what the AI currently intends to pursue (candidate, active, paused, blocked, or a terminal disposition).
+2. **Execution history** — what an authorized activity or external action actually attempted. This belongs to the execution/ASM record and must preserve authorization, dispatch, attempt, response, verification and any compensation/rollback as distinct facts.
+3. **Observed outcome evidence** — what happened in the world, supported by source observations or verified artifacts. An attempted action is not proof that its intended effect occurred.
+4. **CSD outcome decision** — the reasoned, versioned decision about whether the goal's success criteria were met or whether it should be paused, blocked, abandoned, expired or superseded.
+
+A Goal status must never be inferred solely from an ASM dispatch/attempt record, a tool's success-shaped response, elapsed time, a missing response, or the absence of further activity. ASM execution records and CSD goal decisions have different authority and must remain separately auditable.
+
+### Proposed lifecycle vocabulary
+
+- **candidate** — proposed but not activated.
+- **active** — currently intended for pursuit; this creates no execution permission by itself.
+- **paused** — intentionally suspended; it may later be resumed through an explicit CSD decision.
+- **blocked** — progress is prevented by an identified dependency, missing permission, unavailable resource or unresolved safety condition. Record the blocker and the evidence supporting it. Removing a blocker does not silently reactivate the goal; resumption is a separate decision.
+- **completed** — CSD has determined that the goal's declared success criteria are satisfied by sufficient, relevant and integrity-checked outcome evidence. Completion is not equivalent to an action being attempted.
+- **abandoned** — CSD has explicitly decided not to pursue the goal further, with a reason and supporting context. It is not a synonym for temporary pause or blockage.
+- **expired** — CSD has explicitly determined that a goal with a declared validity window is no longer actionable under its own terms. Merely passing a timestamp must not silently rewrite goal history; expiry requires a recorded decision and must preserve the deadline and evaluation context.
+- **superseded** — CSD has explicitly retired this goal in favor of a linked successor or replacement. Preserve the successor ID and the reason for replacement; do not erase the old goal or imply that it was completed.
+
+The lifecycle should be append-only and versioned. Each transition records the exact prior goal version and resulting version, the decision event, actor/authority, policy version, reason, and supporting/counter-evidence references. Stale or competing transitions fail closed rather than rebasing against a newer goal version.
+
+### Outcome evidence and decision rules
+
+- Each goal should declare bounded success criteria, scope, exclusions and (where relevant) a validity window before activation. Criteria may be refined only by an explicit versioned CSD decision; changing criteria after seeing an outcome must not retroactively manufacture success.
+- A completion decision must cite evidence that directly addresses the declared criteria. Evidence may include a verified artifact, an authoritative external observation, an explicit user confirmation, or multiple independent observations where appropriate. The evidence's provenance and uncertainty must remain visible.
+- A user statement can be strong evidence of the user's own intent or confirmation, but must not be represented as independent external verification of facts the user did not personally verify.
+- Partial progress, a successful API response, a sent message, a downloaded file, or an action marked attempted is not by itself completion. If the goal is only to perform a bounded action, the declared criterion may be the verified performance of that action; the criterion still must be checked against the relevant execution and result evidence.
+- A blocked decision must identify the blocker and what evidence would justify reconsideration. It must not grant extra permissions or cause ASM to retry automatically.
+- Abandonment is a deliberate disposition, not a model-confidence threshold or a timeout. The AI may choose to stop pursuing a goal, but the decision and reason must be recorded; user-owned constraints and explicit user instructions remain authoritative within their scope.
+- Expiry requires a previously declared deadline/validity rule and an explicit CSD evaluation. It must not be used to disguise failure or silently discard a goal.
+- Supersession requires a traceable successor relation. The successor is a separate goal with its own criteria, evidence and lifecycle; it does not inherit completion status or execution authority automatically.
+- A terminal disposition is not silently reversed. If circumstances change, create a new linked goal or use a separately specified, versioned reopening policy; do not mutate the old terminal history in place.
+
+### Outcome learning is a separate cognitive event
+
+A future Goal outcome-learning event should bind:
+
+- exact goal ID and goal version evaluated;
+- exact outcome decision event and lifecycle transition;
+- declared success criteria and their version;
+- observed outcome evidence references, provenance and uncertainty;
+- relevant ASM execution/action IDs, without treating them as outcome proof;
+- evaluator/policy identity and version;
+- whether the result was success, partial progress, failure, blocked, abandoned, expired or inconclusive;
+- a bounded explanation of what was learned and what remains unknown.
+
+This event may inform future planning and goal selection only through an explicit CSD-controlled policy. It must not silently rewrite the original Motivation signal, user preference, AI-owned interest, self-model or goal source evidence. Any proposed change to those cognitive states requires its own proposal, evidence review, decision and immutable revision event. A single outcome may be relevant to several domains but must not automatically update all of them.
+
+### Required adversarial tests before implementation
+
+- Attempted/dispatched action without outcome evidence cannot complete a goal.
+- A success-shaped tool response without criterion-matching verification cannot complete a goal.
+- Completion with missing, stale, unrelated or tampered evidence is rejected, including when envelope hashes are recomputed.
+- Criteria cannot be weakened retroactively to make an observed result count as success.
+- Blocker removal does not silently resume a blocked goal or authorize ASM.
+- Time passing does not silently expire a goal; an undeclared deadline cannot be used for expiry.
+- Abandonment and supersession preserve prior versions and require explicit reasons; supersession binds a valid successor.
+- Stale and competing lifecycle transitions fail closed; duplicate delivery is idempotent.
+- Direct reads and Recovery reproduce the same complete goal lifecycle and outcome history.
+- Outcome learning cannot mutate Motivation, user preference, AI-owned interest or self-model projections without their own CSD revision events.
+
+**Status:** design only. No Goal lifecycle/outcome event family, completion evaluator, outcome-learning reducer, ASM execution integration or Life Engine feedback path is implemented by this section. Existing tests remain subject to the scheduled verification gate; this design does not authorize implementation before that gate passes.
