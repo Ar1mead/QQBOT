@@ -2174,3 +2174,13 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Added design §3.20 to make the identity boundaries explicit: each QQ sender maps independently to a canonical user subject; group/quoted/third-party content is not silently attributed to the sender; evidence from different people cannot be pooled; Private Home storage does not turn user/external content into AI-authored experience; and AI-individual identity survives runtime/provider/adapter replacement.
 - Canonical subject registry, QQ account/actor mapping, and Private Home identity binding remain unimplemented. No source code or tests changed or executed. No local tests, compile checks, Actions reruns, external account operations or paid usage occurred.
 - The formal verification gate remains unchanged: check Billing around 2026-12-02; if usage has reset, run the focused cross-episode review-record suite first, then the full Ubuntu/Windows matrix only after the focused suite passes.
+
+
+## Live continuation audit — 2026-11-26 (implementation sequence and first vertical slice)
+
+- Rechecked live PR #1 and the active branch before planning: PR remains Open / Draft / Unmerged, base `main`; head at start of this continuation `749f35d9b14ae90059b89d554339c3d15bd3e6aa`.
+- Inspected CSD event validation and append paths. The event store has a closed event-family allowlist, internal-only reserved decision families, immutable event envelopes, duplicate checks and direct-read integrity validation. A future identity registry must integrate into these paths and Recovery; it must not be implemented as an untrusted side table or model-supplied field.
+- Added design §3.21 with a staged implementation sequence. Stage 0 is the unchanged Billing-first focused/full hosted test gate. Stage 1, the first code slice after that gate, is a CSD-owned canonical subject registry plus trusted host identity binding, separate identity_version, immutable relink/revoke history, public-submit guards and Recovery validation.
+- Stage 1 deliberately does not implement preference/interest reducers. It first establishes stable AI-individual identity, per-user identity isolation, and trusted account/actor mapping without storing raw platform credentials or inferring cross-platform identities.
+- Stages 2–4 then bind observation/interaction evidence, Motivation/Goal/cross-episode subject lineage, and only later accepted preference/interest/self-model revisions and downstream projections.
+- No source code or tests changed or executed. No local tests, compile checks, Actions reruns, external account operations or paid usage occurred. The 2026-12-02 Billing-first verification gate remains unchanged.
