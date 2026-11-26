@@ -951,3 +951,17 @@ No source code or tests were modified or executed in this continuation. No local
 - Design contract blob SHA: `d712bc343a625430bf612d30145573c3128a25b3`.
 - The next commit updates this handoff only. Re-fetch the live PR head and document SHAs next time; do not assume the pre-update SHA is still HEAD.
 - No code/tests changed; no tests were run. The next formal verification checkpoint remains around 2026-12-02, subject to Billing confirmation.
+
+
+## 1.3 Latest design continuation — outcome feedback into planning (2026-11-26)
+
+This subsection supersedes the "Next work" list in §1.2 where that list names outcome-feedback design as unfinished.
+
+- Design §3.14 now defines Goal lifecycle and outcome decisions: candidate, active, paused, blocked, completed, abandoned, expired and superseded; evidence-backed completion; explicit versioned terminal transitions; and a separate outcome-learning event.
+- Design §3.15 now separates four learning targets: episode-local result, contextual planning constraint, reusable strategy hypothesis, and durable preference/interest/self-model revision.
+- Accepted scoped lessons may inform planning, but one outcome cannot silently become a durable identity or preference claim. Distinct-episode independence, counterexamples, context/freshness, causal attribution and provenance must be retained. Provider-generated lessons remain proposals; CSD owns acceptance and Recovery.
+- Both sections are design only. No outcome event, lesson projection, goal completion evaluator, planning integration or preference/self-model reducer has been implemented. No source code or tests were changed or executed.
+- Next: perform a consistency audit across §§3.11–3.15 and the architecture/overall progress documents; look for conflicting event ownership, state-version, Recovery and Life Engine assumptions. Keep the implementation gate closed pending the scheduled Billing check and executable focused/full test gates.
+- Progress ledger SHA at handoff preparation: `5080f2bd672af92507b2725a26a81db81a59a330`.
+- Design contract SHA at handoff preparation: `b82472cbebb6bde2dc03a85239331f3531e604fd`.
+- PR #1 at handoff preparation: state `open`, draft `true`, merged `false`, head `936e0c5188c733010d1792f6d714a081345d3b13`. This handoff commit will advance the branch head; re-fetch next time.
