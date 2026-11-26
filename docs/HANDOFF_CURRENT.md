@@ -1186,3 +1186,12 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - 因此不能说 QQ→journal→worker→CSD 已经运行，也不能断言真实 QQ 标识目前正流入 CSD。当前能确认的是：若有调用者把 DTO 交给现有 mapper/CSD，接口会接受未认证的引用字符串；生产 ingress 与 host attestation 尚缺失。
 - Stage 1A 应先建立实际可信 ingress：明确 SurfCore 进程/插件信任位置，完成密钥 bootstrap/ACL、journal→host 来源认证、host-only CSD append、cursor/checkpoint 顺序，以及端到端重放和 fail-closed 测试。只有确认运行边界后再决定复用现有独立 HMAC 模块。
 - 本轮没有检查或修改用户本机 SurfCore，没有连接 QQ 账号，也没有读取真实消息。没有源代码/测试变更或测试执行；Stage 0 Billing-first 门槛不变。
+
+## 17. 最新续接补充 — 2026-11-27（SurfCore 进程边界与真实 QQ 入口）
+
+- 只读检查公开上游 `Mieksido/surfcore`：当前 main 为 v0.8.9，commit `0ce8580048d3dddb21860114edb8b115d5d79d1e`。项目补丁蓝图仍固定在 v0.8.8 commit `0deb8261afe4c31b3127759ee4de36a1439cf422`。此前记录的本机 SurfCore 是 v0.8.8，路径 `E:\deepseek（chajian）\SurfCore`，但本机精确 commit 尚未读取；应用补丁前必须先检查本机 HEAD 和回调位置。
+- DSH 插件宿主与 QQ Bridge 是两个独立进程；扩展通过动态 import 加载在 DSH 插件进程内，不是 OS 沙箱；扩展自己的 `api.on()/api.emit()` 事件总线不会接收原始 QQ 消息。
+- 原始 OneBot 消息由独立的 `src/bridge.js` 进程通过私聊/群聊回调接收。观察日志入口应放在机器人自身消息过滤之后、原有 `handleIncoming()` 之前；无论日志成功或失败，原有 QQ 处理都必须照常执行。
+- 现有 `qq-public-feed.jsonl` 是另一条仅群聊使用的 feed，当前会保存 groupId、senderId、senderName。它不能作为 CSD 观察日志来源；若项目以后要求整个本机持久化文件都不保留原始标识，需要单独审查这条旧路径。
+- Bridge 已使用 `hardenDir` 收紧 state 目录，`src/state-acl.mjs` 还提供 `hardenFile`。这些是后续密钥/日志文件 ACL 的候选工具，但尚未接入 journal 密钥生命周期。
+- 没有读取或修改本机 SurfCore 文件，没有连接 QQ 账号，也没有读取真实消息。无代码/测试修改或测试执行；Stage 0 测试门槛不变。
