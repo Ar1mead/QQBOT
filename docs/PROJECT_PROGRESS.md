@@ -2273,3 +2273,11 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Added design §3.26 to correct the overbroad §3.22 wording: the intended QQ journal already HMACs key identity references, but Python mapping/protocol/CSD do not authenticate the returned references; journal key provisioning and authenticated delivery are not implemented end to end.
 - Stage 1A now explicitly requires an authenticated journal-to-host provenance contract, a reserved host-attested Observation event/API, public-submit forgery rejection, and direct-read/Recovery verification. An HMAC-shaped string or self-declared source field is not proof. The exact attestation mechanism remains a design decision pending confirmation of SurfCore trust placement/key custody.
 - No source/test changes or test execution. No local tests, compile checks, Actions reruns, external platform operations or paid usage. Stage 0 Billing-first gate unchanged.
+
+## Live continuation audit — 2026-11-27 (attestation design direction)
+
+- The normal QQ journal pseudonymizes IDs before its DTO reaches the Python mapper. Therefore, host-side HMAC of returned opaque strings alone cannot authenticate their issuer; it only pseudonymizes an untrusted string again.
+- Added design §3.27 recommending authenticated journal output (signed/MACed record or batch bound to schema, adapter identity/version, stream, cursor range, ordered records and content/provenance digest), verified by the trusted host before CSD mapping. The worker transports but cannot mint or alter the proof.
+- Separate pseudonymization and attestation keys. Prefer asymmetric signing if the private key can be isolated from workers and other untrusted plugins; a shared MAC is acceptable only if both trusted endpoints can protect the secret. Verify SurfCore's actual plugin/process isolation before choosing key placement.
+- The attestation proof and key ID/version must be retained so CSD direct reads and Recovery can re-verify it. Public Observation v2 remains legacy/unbound; the new host-attested event family is internal-only. Cryptographic primitive and wire format remain open pending runtime trust-boundary confirmation.
+- No source/test changes or test execution. No local tests, compile checks, Actions reruns, platform operations or paid usage. Stage 0 Billing-first gate unchanged.
