@@ -781,3 +781,37 @@ A future versioned subject registry/binding layer should define:
 - Model-generated subject IDs, aliases or account mappings are rejected unless resolved by the trusted host/CSD registry.
 
 **Status:** static audit/design only. Existing observation v2 and interaction events preserve provenance but do not yet provide the complete canonical subject registry or end-to-end actor/subject binding above. No code or tests were changed or executed. The existing verification gate remains unchanged.
+
+
+## 3.20 QQ multi-user identity and Private Home subject boundaries — architecture reconciliation (2026-11-26)
+
+The platform/runtime architecture and the autonomous-life design are compatible with §§3.17–3.19, provided identity scopes remain explicit.
+
+### QQ observations and multiple people
+
+The initial QQ adapter is receive-first and normalizes private/group messages with account, conversation, sender, message and timestamp provenance. Therefore a conversation is not a single person and a group is not a single preference subject.
+
+- Preserve platform account, conversation and sender identity as separate provenance dimensions.
+- Resolve a sender to a canonical user subject only through the host's explicit account/actor mapping policy. Do not use a group ID, conversation ID, bot account ID or display name as the user subject.
+- A message author's preference statement may support a claim about that author when it is genuinely first-person and contextually clear. A quoted message, forwarded text, third-party statement or group consensus must not silently become the author's preference.
+- The initial implementation should not infer or persist third-party preferences, personality or sensitive traits. A third party mentioned in a group conversation is not automatically a project subject.
+- Evidence from different senders must never be pooled as if it came from one user. Group-level patterns, if ever needed, require a separate aggregate contract with privacy thresholds and must not be written into any individual's preference state.
+
+### AI individual identity and Private Home
+
+- The canonical AI-individual subject is independent of the QQ bot account, DSH runtime, SurfCore installation, model provider, model version and any single platform adapter. Replacing one of these must not silently create a new individual or transfer the individual's identity to another subject.
+- The AI individual's Private Home is its own activity/workspace record: diary drafts, research notes, creative work, project artefacts and private reflections remain distinguishable from user-authored messages and external platform material.
+- A user message or external source copied into Private Home retains its original actor/source and untrusted provenance. Storage in the AI workspace does not convert it into an AI-authored experience, a voluntary AI choice or an accepted self-model fact.
+- A Private Home document saying "I like this" is a self-description/document artefact, not sufficient evidence of AI interest. It must be evaluated through the same independent choice/outcome and CSD revision rules.
+- The AI-individual ID remains stable across allowed runtime/provider/adapter replacement. A genuinely new individual requires an explicit identity-creation decision and must not inherit another individual's private state by default.
+
+### Acceptance tests
+
+- Two senders in one QQ group resolve to different canonical user subjects; neither the group nor bot account is used as a preference subject.
+- A quoted/forwarded third-party preference is not stored as the sender's own preference or as a third-party profile.
+- Evidence from multiple group members cannot be pooled into one person's preference revision.
+- User-authored content placed in Private Home retains its source actor and cannot count as AI-authored diary, voluntary choice or AI-interest evidence.
+- Replacing DSH, SurfCore, a model provider or QQ adapter preserves the same AI-individual subject without merging platform users.
+- Creating a new AI individual does not inherit another individual's Private Home or accepted self-model unless an explicit, separately reviewed transfer policy exists.
+
+**Status:** architecture reconciliation only. The current adapter contract already preserves QQ sender/account/conversation provenance and keeps the AI core identity separate from platform/runtime infrastructure, but canonical subject resolution and Private Home identity binding are not implemented. No code or tests changed or ran.
