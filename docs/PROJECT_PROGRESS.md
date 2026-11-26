@@ -1,10 +1,10 @@
 # Project Progress Ledger
 
 > Repository: `Ar1mead/QQBOT`  
-> Last updated: 2026-11-26 (UTC+08:00)  
+> Last updated: 2026-11-27 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
 > Latest code checkpoint: `b7e170ea525171a1d26c0f9604b863db19010887` (reviewer-attribution guard; tests unexecuted)  
-> Current live branch / PR head at the start of this continuation: `2d8b7c30a31c5a3a93b98ddc0122eb9e89561368` (documentation-only commits follow)  
+> Current live branch / PR head before the 2026-11-27 documentation-only continuation: `ee465fbf5527bb5abcc9194678150e013735530e` (documentation-only commits follow; re-read live ref next session)  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
@@ -2241,3 +2241,13 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Added design §3.27 requiring authenticated full-record integrity, per-record key ID/version, stable opaque stream identity, key-ring/dual-key rotation, page-time verification, resumable rotation and coordinated journal+CSD+key backup/restore, with adversarial tests.
 - This qualifies the earlier positive finding: identifier pseudonymization is present, but it is not full journal integrity or key-rotation support. HMAC provides integrity/authentication, not encryption.
 - No source/test files changed or executed; no local tests, compile checks, Actions reruns, platform operations, paid usage, merge, rebase or fork sync. The 2026-12-02 Billing-first Stage 0 test gate remains unchanged.
+
+
+## Live continuation audit — 2026-11-27 (QQ journal account-scope and pseudonym linkability)
+
+- Rechecked the exact active branch ref and PR #1: branch/PR head before this documentation-only update was `ee465fbf5527bb5abcc9194678150e013735530e`; PR #1 remains Open / Draft / Unmerged, base `main). The latest source-code checkpoint remains `b7e170ea525171a1d26c0f9604b863db19010887`; subsequent commits are documentation-only. The branch ref API, not the older cached branch-list response or stale hashes embedded in prior notes, is authoritative.
+- Audited `integrations/surfcore-qq-journal/observation-journal.mjs` against the existing journal v1 contract. `streamRef` is account-derived, but `conversationRef`, `senderRef`, `externalRef` and `recordId` omit the account stream scope from their HMAC inputs.
+- With a shared HMAC key, identical sender/conversation/source-message inputs under different QQ bot accounts therefore yield identical corresponding pseudonyms. The API accepts a caller-supplied key and does not enforce a distinct key per account; relying on per-account key uniqueness is unsupported. The journal v1 design already says the opaque account/stream reference must participate in record identity.
+- This creates cross-account linkability and possible duplicate record identities. It must not be used to infer that two account-scoped QQ senders are one canonical user; cross-account linking remains explicit and CSD-owned.
+- Added design §3.28: account-bound domain-separated pseudonyms, canonical tuple encoding, legacy v1 compatibility, same-key cross-account adversarial tests, stable within-account deduplication and explicit canonical-subject linking.
+- No source/test files changed or executed; no local tests, compile checks, Actions reruns, platform operations, paid usage, merge, rebase or fork sync. Run #814 remains the latest inspected Actions run; both jobs failed before runner allocation with `runner_id=0`, no runner name and `steps=[]`. The 2026-12-02 Billing-first Stage 0 gate remains unchanged.
