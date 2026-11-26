@@ -1170,3 +1170,11 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - 设计 §3.26 已补充修正：正常 QQ journal 已对关键身份引用使用 HMAC，但 Python mapping/protocol/CSD 没有认证这些引用的签发者；生产密钥供应和 journal-to-host 认证链仍未实现。
 - Stage 1A 现在要求：可信 journal→host 的认证来源协议、只允许内部主机路径创建的 host-attested Observation 事件、拒绝 public-submit 伪造，以及 direct read/Recovery 对认证证明的重复验证。仅有 HMAC 字符串格式或自报 source 字段不够。具体使用 host-side re-pseudonymization 还是签名/MAC 批次证明，需先确认 SurfCore 实际信任位置和密钥保管方式。
 - 本轮无源代码/测试变更，无测试执行；无本地测试、compile、Actions rerun、外部平台操作或付费。Stage 0 Billing-first 门槛不变。
+
+## 15. 最新续接补充 — 2026-11-27（Journal→Host 来源认证方案）
+
+- 由于正常 QQ journal 在 DTO 离开 journal 前已经完成 HMAC 脱敏，主机再次对收到的 opaque 字符串做 HMAC，只是再次处理不可信字符串，不能证明它确实由可信 journal 签发；仅检查 `hmac:v1` 格式也不够。
+- 设计 §3.27 暂定优先方向：由可信 journal 对记录或批次生成认证证明（签名/MAC），绑定 schema、adapter 身份/版本、stream、cursor 范围、记录顺序及内容/来源摘要；可信主机验证后才允许进入 CSD。Worker 只能转运证明，不能获得密钥或自行生成有效证明。
+- 脱敏密钥与来源认证密钥分离。若采用非对称签名，私钥必须与 Worker 和其他不可信插件隔离，主机使用固定/版本化公钥验证；若采用 MAC，则只有在可信 journal 与 host 均可保护共享密钥、worker 和不可信插件无法访问时才考虑。先确认 SurfCore 实际进程/插件隔离，再决定密钥放置。
+- CSD 新 host-attested 事件需保留认证证明和 key ID/version，使 direct read 与 Recovery 能重新验证。旧 Observation v2 保持 legacy/unbound；新事件只允许可信主机内部路径创建。具体算法、wire schema 和 key bootstrap 暂不冻结。
+- 仅设计推进；无源代码/测试修改，无测试执行、无 Actions rerun、无平台操作或付费。Stage 0 Billing-first 门槛不变。
