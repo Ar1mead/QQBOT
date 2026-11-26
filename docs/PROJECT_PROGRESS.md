@@ -2155,3 +2155,13 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Important limitation: current `subject_ref` is only checked as non-empty; choice-set entries are strings rather than resolved canonical option records; adapter source/component matching is not trusted-host attestation; and the generic public event-submit guard does not reserve the interaction event family to an internal CSD attestation path. Provenance labels such as `internal_state` or `self_commitment` alone do not prove a genuinely optional, non-scheduled, non-user-requested choice.
 - Added design §3.18: current interaction events remain useful provenance-tagged Motivation evidence, but must not be upgraded into proof of AI agency. Future AI-interest evidence needs canonical AI subject binding, CSD/host-validated decision and choice-set lineage, trusted adapter provenance, causal trigger preservation, and append/direct-read/Recovery validation.
 - No source code or tests changed or executed. No local tests, compile checks, Actions reruns, platform access or paid usage occurred. The 2026-12-02 Billing-first verification gate remains unchanged.
+
+
+## Live continuation audit — 2026-11-26 (end-to-end subject identity chain)
+
+- Traced observation v2 actor/account provenance through interaction events and into Motivation/Goal.
+- Observation v2 can retain optional account/context/actor/role references, but these remain external, untrusted provenance; they are not a canonical CSD subject registry.
+- The interaction validator checks a non-empty `subject_ref` and earlier source-observation kind for user-request/platform-recommendation origins, but the inspected path does not bind that subject to a host-resolved actor identity or later candidate subject. It also does not separate the event speaker/actor from the person a claim is about.
+- Added design §3.19 requiring canonical host/CSD subject IDs, trusted account/actor mapping, separate evidence-actor and claim-subject fields, same-subject evidence bundles, cross-event Motivation/Goal/candidate binding, and versioned identity mapping/Recovery.
+- Third-party preference/personality inference is excluded from the initial scope absent a separate consent/privacy design. Mixed-subject evidence cannot be pooled to inflate confidence.
+- Design only: no identity registry, source binding, code or tests were changed or executed. No local tests, compile checks, Actions reruns or paid usage. The 2026-12-02 Billing-first test gate remains unchanged.
