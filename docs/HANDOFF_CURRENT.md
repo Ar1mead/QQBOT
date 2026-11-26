@@ -1097,3 +1097,14 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Worker remains an untrusted offline transformer. Raw identifiers can cross its bounded response only transiently; trusted host pseudonymizes immediately. CSD public submit cannot forge host-attested observation or identity-binding authority.
 - No source code or tests changed or executed. No local tests, compile checks, Actions reruns, platform operations or paid usage.
 - Next: consolidate the Stage 1A/1B/1C acceptance tests and determine the smallest source-file/test-file touch set, including exact workflow path triggers. Do not start implementation before Stage 0 focused and full hosted test gates pass.
+
+
+## 1.12 Stage 1 acceptance matrix and source footprint — 2026-11-26
+
+- Added design §3.24 with a bounded proposed implementation footprint and focused acceptance gates for Stage 1A (host-side privacy-safe pseudonymization), Stage 1B (CSD canonical subject registry), and Stage 1C (coordinated key/database recovery).
+- Likely source modules: trusted host pseudonym/key provider under `adapters/`; host mapping gate in `adapters/csd_mapping.py`; CSD identity event family in `core/csd/identity.py` with integration in `core/csd/cognitive.py`; backup coordinator to be placed with runtime/bootstrap once that owner is defined.
+- Proposed focused tests: `tests/test_adapter_identity_references.py`, `tests/test_csd_observation_identity_boundary.py`, `tests/test_csd_identity_registry.py`, and `tests/test_identity_backup_recovery.py`, plus targeted extensions to current mapping/observation/worker/CSD suites.
+- Workflow path filters include `core/csd/**` and `adapters/**`; new standalone tests must also be explicitly listed so test-only commits trigger CI. Do not create source/test files or trigger Actions before the Billing-first Stage 0 gate.
+- Existing `tests/test_csd_store.py` exercises a separate `CSDStore` class; it is not sufficient evidence for `CognitiveMemoryStore` coordinated identity-key recovery.
+- No code/tests changed or executed; no local tests, Actions reruns, external platform operations or paid usage.
+- Next: final live consistency check of branch, PR, document SHAs and Actions status; then stop at the agreed test gate rather than prematurely implementing or rerunning.
