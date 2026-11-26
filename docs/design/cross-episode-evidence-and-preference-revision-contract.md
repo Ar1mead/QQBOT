@@ -1240,3 +1240,19 @@ This section refines §§3.22–3.25 after a source-level trace of the live bran
 6. Focused adversarial tests must cover raw-ID injection, forged HMAC-shaped references, public-submit forgery, replayed/stale journal pages, cross-account/actor confusion, and consistent direct-read/Recovery rejection. Also assert that identity metadata is not added to model prompts or diagnostics.
 
 **Status:** static audit/design only. No source code or tests changed or executed. The Stage 0 Billing-first verification gate remains mandatory before source/test implementation.
+
+## 3.27 Provisional preferred direction for journal-to-host attestation — design only (2026-11-27)
+
+The current QQ journal already pseudonymizes identity references before the DTO reaches the Python worker mapper. Therefore, simply HMACing the returned opaque strings again in the host would not authenticate who issued the original references; it would only wrap whatever strings the worker supplied. A format regex is also insufficient.
+
+**Provisional preferred direction:** authenticate the journal output itself. The trusted journal should produce a versioned per-record or batch attestation that the trusted host verifies before CSD mapping. The authenticated bytes/fields should bind at least the schema version, trusted adapter identity/version, stream/account pseudonym, exact cursor range, ordered record identities, and the complete record content/provenance digest. Host request/cursor expectations must be checked as well so a valid old page cannot be replayed as a new page. The worker transports the attestation but never receives the signing/MAC key and cannot mint or modify valid records.
+
+Key separation and placement:
+- Keep the existing pseudonymization key separate from a journal-attestation key.
+- Prefer a signing design where the journal's private signing key is isolated from workers and the host verifies with a pinned/versioned public key. A MAC is an alternative only if the same secret can be safely held by the trusted journal and host while remaining inaccessible to workers and other untrusted plugins.
+- Do not place a signing secret in a SurfCore plugin process until its process/plugin isolation has been verified. If plugins share a process, move signing into a trusted OS-isolated service/host boundary or choose another authenticated transport.
+- Persist the attestation key ID/version and enough proof material in the host-attested CSD event for direct-read and Recovery verification. Historical verification keys must remain available under an explicit rotation/backup policy.
+- The new host-attested event family remains internal-only. The public Observation v2 route stays legacy/unbound and cannot create canonical subject bindings.
+- Exact wire format, cryptographic primitive, key provisioning, and SurfCore process placement remain open until the runtime trust boundary and deployment model are confirmed. No cryptographic mechanism is selected solely from string shape.
+
+**Status:** architectural direction only. No source code or tests changed or executed. Stage 0 Billing-first gate remains mandatory before source/test implementation.
