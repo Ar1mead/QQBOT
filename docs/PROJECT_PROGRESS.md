@@ -2146,3 +2146,12 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - §3.17 is design only. No source code or tests changed or executed. No local tests, compile checks, Actions reruns, external platform operations or paid usage were performed.
 - The implementation gate remains closed. Around 2026-12-02, check Billing first; if included usage has reset, run `tests/test_csd_cross_episode_review.py` focused suite, verify actual test steps execute and pass, then run the full Ubuntu/Windows matrix. Do not run local tests or paid Actions before that checkpoint.
 - The active branch and PR head must be re-fetched after the document synchronization below. PR #1 must remain Draft / Open / Unmerged; do not merge, rebase, force-sync or synchronize the fork.
+
+
+## Live continuation audit — 2026-11-26 (interaction-choice evidence provenance)
+
+- Continued the subject-ownership audit into `core/csd/motivation.py`, `core/csd/cognitive.py`, `core/csd/goals.py` and `adapters/contracts/observation.py`.
+- The existing interaction event has useful checks: enumerated evidence kinds/origins; earlier-event binding for user-request/platform-recommendation origins; meaningful alternative set and selected-item membership for voluntary selection/return visits; same-subject/same-item chronology for return visits; and adapter source/component string consistency.
+- Important limitation: current `subject_ref` is only checked as non-empty; choice-set entries are strings rather than resolved canonical option records; adapter source/component matching is not trusted-host attestation; and the generic public event-submit guard does not reserve the interaction event family to an internal CSD attestation path. Provenance labels such as `internal_state` or `self_commitment` alone do not prove a genuinely optional, non-scheduled, non-user-requested choice.
+- Added design §3.18: current interaction events remain useful provenance-tagged Motivation evidence, but must not be upgraded into proof of AI agency. Future AI-interest evidence needs canonical AI subject binding, CSD/host-validated decision and choice-set lineage, trusted adapter provenance, causal trigger preservation, and append/direct-read/Recovery validation.
+- No source code or tests changed or executed. No local tests, compile checks, Actions reruns, platform access or paid usage occurred. The 2026-12-02 Billing-first verification gate remains unchanged.
