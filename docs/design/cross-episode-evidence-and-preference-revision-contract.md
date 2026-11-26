@@ -1256,3 +1256,18 @@ Key separation and placement:
 - Exact wire format, cryptographic primitive, key provisioning, and SurfCore process placement remain open until the runtime trust boundary and deployment model are confirmed. No cryptographic mechanism is selected solely from string shape.
 
 **Status:** architectural direction only. No source code or tests changed or executed. Stage 0 Billing-first gate remains mandatory before source/test implementation.
+
+## 3.28 QQ journal HMAC module is not yet wired into a production SurfCore ingress — implementation-status correction (2026-11-27)
+
+A repository-tree check of `integrations/surfcore-qq-journal/` found only the journal implementation, its policy module, and its test file. There is no checked-in production caller, plugin registration/entrypoint, route/server wiring, startup/bootstrap code, or package manifest in that directory. The only in-repository invocation of `createObservationJournal()` found in the inspected integration files is the test fixture.
+
+Therefore:
+- The HMAC pseudonymization and journal integrity behavior are implemented and tested as an isolated module, but there is no repository evidence that the module is currently installed, started, or receiving live QQ events from SurfCore.
+- The HMAC behavior must not be described as an active production QQ data path. It is the behavior of the intended module if a trusted caller provisions it correctly.
+- The mapper and CSD code define a potential DTO-to-event path, but no complete production ingress currently connects SurfCore → journal → worker/host → authenticated CSD append.
+- No claim is made that raw QQ identifiers are currently flowing into CSD in production. The security finding is that the current mapper/CSD interfaces would accept unverified reference strings if a caller submitted such DTOs; the actual production wiring is absent.
+- Production key provisioning, ACL setup, service registration, request authentication, journal-to-host attestation, and end-to-end cursor/CSD checkpoint orchestration all remain unimplemented or unverified in this repository.
+- Stage 1A must first establish the actual deployment/trust placement and wire a real, testable ingress. The isolated HMAC module may be reused, but its unit tests are not an end-to-end integration test. The signed/MACed attestation direction in §3.27 remains provisional until the real SurfCore process boundary is verified.
+- Add an end-to-end integration acceptance test proving a live-shaped event passes through the registered journal entrypoint, receives opaque identity references and authenticated provenance, is accepted only through the trusted CSD host path, and is replay-safe. Test key bootstrap/ACL failure and missing-key fail-closed behavior as part of that vertical slice.
+
+**Status:** repository-only static audit. No local SurfCore installation was inspected or modified; no account was connected; no live QQ event was read. No source code or tests changed or executed. Stage 0 Billing-first gate remains mandatory.
