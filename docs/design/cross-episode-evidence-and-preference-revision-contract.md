@@ -392,6 +392,34 @@ The current code contains several explicit event-family sets and memory-specific
 
 **Status:** design only. No new decision event, state-version integration, preference/self-model reducer, or Life Engine connection is implemented. The existing focused review-record suite and full matrix must pass before crossing the implementation gate recorded in the handoff.
 
+## 3.13 Motivation and Goal are useful precedents, not interchangeable preference/self-model reducers — static audit (2026-11-26)
+
+Static review of `core/csd/motivation.py`, `core/csd/goals.py`, their projection consistency/replay paths and their focused tests found mature reusable patterns, but also clear semantic boundaries.
+
+### Motivation signal lifecycle
+
+- Motivation records interaction evidence with explicit evidence kind and origin, then creates immutable proposal/decision history. Accepted signal versions are stored separately from the latest-signal projection; projection checks reconstruct expected versions from accepted decision events and compare both version and latest tables against that history.
+- Each update targets an exact `target_signal_version`; stale global state or stale target versions defer rather than silently rebase. Updates retain prior support/counter-evidence references and append new evidence; pause and resolve create new versions rather than overwriting the prior version.
+- Interest maturity is CSD-derived from distinct voluntary encounters at distinct instants; passive exposure/platform autoplay alone cannot count as an internally chosen encounter. Goal source lookup can retrieve the exact historical motivation signal version as of the goal decision sequence.
+- **Semantic limitation:** `origin_class` describes the origin pattern of interaction evidence (internally initiated, user-requested encounter, externally exposed, mixed). It is not an ownership or subject-class field. It cannot, by itself, prove that a signal is the user's preference or that it is an AI-owned interest. The existing motivation signal model must not be reused as the preference/self-model ownership schema without a separate explicit subject/owner contract and migration plan.
+- The current motivation operations are create, reinforce, weaken, contextualize, pause and resolve. Pause/resolved states are not a general-purpose preference revision vocabulary; resolved signals are not reopened by the current active-only update path. Do not infer a missing resume/reopen capability.
+
+### Goal lifecycle
+
+- Goal batches create candidate goals with exact source signal IDs and versions. Origin is derived by CSD from the historical signal versions; callers cannot directly choose the goal's origin class.
+- Activation and pause/resume are separate, explicit CSD decisions. Each accepted transition appends an immutable `goal_versions` row and updates the latest goal projection atomically. Competing or stale proposals are rejected/deferred; Recovery replays the ordered proposal/decision history and checks every version plus the latest projection.
+- A goal batch can create multiple candidate goals in one accepted decision event, so that atomic batch advances the shared accepted-decision state version once, not once per goal. Activation and each pause/resume are separate accepted decision events and each advance it once.
+- Activation explicitly creates an active intention only; the current contract says it does not create activity or capability. Pause/resume likewise changes goal status only. These lifecycle transitions must not be confused with task execution, external side effects, or proof of completion.
+- The inspected lifecycle currently covers candidate → active → paused → active. It does not yet define a first-class completed, abandoned, expired, blocked, superseded or outcome-evaluated lifecycle. Those states must be designed explicitly before treating goal management as a complete autonomous project lifecycle. A goal must not be auto-marked complete merely because an action was attempted or a timer elapsed.
+
+### Reusable patterns and future requirements
+
+Reuse the following patterns for future cognitive revisions: exact prior-version targeting; stale-state fail-closed behavior; CSD-derived classification; immutable version tables; single-transaction event/projection writes; deterministic replay; consistency checks against the event log; and tests for competing transitions, tampering, rollback and Recovery.
+
+Do not reuse Motivation/Goal payloads as the preference/self-model schema. Future preference/self-model revisions need explicit ownership (user preference vs AI-owned interest/self-model), domain/scope, source and counter-evidence, confidence/epistemic status, correction/supersession lineage, and their own versioned reducers. Goal outcome learning should be a separate event family that records observed outcome evidence and a reasoned completion/abandonment decision; it must not silently mutate the originating motivation or user preference.
+
+**Status:** static audit and design clarification only. No code or tests changed or executed. This section does not authorize implementation before the existing cross-episode review-record focused suite and full Ubuntu/Windows matrix pass.
+
 ## 3.10 CI workflow repair and current runner status
 
 A static inspection found literal backslash-`n` sequences in `.github/workflows/csd-cognitive-slice.yml` in both path-filter sections and the cross-episode review test step. These have been replaced with actual YAML line breaks in commit `06408dbf1c577849be92a15bd39a5316a32ea5df`.
