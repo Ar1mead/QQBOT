@@ -344,6 +344,54 @@ Acceptance tests required before implementing the reducer:
 
 **Status:** design only. No decision-time acceptance API, decision event, preference reducer, or Life Engine integration is implemented by this section.
 
+## 3.12 Reuse boundary with the existing CSD decision/replay machinery — design gate (2026-11-26)
+
+Static inspection of `core/csd/cognitive.py` shows that the existing generic decision path is not a generic reducer API. `evaluate_proposal()`, `_apply_decision()`, and the `DECISION_EVENT` payload are specifically shaped around accepted memories and their proposal/evidence/review fields. A cross-episode preference/self-model decision must reuse the transaction, immutable event, historical-prefix, integrity and Recovery principles, but must not force a different state transition into the memory-specific payload or accepted-memory projection.
+
+### Existing state-version semantics
+
+- `_DecisionReplayContext.state_version_at()` counts accepted decision events, not every event in the event log.
+- Observations, proposals and advisory review records do not advance the authoritative state version.
+- Accepted memory/motivation/goal decisions currently contribute to the accepted-decision history used by this version calculation.
+- A future accepted preference or self-model revision is a real authoritative cognitive-state transition and **must** advance the shared state version exactly once for that atomic revision event. A rejected/deferred decision or advisory review must not advance it.
+- A batch that atomically revises several fields still advances the version once if represented by one revision event; it must not partially apply or count each field as an independent transition. If separate revision events are chosen, each must have its own explicit version boundary.
+
+### Required integration points if a dedicated event family is introduced
+
+Do not add a new event type only to `_apply_decision()`. The event family must be handled consistently across:
+
+1. Reserved event constants/source authority and public `submit_event` denial.
+2. Event-local payload/schema/identity checks in `get_event()` and `_validate_event_local_shape()`.
+3. Historical proposal/review/evidence prefix validation in a dedicated decision validator; it must bind the decision to exactly one earlier cross-episode proposal and its complete eligible review set.
+4. The decision replay index: `_build_decision_replay_context()` must include the new decision family when calculating accepted state versions and stable per-family event numbering.
+5. The projection/reducer path: `_apply_projection_event()` must atomically append the accepted revision version and update the active projection, with no separate non-transactional write.
+6. `recover()`'s reserved-source checks, known-event allowlist and sequential projection replay.
+7. Projection consistency checks and state snapshot reads; direct reads and Recovery must derive the same active revisions and version history from the event log.
+8. All event-ID, idempotency, duplicate-decision and stale-state checks must be deterministic and transaction-scoped.
+
+The current code contains several explicit event-family sets and memory-specific field lists. These are not automatically extended when a new constant is added. Implementation must inventory every dispatch/allowlist/index and add regression tests for omission at each layer. Prefer a dedicated cross-episode decision/revision event and reducer over broadening the existing memory `DECISION_EVENT` contract with optional unrelated fields.
+
+### Revision history semantics
+
+- Store immutable revision events and versioned snapshots; never overwrite the previous preference/self-model value in place.
+- Each revision identifies its owner and subject class (user preference vs AI-owned interest/self-model), domain, prior version, resulting version, operation, scope, exclusions, supporting/counter-evidence lineage, policy ID/version and deterministic reason.
+- Operations such as strengthen, weaken, narrow, broaden, correct, suspend and retire must have explicit transition rules. A correction must preserve the corrected prior version and why it was superseded.
+- The active projection is a rebuildable view. The event stream is authoritative; direct reads verify projection consistency, and Recovery must reproduce the same version chain.
+- No revision may infer sensitive user attributes. User correction/explicit preference must outrank weak behavioral inference; absence of evidence is not evidence of a changed preference. AI-owned interests must remain distinct from inferred user preferences.
+- A revision event must be atomic: either the event and resulting version become durable together, or neither does.
+
+### Acceptance tests required before reducer implementation
+
+- An accepted revision increments authoritative state_version exactly once; advisory review, proposal, rejected and deferred decisions do not.
+- A proposal created before an accepted revision is stale at decision time and cannot be silently refreshed.
+- Direct reads and Recovery reproduce identical active revision values, version numbers and prior-version links.
+- Tampering with the revision payload, prior-version pointer, proposal/review references or event envelope is rejected even if outer hashes are recomputed.
+- Duplicate delivery is idempotent; conflicting reuse of a revision/proposal identity is rejected.
+- A failed reducer update rolls back the event append and every projection mutation in the same transaction.
+- User-preference and AI-owned-interest subjects cannot be crossed or silently relabelled; explicit correction and retirement preserve the complete prior history.
+
+**Status:** design only. No new decision event, state-version integration, preference/self-model reducer, or Life Engine connection is implemented. The existing focused review-record suite and full matrix must pass before crossing the implementation gate recorded in the handoff.
+
 ## 3.10 CI workflow repair and current runner status
 
 A static inspection found literal backslash-`n` sequences in `.github/workflows/csd-cognitive-slice.yml` in both path-filter sections and the cross-episode review test step. These have been replaced with actual YAML line breaks in commit `06408dbf1c577849be92a15bd39a5316a32ea5df`.
