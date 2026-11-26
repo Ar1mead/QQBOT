@@ -1038,3 +1038,14 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Existing Motivation interaction events remain valid under their current semantics; do not reinterpret them as stronger proof of AI autonomy. This is a design gap, not a source-code fix performed in this continuation.
 - No source code or tests changed or executed. No local tests, compile checks, Actions reruns, real platform operations or paid usage occurred.
 - Next: statically inspect the origin/subject chain from observation → interaction → motivation signal → goal, especially whether a user identity or AI identity can be rebound between stages. Then update all three governing documents. Do not implement the new attestation event or revision reducers before the focused and full hosted test gates pass.
+
+
+## 1.7 End-to-end identity-chain audit — 2026-11-26
+
+- Traced Observation v2 → interaction event → Motivation signal → Goal → cross-episode candidate.
+- Observation v2's optional `actor_ref`/account/context fields preserve external provenance but are not a canonical CSD subject identity. Interaction `subject_ref` is only shape-checked and is not bound in the inspected path to the actor in its source observation or to the subject of a later candidate.
+- The architecture must distinguish the observed event actor (who authored/performed the event) from the claim subject (who the preference/interest statement is about). This matters for group messages, quoted text and statements about third parties.
+- Design §3.19 now requires host/CSD-issued opaque subject IDs, trusted account/actor mapping, actor-vs-claim-subject separation, consistent subject binding through Motivation/Goal/cross-episode evidence, mixed-subject rejection, and versioned identity mapping through Recovery.
+- Third-party preference/personality inference is out of scope for the initial implementation without separate consent/privacy rules.
+- No source code or tests changed or executed. No local tests, compile checks, Actions reruns, external platform operations or paid usage occurred.
+- Next: review the complete design §§3.17–3.19 for contradictions with multi-user QQ/group-chat operation and the Private Home model, then consolidate the design into a single implementation-ready contract without crossing the test gate.
