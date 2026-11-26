@@ -496,3 +496,50 @@ This event may inform future planning and goal selection only through an explici
 - Outcome learning cannot mutate Motivation, user preference, AI-owned interest or self-model projections without their own CSD revision events.
 
 **Status:** design only. No Goal lifecycle/outcome event family, completion evaluator, outcome-learning reducer, ASM execution integration or Life Engine feedback path is implemented by this section. Existing tests remain subject to the scheduled verification gate; this design does not authorize implementation before that gate passes.
+
+
+## 3.15 Outcome feedback may inform planning without silently changing identity — design only (2026-11-26)
+
+An evaluated outcome can be useful even when it does not justify a new preference, interest or self-model belief. Preserve that distinction: **learning how a particular approach worked is not the same as learning what the AI likes, who it is, or what it should value.**
+
+### Separate learning targets
+
+A future outcome-feedback path should classify each proposed lesson into an explicit target:
+
+1. **Episode-local result** — what happened in this one attempt or project. It remains attached to that goal/outcome history and may be consulted when continuing the same project.
+2. **Contextual planning constraint** — a bounded fact such as a dependency being unavailable, a tool failing under a particular condition, or a strategy being ineffective in a specific context. It may inform planning while the evidence remains current.
+3. **Reusable strategy hypothesis** — a tentative expectation that a method may work or fail in a defined class of situations. It requires cross-episode evidence, scope limits, uncertainty and counterexamples; it is not a universal rule.
+4. **Preference, interest or self-model revision** — a durable statement about what the user prefers or what the AI itself values, enjoys, avoids or believes about its capabilities. This is a separate cognitive revision and must use the explicit owner/subject, evidence, review and CSD decision contract. An outcome event cannot directly write it.
+
+The first three targets may influence a future plan only through a bounded, versioned CSD planning-input projection. The fourth must never be inferred as a side effect of the first three.
+
+### Evidence quality and attribution
+
+- Preserve the evaluated goal, its declared criteria, context, chosen strategy, relevant execution records, outcome evidence and uncertainty. Do not reduce the result to a single success/failure score.
+- Distinguish correlation from causal attribution. A failed outcome may be caused by unavailable resources, external changes, incomplete evidence, execution defects or an unsuitable strategy. Do not attribute it to the AI's ability or preference without evidence that supports that conclusion.
+- Repeated retries of the same action in one episode are not independent cross-episode evidence. Count distinct source episodes/encounters, retain their context and avoid inflating confidence through duplicated observations.
+- Preserve counterexamples and contradictory outcomes. A later success must not erase an earlier failure; a later failure must not erase a prior success. Planning should receive the bounded history or a deterministic summary that accounts for both.
+- Evidence freshness is domain-specific. A transient service outage should not become a permanent planning rule. A changed tool/runtime version may invalidate an old strategy hypothesis without rewriting the historical outcome.
+- A provider may propose a lesson or summarize evidence, but CSD must validate the referenced event history, scope and policy. Model confidence alone is not evidence and cannot authorize a durable lesson.
+
+### Safe effect on planning
+
+- Planning may use a supported contextual constraint or strategy hypothesis to compare candidate approaches, estimate dependencies and choose a cautious next experiment.
+- The effect must be scoped to the context and validity conditions recorded with the lesson. If the context does not match, the lesson must not silently apply.
+- A negative outcome may justify trying a different method, pausing for a missing dependency, or declining to repeat a costly action. It does not by itself justify abandoning an entire interest or goal domain.
+- A positive outcome may justify reusing a method in similar circumstances. It does not by itself establish a durable preference, intrinsic enjoyment or a global capability claim.
+- Planning must retain the option to question, test, ignore as stale, or supersede a prior strategy hypothesis when new evidence arrives. Any such change is versioned and auditable.
+- The AI may choose not to pursue a plan even when prior outcomes predict success. Outcome history informs deliberation; it does not force activity or create quotas.
+
+### Required safeguards and tests
+
+- One successful or failed episode cannot directly create or revise a user preference, AI-owned interest or self-model claim.
+- Duplicate attempts and repeated evidence from one episode do not satisfy cross-episode independence thresholds.
+- Contradictory outcomes remain visible and prevent an overconfident universal strategy rule.
+- A context-mismatched or stale lesson is not applied as if it were current.
+- A changed tool/runtime version can invalidate a planning hypothesis without mutating historical outcome records.
+- Provider-generated lessons with missing, unrelated or tampered source references are rejected by CSD.
+- Planning may consult accepted, scoped lessons but cannot convert them into durable identity/preference state without the separate revision path.
+- Recovery reproduces the same accepted lesson versions and planning-input projection; raw provider suggestions are never replayed as accepted lessons.
+
+**Status:** design only. No outcome-learning event, accepted lesson projection, planning integration, preference/self-model revision or Life Engine feedback implementation is present. This section does not change the existing verification gate.
