@@ -4,7 +4,7 @@
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
 **最近代码提交：** `b7e170ea525171a1d26c0f9604b863db19010887`（reviewer attribution guard；测试未执行）  
-**当前分支 / PR #1 head（本次审查实时核对）：** `9d1a72d64d277af3e2b66b0ae9f3b210ae66f73f`（文档同步提交后会推进；下次续接仍须重新读取）  
+**当前分支 / PR #1 head（本轮继续工作前实时核对）：** `be139524f9d41b32b688e25134deac82b690110a`（本轮文档同步提交后会推进；下次续接仍须重新读取）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`
 
