@@ -49,6 +49,13 @@
 - This is design-only. No source code or tests changed; all six existing focused review-record tests remain unexecuted. Keep the 2026-12-02-or-Billing-reset checkpoint and do not trigger Actions before checking the actual included-usage balance.
 
 
+### 0.4 Decision/replay architecture audit — 2026-11-26
+
+- Static review of the generic CSD decision path confirms it is memory-specific, not a reusable generic revision reducer. The shared state_version counts accepted decision events; proposal/observation/advisory-review events do not advance it. A future accepted preference/self-model revision must advance it once per atomic revision event.
+- Design §3.12 now lists all integration points for a dedicated revision event family: public-submit reservation, event-local and historical validation, replay indexing and state-version calculation, atomic projection reducer, Recovery allowlist/replay, projection consistency, idempotency and transaction semantics. It also specifies immutable version history, correction/retirement semantics, and strict separation between user preferences and AI-owned interests.
+- No code or tests changed or executed. Do not implement the reducer or Life Engine connection until the six focused review-record tests and then the full Ubuntu/Windows matrix pass on a real runner.
+
+
 ## 0. 新窗口启动规则
 1. 先读取 `docs/PROJECT_PROGRESS.md`，再读取本文件。
 2. 重新读取活动分支 HEAD、PR #1、最近 10 次 GitHub Actions runs，以及最新 run 的 jobs JSON。
