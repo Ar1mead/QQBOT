@@ -4,11 +4,11 @@
 > Last updated: 2026-11-26 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
 > Latest code checkpoint: `b7e170ea525171a1d26c0f9604b863db19010887` (reviewer-attribution guard; tests unexecuted)  
-> Current branch / PR head before this documentation synchronization: `9d1a72d64d277af3e2b66b0ae9f3b210ae66f73f` (documentation-only commits follow)  
+> Current branch / PR head before this documentation synchronization: `be139524f9d41b32b688e25134deac82b690110a` (documentation-only commits follow)  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
-## Current checkpoint — 2026-11-26 (static audit and documentation reconciliation; tests remain blocked)
+## Current checkpoint — 2026-11-26 (decision/replay architecture audit; tests remain blocked)
 
 - **Latest code checkpoint:** `b7e170ea525171a1d26c0f9604b863db19010887` (reviewer identity/version attribution guard). The current branch/PR head at this audit is `9d1a72d64d277af3e2b66b0ae9f3b210ae66f73f`, which includes documentation-only commits after the code checkpoint. Live PR #1 is Open, Draft=true, Merged=false, targeting `main`; never merge it.
 - **Historical-prefix correctness:** `through_sequence` is exclusive. The resolver rejects negative, boolean and non-integer boundaries and converts the event boundary to the inclusive state-version boundary `through_sequence - 1`. If the accepted decision is not yet present in the prefix, it now reports that exact condition rather than an ambiguous missing/ambiguous lineage error.
