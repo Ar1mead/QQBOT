@@ -2203,3 +2203,11 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Added design §3.23 and revised the first implementation into Stage 1A (host-side identifier pseudonymization and host-attested observation path), Stage 1B (CSD canonical subject registry/bindings), and Stage 1C (coordinated key/database backup, restore and rotation).
 - Critical placement: worker never receives identity key, CSD path or subject authority. Raw identifiers may be transient worker output only; trusted host pseudonymizes before durable CSD/log/prompt/projection paths. Legacy Observation v2 stays explicitly unbound.
 - No code or tests changed or executed. No local tests, compile checks, Actions reruns, external account operations or paid usage. Stage 0 Billing-first focused/full hosted test gate remains unchanged.
+
+
+## Live continuation audit — 2026-11-26 (Stage 1 acceptance matrix and source footprint)
+
+- Inspected current relevant test inventories and the workflow path filters. Existing focused coverage includes SurfCore mapping, Observation v2, worker host, CSD cognitive event-store, and a separate `CSDStore` SQLite backup suite; the latter must not be mistaken for coverage of `CognitiveMemoryStore` identity-key recovery.
+- Confirmed `.github/workflows/csd-cognitive-slice.yml` path filters include `core/csd/**` and `adapters/**` for push and pull request. It explicitly lists existing adapter/CSD tests; new standalone test files should be added to the explicit list as well.
+- Added design §3.24 with a bounded proposed source footprint and focused acceptance suites for Stage 1A host pseudonymization, Stage 1B CSD subject registry, and Stage 1C coordinated key/database recovery. Each stage must pass focused hosted tests and then the full Ubuntu/Windows matrix before the next stage.
+- No source/test files were created or changed; no tests or Actions were run. No local testing, runner reruns, external platform operations or paid usage occurred. Stage 0 Billing-first gate remains in force.
