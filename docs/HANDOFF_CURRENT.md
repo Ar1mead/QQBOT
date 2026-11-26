@@ -1049,3 +1049,14 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Third-party preference/personality inference is out of scope for the initial implementation without separate consent/privacy rules.
 - No source code or tests changed or executed. No local tests, compile checks, Actions reruns, external platform operations or paid usage occurred.
 - Next: review the complete design §§3.17–3.19 for contradictions with multi-user QQ/group-chat operation and the Private Home model, then consolidate the design into a single implementation-ready contract without crossing the test gate.
+
+
+## 1.8 QQ multi-user and Private Home reconciliation — 2026-11-26
+
+- Reviewed the platform/runtime adapter contract and `docs/design/autonomous-life-and-self-development.md` against §§3.17–3.19. No architectural contradiction was found.
+- QQ's initial adapter is receive-first and preserves account, conversation and sender references. Each sender must resolve independently to a canonical user subject; group IDs, bot account IDs and display names are not preference subjects. Quoted/forwarded third-party statements and group content cannot silently become an individual user's preference evidence.
+- Private Home is the AI individual's workspace, not a user-preference store or a source of automatic truth. User/external content stored there retains its original provenance and cannot become AI-authored experience or voluntary-interest evidence merely by being copied into the workspace.
+- AI-individual identity remains separate from QQ bot account, DSH, SurfCore, provider/model version and platform adapters. Runtime/provider replacement must preserve the same individual; a new individual must not inherit private state by default.
+- Design §3.20 records these rules and adversarial tests. Canonical subject registry, account/actor mapping and Private Home identity binding remain future work.
+- No code or tests changed or executed. No local tests, compile checks, Actions reruns, external account operations or paid usage occurred.
+- Next: consolidate the owner/subject/actor/provenance/choice-attestation design into a short implementation sequence and identify the smallest safe first implementation after the verification gate. Do not start coding before the focused and full hosted tests pass.
