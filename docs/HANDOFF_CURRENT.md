@@ -1028,3 +1028,13 @@ This section is the current handoff and supersedes earlier next-work items that 
 4. Do not implement subject-reference fields, accepted revision reducers, decision-time acceptance API or Life Engine wiring before the existing focused and full hosted test gates pass.
 
 No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential or external side effect was touched.
+
+
+## 1.6 Interaction-choice evidence audit — 2026-11-26
+
+- Static inspection found the existing `experience.interaction_choice_recorded.v1` has useful provenance and shape checks, including origin-event chronology, meaningful choice-set size, selected-item membership, and return-visit continuity.
+- It is not yet strong enough to prove AI agency for durable AI-interest revisions: `subject_ref` is not bound to a canonical AI identity; choice-set refs are not resolved to authoritative available options; adapter source/component labels are self-consistency checks rather than host attestation; and public event submission is not restricted away from this event family. Labels such as `internal_state` and `self_commitment` are not proof that an action was genuinely optional.
+- Design §3.18 now records these limitations and requires a future host/CSD-attested, versioned choice event with canonical subject binding, exact choice/trigger lineage, trusted adapter provenance, and append/direct-read/Recovery validation.
+- Existing Motivation interaction events remain valid under their current semantics; do not reinterpret them as stronger proof of AI autonomy. This is a design gap, not a source-code fix performed in this continuation.
+- No source code or tests changed or executed. No local tests, compile checks, Actions reruns, real platform operations or paid usage occurred.
+- Next: statically inspect the origin/subject chain from observation → interaction → motivation signal → goal, especially whether a user identity or AI identity can be rebound between stages. Then update all three governing documents. Do not implement the new attestation event or revision reducers before the focused and full hosted test gates pass.
