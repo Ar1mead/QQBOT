@@ -2165,3 +2165,12 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Added design §3.19 requiring canonical host/CSD subject IDs, trusted account/actor mapping, separate evidence-actor and claim-subject fields, same-subject evidence bundles, cross-event Motivation/Goal/candidate binding, and versioned identity mapping/Recovery.
 - Third-party preference/personality inference is excluded from the initial scope absent a separate consent/privacy design. Mixed-subject evidence cannot be pooled to inflate confidence.
 - Design only: no identity registry, source binding, code or tests were changed or executed. No local tests, compile checks, Actions reruns or paid usage. The 2026-12-02 Billing-first test gate remains unchanged.
+
+
+## Live continuation audit — 2026-11-26 (QQ multi-user and Private Home reconciliation)
+
+- Cross-checked §§3.17–3.19 against the platform/runtime adapter contract and the autonomous-life Private Home design.
+- No architectural contradiction found. QQ's initial receive-first contract already preserves account, conversation and sender provenance; it does not make the group or bot account the cognitive subject. The Private Home is already defined as the AI individual's workspace, separate from CSD and external chat content.
+- Added design §3.20 to make the identity boundaries explicit: each QQ sender maps independently to a canonical user subject; group/quoted/third-party content is not silently attributed to the sender; evidence from different people cannot be pooled; Private Home storage does not turn user/external content into AI-authored experience; and AI-individual identity survives runtime/provider/adapter replacement.
+- Canonical subject registry, QQ account/actor mapping, and Private Home identity binding remain unimplemented. No source code or tests changed or executed. No local tests, compile checks, Actions reruns, external account operations or paid usage occurred.
+- The formal verification gate remains unchanged: check Billing around 2026-12-02; if usage has reset, run the focused cross-episode review-record suite first, then the full Ubuntu/Windows matrix only after the focused suite passes.
