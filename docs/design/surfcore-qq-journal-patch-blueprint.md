@@ -207,3 +207,9 @@ A read-only check of current `Mieksido/surfcore` upstream found:
 - The existing `qq-public-feed.jsonl` is a separate legacy group feed; current bridge code writes group/sender IDs and sender display name into it. It is not the new journal, must not be reused as the CSD source, and needs a separate privacy/retention decision if the broader project later requires all local persistent files to be pseudonymized.
 
 **Status:** upstream source inspection only. No local SurfCore source or files were read or modified. No real QQ account was connected. This does not change the Stage 0 Billing-first gate.
+
+### 9.1 Existing local identifier-bearing paths (separate from the new journal)
+
+A targeted check of current public upstream v0.8.9 found that the existing bridge still writes some raw QQ identifiers to local diagnostics and the legacy group feed: `convKey(kind,id)` embeds the raw conversation ID; unauthorized/deny log messages include that key and sender ID; the current sensitive-text redactor does not target QQ numeric IDs; and `qq-public-feed.jsonl` stores `groupId`, `senderId`, and `senderName`.
+
+This is a separate legacy privacy/retention issue. The new journal must not reuse the feed and must keep its own records/diagnostics pseudonymized. If the project requires all local logs/files to avoid raw QQ identifiers, that requires a separate reviewed SurfCore patch and historical retention plan; this journal blueprint does not silently alter existing files.
