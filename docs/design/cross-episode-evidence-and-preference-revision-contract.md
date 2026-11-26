@@ -1271,3 +1271,14 @@ Therefore:
 - Add an end-to-end integration acceptance test proving a live-shaped event passes through the registered journal entrypoint, receives opaque identity references and authenticated provenance, is accepted only through the trusted CSD host path, and is replay-safe. Test key bootstrap/ACL failure and missing-key fail-closed behavior as part of that vertical slice.
 
 **Status:** repository-only static audit. No local SurfCore installation was inspected or modified; no account was connected; no live QQ event was read. No source code or tests changed or executed. Stage 0 Billing-first gate remains mandatory.
+
+## 3.29 SurfCore process topology and actual QQ capture point — static source audit (2026-11-27)
+
+The patch blueprint's capture placement is confirmed against current public upstream, with a version-drift warning.
+
+- Current upstream `Mieksido/surfcore` main is v0.8.9 at `0ce8580048d3dddb21860114edb8b115d5d79d1e`. The blueprint remains pinned to v0.8.8 commit `0deb8261afe4c31b3127759ee4de36a1439cf422`. The user's local installation was previously recorded as v0.8.8 at `E:\deepseek（chajian）\SurfCore`, but its exact commit is unknown. Do not apply an upstream patch until the local HEAD and callback site are read.
+- SurfCore's DSH plugin host and QQ Bridge are separate processes. They communicate through network protocol and disk files, not shared memory. The extension host dynamically imports extensions into the DSH plugin process; `api.on()/api.emit()` is an extension-local event bus, not a raw QQ event subscription, and the extension is not an OS sandbox.
+- Raw OneBot private/group events are received in the independent `src/bridge.js` process through `bot.onPrivateMessage()` / `bot.onGroupMessage()`. Both callbacks filter self-authored messages before calling `handleIncoming()`. The observation capture tap belongs after the self-message guard and before the unchanged `handleIncoming()` call; capture failure must not short-circuit normal chat handling.
+- Existing `qq-public-feed.jsonl` is a separate group-only feed and currently persists `groupId`, `senderId`, and `senderName`; it is not a suitable CSD source and must not be reused. Review it separately if the project later imposes a whole-installation raw-identifier retention policy.
+- The bridge already imports `hardenDir` and applies state-directory ACL hardening. `src/state-acl.mjs` also provides `hardenFile`. These are candidate primitives for journal/key storage, but the exact path, ACL behavior and startup-failure handling require dedicated tests. The reference journal still has no production caller or key bootstrap.
+- No local SurfCore source was inspected or changed; no QQ account was connected; no live message was read. No source/test changes or tests executed. Stage 0 Billing-first gate unchanged.
