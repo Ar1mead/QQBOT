@@ -1174,3 +1174,39 @@ The §3.26 review confirmed that the dedicated QQ journal protects identifier re
 - Verify a key rotation does not merge two QQ senders, change canonical CSD subjects, or retroactively bind legacy observations.
 
 **Status:** static code/test inspection and design only. No source/test changes or executions. The existing Stage 0 Billing-first hosted-test gate remains unchanged.
+
+
+## 3.28 QQ journal pseudonym scope must be account-bound — static audit (2026-11-27)
+
+A further comparison of the current journal implementation with the v1 journal contract and the multi-user identity rules found an account-scope mismatch.
+
+### Current behavior
+
+In `integrations/surfcore-qq-journal/observation-journal.mjs`:
+
+- `streamRef` is derived from the account ID using the `qq-account` HMAC domain.
+- `conversationRef` uses the conversation kind and raw conversation ID, but does not include `streamRef`.
+- `senderRef` uses the global `qq-sender` domain and raw sender ID, but does not include `streamRef`.
+- `externalRef` and `recordId` use `identityInput = conversationKind + conversationId + sourceMessageId`; this tuple also omits `streamRef`.
+
+If two journal instances use the same HMAC key, the same sender/conversation/source-message inputs under different QQ bot accounts therefore produce the same corresponding pseudonyms. The account `streamRef` differs, but it is not incorporated into those other references. The current API accepts a caller-supplied key and does not enforce or declare a distinct key per account, so per-account key uniqueness cannot be assumed as the protection.
+
+This also differs from `docs/design/surfcore-qq-observation-journal-v1.md`, which specifies using the opaque stream/account reference together with stable source-message identity as the record identity input.
+
+### Why this matters
+
+- It creates cross-account linkability for senders and conversations when a shared installation key is used.
+- It can produce identical `record_id` / `external_ref` values for matching source identities in different account streams.
+- It risks making account scope look like identity equivalence. The multi-user contract requires separate QQ account/actor provenance and explicit CSD account-linking before two platform identities are treated as one canonical user.
+- A shared HMAC key is not itself a canonical identity registry. HMAC references must not silently imply that two accounts belong to the same person.
+
+### Required contract and tests
+
+1. Bind every conversation, sender, source-message and record pseudonym to the account stream scope, either by including the stable `streamRef` in a canonical, unambiguous HMAC input or by a formally specified per-account derived key. Do not rely on undocumented caller behavior.
+2. Define canonical tuple encoding and domain labels so values cannot be ambiguously concatenated. Keep account, conversation, sender, source-message and record namespaces distinct.
+3. Preserve deterministic deduplication within one account stream, while preventing automatic cross-account reference equality. Cross-account identity linking remains a separate explicit CSD operation.
+4. Treat existing schema-v1 references as legacy. Do not rewrite or silently reinterpret them; introduce a versioned migration/compatibility policy before changing derivation.
+5. Add tests using the same HMAC key and matching raw sender/conversation/message IDs across two account IDs. Account, conversation, sender, external-message and record references must be correctly scoped; repeated delivery inside one account must remain stable.
+6. Add a subject-resolution test proving that two account-scoped sender references do not become one canonical user subject without an explicit authorized link.
+
+**Status:** source/spec mismatch confirmed by static inspection. This is a design finding only; no source or test changes/execution. The Stage 0 Billing-first hosted-test gate remains unchanged.
