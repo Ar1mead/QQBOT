@@ -1282,3 +1282,22 @@ The patch blueprint's capture placement is confirmed against current public upst
 - Existing `qq-public-feed.jsonl` is a separate group-only feed and currently persists `groupId`, `senderId`, and `senderName`; it is not a suitable CSD source and must not be reused. Review it separately if the project later imposes a whole-installation raw-identifier retention policy.
 - The bridge already imports `hardenDir` and applies state-directory ACL hardening. `src/state-acl.mjs` also provides `hardenFile`. These are candidate primitives for journal/key storage, but the exact path, ACL behavior and startup-failure handling require dedicated tests. The reference journal still has no production caller or key bootstrap.
 - No local SurfCore source was inspected or changed; no QQ account was connected; no live message was read. No source/test changes or tests executed. Stage 0 Billing-first gate unchanged.
+
+## 3.30 Existing SurfCore bridge logs retain raw QQ identifiers — separate legacy privacy issue (2026-11-27)
+
+A targeted source trace of current upstream v0.8.9 confirms that the new journal must not be described as the only local persistence path for QQ provenance.
+
+- `convKey(kind, id)` is `${kind}:${id}`, so it embeds the raw private/group conversation identifier.
+- Existing bridge diagnostics interpolate `key` and `event.user_id` into messages such as unauthorized-session and deny-user logs. `log()` passes text through `redactSensitiveText()`, but `SENSITIVE_RE` and `SECRET_TOKEN_RE` do not redact QQ numeric IDs.
+- `appendActivity()` also uses the same sensitive-text redactor, not an identity pseudonymizer; some activity messages include `key` and sender IDs.
+- Existing `qq-public-feed.jsonl` explicitly stores `groupId`, `senderId`, and `senderName` alongside text for the legacy group-feed/memory-sync path.
+- These are existing SurfCore local log/feed behaviors, not evidence that the new QQ journal is running or that those values are entering CSD. They do mean the broad statement “raw QQ IDs never appear in local logs/files” is currently false for the inspected paths.
+
+### Scope and required handling
+
+1. The new Observation journal must never add raw QQ identifiers to its records, diagnostics, HTTP responses, CSD payloads, prompts, or projections.
+2. Keep the legacy feed separate; do not reuse it as a CSD source or silently change its schema.
+3. If the project requires a whole-installation guarantee that raw QQ identifiers are absent from local logs/files, create a separate reviewed SurfCore change to pseudonymize/redact log fields and version the feed schema. Review retention and existing historical files/backups; do not claim that changing future writes erases old copies.
+4. Before any production enablement, document the distinction between (a) new CSD observation privacy guarantees and (b) existing local SurfCore logs/feed retention. Do not overstate the guarantee.
+
+**Status:** static review of public upstream only. No source code or local files changed. No tests or real QQ operations. Stage 0 gate remains unchanged.
