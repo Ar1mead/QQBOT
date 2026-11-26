@@ -1072,8 +1072,8 @@ Until the previously agreed Billing reset check, do not add any of these source/
 
 A follow-up source audit found that the §3.22–3.24 design is not yet closed against the current public write paths:
 
-- `adapters/platforms/surfcore/mapping.py` exposes `map_surfcore_record_to_csd_event()` and `map_surfcore_qq_batch()`. Both can turn raw SurfCore DTO references into CSD Observation v2 events by calling the generic `adapters/csd_mapping.py` converter. Their docstrings call these host-only paths, but the functions live in the worker-safe mapping module and are callable helpers, not an enforced host boundary.
-- `adapters/csd_mapping.py::observation_evidence_to_csd_event()` copies `account_ref`, `context_ref`, `actor_ref`, `external_ref`, `source_ref`, `source_artifact_ref`, `parent_ref` and the observation identity into the durable payload without a pseudonymization/attestation step.
+- `adapters/platforms/surfcore/mapping.py` exposes `map_surfcore_record_to_csd_event()` and `map_surfcore_qq_batch()`. Both can turn DTO references into CSD Observation v2 events by calling the generic `adapters/csd_mapping.py` converter. In the dedicated QQ journal path, these references have already been HMAC-pseudonymized before the DTO is read; however, the mapper itself accepts arbitrary caller-provided references and does not require or verify that protection. Their docstrings call these host-only paths, but the functions live in the worker-safe mapping module and are callable helpers, not an enforced host boundary.
+- `adapters/csd_mapping.py::observation_evidence_to_csd_event()` copies `account_ref`, `context_ref`, `actor_ref`, `external_ref`, `source_ref`, `source_artifact_ref`, `parent_ref` and the observation identity into the durable payload without its own pseudonymization/attestation step. Values produced by the dedicated QQ journal are opaque HMAC references, but a different caller can supply raw values.
 - `core/csd/cognitive.py::_validate_event()` includes `OBSERVATION_EVENT_V2` in the public event allowlist. `submit_event()` calls this public validation path. The current v2 validator checks non-empty reference strings, digest/coverage correctness and `untrusted=true`; it does not establish that identity-bearing references are opaque or host-attested.
 - The current internal-only guard is for decision/review event families. Observation v2 has no equivalent host-attested append boundary. A caller can therefore continue writing new raw-reference v2 events even after a separate host pseudonym service is introduced unless this legacy write route is explicitly closed.
 
@@ -1103,3 +1103,35 @@ Do not solve this by deleting historical Observation v2 support or rewriting imm
 - Production identity-key use remains disabled for untrusted adapters until the real target-OS worker isolation gate is met.
 
 **Status:** source-level gap confirmed; design only. No source/test changes, test runs, local checks, Actions reruns or external platform operations were performed. The 2026-12-02 Billing-first Stage 0 gate remains unchanged.
+
+
+## 3.26 Existing QQ journal HMAC protection and remaining key-lifecycle gap — static audit (2026-11-26)
+
+A deeper inspection of `integrations/surfcore-qq-journal/observation-journal.mjs` and its Node tests qualifies the earlier §3.22–3.25 findings: the dedicated QQ journal already pseudonymizes identifiers before persisting its JSONL records.
+
+### What is already implemented
+
+- `createObservationJournal()` requires a host-supplied Buffer HMAC key of at least 32 bytes and a `secureDirectory` ACL-hardening callback. It does not provision or persist the secret itself.
+- The journal uses HMAC-SHA-256 with a domain string and NUL separator, with distinct domains for QQ account, conversation, sender, source message and record identity. It stores `hmac:v1:<digest>` references rather than the raw account/sender/conversation/message IDs.
+- The journal validates that all persisted identity references match the opaque HMAC format, checks the account stream reference and cursor chronology, and rejects malformed/corrupt complete JSONL records during recovery.
+- `observation-journal.test.mjs` includes a test that captures a private QQ message and verifies the persisted JSONL does not contain the raw bot account ID, sender ID or source message ID. The journal also requires the HMAC key and ACL callback.
+
+Therefore, do not describe the normal dedicated QQ journal → DTO path as currently persisting raw QQ account/sender/message IDs. That path already has a meaningful privacy boundary, subject to its host correctly supplying and protecting the key and directory ACL.
+
+### What remains incomplete
+
+- The journal accepts a raw `accountId` and `hmacKey` from its caller. There is no repository-level IdentityKeyProvider/bootstrap service, key ID/version metadata, rotation protocol, dual-key migration, or coordinated key+journal+CSD backup/restore contract.
+- Its current `hmac:v1` references are purpose-separated, but the later Python SurfCore mapper derives a second unkeyed SHA-256 observation ID from the platform/account_ref/record_id tuple. For already-HMACed QQ references this does not reveal the original raw IDs by itself, but it is not a substitute for a documented canonical host identity reference contract and is unsafe if the mapper receives raw DTO values from another caller.
+- The Node journal's file ACL callback and HMAC key are separate caller responsibilities. No evidence yet proves that production bootstrap uses a protected key store, that backups include the exact key version, or that key loss/rotation is handled without identity drift.
+- The journal protects its own JSONL file; it does not by itself protect later logs, exception paths, adapter DTOs supplied from outside this journal, CSD events, exports or model context. The host-to-CSD boundary still needs enforcement.
+- The journal's test uses a deterministic fixture key for testing, which is appropriate for tests but is not production key provisioning evidence.
+
+### Revised implementation direction
+
+- Preserve and reuse the existing QQ journal's HMAC/domain-separation behavior where appropriate; do not create a second unrelated pseudonym scheme without a migration/compatibility reason.
+- Introduce a host-owned key-provider/bootstrap contract around the existing caller-supplied key. Define installation scope, key ID/version, secure storage, rotation, loss, and coordinated backup of the journal and CSD database.
+- Make the host-to-CSD mapper require validated opaque references or a host-attested envelope. It must reject raw references even when invoked outside the dedicated journal path.
+- Keep the public Observation v2 write-bypass closure and legacy read/Recovery compatibility from §3.25. The normal QQ journal's existing HMAC output does not make the generic public CSD API safe for arbitrary raw v2 callers.
+- Add tests for key-provider/bootstrap integration, sender/conversation/account namespace separation, group sender identity isolation, production-key persistence across restart, missing/mismatched key fail-closed behavior, rotation and coordinated journal+CSD restore. Retain the existing no-raw-identifier journal tests.
+
+**Status:** existing QQ journal HMAC pseudonymization and tests are confirmed by source inspection; key lifecycle and downstream CSD enforcement remain incomplete. Design only; no source/test changes or test execution. The Stage 0 Billing-first gate remains unchanged.
