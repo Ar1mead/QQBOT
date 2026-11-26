@@ -2231,3 +2231,13 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - The downstream Python mapper still derives a second unkeyed SHA-256 observation ID from the references and accepts arbitrary DTO values; it does not itself enforce that inputs came from the protected QQ journal. The generic public CSD Observation v2 path also remains able to accept raw reference strings from other callers.
 - Updated design §3.26 to distinguish the existing QQ journal protection from the still-open generic mapper/CSD bypass and key-lifecycle work. Reuse the existing domain-separated HMAC behavior where appropriate rather than inventing an unrelated scheme.
 - Static/design only; no source/test changes or execution, no Actions reruns, no local tests, no platform operations or paid usage. Stage 0 Billing-first gate remains unchanged.
+
+
+## Live continuation audit — 2026-11-27 (QQ journal integrity and rotation continuity)
+
+- Re-read the active branch's current design, progress ledger, handoff, QQ journal implementation/tests, SurfCore mapper, CSD mapper and CSD event validation. Branch `feature/csd-cognitive-memory-slice` currently points to `b7ff0520bba9fbe9a019225ed0998fa1b1c82eaa`; PR #1 remains Open / Draft / Unmerged with the same head and base `main`.
+- Confirmed the dedicated QQ journal HMACs identifier references, but the HMACs do not authenticate the complete persisted record body or message content. `recover()` performs schema/reference/cursor checks only; `readPage()` rereads and parses records without rerunning the validator. A valid-schema content edit can therefore evade the current structural checks, and post-open file edits are not revalidated on page read.
+- Confirmed rotation continuity is not implemented: references carry `hmac:v1` scheme prefix but no key ID; `streamRef` depends on the current key; recovery compares every old record against the newly derived stream reference. A replacement key therefore cannot reopen the existing journal through a supported rotation path.
+- Added design §3.27 requiring authenticated full-record integrity, per-record key ID/version, stable opaque stream identity, key-ring/dual-key rotation, page-time verification, resumable rotation and coordinated journal+CSD+key backup/restore, with adversarial tests.
+- This qualifies the earlier positive finding: identifier pseudonymization is present, but it is not full journal integrity or key-rotation support. HMAC provides integrity/authentication, not encryption.
+- No source/test files changed or executed; no local tests, compile checks, Actions reruns, platform operations, paid usage, merge, rebase or fork sync. The 2026-12-02 Billing-first Stage 0 test gate remains unchanged.
