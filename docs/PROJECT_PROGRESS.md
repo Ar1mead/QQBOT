@@ -2184,3 +2184,12 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Stage 1 deliberately does not implement preference/interest reducers. It first establishes stable AI-individual identity, per-user identity isolation, and trusted account/actor mapping without storing raw platform credentials or inferring cross-platform identities.
 - Stages 2–4 then bind observation/interaction evidence, Motivation/Goal/cross-episode subject lineage, and only later accepted preference/interest/self-model revisions and downstream projections.
 - No source code or tests changed or executed. No local tests, compile checks, Actions reruns, external account operations or paid usage occurred. The 2026-12-02 Billing-first verification gate remains unchanged.
+
+
+## Live continuation audit — 2026-11-26 (platform identifier privacy and key lifecycle)
+
+- Traced the concrete QQ path: SurfCore `sender_ref` becomes ObservationEvidence `actor_ref`; `account_ref`, `context_ref`, `actor_ref` and other references are then copied by `adapters/csd_mapping.py` into durable Observation v2 payloads. CSD currently checks these values are non-empty strings, not that they are opaque.
+- Found SurfCore `observation_id` is derived with unkeyed SHA-256 over platform/account_ref/record_id. This is deterministic but must not be treated as a privacy-safe pseudonym when inputs may be guessable.
+- Added design §3.22 requiring host-side pseudonymization before CSD append, keyed/domain-separated references, distinct namespaces for account/actor/conversation/resource, protected host key custody, explicit key rotation/loss behavior, coordinated key+database backup, and a reviewed policy for legacy events that already contain raw identifiers.
+- New writes must not persist raw QQ identifiers or credentials in CSD events/projections/logs/model context. Legacy immutable events are not rewritten or silently rebound; they remain unverified until an explicit migration/retention policy is approved.
+- This is design-only. No code/tests changed or executed; no local tests, compile checks, Actions reruns, external platform operations or paid usage. Stage 0 Billing-first verification gate around 2026-12-02 remains unchanged.
