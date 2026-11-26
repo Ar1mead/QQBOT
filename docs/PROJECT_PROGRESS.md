@@ -49,6 +49,8 @@ This is the durable hand-off record for continuing work when conversation contex
 - No implementation or tests were changed or executed. This is a design-only hardening step; existing six focused review-record tests remain unexecuted.
 
 
+- **Final documentation-only HEAD after this continuation:** `20b5d764342e54fb8bad34547262db50953afb9d`; live branch ref and PR #1 head were rechecked and match. PR remains Open / Draft / Unmerged. The five most recent runs are still #810–#814; no new run was created by these documentation-only commits.
+
 ## Historical status snapshot — superseded by the current checkpoint above (2026-11-20)
 
 - At the start of the documentation reconciliation, PR #1 was freshly fetched as `state=open`, `draft=true`, `merged=false`; its head branch was `feature/csd-cognitive-memory-slice`, and its head SHA was `76ea71a9eb310b2641bbf4186e2b0bb0e4c6ba8f`. Subsequent commits in this reconciliation update documentation only; always fetch the live head rather than treating that code checkpoint as current.
