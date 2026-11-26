@@ -2289,3 +2289,12 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Consequently, do not claim a working QQ→journal→worker→CSD pipeline or that live QQ identifiers currently enter CSD. The code does show that mapper/CSD interfaces would accept unverified reference strings if invoked with such DTOs; the production ingress and host attestation are missing.
 - Stage 1A now begins by defining and wiring the actual trusted ingress, including key bootstrap/ACL, authenticated journal-to-host delivery, host-only CSD append, cursor/checkpoint ordering, and end-to-end replay/fail-closed tests. Reuse the isolated journal only after confirming actual SurfCore process placement.
 - No local SurfCore runtime was inspected or modified; no QQ account was connected and no live message was read. No source/test changes or test execution. Stage 0 Billing-first gate unchanged.
+
+## Live continuation audit — 2026-11-27 (SurfCore process topology and capture point)
+
+- Read-only source review of current public upstream `Mieksido/surfcore`: main is v0.8.9 at `0ce8580048d3dddb21860114edb8b115d5d79d1e`. Project blueprint remains pinned to v0.8.8 `0deb8261afe4c31b3127759ee4de36a1439cf422`. User-local installation was previously recorded as v0.8.8 at `E:\deepseek（chajian）\SurfCore`; exact local commit remains unknown and must be inspected before any patch.
+- Confirmed DSH plugin host and QQ Bridge are separate processes; extensions are dynamically imported into the DSH plugin process, are not OS sandboxes, and their local event bus does not receive raw QQ message callbacks.
+- Confirmed raw OneBot messages arrive in `src/bridge.js` via private/group callbacks. Correct observation tap: after self-message rejection, before the original `handleIncoming()` call; capture errors must never change the existing QQ chat path.
+- Existing `qq-public-feed.jsonl` is a separate group feed that persists group/sender IDs and sender display name. It must not be repurposed as CSD observation ingress; broader local-file privacy is a separate review.
+- Bridge already imports `hardenDir`; `src/state-acl.mjs` exports `hardenFile`. These are candidate ACL primitives, not yet integrated with the journal key lifecycle.
+- No local SurfCore files were read or modified, no account connected, no live messages read. No source/test change or execution. Stage 0 gate unchanged.
