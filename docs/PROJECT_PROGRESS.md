@@ -4,7 +4,7 @@
 > Last updated: 2026-11-26 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
 > Latest code checkpoint: `b7e170ea525171a1d26c0f9604b863db19010887` (reviewer-attribution guard; tests unexecuted)  
-> Current branch / PR head before this documentation synchronization: `29a91df18e10f54955c488aab9778b24e85dfb56` (documentation-only commits follow)  
+> Current live branch / PR head at the start of this continuation: `2d8b7c30a31c5a3a93b98ddc0122eb9e89561368` (documentation-only commits follow)  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
@@ -2134,3 +2134,15 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - This prevents an outcome from implicitly creating a lesson, a lesson from implicitly completing a goal, or a planning hint from granting Life Engine/ASM authority. A goal decision and a separately accepted reusable lesson are two distinct state transitions; each advances the version once. One atomic multi-field event, if ever supported, advances it once.
 - Design-only documentation change. No source code or tests were modified or executed. No local tests, compile checks, or Actions reruns were performed.
 - Design contract update commit: `adcd4074d150ecac6dc86aad8b789f515f06bafc`. Formal test gate and Billing-first checkpoint around 2026-12-02 remain unchanged.
+
+
+## Live continuation audit — 2026-11-26 (subject ownership and evidence attribution)
+
+- Re-fetched the active branch documents, PR #1, the platform/runtime adapter contract, and the current cross-episode proposal implementation. PR #1 was Open / Draft / Unmerged, base `main`, head `2d8b7c30a31c5a3a93b98ddc0122eb9e89561368`; no merge or branch synchronization was performed.
+- Static code inspection of `core/csd/cross_episode_proposals.py` confirmed v1 already binds `preference_candidate` to owner `user` and `interest_candidate` to owner `ai`, with separate non-sensitive domain allowlists. The append/read validation repeats this pairing. This is a coarse type-confusion guard, not a complete semantic ownership model.
+- Identified the missing distinctions: CSD state authority, claim subject class, canonical subject reference, and evidence provenance/origin are separate concepts. Motivation `origin_class` remains evidence provenance, not claim subject.
+- Added design §3.17 defining separate user-preference, AI-owned-interest and AI-self-model claim families; canonical host/CSD-supplied subject references; subject-attribution evidence requirements; operational criteria for meaningful AI-selected interest evidence; correction/challenge/conflict authority; and adversarial tests.
+- Key safeguard: user-requested work, passive exposure, autoplay, mandatory/scheduled activity, and model-generated self-description alone cannot establish an AI-owned interest. AI interest is an operational pattern of attributable, meaningful self-selected activity, not a claim of consciousness or human-like feelings. AI interest and capability/self-model claims remain separate.
+- §3.17 is design only. No source code or tests changed or executed. No local tests, compile checks, Actions reruns, external platform operations or paid usage were performed.
+- The implementation gate remains closed. Around 2026-12-02, check Billing first; if included usage has reset, run `tests/test_csd_cross_episode_review.py` focused suite, verify actual test steps execute and pass, then run the full Ubuntu/Windows matrix. Do not run local tests or paid Actions before that checkpoint.
+- The active branch and PR head must be re-fetched after the document synchronization below. PR #1 must remain Draft / Open / Unmerged; do not merge, rebase, force-sync or synchronize the fork.
