@@ -543,3 +543,64 @@ The first three targets may influence a future plan only through a bounded, vers
 - Recovery reproduces the same accepted lesson versions and planning-input projection; raw provider suggestions are never replayed as accepted lessons.
 
 **Status:** design only. No outcome-learning event, accepted lesson projection, planning integration, preference/self-model revision or Life Engine feedback implementation is present. This section does not change the existing verification gate.
+
+
+## 3.16 Goal outcome decisions, accepted planning lessons and shared state-version semantics — design only (2026-11-26)
+
+Sections 3.14–3.15 define what may be learned from a goal outcome. This section defines when those facts become authoritative CSD state, how they affect the shared state version, and how Recovery must distinguish an outcome decision from a reusable lesson.
+
+### Keep the event families and authority steps distinct
+
+A future implementation should distinguish at least these stages:
+
+1. **Observed outcome evidence** — an observation or execution result is appended with provenance. It is evidence, not a goal decision or accepted lesson.
+2. **Outcome assessment proposal** — a provider or cognitive service may propose a classification/lesson bound to exact goal, criteria, evidence and execution references. It has no authority to change goal state or planning inputs.
+3. **CSD goal outcome decision** — CSD validates the current goal version, declared criteria, evidence lineage and policy, then records a versioned lifecycle transition (for example completed, blocked, abandoned, expired or superseded). This is an authoritative goal-state change.
+4. **Planning-lesson proposal** — a separate proposal may derive an episode-local result, contextual constraint or reusable strategy hypothesis from the recorded outcome. It is advisory until accepted.
+5. **CSD accepted planning lesson** — if policy accepts a bounded lesson, a separate immutable CSD-owned event records the exact lesson, scope, validity/freshness conditions, supporting and counter-evidence, policy version and prior/result lesson version. Only this accepted projection may be consumed as durable planning input.
+
+A goal outcome decision must not silently accept a planning lesson as a side effect. Conversely, accepting a planning lesson must not alter the goal's lifecycle status or imply that its success criteria were met. One atomic event may update multiple fields only if the schema explicitly declares them as one inseparable transition with one deterministic reducer; the first implementation should prefer separate event families to keep authority and replay auditable.
+
+### Shared state-version rules
+
+The shared CSD state version tracks accepted authoritative state transitions, not raw event-log length.
+
+- Appending observation evidence, an outcome proposal, a planning-lesson proposal, or an advisory provider review does not advance the state version.
+- A CSD goal outcome decision that changes an authoritative goal version advances the shared state version exactly once for that atomic decision event.
+- A CSD acceptance/revision of a durable planning lesson advances the shared state version exactly once for that atomic accepted lesson event, because it changes authoritative planning input.
+- A single accepted event that atomically changes several fields/records advances the version once, not once per field or goal. Separate accepted events each advance it once.
+- Rejected, deferred, stale, duplicate-idempotent acknowledgements, and advisory-only outcomes do not create a new state version.
+- Do not count both a goal outcome decision and a planning lesson merely because they describe the same outcome. They are separate version increments only when two distinct authoritative transitions are actually accepted: first the goal lifecycle decision, then (if separately accepted) a reusable planning lesson.
+- Every proposal/decision binds the exact base state version and relevant goal/lesson versions. A later accepted transition makes a proposal stale under the existing fail-closed rule; do not silently rebase it or refresh its evidence.
+- The event stream remains authoritative. The replay context, per-family ordinals, state snapshots, direct-read projection checks and Recovery must all include each new accepted event family consistently.
+
+### Planning-input projection contract
+
+An accepted lesson must include, at minimum:
+
+- stable lesson ID and immutable lesson version;
+- lesson class (episode-local, contextual constraint, or reusable strategy hypothesis);
+- exact source goal/outcome decision and evidence event references;
+- context predicates, applicability scope, exclusions and validity/freshness rule;
+- strategy/tool/runtime/model version context where relevant;
+- support and counter-evidence, distinct source-episode accounting and uncertainty;
+- prior lesson version or explicit creation marker;
+- accepting CSD decision event, policy ID/version and deterministic reason.
+
+Episode-local outcome facts should normally remain attached to their goal/outcome record rather than being promoted into a reusable global lesson. Contextual constraints and strategy hypotheses require an explicit acceptance policy and bounded applicability. Expired or invalidated lessons remain in history but cease to affect the active planning projection through an explicit, replayable CSD transition or deterministic projection rule; they must not be silently deleted.
+
+The planning projection is an input to deliberation, not an instruction queue. It may inform ranking or feasibility estimates, but cannot force Life Engine activity, grant ASM permissions, or override explicit user constraints and safety policy. Life Engine consumes only accepted, current, scope-matching lesson versions; it cannot write them back.
+
+### Required adversarial tests before implementation
+
+- Evidence/proposal/advisory review append does not advance state_version.
+- One accepted goal outcome transition advances state_version once and creates exactly one goal version.
+- One accepted planning-lesson revision advances state_version once and creates exactly one lesson version.
+- A separately accepted goal outcome and lesson produce two ordered transitions; duplicate delivery of either is idempotent.
+- A combined atomic event, if ever supported, advances state_version once and Recovery reproduces all declared fields atomically.
+- Stale proposals created before either accepted transition fail closed; no silent rebase or evidence refresh occurs.
+- Expired/context-mismatched lessons remain auditable but are excluded from active planning inputs consistently on direct read and Recovery.
+- Replay, transaction rollback, duplicate event IDs, projection consistency and per-family ordinal accounting cover every new event family.
+- A planning lesson cannot change goal status, preference, interest, self-model or ASM authorization; a goal outcome decision cannot implicitly create a planning lesson.
+
+**Status:** design only. No outcome-decision event family, planning-lesson event/reducer, state-version integration or Life Engine planning-input connection is implemented. Existing verification gates remain unchanged.
