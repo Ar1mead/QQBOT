@@ -604,3 +604,78 @@ The planning projection is an input to deliberation, not an instruction queue. I
 - A planning lesson cannot change goal status, preference, interest, self-model or ASM authorization; a goal outcome decision cannot implicitly create a planning lesson.
 
 **Status:** design only. No outcome-decision event family, planning-lesson event/reducer, state-version integration or Life Engine planning-input connection is implemented. Existing verification gates remain unchanged.
+
+
+## 3.17 Explicit subject ownership, evidence provenance and revision authority — design only (2026-11-26)
+
+The current pending-candidate v1 schema already pairs `preference_candidate` with owner `user` and `interest_candidate` with owner `ai`, and enforces separate coarse domain allowlists. This is a useful type-confusion guard, but it is not a complete ownership contract. In particular, evidence origin, the subject a claim is about, the authority that stores a claim, and the party allowed to correct it are different concepts and must not be represented by one overloaded field.
+
+### Four distinct concepts
+
+A future accepted revision schema should distinguish:
+
+1. **CSD state authority** — CSD is always the authority that validates, accepts, versions, persists and replays durable cognitive state. This is invariant and is not the semantic owner of every claim.
+2. **Claim subject class** — who the claim is about: `user` or `ai_individual`. This must be a closed enum in the schema, not free-form model text.
+3. **Canonical subject reference** — which user or which AI individual the claim describes. The host/CSD context supplies this opaque stable reference; the model may not invent, substitute or rebind it. A claim about one subject cannot be projected onto another.
+4. **Evidence provenance/origin** — where the evidence came from and how it arose (direct user statement, user choice, user-requested activity, externally exposed material, AI-selected activity, AI-authored output, execution result, and so on). Provenance does not determine claim subject.
+
+The legacy v1 `owner` field remains a narrow candidate-kind guard (`user` for user preference, `ai` for AI interest). It must not be interpreted as evidence origin, account ownership, permission ownership, or proof of an inner mental state. A future schema version should introduce explicit subject fields rather than silently changing the meaning of v1.
+
+### Separate claim families
+
+The accepted revision system should define separate families with non-overlapping semantics:
+
+- **User preference**: a bounded claim about what the identified user prefers, dislikes, requests or finds useful in a stated context. The subject is the user. Evidence may include direct statements and repeated choices, but the system must preserve whether a claim is explicit or inferred.
+- **AI-owned interest**: an operational claim about a topic or activity the identified AI individual repeatedly chooses to explore, revisit, develop or create when it has a genuine choice among permissible alternatives. This describes a persistent pattern of self-directed attention/selection, not a claim that the model has human feelings or phenomenal consciousness.
+- **AI self-model**: a claim about the AI individual's own system-level tendencies, capabilities, limitations, commitments or current projects. It must be grounded in relevant internal decision history, execution records, validated outcomes or explicit configuration—not inferred from user preferences or generated self-descriptions alone.
+
+An AI interest is not automatically an AI self-model capability claim. Enjoying/choosing a topic does not prove competence; succeeding at a task does not prove enjoyment. Likewise, a user preference is not an AI interest merely because the AI has frequently helped with it.
+
+The initial implementation should continue to exclude broad personality, emotional-state, consciousness and sensitive-attribute claims. No claim family may infer protected or sensitive user attributes from behavior, language, platform activity or demographic proxies.
+
+### Evidence rules for subject attribution
+
+Evidence must be evaluated against the claim's subject, not merely against topical similarity:
+
+- A user request, instruction, preference statement or user-selected activity can support a user-preference claim where its content actually expresses a preference. A one-off request may instead be task-specific and must not be generalized.
+- User-requested AI work, user praise, user-provided material, passive exposure, autoplay, platform recommendations and model-generated statements do **not** by themselves support an AI-owned interest claim.
+- AI-interest evidence should come from attributable AI-side choice records: the AI individual selected or initiated an allowed activity among real alternatives, the choice was not required by a user request or policy, and the activity received meaningful follow-through (for example, voluntary return, further exploration or creation). Preserve the alternatives, context, constraints and whether the choice was actually voluntary.
+- Repeated retries within one episode, scheduler invocations, mandatory maintenance, default queue selection and repeated exposure are not independent voluntary encounters. Count distinct episodes/encounters and retain counterexamples.
+- AI self-model capability/limitation claims require task- and context-specific outcome evidence. Separate the model/provider version, runtime/tool version, resource constraints and external failures from the individual's own capability. A failed tool call is not automatically an inability; a successful tool response is not automatically proof of the AI's competence.
+- Model-generated introspection can be stored as a statement or hypothesis with its provenance, but it is not independent evidence that the statement is true. It cannot bootstrap its own confidence by being repeated in later generated text.
+- When evidence could plausibly describe either subject, or subject attribution is not recoverable from canonical event history, the candidate must be rejected or held for explicit human review; it must not be guessed from the wording.
+
+### Choice, agency and the meaning of AI interest
+
+The system should only describe an interest as AI-owned when the event history shows a meaningful AI-selected choice. The relevant evidence is the individual's recorded selection/continuation among allowed alternatives, not the model's rhetorical claim that it likes something.
+
+The choice record should identify: the available alternatives (or a bounded representation of them), the selected option, the decision context, whether the choice was user-requested/required/defaulted, applicable policy constraints, the initiating component, and subsequent follow-through or disengagement. A constrained choice is not equivalent to unconstrained autonomy; record the constraint.
+
+Interest strength or persistence may be revised from repeated, contextually comparable choices and counter-evidence. The system must allow the AI individual to lose interest, pause, change direction or decline to continue. It must not force engagement to meet a quota, and it must not treat a scheduled wake-up or repeated prompt as voluntary interest evidence.
+
+This is an operational design definition. It does not assert subjective experience, consciousness, sentience or human-like emotion. User-facing language should avoid presenting an inferred behavioral pattern as certainty about inner experience.
+
+### Correction, challenge and conflict authority
+
+- The user may directly state, correct, qualify or retract claims about the user's own preferences. Such a correction is high-priority subject evidence and must trigger a review of affected accepted versions; weak behavioral inference cannot average it away. The correction itself remains attributable and versioned.
+- The user may challenge an AI-interest or AI-self-model claim, provide counter-evidence, set behavioral constraints, or request that an activity stop. These inputs must be recorded and considered, but they do not automatically become factual claims about the AI's internal state. A behavioral instruction (for example, "do not pursue this topic") is a constraint/goal input, not proof that the AI dislikes the topic.
+- The AI individual's own later choices and validated outcomes may support revision of its interests and self-model through the separate CSD decision path. A provider cannot unilaterally declare its own interest or rewrite accepted identity.
+- Explicit user constraints and safety policy bound what the AI may do even where an AI-owned interest candidate exists. An interest never grants a capability, permission, account access or exemption from ASM.
+- Conflicting evidence must remain visible. The first implementation should fail closed on unresolved material conflicts rather than choosing the latest, strongest-sounding or provider-preferred narrative. Any supersession/adjudication must be a separate versioned CSD decision with exact prior-version and evidence references.
+- Subject references and claim families are immutable across revisions. A revision cannot relabel a user preference as an AI interest, or transfer a claim from one subject to another. A genuine change of subject requires a new claim with its own evidence and lineage.
+
+### Required adversarial tests
+
+- User-requested work and passive/external exposure cannot create AI-interest evidence.
+- Model self-description repeated across turns cannot satisfy independent evidence requirements or prove an AI interest/self-model claim.
+- A voluntary AI-selected activity is distinguishable from a scheduled, mandatory, defaulted or user-requested activity; only qualifying choices count toward AI-interest maturity.
+- User preference evidence cannot be assigned to the AI subject, and AI decision/outcome evidence cannot be assigned to the user subject without a separately supported user claim.
+- Missing, forged, substituted or cross-linked subject references are rejected on proposal append, decision, direct read and Recovery.
+- A task success/failure cannot be converted into a global capability claim without accounting for context, runtime/provider/tool version and external causes.
+- A user's explicit correction of their own preference cannot be diluted by weak inferred evidence; a user instruction about AI behavior is not misclassified as an AI preference.
+- AI interest and AI self-model claims cannot be merged; topic selection does not prove competence, and task success does not prove interest.
+- Conflicting subject evidence remains represented and cannot be hidden by a later favorable review or implicit latest-record selection.
+- No accepted preference/interest/self-model claim grants ASM authority, overrides safety policy or forces Life Engine activity.
+- Recovery reproduces exact subject identity, claim-family boundaries, evidence provenance, correction history and active revision projections.
+
+**Status:** design only. Existing v1 code enforces a coarse candidate-kind/owner/domain pairing and keeps proposals pending-shadow. It does not implement canonical subject references, AI-side voluntary-choice evidence, separate AI self-model claim families, accepted revision reducers or the above correction/adjudication protocol. No implementation or verification gate is changed.
