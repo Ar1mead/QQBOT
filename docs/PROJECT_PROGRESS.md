@@ -2102,3 +2102,14 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - **研发不暂停：** 继续推进个体 AI 的完整目标，不把项目缩减为记忆插件。等待期可做低风险静态审查、设计收敛、测试审查和不依赖 Actions 的代码准备；但不得越过既定验证门槛。特别是 CSD 审查记录事件的专门回归测试尚未执行，因此在其 adversarial tests 实际通过前，不开始偏好/自我模型 reducer 的实现或 Life Engine 接线。
 - **下一阶段门槛顺序：** (1) 静态复核并补强 CSD review-record 测试/实现；(2) hosted runner 恢复或经用户同意配置零费用 self-hosted runner 后，先执行 focused suite；(3) focused suite 通过后再执行完整 Ubuntu/Windows matrix；(4) 再推进 decision-time evidence revalidation 与 CSD-owned preference/self-model revision events/reducer；(5) 最后才评估 Life Engine 对已接受修订的读取与自主活动影响。Pending candidates 和 advisory review records 始终不得直接改变身份、偏好、目标或活动排序。
 - **PR 安全约束不变：** PR #1 保持 Draft / Open / Unmerged；不合并、不 rebase、不 force-sync、不擅自同步分叉分支。
+
+
+## Live continuation audit — 2026-11-26 (Goal outcome lifecycle)
+
+- Re-fetched all three governing documents and PR #1 before continuing. PR #1 is Open / Draft / Unmerged, targets `main`, and its live head was `6ee46838e90ce468c76bc7cd004e70415a356cb5` at the start of this continuation. The active branch name is unchanged.
+- Reconciled the current design position: Motivation `origin_class` is evidence provenance, not ownership; Goal activation is intention only, not execution; the existing Goal lifecycle does not yet establish completion, abandonment, expiry, blockage, supersession or outcome learning.
+- Added design §3.14 to `docs/design/cross-episode-evidence-and-preference-revision-contract.md`. It separates intention state, ASM execution history, observed outcome evidence and CSD outcome decisions; defines proposed Goal lifecycle vocabulary and fail-closed transition rules; requires criterion-matching evidence for completion; and keeps outcome learning separate from Motivation, user preference, AI-owned interest and self-model revisions.
+- This is a design/documentation change only. No source code or tests were changed or executed. No local tests, compile checks, Actions reruns or external platform operations were performed.
+- The last specifically known Actions run remains #814 (ID `44600378390`). The current available workflow lookup for the documentation head returned no PR-triggered runs; it does not establish a newer push-run inventory. Do not infer that CI is green. The known #814 runner-allocation diagnosis and quota wait remain unchanged pending the planned Billing check around 2026-12-02.
+- Implementation gate remains closed: after Billing confirms included Actions usage has reset, run `tests/test_csd_cross_episode_review.py` first, verify actual checkout/test steps and a pass, then run the full Ubuntu/Windows matrix. No paid usage is authorized.
+- Next design task: specify how outcome evidence can inform future planning without turning a single result into an unjustified preference/self-model change; then reconcile the progress and handoff documents. PR #1 must remain Draft / Open / Unmerged; do not merge, rebase, force-sync or synchronize the fork.
