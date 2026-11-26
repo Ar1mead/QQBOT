@@ -194,3 +194,16 @@ The journal record is shaped to match the existing exact-key mapper in `adapters
 - No `stream_ref`, token, raw QQ ID, or unrecognized convenience field is added to an individual record.
 
 The Node test step has been added to the existing Ubuntu/Windows CSD matrix. The separate standalone workflow was removed to avoid duplicate runs. No passing result has yet been confirmed through the available status lookup; treat these files as unverified until both matrix jobs finish successfully.
+
+## 9. Live upstream topology check — 2026-11-27
+
+A read-only check of current `Mieksido/surfcore` upstream found:
+
+- Current upstream `main` is package version **0.8.9**, commit `0ce8580048d3dddb21860114edb8b115d5d79d1e`. This blueprint remains pinned to the separately reviewed v0.8.8 baseline `0deb8261afe4c31b3127759ee4de36a1439cf422`; do not silently retarget the patch.
+- The user's local SurfCore was previously recorded as v0.8.8 at `E:\deepseek（chajian）\SurfCore`, but its exact commit was not recorded or inspected in this audit. Before any patch is prepared for the local installation, read its actual version/HEAD and compare the callback site. Do not reinstall, overwrite, or modify the existing installation without a separately explained and approved step.
+- The DSH plugin host and QQ Bridge are separate processes. The extension host's `api.on()/api.emit()` is its own extension event bus; extensions are dynamically imported into the DSH plugin process and are not OS sandboxes. They do not receive raw QQ message callbacks through that API.
+- Raw OneBot messages arrive in the independent `src/bridge.js` process through `bot.onPrivateMessage()` and `bot.onGroupMessage()`. In current upstream v0.8.9, both callbacks self-filter and then call `handleIncoming()`; the observation tap belongs after the self-message guard and before that call. This matches the intended callback placement in §§1–2.
+- The bridge already imports `hardenDir` and uses it for its state directory; `src/state-acl.mjs` also exports `hardenFile` for credential files. Reuse only after testing the exact journal/key paths and Windows ACL behavior. The reference journal still has no key bootstrap caller.
+- The existing `qq-public-feed.jsonl` is a separate legacy group feed; current bridge code writes group/sender IDs and sender display name into it. It is not the new journal, must not be reused as the CSD source, and needs a separate privacy/retention decision if the broader project later requires all local persistent files to be pseudonymized.
+
+**Status:** upstream source inspection only. No local SurfCore source or files were read or modified. No real QQ account was connected. This does not change the Stage 0 Billing-first gate.
