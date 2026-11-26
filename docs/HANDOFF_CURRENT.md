@@ -898,3 +898,47 @@ The previous export edit in core/csd/__init__.py accidentally inserted literal b
 Do not narrow the project to a memory plugin. The target remains a persistent individual AI with autobiographical continuity, evolving self-model/preferences/interests, autonomous but bounded internal activity, private home, event- and AI-requested wakeups, long-term project continuity, optional research/creation/retrospection/rest, queued proactive contact, graded external permissions, and action-result evaluation/rollback. Keep the useful `sonopdx/ai-companion-pi` ideas while avoiding fixed wake-up quotas, diary quotas, unrestricted tools, or treating runtime/SurfCore as the owner of identity.
 
 No local test, compile, Windows runtime, or real cloud API smoke test has been executed in this session. No PR merge or branch synchronization was performed.
+
+
+## 1.2 Newest continuation checkpoint — Goal outcome design (2026-11-26)
+
+**Use this section as the current handoff.** It supersedes older "next exact work item" instructions above where they still say the durable review-record tests do not exist or describe the earlier 2026-11-20 checkpoint. The durable review-record tests have since been added, but they remain unexecuted.
+
+### Live repository state before this handoff update
+
+- Repository: `Ar1mead/QQBOT`.
+- Active branch: `feature/csd-cognitive-memory-slice`.
+- PR #1 live head before this handoff commit: `23b9d4a1d220501f7af350e422b7ef45bdfb4a12`.
+- PR #1 remains Open / Draft / Unmerged, base `main`. Never merge it.
+- Latest code-bearing commit remains `b7e170ea525171a1d26c0f9604b863db19010887`; subsequent work in this continuation is documentation-only.
+- The three current document paths are:
+  - `docs/PROJECT_PROGRESS.md`
+  - `docs/HANDOFF_CURRENT.md`
+  - `docs/design/cross-episode-evidence-and-preference-revision-contract.md`
+
+### Current architecture and design checkpoint
+
+- CSD remains the sole authority for durable cognitive state and accepted revisions. Provider opinions, proposals and external observations are evidence/input, not state authority.
+- Motivation `origin_class` describes evidence origin, not ownership. It cannot classify a signal as a user preference or AI-owned interest.
+- Goal activation creates an intention only. It does not execute work, grant capability or prove completion.
+- Design §3.14 now defines the missing Goal outcome boundary: separate intention state, ASM execution history, observed outcome evidence and CSD outcome decisions; proposed candidate/active/paused/blocked/completed/abandoned/expired/superseded lifecycle; criterion-bound completion evidence; explicit fail-closed transitions; and a separate outcome-learning event.
+- Goal outcome learning must not silently revise Motivation, user preferences, AI-owned interests or self-model. Each such cognitive revision needs its own CSD proposal/review/decision/version history.
+- §3.14 is design only. No Goal outcome event family, completion evaluator, outcome-learning reducer or ASM execution integration is implemented.
+
+### Verification and Actions gate
+
+- The six dedicated durable review-record tests in `tests/test_csd_cross_episode_review.py` exist but have **not** been executed.
+- Latest specifically known Actions run is #814 (ID `44600378390`). Its Ubuntu and Windows jobs failed before runner allocation in the earlier inspection; no test result is established.
+- A fresh Jobs lookup for #814 still reports both matrix jobs as failed. The current connector's step summaries returned no step records for either job. Do not describe this as a code/test failure or pass.
+- GitHub Free included Actions compute was shown exhausted at $12/$12 on 2026-11-20; user has no payment method and has not authorized charges. This remains the strongest explanation for pre-runner failure, not an explicit error string from the job payload.
+- Around 2026-12-02, first inspect Billing and confirm included usage actually reset. Then run the focused review-record suite and verify checkout/test steps actually execute. Only after that suite passes, run the full Ubuntu/Windows matrix. Do not run local tests or rerun Actions before this checkpoint. Do not enable paid usage or make the private repository public.
+
+### Next work
+
+1. Continue low-risk design work on how outcome evidence informs planning without automatically changing preferences, interests or self-model.
+2. Reconcile all three documents after each meaningful design checkpoint.
+3. Keep implementation blocked until the focused review-record suite and full Ubuntu/Windows matrix pass.
+4. Do not implement decision-time acceptance API, preference/self-model reducers or Life Engine wiring before that gate.
+5. Re-fetch live branch/PR/Actions state at the start of the next continuation. Keep PR #1 Draft / Open / Unmerged. Do not merge, rebase, force-sync or synchronize the fork.
+
+No source code or tests were modified or executed in this continuation. No local environment, QQ/Bilibili account, DSH runtime, SurfCore integration, or external side effect was touched.
