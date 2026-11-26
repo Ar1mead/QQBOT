@@ -981,3 +981,50 @@ This subsection supersedes §1.3's next-work item to perform the §§3.11–3.15
 - PR #1 at handoff preparation: `open`, Draft=`true`, Merged=`false`, head=`45d18429a83ec107de12cbbc02b3a646f979f3db`. The next handoff commit advances the branch; re-fetch live state next time.
 - No source code/tests changed or executed. No local tests or Actions reruns. Next formal verification checkpoint remains around 2026-12-02, after checking Billing for actual included-usage reset; focused review-record suite first, then full Ubuntu/Windows matrix.
 - Next design work: audit the proposed owner/subject and preference/self-model revision contract against the complete project architecture, then consolidate outdated progress/handoff statements. Do not implement reducers or Life Engine wiring before the test gate.
+
+
+## 1.5 Latest continuation — subject ownership and evidence attribution (2026-11-26)
+
+This section is the current handoff and supersedes earlier next-work items that described the subject/owner contract as unfinished.
+
+### Live state at start of this continuation
+
+- Repository: `Ar1mead/QQBOT`.
+- Active branch: `feature/csd-cognitive-memory-slice`.
+- PR #1: Open / Draft / Unmerged, base `main`; live head at start: `2d8b7c30a31c5a3a93b98ddc0122eb9e89561368`.
+- Latest code-bearing commit remains `b7e170ea525171a1d26c0f9604b863db19010887`; this continuation changes documentation only.
+- No PR merge, rebase, force-sync or fork synchronization is authorized.
+
+### What code currently enforces
+
+- `core/csd/cross_episode_proposals.py` v1 supports `preference_candidate` with owner `user` and `interest_candidate` with owner `ai`; it enforces matching pairs and separate coarse non-sensitive domain allowlists at proposal construction and persisted-event validation.
+- These candidates remain pending-shadow. They cannot revise accepted preferences/interests, mutate self-model, rank Life Engine activities or grant ASM capabilities.
+- This is only a coarse type guard. It does not yet define canonical subject references, complete subject-attribution evidence, voluntary AI-choice records or a distinct AI self-model claim family.
+- Motivation `origin_class` remains evidence provenance/origin, not owner or subject class.
+
+### New design contract
+
+- Added §3.17 to `docs/design/cross-episode-evidence-and-preference-revision-contract.md`.
+- It separates CSD state authority, claim subject class, canonical subject reference and evidence provenance.
+- It defines three distinct future claim families: user preference, AI-owned interest and AI self-model. Topic choice does not prove capability; task success does not prove interest.
+- AI-owned interest is operationally grounded in meaningful, attributable AI-selected activity among allowed alternatives. User-requested work, passive exposure/autoplay, mandatory or scheduled activity, and model self-description alone do not qualify as proof of AI interest.
+- User corrections about the user's own preferences receive high-priority review; user constraints on AI behavior are not misclassified as proof of the AI's own preference. AI-owned revisions remain CSD-governed and cannot override user constraints or safety policy.
+- Subject identity cannot be relabelled or transferred across revisions. Ambiguous subject attribution and unresolved material conflicts fail closed.
+- The contract explicitly makes no claim about consciousness, sentience or human-like feelings.
+
+### Verification gate — unchanged
+
+- No source code or tests were changed or executed in this continuation.
+- No local tests, compile checks, Actions reruns, real platform access or paid usage occurred.
+- The six dedicated tests in `tests/test_csd_cross_episode_review.py` remain unexecuted.
+- Latest specifically known hosted Actions evidence remains Run #814, whose jobs failed before runner allocation with no test steps. The current commit-associated PR-run lookup returned no runs; this is not a CI pass.
+- Around 2026-12-02, first inspect Billing and confirm included Actions usage actually reset. Then run the focused review-record suite, verify real checkout/test steps and a pass, and only then run the full Ubuntu/Windows matrix. No local tests or paid usage before that checkpoint.
+
+### Next work
+
+1. Continue static design review of how canonical subject references are established and bound to the actual AI individual/user identity across multiple users, account scopes and Recovery.
+2. Check whether the current observation and event provenance schemas can supply the proposed voluntary-choice evidence without trusting model-authored claims.
+3. Reconcile any resulting design changes across the design contract, progress ledger and handoff.
+4. Do not implement subject-reference fields, accepted revision reducers, decision-time acceptance API or Life Engine wiring before the existing focused and full hosted test gates pass.
+
+No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential or external side effect was touched.
