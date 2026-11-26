@@ -2211,3 +2211,13 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Confirmed `.github/workflows/csd-cognitive-slice.yml` path filters include `core/csd/**` and `adapters/**` for push and pull request. It explicitly lists existing adapter/CSD tests; new standalone test files should be added to the explicit list as well.
 - Added design §3.24 with a bounded proposed source footprint and focused acceptance suites for Stage 1A host pseudonymization, Stage 1B CSD subject registry, and Stage 1C coordinated key/database recovery. Each stage must pass focused hosted tests and then the full Ubuntu/Windows matrix before the next stage.
 - No source/test files were created or changed; no tests or Actions were run. No local testing, runner reruns, external platform operations or paid usage occurred. Stage 0 Billing-first gate remains in force.
+
+
+## Live continuation audit — 2026-11-26 (legacy Observation v2 write-bypass review)
+
+- Re-read the current source after the §3.22–3.24 identity/privacy design. Confirmed `adapters/platforms/surfcore/mapping.py` still exposes `map_surfcore_record_to_csd_event()` and `map_surfcore_qq_batch()`, which can construct CSD Observation v2 events directly from raw SurfCore references. The helpers are in the worker-safe mapping module; their “host-only” docstrings/lazy imports do not enforce a trust boundary.
+- Confirmed `adapters/csd_mapping.py::observation_evidence_to_csd_event()` copies account/context/actor and other source references into the durable v2 payload without pseudonymization.
+- Confirmed `core/csd/cognitive.py::_validate_event()` publicly allows `OBSERVATION_EVENT_V2`; `submit_event()` therefore accepts new raw-reference v2 events. The v2 validator checks shape, content digest, coverage and `untrusted=true`, but not opaque identity references or trusted-host provenance.
+- This means adding an HMAC helper alone would leave a bypass. Design §3.25 now requires separate historical v2 read/Recovery compatibility, closure of raw v2 public new-write paths, a new reserved host-attested write path, relocation of CSD conversion out of the worker-safe mapper, and adversarial append/direct-read/Recovery tests.
+- The worker host remains an injected-executor interface, not a production OS sandbox. Identity keys must remain host-only; do not claim untrusted worker isolation until the real Windows/Linux isolation gates pass.
+- Design-only update. No source/test files changed or created, no tests/compile checks/local tests/Actions reruns, no platform operations and no paid usage. PR #1 remains Open/Draft/Unmerged. The Stage 0 Billing-first checkpoint around 2026-12-02 remains unchanged.
