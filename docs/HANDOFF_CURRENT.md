@@ -1118,3 +1118,12 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Current `WorkerHost` is only an injected-executor interface. Production Windows/Linux OS isolation remains unimplemented. Do not expose the identity key to workers or claim third-party isolation before the OS gate passes.
 - No code or tests changed/created/executed; no local tests, compile checks, Actions reruns, external platform operations or paid usage. No merge/rebase/fork sync. PR #1 remains Open/Draft/Unmerged.
 - Next: keep the Stage 0 gate closed until the Billing check around 2026-12-02. After it resets, run `tests/test_csd_cross_episode_review.py` first, inspect actual runner allocation and executed steps, then the full Ubuntu/Windows matrix. Do not implement Stage 1A before those gates pass.
+
+
+## 1.14 Existing QQ journal HMAC boundary — 2026-11-26
+
+- Correction/qualification to §1.10–1.13: the dedicated `integrations/surfcore-qq-journal/observation-journal.mjs` already HMAC-pseudonymizes QQ account, conversation, sender, source-message and record references before writing its JSONL journal. It requires a host-supplied key of at least 32 bytes and a secure-directory ACL callback, and validates opaque reference formats during recovery.
+- The Node test `observation-journal.test.mjs` verifies a captured private QQ record does not persist the raw bot account ID, sender ID or source message ID. The normal dedicated QQ journal path should therefore not be described as currently persisting raw QQ identifiers.
+- Still missing: repository-owned key bootstrap/provider, key ID/version, rotation/dual-key migration, coordinated journal+CSD backup/restore, and proof that production bootstrap securely stores and restores the caller-supplied key. The Python mapper accepts arbitrary DTO references and does not prove they came from the HMAC-protected journal; generic public CSD Observation v2 submission remains a raw-reference bypass for other callers.
+- Design §3.26 records the positive existing implementation and remaining gaps. Reuse its HMAC domain separation where possible; do not introduce a second pseudonym scheme without a compatibility reason.
+- No source/test changes or execution; no local tests, compile checks, Actions reruns, external platform operations or paid usage. Stage 0 remains Billing-first around 2026-12-02.
