@@ -4,7 +4,7 @@
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
 **最近代码提交：** `b7e170ea525171a1d26c0f9604b863db19010887`（reviewer attribution guard；测试未执行）  
-**当前分支 / PR #1 head（本轮继续工作前实时核对）：** `be139524f9d41b32b688e25134deac82b690110a`（本轮文档同步提交后会推进；下次续接仍须重新读取）  
+**当前分支 / PR #1 head（本轮文档更新前实时核对）：** `4d0475f397d1a7a84c071ec08e528fda29be5a72`（后续为文档专用提交；下次续接仍须重新读取）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`
 
@@ -54,6 +54,15 @@
 - Static review of the generic CSD decision path confirms it is memory-specific, not a reusable generic revision reducer. The shared state_version counts accepted decision events; proposal/observation/advisory-review events do not advance it. A future accepted preference/self-model revision must advance it once per atomic revision event.
 - Design §3.12 now lists all integration points for a dedicated revision event family: public-submit reservation, event-local and historical validation, replay indexing and state-version calculation, atomic projection reducer, Recovery allowlist/replay, projection consistency, idempotency and transaction semantics. It also specifies immutable version history, correction/retirement semantics, and strict separation between user preferences and AI-owned interests.
 - No code or tests changed or executed. Do not implement the reducer or Life Engine connection until the six focused review-record tests and then the full Ubuntu/Windows matrix pass on a real runner.
+
+
+### 0.5 Motivation and Goal lifecycle audit — 2026-11-26
+
+- Static review confirms Motivation uses immutable signal versions plus a latest projection checked against accepted decision events; updates bind exact target versions, preserve evidence history and defer stale state. Interest maturity requires distinct voluntary encounters rather than passive exposure alone.
+- Motivation `origin_class` is evidence-origin classification, not ownership. It cannot distinguish a user's preference from an AI-owned interest. Future preference/self-model schema must explicitly encode owner/subject; do not reuse origin_class as a substitute.
+- Goals preserve exact historical motivation signal versions. Candidate batch, activation and pause/resume are CSD decisions with immutable goal versions and Recovery reconciliation. A multi-goal batch increments shared state_version once; each separate accepted activation/pause/resume event increments it once.
+- Activation/pause/resume change intention status only, not task execution or capability. The current goal lifecycle has no explicit completed/abandoned/expired/blocked/superseded or outcome-learning contract. Design these before claiming complete autonomous project lifecycle; never infer completion from an attempted action or elapsed time.
+- Design §3.13 records reusable patterns and semantic boundaries. No code or tests changed or ran. The six cross-episode review-record tests remain unexecuted; keep the implementation gate closed until focused suite and full Ubuntu/Windows matrix pass after the scheduled quota check.
 
 
 ## 0. 新窗口启动规则
