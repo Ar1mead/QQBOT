@@ -1060,3 +1060,17 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Design §3.20 records these rules and adversarial tests. Canonical subject registry, account/actor mapping and Private Home identity binding remain future work.
 - No code or tests changed or executed. No local tests, compile checks, Actions reruns, external account operations or paid usage occurred.
 - Next: consolidate the owner/subject/actor/provenance/choice-attestation design into a short implementation sequence and identify the smallest safe first implementation after the verification gate. Do not start coding before the focused and full hosted tests pass.
+
+
+## 1.9 Implementation sequence and first safe slice — 2026-11-26
+
+- Added design §3.21 to turn the identity/subject/agency design into a staged implementation sequence.
+- Re-inspected CSD event validation/append paths: the event store has a closed event-family allowlist, internal-only reserved decision/review families, immutable event envelopes, duplicate checks and direct-read integrity validation. Identity must be implemented as CSD-owned events integrated with replay/Recovery, not as a model-supplied field or untrusted side table.
+- **Stage 0:** Around 2026-12-02 inspect Billing and confirm included usage actually reset; run `tests/test_csd_cross_episode_review.py` focused suite first; only after actual focused pass run full Ubuntu/Windows matrix. Do not run local tests, trigger unnecessary Actions, add payment details, enable paid overage or change repository visibility.
+- **Stage 1 — first code slice after Stage 0:** CSD-owned canonical subject registry for `user` and `ai_individual`; stable host-supplied AI identity; installation-scoped user subjects; trusted host-only platform actor binding; immutable relink/revoke history; separate `identity_version`; public-submit guards; direct-read/Recovery validation. Store opaque binding keys rather than raw platform identifiers/credentials. Do not infer cross-platform account links.
+- **Stage 2:** bind observation actor provenance and host-attested voluntary AI choices to canonical subjects and exact trigger/choice-set lineage.
+- **Stage 3:** carry subject/identity-version lineage through Motivation, Goal and cross-episode candidates; reject mixed-subject evidence; keep legacy records explicitly unbound unless a reviewed migration is defined.
+- **Stage 4:** only then implement accepted preference/interest/self-model revisions, correction/adjudication, planning projections and bounded Life Engine integration. No ASM permissions are implied.
+- First implementation explicitly excludes third-party profiling, group preference inference, raw identifier/credential storage, automatic account merging, consciousness/personality claims, accepted revision reducers and Life Engine/ASM wiring.
+- No source code or tests changed or executed in this continuation. No local tests, compile checks, Actions reruns, external account operations or paid usage occurred.
+- No merge/rebase/fork sync. PR #1 must remain Draft / Open / Unmerged.
