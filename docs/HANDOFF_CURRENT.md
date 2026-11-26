@@ -1,24 +1,24 @@
 # 个体 AI 项目 — 当前交接入口
 
-**最后核对：** 2026-11-20（UTC+08:00）  
+**最后核对：** 2026-11-26（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**最近代码提交（本次交接更新前）：** `b7e170ea525171a1d26c0f9604b863db19010887`（reviewer attribution guard；测试未执行）  
-**PR #1 head（本次交接更新前实时核对）：** `d51775a07fa990dd91edc1f22bcd25645c2d651d`（本次文档提交会继续推进 head；下次续接必须重新读取 PR metadata）  
+**最近代码提交：** `b7e170ea525171a1d26c0f9604b863db19010887`（reviewer attribution guard；测试未执行）  
+**当前分支 / PR #1 head（本次审查实时核对）：** `9d1a72d64d277af3e2b66b0ae9f3b210ae66f73f`（文档同步提交后会推进；下次续接仍须重新读取）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。开始工作时必须重新核对 GitHub 实际状态。PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
 
-## 0.1 本轮续接 checkpoint — 2026-11-20
+## 0.1 本轮续接 checkpoint — 2026-11-26
 
 - 本轮实时核对活动分支 `feature/csd-cognitive-memory-slice` 的 HEAD 与 PR #1 head：代码/测试 checkpoint 为 `0e7f213f3489030209cb5e4836c3120cfa586e8e`；随后仅同步项目文档。PR #1：Open、Draft=true、Merged=false，base `main`。继续禁止合并和同步 fork。
 - **跨经历审查记录事件已实现：** `cognition.cross_episode_review_recorded.v1` 由 CSD 保留 authority source；review event 绑定候选事件 ID/sequence/payload digest、review input digest、state version、reviewer identity/version 和规范化的 bounded opinion。append 时重建候选证据快照并校验 artifact 绑定；事件 ID 基于规范化 payload 确定，重复投递幂等。
 - **事件权威边界：** public `submit_event` 不得提交该保留事件类型或命名空间。append、duplicate acknowledgement、direct `get_event` read 和 Recovery 都使用同一个 event-local validator；审查记录仅是不可变审计事件，不接受候选、不修订偏好/自我模型，也不影响 Life Engine 排序、目标或 ASM。
 - **自动 CI 触发说明：** 代码/测试提交后自动产生 Runs #813/#814；两组 Ubuntu/Windows jobs 均未分配 runner（`runner_id=0`、无 steps），没有执行测试。它们是自动触发的 runner 分配失败，不是测试通过/失败结果。等待期不要再提交匹配 workflow path filters 的代码/测试文件，避免继续触发 hosted Actions；文档更新可以继续。
 - **Reviewer v2 审计加固：** `record_review()` 现在要求 artifact 中 reviewer ID/version 与当前 pipeline provider 身份完全一致，防止把另一个 reviewer 生成的 artifact 错记到当前 reviewer 名下。新增测试 `test_record_review_rejects_artifact_from_different_reviewer_identity`。此测试尚未执行；额度重置前不主动测试或重跑 Actions。
-- **本轮补齐 5 个专门测试：** 成功追加且 state_version 不变；public submit 伪造拒绝；重复投递幂等；在 payload 与 event-envelope hash 均重算后，direct read 仍拒绝被篡改的 reviewed_at；Recovery 重放审查记录且候选仍为 pending_shadow。测试文件：`tests/test_csd_cross_episode_review.py`。
-- **测试执行状态：未执行，不能标绿。** 对应 push Runs #809–#812 的 Ubuntu/Windows jobs 均在 1–2 秒内失败；直接读取 jobs JSON 均显示 `runner_id=0`、空 runner name、`steps=[]`。最新 job-log 下载返回 `BlobNotFound`。因此没有 checkout、compile 或 unittest 命令运行；这不是代码测试失败，也不是通过。
+- **目前共有 6 个专门测试：** 成功追加且 state_version 不变；public submit 伪造拒绝；重复投递幂等；在 payload 与 event-envelope hash 均重算后，direct read 仍拒绝被篡改的 reviewed_at；Recovery 重放审查记录且候选仍为 pending_shadow。测试文件：`tests/test_csd_cross_episode_review.py`。
+- **测试执行状态：未执行，不能标绿。** 对应 push Runs #809–#814 的 Ubuntu/Windows jobs 均在 runner 分配前失败；直接读取 jobs JSON 均显示 `runner_id=0`、空 runner name、`steps=[]`。最新 job-log 下载返回 `BlobNotFound`。因此没有 checkout、compile 或 unittest 命令运行；这不是代码测试失败，也不是通过。
 - **Runner 诊断现状：** workflow YAML 已被解析并创建 Ubuntu/Windows matrix jobs；问题发生在 runner 分配/启动之前。现有 API 暴露的信息无法确定根因，不得猜测 billing、配额、仓库设置或 GitHub 服务状态。后续应继续从 run/check-suite/Actions 配置可见信息收集证据；不要无目的连续重跑。
 - **额度耗尽期间的工作策略（2026-11-20）：** 暂停所有无意义 hosted Actions rerun/push，不要求用户添加付款方式或承担费用；Billing 页面当时显示额度约 12 天后重置。期间继续做低风险静态审查、设计收敛和测试准备，完整个体 AI 目标不变。CSD review-record 专门回归测试尚未执行，必须先在真实 runner 上通过 focused suite，再跑完整 Ubuntu/Windows matrix；在该测试门槛通过前，不实现 preference/self-model reducer，也不接入 Life Engine。若研究 self-hosted runner，先确认不会产生额外费用并取得用户同意。不得公开私有仓库。
 - **Actions 额度/付款方式已由用户确认：** Billing 页面显示 GitHub Free，本月 Actions compute `$12 / $12 included` 已用尽、billable usage `$0`（被 included-use discount 抵扣），Actions storage `0 / 0.5 GB`；用户明确没有付款方式。GitHub 官方计费文档说明：没有有效付款方式时，included compute 用尽后额外 Actions 使用会被阻止。该事实与 hosted Runner 在分配前失败（`runner_id=0`、无 steps）高度吻合，属于当前最有力根因，但 job 数据没有返回明确 billing error 字符串。Billing 页面显示额度约 12 天后重置。禁止未经明确同意添加付款方式或产生费用。零费用候选路径：等待额度重置；另行评估自托管 Runner。不得仅为免费分钟数擅自公开私有仓库。
@@ -30,6 +30,15 @@
 - **Decision-time revalidation 设计已补齐（仅设计，未实现）：** 已审查 `accepted_claim_references.py`、`cross_episode_proposals.py`、`cross_episode_review.py` 与 `cognitive.py` 的现有历史前缀解析、proposal append、review append 和通用 memory decision 路径。当前没有 cross-episode candidate 的 CSD acceptance/decision API。设计契约新增 3.11：决策必须在同一 CSD 写事务中重建决策前缀、拒绝 stale base state、重新解析全部 support/counter refs 并比对 lineage/digest/source IDs、重算独立 episode 数、验证 review 属于同 proposal 且 review-input digest 精确匹配、对不确定/冲突/敏感/需人工复核意见 fail closed，最后原子追加保留 decision event 并更新 reducer；Recovery/direct read 必须复现。旧 proposal 不允许静默刷新，stale 后只能不接受并重新生成 proposal。尚未实现 decision API/reducer，未运行测试。
 - **下一步严格顺序：** 额度重置前只做低风险静态审查、设计收敛和测试准备，不执行本地测试、不主动 rerun hosted Actions。预计 2026-12-02 先核实 included usage 已重置，再运行 `tests/test_csd_cross_episode_review.py` focused suite，确认真实 checkout/测试 steps 与结果后才标记通过；随后执行完整 Ubuntu/Windows matrix。专项测试实际通过前，不实现 preference/self-model reducer 或 Life Engine 接线。之后再做 decision-time revalidation、CSD 偏好/自我模型修订 reducer，并逐步恢复完整自主活动能力。
 - PR #1 必须保持 Draft / Open / Unmerged。不要合并，不要同步 fork 分支。
+
+
+### 0.2 Live audit delta — 2026-11-26
+
+- Live branch ref and PR #1 head matched at `9d1a72d64d277af3e2b66b0ae9f3b210ae66f73f`; PR remains Open / Draft / Unmerged, base `main`.
+- The current code-bearing commit is `b7e170ea525171a1d26c0f9604b863db19010887`; the later head movement is documentation-only. Latest ten Actions runs are #805–#814. Run #814 was inspected directly: both Ubuntu and Windows jobs have `runner_id=0`, blank runner names and empty steps. No tests ran.
+- The review-record suite has six focused cases including the reviewer identity/version mismatch guard. All remain unexecuted. The design document's older paragraph claiming these tests were absent was stale and has been corrected; this does not change the test gate.
+- Static code review: reviewer artifact attribution is checked against the active provider; proposal ID/sequence/digest, review-input digest and state version are rebound to a freshly reconstructed snapshot before append; reserved review events are validated through the CSD internal path and again on direct read/Recovery. Review records remain advisory only. No cross-episode decision/acceptance API or preference/self-model reducer exists.
+- No tests were run, no code was changed, no Actions rerun was requested, and no paid usage was enabled. Continue the existing plan: wait until around 2026-12-02, inspect Billing first, then run the focused review suite only if included usage has actually reset; run the full Ubuntu/Windows matrix only after the focused suite passes.
 
 
 ## 0. 新窗口启动规则
