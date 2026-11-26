@@ -965,3 +965,19 @@ This subsection supersedes the "Next work" list in §1.2 where that list names o
 - Progress ledger SHA at handoff preparation: `5080f2bd672af92507b2725a26a81db81a59a330`.
 - Design contract SHA at handoff preparation: `b82472cbebb6bde2dc03a85239331f3531e604fd`.
 - PR #1 at handoff preparation: state `open`, draft `true`, merged `false`, head `936e0c5188c733010d1792f6d714a081345d3b13`. This handoff commit will advance the branch head; re-fetch next time.
+
+
+## 1.4 Consistency audit and state-version rules — 2026-11-26
+
+This subsection supersedes §1.3's next-work item to perform the §§3.11–3.15 consistency audit.
+
+- Cross-checked design §§3.11–3.15 against the platform/runtime adapter contract. No authority conflict was found: CSD owns durable cognitive decisions; ASM owns external side-effect authorization/dispatch/verification; adapters provide bounded evidence/capabilities; Life Engine deliberates but does not mutate CSD state or bypass ASM.
+- Clarified that §3.13 is a static description of current Motivation/Goal implementation, while §§3.14–3.16 are future design only. The current Goal implementation still does not implement completed/blocked/abandoned/expired/superseded outcomes or outcome learning.
+- Added design §3.16 to define distinct outcome evidence, assessment proposals, CSD goal outcome decisions, lesson proposals and CSD-accepted planning lessons.
+- State-version rule: evidence/proposals/advisory reviews do not increment; each accepted authoritative goal transition increments once; each separately accepted durable planning-lesson revision increments once; a single atomic event updating multiple fields increments once. A goal outcome decision does not silently accept a lesson, and a lesson does not alter goal status.
+- Accepted lessons are bounded planning inputs only. They cannot force Life Engine activity, grant ASM permission, or silently revise preferences/interests/self-model. Scope/freshness and Recovery behavior are explicitly required.
+- Design contract SHA at handoff preparation: `702399162002c914c719def68a157516afa19a1e`.
+- Progress ledger SHA at handoff preparation: `ec6c956ba454c5c8375867e3d7517738de4c33ac`.
+- PR #1 at handoff preparation: `open`, Draft=`true`, Merged=`false`, head=`45d18429a83ec107de12cbbc02b3a646f979f3db`. The next handoff commit advances the branch; re-fetch live state next time.
+- No source code/tests changed or executed. No local tests or Actions reruns. Next formal verification checkpoint remains around 2026-12-02, after checking Billing for actual included-usage reset; focused review-record suite first, then full Ubuntu/Windows matrix.
+- Next design work: audit the proposed owner/subject and preference/self-model revision contract against the complete project architecture, then consolidate outdated progress/handoff statements. Do not implement reducers or Life Engine wiring before the test gate.
