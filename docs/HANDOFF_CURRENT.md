@@ -1074,3 +1074,13 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - First implementation explicitly excludes third-party profiling, group preference inference, raw identifier/credential storage, automatic account merging, consciousness/personality claims, accepted revision reducers and Life Engine/ASM wiring.
 - No source code or tests changed or executed in this continuation. No local tests, compile checks, Actions reruns, external account operations or paid usage occurred.
 - No merge/rebase/fork sync. PR #1 must remain Draft / Open / Unmerged.
+
+
+## 1.10 Platform identifier privacy and key lifecycle — 2026-11-26
+
+- Static audit of the current QQ data path found `sender_ref` is copied into ObservationEvidence `actor_ref`, and account/context/actor references are copied into durable CSD Observation v2 payloads. The CSD schema checks non-empty strings but does not ensure identifiers are opaque. SurfCore `observation_id` also uses unkeyed SHA-256 over platform/account_ref/record_id; this is not a safe identity pseudonym for guessable inputs.
+- Design §3.22 now requires trusted-host pseudonymization before CSD append, domain-separated keyed pseudonyms or random opaque tokens, distinct namespaces for account/actor/conversation/resource, and no raw identifiers/credentials in durable events, projections, logs or model context.
+- The design adds a platform-neutral host IdentityKeyProvider, protected key custody outside Git/CSD/model/worker, versioned rotation, fail-closed key-loss behavior, and coordinated key+database backup/restore.
+- Historical immutable events that already contain raw identifiers must not be silently rewritten. They remain legacy/unverified; a deployed database requires a separately approved retention/sanitization/rebuild policy including backups and exports.
+- No source code or tests changed or executed. No local tests, compile checks, Actions reruns, platform operations or paid usage.
+- Next: audit the existing CSD storage/backup configuration and worker trust boundary to ensure the proposed key provider can be placed outside untrusted workers and that no logs/export paths bypass pseudonymization. Then consolidate Stage 1 acceptance criteria. Do not implement before the Stage 0 focused/full hosted test gate.
