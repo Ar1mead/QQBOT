@@ -942,3 +942,66 @@ The current mapping path can persist identity-bearing references in Observation 
 - Existing raw-reference events remain marked legacy/unverified and are not silently treated as canonical identity evidence.
 
 **Status:** static audit and design clarification only. The current QQ mapping demonstrably carries `sender_ref` into `actor_ref` and persists account/context/actor references through the CSD mapper; no tokenization, key provider, rotation workflow, migration or tests were implemented or executed. Stage 0 verification gate remains unchanged.
+
+
+## 3.23 Trusted-host placement and revised first implementation slice — static audit (2026-11-26)
+
+The §3.22 key/pseudonym design must be placed at a real trust boundary, not merely added as a helper function.
+
+### Current repository facts
+
+- `WorkerHost` receives an injected `WorkerExecutor`; it does not itself create a sandbox. The worker isolation documents explicitly state that a production Windows executor and Linux sandbox backend are not yet implemented. The worker must remain unable to access host secrets or CSD storage.
+- The current SurfCore mapping is a pure worker-safe transformation. It returns `ObservationEvidence` with platform references; the host-only `adapters/csd_mapping.py` then converts that evidence directly into a public-submittable Observation v2 event. There is no canonical identity service or key-provider integration in this path today.
+- `CognitiveMemoryStore` opens a caller-supplied SQLite `database_path`, uses WAL by default and synchronous FULL by default, and keeps immutable event/payload tables. Its constructor has no identity-key provider or coordinated backup/restore interface.
+- The repository has no implemented identity-key provider, subject registry, or coordinated identity-key/CSD backup service. Existing SQLite integrity and Recovery mechanisms rebuild event-derived projections; they do not recreate an external HMAC key.
+
+These are current implementation limitations, not a claim that SQLite or the worker design cannot support the future contract.
+
+### Correct trust-boundary placement
+
+1. The adapter worker receives only the credentials/DTO access it needs under its own already-reviewed execution policy; it must never receive the identity pseudonymization key, canonical subject registry access, CSD database path, or identity-binding authority.
+2. Raw platform references may cross the bounded worker response only as transient, untrusted DTO fields required by the host. The trusted host validates the response and immediately pseudonymizes identity-bearing references before any CSD event, log, durable queue, prompt or projection is created.
+3. Introduce a host-owned identity service between validated worker result and CSD event mapping. The service owns the `IdentityKeyProvider`, canonical subject resolution and host-attestation metadata. The adapter mapper remains a pure untrusted-data mapper and cannot mint canonical subject IDs.
+4. The host submits a versioned, host-attested observation envelope through a CSD internal API. Public `submit_event` cannot create identity bindings, change subject ownership, or impersonate the host-attested path. CSD still validates schema, chronology, pseudonym namespace/key version, event identity and replay rules; trust in the host attestation comes from the controlled in-process call boundary, not a self-declared `source` string.
+5. If the current Observation v2 public submit route remains available for legacy/test evidence, it must not resolve canonical subjects from raw `account_ref`/`actor_ref` values. New identity-bearing observations use a new versioned schema/path; the legacy route is explicitly unbound.
+
+### Revised implementation order
+
+The first implementation is split so privacy is fixed before canonical identity becomes authoritative:
+
+**Stage 1A — host-side identifier pseudonymization (first code slice)**
+
+- Define the host-only `IdentityKeyProvider` interface and protected key bootstrap/availability checks.
+- Define canonical, domain-separated pseudonym input encoding and purpose-specific namespaces.
+- Add a host transformation that converts raw worker observation references into versioned opaque references before CSD mapping or any durable/logging path.
+- Ensure the worker receives no key and cannot read the CSD database or key store; retain the existing bounded protocol and fail-closed behavior.
+- Add a new host-attested Observation schema/API. Keep legacy Observation v2 events unbound; do not reinterpret raw `actor_ref` as a canonical subject.
+- This stage does not create user/AI subjects, merge accounts, or accept preference/interest revisions.
+
+**Stage 1B — CSD canonical subject registry**
+
+- Add CSD-reserved subject registration and actor-binding/revocation events, using the Stage 1A pseudonymous references and key versions.
+- Bind the stable host-configured AI-individual ID separately from platform account identity.
+- Add installation-scoped user subjects and explicit account-linking authorization. Default QQ mapping is one sender/account-scope tuple to one user subject.
+- Add identity_version, append-time/direct-read/Recovery validation, idempotency, and conflict rejection.
+- A host-attested identity binding must be created only through the trusted identity service; public event submission cannot create or supersede it.
+
+**Stage 1C — coordinated key/database recovery**
+
+- Define backup/restore of the CSD database and protected key material as one recovery unit. Verify key availability/version before declaring identity resolution healthy.
+- Database-only restore with missing key must report identity-incomplete and keep bindings unresolved. It must not auto-generate a replacement key.
+- Key rotation uses a dual-resolution/migration window and immutable binding-transition events; old event pseudonyms retain their original key version.
+
+Stages 2–4 in §3.21 remain unchanged after these stages pass.
+
+### Stage 1 acceptance tests — additional trust-boundary cases
+
+- Worker request/runtime has no access to IdentityKeyProvider, key material, CSD DB, or subject registry; attempts to read protected markers fail under the actual OS sandbox.
+- Host rejects malformed worker identity fields and pseudonymizes them before CSD append; raw references never appear in event payloads, projections, logs, telemetry or model context.
+- Calling the public CSD submit API with a forged host-attested envelope or identity-binding event is rejected.
+- A caller-supplied `source` string or adapter manifest cannot substitute for the trusted host call boundary.
+- Legacy Observation v2 events with raw references remain unbound and cannot be used for subject resolution.
+- Restoring database without the corresponding key is explicitly identity-incomplete; restoring the coordinated pair recovers the same subject bindings.
+- A key rotation interrupted at any point is idempotently resumable and never creates a second subject for the same actor.
+
+**Status:** static audit and sequence refinement only. No host identity service, key provider, new observation schema, subject event family, backup coordinator or tests were implemented or executed. Stage 0 remains mandatory before any source/test changes.
