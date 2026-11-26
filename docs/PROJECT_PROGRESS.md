@@ -2281,3 +2281,11 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Separate pseudonymization and attestation keys. Prefer asymmetric signing if the private key can be isolated from workers and other untrusted plugins; a shared MAC is acceptable only if both trusted endpoints can protect the secret. Verify SurfCore's actual plugin/process isolation before choosing key placement.
 - The attestation proof and key ID/version must be retained so CSD direct reads and Recovery can re-verify it. Public Observation v2 remains legacy/unbound; the new host-attested event family is internal-only. Cryptographic primitive and wire format remain open pending runtime trust-boundary confirmation.
 - No source/test changes or test execution. No local tests, compile checks, Actions reruns, platform operations or paid usage. Stage 0 Billing-first gate unchanged.
+
+## Live continuation audit — 2026-11-27 (QQ journal production-wiring check)
+
+- Inspected the complete repository tree for `integrations/surfcore-qq-journal/`. It contains the journal module, policy module and unit test only; no production caller, plugin registration, HTTP route/server, startup/bootstrap or package manifest was found. The only in-repository call to `createObservationJournal()` in the inspected integration is the test fixture.
+- Corrected the wording in design §§3.26–3.27: the HMAC logic is implemented in an isolated module, but there is no evidence it is wired into a live SurfCore ingress. Unit tests establish module behavior, not production deployment.
+- Consequently, do not claim a working QQ→journal→worker→CSD pipeline or that live QQ identifiers currently enter CSD. The code does show that mapper/CSD interfaces would accept unverified reference strings if invoked with such DTOs; the production ingress and host attestation are missing.
+- Stage 1A now begins by defining and wiring the actual trusted ingress, including key bootstrap/ACL, authenticated journal-to-host delivery, host-only CSD append, cursor/checkpoint ordering, and end-to-end replay/fail-closed tests. Reuse the isolated journal only after confirming actual SurfCore process placement.
+- No local SurfCore runtime was inspected or modified; no QQ account was connected and no live message was read. No source/test changes or test execution. Stage 0 Billing-first gate unchanged.
