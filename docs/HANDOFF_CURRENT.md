@@ -1178,3 +1178,11 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - 脱敏密钥与来源认证密钥分离。若采用非对称签名，私钥必须与 Worker 和其他不可信插件隔离，主机使用固定/版本化公钥验证；若采用 MAC，则只有在可信 journal 与 host 均可保护共享密钥、worker 和不可信插件无法访问时才考虑。先确认 SurfCore 实际进程/插件隔离，再决定密钥放置。
 - CSD 新 host-attested 事件需保留认证证明和 key ID/version，使 direct read 与 Recovery 能重新验证。旧 Observation v2 保持 legacy/unbound；新事件只允许可信主机内部路径创建。具体算法、wire schema 和 key bootstrap 暂不冻结。
 - 仅设计推进；无源代码/测试修改，无测试执行、无 Actions rerun、无平台操作或付费。Stage 0 Billing-first 门槛不变。
+
+## 16. 最新续接补充 — 2026-11-27（QQ Journal 尚未接入生产运行）
+
+- 检查仓库完整文件树后确认：`integrations/surfcore-qq-journal/` 目前只有 journal 实现、policy 模块和单元测试；没有生产调用者、SurfCore 插件注册/入口、HTTP route/server、启动初始化或 package manifest。已检查模块中 `createObservationJournal()` 的唯一仓库内调用是测试 fixture。
+- 修正前文措辞：HMAC 脱敏逻辑已作为独立模块实现，但没有证据证明它已接入实际 SurfCore 消息入口。单元测试只能证明模块行为，不能证明生产部署或实时数据链路。
+- 因此不能说 QQ→journal→worker→CSD 已经运行，也不能断言真实 QQ 标识目前正流入 CSD。当前能确认的是：若有调用者把 DTO 交给现有 mapper/CSD，接口会接受未认证的引用字符串；生产 ingress 与 host attestation 尚缺失。
+- Stage 1A 应先建立实际可信 ingress：明确 SurfCore 进程/插件信任位置，完成密钥 bootstrap/ACL、journal→host 来源认证、host-only CSD append、cursor/checkpoint 顺序，以及端到端重放和 fail-closed 测试。只有确认运行边界后再决定复用现有独立 HMAC 模块。
+- 本轮没有检查或修改用户本机 SurfCore，没有连接 QQ 账号，也没有读取真实消息。没有源代码/测试变更或测试执行；Stage 0 Billing-first 门槛不变。
