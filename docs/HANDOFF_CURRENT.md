@@ -1,10 +1,10 @@
 # 个体 AI 项目 — 当前交接入口
 
-**最后核对：** 2026-11-26（UTC+08:00）  
+**最后核对：** 2026-11-27（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
 **最近代码提交：** `b7e170ea525171a1d26c0f9604b863db19010887`（reviewer attribution guard；测试未执行）  
-**当前分支 / PR #1 head（本轮文档更新前实时核对）：** `4d0475f397d1a7a84c071ec08e528fda29be5a72`（后续为文档专用提交；下次续接仍须重新读取）  
+**当前分支 / PR #1 head（2026-11-27 本轮文档更新前实时核对）：** `ee465fbf5527bb5abcc9194678150e013735530e`（本轮随后仅有文档专用提交；下次续接仍须重新读取）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`
 
@@ -1137,3 +1137,13 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Added design §3.27 requiring full-record MAC/authentication, explicit key ID/version, stable stream identity independent of active key, dual-key verification/rotation, page-time validation, resumable rotation and coordinated journal+CSD+key backup/restore.
 - Additional tests must cover content-only tampering, post-open modification, key-ID resolution, old/new records across rotation, interrupted rotation and restore mismatch. Existing tests for malformed JSON, duplicate keys, truncated tails and raw-ID absence do not cover these cases.
 - No source or test changes/execution, local tests, compile checks, Actions reruns, platform operations or paid usage. PR #1 remains Open / Draft / Unmerged; no merge/rebase/fork sync. Stage 0 Billing-first checkpoint around 2026-12-02 remains in force.
+
+
+## 1.16 QQ journal account-scope and cross-account linkability — 2026-11-27
+
+- Exact live branch ref and PR #1 head before this documentation-only update: `ee465fbf5527bb5abcc9194678150e013735530e`; PR #1 is Open / Draft / Unmerged, base `main). Latest source-code checkpoint remains `b7e170ea525171a1d26c0f9604b863db19010887`; newer commits in this continuation are documentation-only. Re-read the branch ref next session rather than trusting a hash recorded here.
+- Source audit found `streamRef` includes the QQ account ID, but the HMAC inputs for `conversationRef`, `senderRef`, `externalRef` and `recordId` do not include `streamRef`. With the same HMAC key, matching sender/conversation/source-message IDs across two bot accounts produce matching pseudonyms.
+- The caller-supplied `hmacKey` API does not enforce a distinct key per account. Do not assume account isolation from undocumented key provisioning. This is a cross-account linkability issue and a mismatch with the journal v1 design, which specifies stream/account scope in record identity.
+- Added design §3.28. Required resolution: bind all pseudonyms to account stream scope (or formally derive per-account keys), use unambiguous canonical tuple encoding, preserve same-account deduplication, retain v1 as legacy, and never infer canonical user identity across accounts without explicit CSD-authorized linking.
+- Add same-key/two-account tests for account, conversation, sender, external-message and record references; also test explicit-only canonical subject linking.
+- This is design-only. No source/test changes or execution; no local tests, Actions reruns, platform operations or paid usage. Keep Stage 0 closed until the Billing-first check around 2026-12-02; then run `tests/test_csd_cross_episode_review.py` first and only proceed to the full Ubuntu/Windows matrix if actual runners and test steps execute.
