@@ -2113,3 +2113,13 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - The last specifically known Actions run remains #814 (ID `44600378390`). The current available workflow lookup for the documentation head returned no PR-triggered runs; it does not establish a newer push-run inventory. Do not infer that CI is green. The known #814 runner-allocation diagnosis and quota wait remain unchanged pending the planned Billing check around 2026-12-02.
 - Implementation gate remains closed: after Billing confirms included Actions usage has reset, run `tests/test_csd_cross_episode_review.py` first, verify actual checkout/test steps and a pass, then run the full Ubuntu/Windows matrix. No paid usage is authorized.
 - Next design task: specify how outcome evidence can inform future planning without turning a single result into an unjustified preference/self-model change; then reconcile the progress and handoff documents. PR #1 must remain Draft / Open / Unmerged; do not merge, rebase, force-sync or synchronize the fork.
+
+
+## Outcome-to-planning feedback boundary — 2026-11-26
+
+- Added design §3.15 to the cross-episode contract. It separates episode-local results, contextual planning constraints, reusable strategy hypotheses, and durable preference/interest/self-model revisions.
+- The central rule is that learning which method worked in a context is not evidence by itself of what the AI likes, what it values, or what its global capabilities are. Durable identity/preference changes still require the separate owner-aware CSD revision path.
+- Specified evidence attribution, distinct-episode independence, counterexample preservation, context/freshness scope, provider proposal limits, and the rule that planning may consult accepted scoped lessons without being forced to act.
+- Added adversarial design tests for single-episode overgeneralization, duplicate retries, contradictory outcomes, stale/context-mismatched lessons, changed runtime versions, tampered provenance and Recovery consistency.
+- Design only: no code or tests changed or executed. The verification gate and 2026-12-02 Billing-first test schedule are unchanged.
+- Design document update commit: `cb6ba5a28744da7480286dca12ddf567aca6d9aa`. The progress update itself follows the previous documentation head; re-fetch the final live branch/PR state after handoff synchronization.
