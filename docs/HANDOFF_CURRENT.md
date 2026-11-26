@@ -1108,3 +1108,13 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Existing `tests/test_csd_store.py` exercises a separate `CSDStore` class; it is not sufficient evidence for `CognitiveMemoryStore` coordinated identity-key recovery.
 - No code/tests changed or executed; no local tests, Actions reruns, external platform operations or paid usage.
 - Next: final live consistency check of branch, PR, document SHAs and Actions status; then stop at the agreed test gate rather than prematurely implementing or rerunning.
+
+
+## 1.13 Legacy Observation v2 write-bypass audit — 2026-11-26
+
+- Live code review found a concrete gap in the planned identity privacy boundary. `adapters/platforms/surfcore/mapping.py` still exposes `map_surfcore_record_to_csd_event()` and `map_surfcore_qq_batch()`, which construct CSD events from raw DTO references. These helpers live in the worker-safe mapper; a docstring/lazy import is not an authority boundary.
+- `adapters/csd_mapping.py` copies raw account/context/actor/source references into Observation v2 payloads. `core/csd/cognitive.py` publicly allows `OBSERVATION_EVENT_V2` in `submit_event()`; its schema validation checks strings/digest/untrusted status, not pseudonymization or host attestation. Thus a future HMAC helper would be bypassable unless the old public write path is closed.
+- Design §3.25 now specifies the fix: preserve legacy v2 direct-read/Recovery compatibility as explicitly unbound; reject new raw identity-bearing v2 public writes after migration; introduce a reserved versioned host-attested append path; move CSD event construction out of the worker-safe mapper; and require append/duplicate/direct-read/Recovery adversarial coverage.
+- Current `WorkerHost` is only an injected-executor interface. Production Windows/Linux OS isolation remains unimplemented. Do not expose the identity key to workers or claim third-party isolation before the OS gate passes.
+- No code or tests changed/created/executed; no local tests, compile checks, Actions reruns, external platform operations or paid usage. No merge/rebase/fork sync. PR #1 remains Open/Draft/Unmerged.
+- Next: keep the Stage 0 gate closed until the Billing check around 2026-12-02. After it resets, run `tests/test_csd_cross_episode_review.py` first, inspect actual runner allocation and executed steps, then the full Ubuntu/Windows matrix. Do not implement Stage 1A before those gates pass.
