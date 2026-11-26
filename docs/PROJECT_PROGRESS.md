@@ -2123,3 +2123,14 @@ The CSD-owned cross-episode review record was implemented after the earlier prog
 - Added adversarial design tests for single-episode overgeneralization, duplicate retries, contradictory outcomes, stale/context-mismatched lessons, changed runtime versions, tampered provenance and Recovery consistency.
 - Design only: no code or tests changed or executed. The verification gate and 2026-12-02 Billing-first test schedule are unchanged.
 - Design document update commit: `cb6ba5a28744da7480286dca12ddf567aca6d9aa`. The progress update itself follows the previous documentation head; re-fetch the final live branch/PR state after handoff synchronization.
+
+
+## Cross-contract consistency audit and state-version clarification — 2026-11-26
+
+- Re-read design §§3.11–3.15 alongside the platform/runtime adapter contract and the current project/handoff documents.
+- The architecture's authority boundaries are consistent with the new Goal outcome design: CSD owns durable cognitive decisions; ASM owns authorization/dispatch/verification of side effects; adapters only provide bounded observations/capabilities; Life Engine deliberates but does not write CSD state or bypass ASM.
+- Confirmed the implementation/design distinction: §3.13 describes what the current Motivation/Goal code actually implements; §3.14–3.15 specify future lifecycle and learning behavior, not present runtime capability. No current Goal completion/outcome-learning implementation is implied.
+- Found one underspecified integration point: how Goal outcome decisions and separately accepted planning lessons affect the shared CSD state version. Added §3.16 to define distinct evidence/proposal/decision/lesson stages, one state-version increment per accepted authoritative transition, no increment for advisory records, stale-proposal behavior, planning-projection scope/freshness, and Recovery/test requirements.
+- This prevents an outcome from implicitly creating a lesson, a lesson from implicitly completing a goal, or a planning hint from granting Life Engine/ASM authority. A goal decision and a separately accepted reusable lesson are two distinct state transitions; each advances the version once. One atomic multi-field event, if ever supported, advances it once.
+- Design-only documentation change. No source code or tests were modified or executed. No local tests, compile checks, or Actions reruns were performed.
+- Design contract update commit: `adcd4074d150ecac6dc86aad8b789f515f06bafc`. Formal test gate and Billing-first checkpoint around 2026-12-02 remain unchanged.
