@@ -679,3 +679,57 @@ This is an operational design definition. It does not assert subjective experien
 - Recovery reproduces exact subject identity, claim-family boundaries, evidence provenance, correction history and active revision projections.
 
 **Status:** design only. Existing v1 code enforces a coarse candidate-kind/owner/domain pairing and keeps proposals pending-shadow. It does not implement canonical subject references, AI-side voluntary-choice evidence, separate AI self-model claim families, accepted revision reducers or the above correction/adjudication protocol. No implementation or verification gate is changed.
+
+
+## 3.18 Existing interaction-choice events are evidence candidates, not proof of AI agency — static audit (2026-11-26)
+
+A follow-up static inspection of `core/csd/motivation.py`, `core/csd/cognitive.py`, `core/csd/goals.py` and `adapters/contracts/observation.py` checked whether the current event model can already prove the voluntary AI choices required by §3.17.
+
+### What exists today
+
+The current `experience.interaction_choice_recorded.v1` event contains an encounter ID, `subject_ref`, evidence kind, origin, context, `meaningful_alternatives`, `choice_set_refs`, `selected_ref`, optional origin/related event IDs, adapter component/version and session scope.
+
+Its validator enforces useful shape and chronology constraints:
+
+- Evidence kinds and origins are enumerated.
+- User-requested actions and platform autoplay require an earlier origin event; user-request and platform-recommendation origins are checked against earlier observation event kinds.
+- Voluntary selection and return-visit evidence require `internal_state` origin, a declared meaningful choice set with at least two entries, and a selected reference contained in that set.
+- A return visit must point to an earlier interaction event for the same subject and selected item, at a distinct later encounter/time.
+- The event source string must match the declared adapter component.
+
+Motivation then derives an `origin_class` from the evidence origins. Goal origin is derived from the historical motivation signal rather than caller-supplied directly.
+
+### What these checks do not establish
+
+The current validator does not yet provide the full attestation required to use these records as durable proof of an AI individual's self-directed interest:
+
+- `subject_ref` is checked as non-empty text, but the inspected path does not bind it to a canonical AI-individual identity supplied by a trusted host/CSD identity context.
+- `choice_set_refs` and `selected_ref` are checked as strings and membership, but the inspected validator does not resolve each alternative to an independently recorded, eligible choice option or prove that the alternatives were genuinely available to the AI.
+- Matching `event.source` to `interaction-adapter:<component>` checks internal consistency of two caller-provided labels; it is not, by itself, attestation that the named adapter/runtime made the observation.
+- The generic public event-submit guard reserves CSD decision/review event families, but does not reserve `INTERACTION_EVENT` to a CSD-owned attestation path. Therefore the event should not be treated as tamper-resistant proof of voluntary agency merely because it passes the current schema validator.
+- `internal_state`, `self_commitment` and `autonomous_question` are provenance labels. They do not independently prove that an action was optional, non-defaulted, not scheduler-forced, not user-requested and not required by policy.
+
+These are limitations of the current evidence contract, not evidence that existing Motivation/Goal behavior is otherwise invalid. Existing records remain useful as provenance-tagged motivation evidence under their current semantics. They must not be silently upgraded into the stronger AI-interest evidence defined in §3.17.
+
+### Required future evidence-attestation boundary
+
+Before AI-owned interest revisions can rely on voluntary-choice evidence, a future versioned event/API should:
+
+1. Bind the subject to a canonical AI-individual reference issued by the host/CSD context; reject model/caller-selected subject substitution.
+2. Bind the choice episode to a CSD-validated decision record that identifies the decision-maker, initiating cause, allowed alternatives, selected alternative, constraints and whether the activity was mandatory, defaulted, user-requested, scheduled or optional.
+3. Resolve choice-set entries to canonical earlier events or host-issued opaque option records. A list of arbitrary strings is not sufficient evidence that alternatives existed.
+4. Establish adapter/runtime provenance through the trusted host dispatch path and pinned adapter manifest/version; a self-declared source string alone is not attestation.
+5. Preserve the original user request, policy constraint, scheduler/wakeup cause and other causal triggers so that a constrained action cannot be reclassified as voluntary after the fact.
+6. Make the event immutable and validate its subject, choice lineage and attestation on append, direct read and Recovery. Public callers may submit observations or proposals, but cannot forge the host's record of an AI-internal choice.
+7. Keep this evidence advisory until the separate CSD-owned interest revision decision accepts it. Even an attested voluntary choice does not itself create an accepted interest or grant activity/tool permissions.
+
+### Additional adversarial tests
+
+- A caller cannot forge an AI-internal choice by supplying `origin=internal_state`, `subject_ref`, `choice_set_refs`, `selected_ref` and a matching adapter source string.
+- An unknown, substituted or non-AI subject reference is rejected.
+- A selected option not present in the canonical prior choice set, or an option that was never actually available, is rejected.
+- User-requested, scheduler-triggered, mandatory, defaulted and policy-required actions cannot be relabelled as voluntary by changing the evidence-kind/origin fields.
+- A later change to adapter identity, decision provenance or choice lineage is detected by direct read and Recovery, including when outer event hashes are recomputed.
+- A valid attested choice remains evidence only; it does not directly accept an interest, change self-model or authorize Life Engine/ASM activity.
+
+**Status:** static audit and design clarification only. The current interaction event remains in place for existing Motivation semantics. No attested-choice event/API, canonical AI subject binding, choice-option resolver or new tests were implemented or executed. This finding does not change the existing hosted-test gate.
