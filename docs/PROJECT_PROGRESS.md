@@ -2423,7 +2423,7 @@ Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest
 - Added regression coverage for boolean counters, count/sequence mismatch, malformed last-event shape, and a snapshot whose final-event ID is altered while its digest is recomputed.
 - Commits: `cd84d7571d29dc78bc597b41bfd2e71fc63c7959` (validator/recovery), `4c8941e5311b60610e4ce8eda4ee479d3f902f02` (tests), `1d56e654cacec4666c6f4a28a5d3baeff8863087` (test import correction).
 - Scope note: `store.py` is the original generic persistence spike. The main typed cognitive store is `cognitive.py`; this fix does not imply the main cognitive store has been runtime-validated.
-- **Not executed:** tests remain unrun and no Actions workflow was triggered. Windows SQLite `SQLITE_READONLY` remains unresolved. Honor the 2026-12-02 quota check; keep WAL and `synchronous=FULL`.
+- **Not executed locally:** tests remain unrun. No Actions were manually dispatched or rerun. Because the changed test file matches the workflow push path filter, an automatic push-triggered run may exist; its status is unverified through the available PR-only run query. Windows SQLite `SQLITE_READONLY` remains unresolved. Honor the 2026-12-02 quota check; keep WAL and `synchronous=FULL`.
 - PR #1 remains Open / Draft / Unmerged. Never merge.
 
 
@@ -2433,7 +2433,7 @@ Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest
 - Confirmed by static inspection that the typed cognitive store uses one global authoritative decision replay context for memory, motivation, and goal decision families. Decisions are checked against the state version reconstructed from the preceding event prefix; boolean values are explicitly excluded from integer state-version fields.
 - Memory decisions bind proposal ID/event ID, evidence references, evidence chronology/type, policy family, and semantic-review history. Motivation decisions are re-evaluated deterministically from their historical proposal and interaction evidence. Goal batch, activation, and pause/resume decisions are replayed in sequence against reconstructed goal and signal state; projection tables are reconciled against the event history.
 - Recovery holds its writer transaction while validating the event stream and rebuilding projections, and does not call an external evaluator/provider. The reviewed path is designed to rebuild local state only, not replay external side effects.
-- No new correctness defect was confirmed in this static pass. This is not proof of runtime correctness: no tests were run, and no Actions workflow was triggered.
+- No new correctness defect was confirmed in this static pass. This is not proof of runtime correctness: no tests were run locally, no Actions were manually dispatched or rerun, and any automatic push-triggered run status is unverified.
 - Review limitation: static review covered the key decision/recovery paths and named regression suites, not every code path in the repository. The Windows SQLite `SQLITE_READONLY` issue remains unresolved.
 - Follow-up before enabling autonomous life actions: add/retain end-to-end tests covering mixed memory/motivation/goal events through crash/reopen/Recovery, plus explicit interruption during Recovery and validation that no external side effect is replayed.
 - Preserve the existing quota plan; do not trigger hosted Actions until the documented quota check. Preserve WAL and `synchronous=FULL`. PR #1 remains Draft / Open / Unmerged.
@@ -2444,7 +2444,7 @@ Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest
 - Added `test_interrupted_recovery_rolls_back_all_projection_changes` in `tests/test_csd_cognitive.py`.
 - The test first creates and accepts a grounded memory, snapshots the expected memory/proposal projections, then injects a deterministic exception during the second event of Recovery replay. It asserts the transaction rollback preserves the pre-Recovery projections and that normal consistency-checked reads still succeed after the injected failure is removed.
 - Code/test commit: `b748d460070e819b0ad5f5d39a1b9ade2cd09087`.
-- **Not executed:** no local test run and no hosted Actions run. This is regression coverage only, not a passing result.
+- **Not executed locally:** no local test run. No Actions were manually dispatched or rerun; automatic push-triggered run status is unverified. This is regression coverage only, not a passing result.
 - This test targets the typed cognitive store's Recovery transaction boundary. It complements the generic `store.py` snapshot validator work but does not resolve Windows SQLite `SQLITE_READONLY`.
 - Preserve WAL and `synchronous=FULL`; do not trigger hosted Actions before the quota check. PR #1 remains Draft / Open / Unmerged.
 
@@ -2455,7 +2455,7 @@ Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest
 - The synthetic event history accepts one episodic memory, one motivation signal, creates a goal from that signal, explicitly activates it, then pauses it. The test checks the shared authoritative state version and all three projections before Recovery, after Recovery, and after closing/reopening the same SQLite database.
 - The expected state version is 5: one accepted memory decision, one accepted motivation decision, one goal-batch decision, one activation decision, and one pause decision. The goal must remain paused at goal version 3.
 - Code/test commit: `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e`.
-- **Not executed:** no local tests were run and no GitHub Actions workflow was triggered. This is added regression coverage only, not a pass.
+- **Not executed locally:** no local tests were run. No Actions were manually dispatched or rerun; because the test path matches the push filter, automatic push-triggered run status is unverified. This is added regression coverage only, not a pass.
 - Static review still finds no newly confirmed defect in the reviewed motivation/goal transition paths. This test closes one specific mixed-family Recovery/reopen coverage gap; it does not establish production runtime correctness.
 - Windows SQLite `SQLITE_READONLY` remains unresolved. Preserve WAL and `synchronous=FULL`; do not trigger Actions before the documented quota check. PR #1 remains Draft / Open / Unmerged.
 
@@ -2470,7 +2470,7 @@ Static review covered `core/csd/accepted_claim_references.py`, `core/csd/cross_e
 - Reviewer input is rebuilt from the proposal's historical prefix, including exact source observations and support/counter-evidence. Durable review records bind proposal identity/sequence/digests, review-input digest, state version, reviewer ID/version, and bounded opinion fields; Recovery/direct reads revalidate this record against the same historical boundary.
 - A later state change does not rewrite what an earlier reviewer saw. It does mean the proposal cannot be treated as a current accepted preference without a separate decision-time revalidation path.
 - The cross-episode proposal remains `pending_shadow`; review is an advisory audit event and does not advance authoritative state_version, create accepted preference/self-model state, or authorize Life Engine activity. No decision-time acceptance API, complete-review-set adjudication, preference revision reducer, or Life Engine consumption is implemented.
-- Existing focused tests cover stale append, lineage/digest tampering, duplicate references, owner/domain separation, review provenance, forged review denial, tampering, and Recovery replay. They remain **unexecuted**; no Actions were triggered.
+- Existing focused tests cover stale append, lineage/digest tampering, duplicate references, owner/domain separation, review provenance, forged review denial, tampering, and Recovery replay. They remain **unexecuted locally**; no Actions were manually dispatched or rerun. Automatic push-triggered run status is unverified.
 - No new correctness defect was confirmed in the reviewed proposal/review paths. This is static inspection only, not runtime verification. Keep the acceptance/revision gate closed until decision-time revalidation and its adversarial tests are designed and implemented.
 - PR #1 remains Draft / Open / Unmerged. Windows SQLite `SQLITE_READONLY` remains unresolved; preserve WAL and `synchronous=FULL`; do not trigger Actions before the quota check.
 
@@ -2482,3 +2482,12 @@ Static review covered `core/csd/accepted_claim_references.py`, `core/csd/cross_e
 - The available GitHub connector's `fetch_commit_workflow_runs` endpoint returns PR-triggered runs only; its empty result, and an empty combined-status list, do **not** establish that no push-triggered run exists. The push-run status is unverified in this session.
 - Correction to the preceding mixed-Recovery checkpoint wording: "no Actions were triggered" was too broad. The accurate statement is "no Actions were manually triggered; automatic push-triggered run status is unknown." No test execution/pass is claimed.
 - Do not manually rerun or dispatch workflows before the documented quota check. PR #1 remains Draft / Open / Unmerged.
+
+
+## Current continuation checkpoint — 2026-11-27
+
+- Revalidated the current feature branch files and the mixed-family Recovery regression. The test explicitly exercises accepted memory, accepted motivation signal, goal creation, activation, pause, Recovery, and database close/reopen; its expected global state version is 5 and final goal version is 3/paused. The test remains unexecuted.
+- Corrected stale CI wording above: no Actions were manually dispatched or rerun. The code push changed `tests/test_csd_goals.py`, which matches the workflow's push path filter. An automatic push-triggered run may exist; the available connector query is PR-run-only, so the automatic run status is unverified. Do not report this as "no Actions were triggered".
+- Current documented code/test checkpoint remains `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e`; latest documentation-only commits are tracked in the branch history. PR #1 must remain Draft / Open / Unmerged.
+- Next static-review focus: goal/motivation lifecycle evidence invalidation and historical snapshots, especially whether old signal revisions remain immutable and whether goal creation/activation can rely on a signal that is later paused/resolved. Then inspect Life Engine sink authorization and ensure lifecycle transitions cannot be confused with autonomous task execution.
+- Do not run local tests or trigger/rerun Actions before the documented quota check. Windows SQLite `SQLITE_READONLY` remains unresolved. Preserve WAL and `synchronous=FULL`; do not add speculative retries, process locks, sidecar deletion, or durability changes.
