@@ -11,6 +11,21 @@
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。开始工作时必须重新核对 GitHub 实际状态。PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
 
+## 0.6 CSD persistence audit — 2026-11-27
+
+Live code review of `core/csd/store.py` and `tests/test_csd_store.py` found three additional risks. These are static findings only; no code was changed and no tests were executed.
+
+- **Constructor resource leak:** once `sqlite3.connect()` succeeds, later PRAGMA/schema initialization exceptions do not explicitly close the connection. A failed schema bootstrap can also leave the explicit transaction open until connection cleanup. Any fix should close on constructor failure and re-raise the original exception.
+- **Transaction exit failure:** `_Transaction.__exit__()` does not explicitly clean up a still-active transaction when `COMMIT` fails. A failed `ROLLBACK` during exception unwinding could mask the original application exception. Future handling must preserve the primary error and only attempt rollback when `connection.in_transaction` indicates an active transaction.
+- **Recovery concurrency hazard:** Recovery currently performs integrity checks and reads events/snapshots outside its final write transaction. A concurrent writer can commit after those reads but before Recovery's projection update; Recovery may then overwrite the newer projection with one reconstructed from an older event prefix. Candidate safe design: begin an immediate write transaction before validation/reads and hold it through projection replacement. Add a deterministic Recovery-vs-writer regression test before implementing.
+- **Schema bootstrap nuance:** `executescript()` commits a pending transaction before running a script, per Python sqlite3 documentation. Here the connection uses `isolation_level=None` and the script itself contains explicit `BEGIN IMMEDIATE ... COMMIT`; there is no pre-existing implicit transaction, so do not label this alone as the cause. Partial-script failure still reinforces the need for constructor cleanup.
+
+**Keep the issues separate:** original Windows `SQLITE_READONLY` diagnosis remains unresolved. Continue to capture extended SQLite error code/name, Python/SQLite versions, resolved DB path, DB/sidecar/parent metadata, and compare concurrent bootstrap, pre-opened concurrent writers, and the original combined scenario. Preserve WAL and `synchronous=FULL`; do not add generic retry or process-local lock as an assumed fix.
+
+**Next work:** prepare narrowly scoped regression tests for constructor cleanup, transaction-exit failure preservation, and Recovery/write serialization; then return to the isolated readonly diagnosis. Do not execute local tests or rerun hosted Actions before the previously documented quota checkpoint is rechecked. PR #1 remains Open / Draft / Unmerged.
+
+---
+
 ## 0.3 外部本机运行审查续接 — 2026-11-27
 
 用户补充：WorkBuddy 上的 DeepSeek v4 Pro 是在仓库克隆到用户电脑并实际运行后提出三个问题。将其视为有价值的真实环境报告；但本窗口尚未取得原始控制台输出、完整 traceback、执行命令或 SQLite error code，因此不要声称已独立复现全部故障。
