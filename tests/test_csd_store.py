@@ -328,6 +328,60 @@ class CSDStoreTests(unittest.TestCase):
             self.assertEqual(final["through_sequence"], 2)
             self.assertEqual(final["state"]["accepted_event_count"], 2)
 
+    def test_projection_validator_rejects_boolean_and_inconsistent_counts(self):
+        valid = {
+            "accepted_event_count": 1,
+            "event_counts": {"test.observation_recorded.v1": 1},
+            "last_event": {
+                "event_id": "evt-1",
+                "event_type": "test.observation_recorded.v1",
+                "source": "test.fixture",
+            },
+            "last_sequence": 1,
+        }
+        self.assertTrue(CSDStore._validate_projection(valid, 1))
+
+        boolean_count = {**valid, "accepted_event_count": True}
+        self.assertFalse(CSDStore._validate_projection(boolean_count, 1))
+
+        boolean_event_count = {
+            **valid,
+            "event_counts": {"test.observation_recorded.v1": True},
+        }
+        self.assertFalse(CSDStore._validate_projection(boolean_event_count, 1))
+
+        mismatched_count = {**valid, "accepted_event_count": 2}
+        self.assertFalse(CSDStore._validate_projection(mismatched_count, 1))
+
+        malformed_last_event = {**valid, "last_event": {"event_id": "evt-1"}}
+        self.assertFalse(CSDStore._validate_projection(malformed_last_event, 1))
+
+    def test_snapshot_with_rehashed_wrong_last_event_is_rejected(self):
+        self.store.submit_event(self.event("snapshot-event-1"))
+        self.store.submit_event(self.event("snapshot-event-2", {"label": "two"}))
+        snapshot_id = self.store.create_snapshot()
+        row = self.store._connection.execute(
+            "SELECT state_json FROM snapshots WHERE snapshot_id = ?",
+            (snapshot_id,),
+        ).fetchone()
+        state = json.loads(row["state_json"])
+        state["last_event"]["event_id"] = "forged-event-id"
+        state_json = json.dumps(
+            state, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+            allow_nan=False,
+        )
+        self.store._connection.execute(
+            "UPDATE snapshots SET state_json = ?, state_digest = ? WHERE snapshot_id = ?",
+            (state_json, hashlib.sha256(state_json.encode("utf-8")).hexdigest(), snapshot_id),
+        )
+
+        recovered = self.store.recover()
+
+        self.assertIsNone(recovered.source_snapshot_id)
+        self.assertIn("last event does not match event history", recovered.rejected_snapshots[0])
+        self.assertEqual(recovered.replayed_events, 2)
+        self.assertEqual(recovered.state["last_event"]["event_id"], "snapshot-event-2")
+
     def test_corrupt_snapshot_is_rejected_and_rebuilt_from_event_log(self):
         self.store.submit_event(self.event())
         snapshot_id = self.store.create_snapshot()
