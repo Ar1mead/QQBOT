@@ -3,7 +3,7 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-27 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Latest code checkpoint: `5dbadb20f823b0662e02996b83428a475cf7e8e8` (Windows ACL NUL validation + semantic-review size-test correction; not yet executed)  
+> Latest code/test checkpoint: `902e759867813c7e36ef0a8ce4ae09f0d66947ba` (CSD transaction/Recovery hardening and SQLite diagnostic tests; not executed)  
 > Live branch / PR #1 head: always fetch the current GitHub ref; this ledger records code checkpoints, not a substitute for live ref verification.  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
@@ -2393,3 +2393,13 @@ The Recovery-vs-writer regression test was adjusted so the writer connection is 
 The SQLite diagnostic helper additionally records the parent directory mode and the connection's `PRAGMA synchronous`. The three isolation scenarios remain: concurrent bootstrap/no writes, pre-opened concurrent writers, and the original combined open/write scenario.
 
 Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest test commit: `902e759867813c7e36ef0a8ce4ae09f0d66947ba`. The latest test refinements supersede the earlier test commit list in the previous checkpoint. No tests have been executed; all conclusions remain code-review/test-design status only.
+
+
+## Static persistence follow-up — 2026-11-27
+
+- Live branch ref was checked against GitHub: `feature/csd-cognitive-memory-slice` pointed to `ec0b5e6731c4f4ce293f432f8aac84e2914a3ba8` at the start of this audit. PR #1 was fetched directly and confirmed Open / Draft / Unmerged, base `main`. The current head commit has no associated workflow runs and no combined status entries; this is absence of CI evidence, not a pass.
+- Static review of `CSDStore.recover()` confirms that `BEGIN IMMEDIATE` encloses integrity checks, event/payload validation, snapshot selection, replay, and projection replacement. Existing recovery tests cover snapshot-plus-tail replay, corrupt-snapshot fallback, corrupt-payload fail-closed behavior, and process interruption during event append / after commit. No snapshot regression was identified by this static pass. A dedicated process-interruption test during Recovery itself remains a useful future regression case; no claim of crash-test coverage for Recovery is made.
+- **Confirmed test-diagnostics defect:** `sqlite_environment_diagnostics()` calls `path.parent.stat()` outside its best-effort error handling. If the parent directory disappears or metadata access raises `OSError`, the diagnostic helper can mask the original SQLite exception. Fix this when code/test edits are permitted by recording the metadata error as a diagnostic field instead of raising.
+- **Minor Recovery test cleanup weakness:** the writer thread calls `writer.close()` before `writer_done.set()` in the same `finally` block. If close itself raises, the completion signal is skipped and the close exception is not added to `writer_errors`. When test edits are permitted, put the signal in a nested `finally` and capture close failures.
+- The Recovery concurrency test's 0.5-second non-completion assertion is a timing-based guard after the trace callback observes `BEGIN IMMEDIATE`; it is useful but is not a fully deterministic observation of SQLite's busy-wait state. Treat it as a test-design limitation, not evidence that the test has run or passed.
+- No source code or tests were changed or executed in this audit. The SQLite Windows `SQLITE_READONLY` root cause remains unresolved. Keep WAL and `synchronous=FULL`; no retry, process-local lock, sidecar deletion, or durability downgrade. Do not run or rerun Actions before the documented 2026-12-02 quota check. PR #1 remains Draft / Open / Unmerged.
