@@ -236,8 +236,14 @@ class CSDStoreTests(unittest.TestCase):
             target=run_recovery,
             name="csd-recovery-race-test",
         )
-        writer_thread = None
+        writer_store = CSDStore(self.db_path, busy_timeout_ms=10000)
         writer_attempted_begin = threading.Event()
+        writer_store._connection.set_trace_callback(
+            lambda statement: writer_attempted_begin.set()
+            if statement.strip().upper() == "BEGIN IMMEDIATE"
+            else None
+        )
+        writer_thread = None
         writer_done = threading.Event()
         writer_results = []
         writer_errors = []
@@ -248,18 +254,13 @@ class CSDStoreTests(unittest.TestCase):
 
             def run_writer():
                 try:
-                    with CSDStore(self.db_path, busy_timeout_ms=10000) as writer:
-                        writer._connection.set_trace_callback(
-                            lambda statement: writer_attempted_begin.set()
-                            if statement.strip().upper() == "BEGIN IMMEDIATE"
-                            else None
-                        )
-                        writer_results.append(
-                            writer.submit_event(self.event("during-recovery"))
-                        )
+                    writer_results.append(
+                        writer_store.submit_event(self.event("during-recovery"))
+                    )
                 except BaseException as exc:
                     writer_errors.append(exc)
                 finally:
+                    writer_store.close()
                     writer_done.set()
 
             writer_thread = threading.Thread(
@@ -269,7 +270,7 @@ class CSDStoreTests(unittest.TestCase):
             writer_thread.start()
             self.assertTrue(writer_attempted_begin.wait(timeout=5))
             self.assertFalse(
-                writer_done.wait(timeout=0.25),
+                writer_done.wait(timeout=0.5),
                 "writer should wait while Recovery owns the write transaction",
             )
         finally:
@@ -277,6 +278,8 @@ class CSDStoreTests(unittest.TestCase):
             recovery_thread.join(timeout=10)
             if writer_thread is not None:
                 writer_thread.join(timeout=10)
+            else:
+                writer_store.close()
 
         self.assertFalse(recovery_thread.is_alive(), "Recovery thread did not finish")
         self.assertIsNotNone(writer_thread)
