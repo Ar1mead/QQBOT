@@ -1,7 +1,7 @@
 # Cross-Episode Evidence and Preference Revision Contract
 
  > Status: partially implemented — historical claim resolver and CSD-owned pending-shadow proposal event with append-time validation and Recovery replay exist; reviewer v2, decision-time revalidation, and accepted preference/self-model revision remain unimplemented.
-> Updated: 2026-11-20.
+> Updated: 2026-11-27.
 > Scope: allow a model to propose a cautious pattern across multiple accepted episodes without allowing it to write identity state.
 
 ## 1. Why this contract is needed
@@ -1301,3 +1301,55 @@ A targeted source trace of current upstream v0.8.9 confirms that the new journal
 4. Before any production enablement, document the distinction between (a) new CSD observation privacy guarantees and (b) existing local SurfCore logs/feed retention. Do not overstate the guarantee.
 
 **Status:** static review of public upstream only. No source code or local files changed. No tests or real QQ operations. Stage 0 gate remains unchanged.
+
+
+## 3.31 Decision-time adjudication and review-set integrity — design-only (2026-11-27)
+
+This section makes the future Stage 4 gate explicit. It is a design contract only: no acceptance API, preference reducer, schema migration, source code or tests are introduced here. Stage 0 verification and Stages 1–3 in §3.21 remain prerequisites.
+
+### A. A review is an immutable opinion, not a vote that changes state
+
+- A review remains bound to one exact proposal event, proposal sequence, proposal digest, review-input digest and historical state version. It does not become current merely because it is the newest review.
+- A future review round must identify a versioned CSD-owned review policy and an exact required reviewer roster (reviewer identity and version, plus any configured independence class). The policy, not the model or caller, defines who is required and what constitutes a complete round.
+- A decision must enumerate the exact immutable review event IDs it consumed and commit to a canonical digest of the complete review set. It must account for every matching review in the proposal/round prefix; it may not silently omit an adverse, uncertain, duplicate or conflicting opinion.
+- For one reviewer slot in one round, an identical retry is idempotent. Two non-identical opinions from the same slot make that round conflicted and fail closed. There is no implicit latest-wins rule. Re-review requires a separately versioned supersession/adjudication protocol or a new proposal/review round; v1 must not overwrite old opinions.
+- Reviewer ID/version strings are attribution, not proof of independence. A policy that claims independent review must verify distinct configured provider/backend/credential boundaries where possible. If independence cannot be established, or if any opinion requests human review, automatic acceptance is unavailable.
+- The first conservative policy profile should require a complete configured reviewer set and unanimous supported opinions for automatic acceptance. Uncertain, conflicting, unsupported, insufficient-context, missing reviewers, mixed outcomes, unresolved duplicate opinions, or human-review flags must never be converted into acceptance by majority vote or recency. The policy may classify a fully unsupported result as rejected; all ambiguous cases defer for new evidence or explicit adjudication.
+
+### B. Decision-time revalidation uses the event's own historical prefix
+
+For a proposed decision event at sequence N, every check runs against the same exclusive prefix sequence < N, inside the CSD write transaction:
+
+1. Reconstruct the authoritative cognitive state version immediately before N. Require it to equal the proposal's recorded based_on_state_version. If any accepted decision has advanced the state since proposal creation, the old candidate/review round is stale: defer it and require a newly synthesized proposal and fresh reviews. Do not silently rebase old reviewer opinions onto new evidence.
+2. Resolve the exact proposal event and verify its identity, payload digest, provider provenance and pending status at that prefix.
+3. Re-resolve every support and counter-evidence reference from immutable accepted decision/proposal/observation history. Recheck owner/subject binding, accepted status, claim type, claim digest, full lineage, source-event IDs, chronology and the historical identity version required by the subject contract.
+4. Recompute duplicate detection, support/counter disjointness, distinct independent source-event count and any policy-defined context-comparability constraints. Never trust copied counts or a model's assertion that sources are independent.
+5. Reconstruct the complete review input at the proposal boundary and verify every consumed review event against its exact proposal/review-input digests and reviewer slot. Rebuild the complete review set at the decision boundary and compare its sorted event IDs and canonical digest with the decision payload.
+6. Re-evaluate the versioned deterministic CSD adjudication policy over the revalidated evidence and complete review set. The reducer must not call a model/provider, fetch external data or trust an unpersisted result.
+
+Any stale state, missing/extra review, altered lineage, unresolved subject, invalid identity version, ambiguous reviewer slot or digest mismatch fails closed. Invalid provenance is an integrity error, not merely a low-confidence opinion.
+
+### C. A CSD decision event is the only path to accepted revision state
+
+- Introduce a new versioned, CSD-reserved decision event family only after the prerequisite stages pass. Public submit_event, model payloads and adapter source strings must not be able to forge it; authority comes from the controlled internal CSD decision path, not from a self-declared source value.
+- The event must bind the proposal event ID/sequence/digest, subject and owner, exact prior accepted revision (if any), revision action, canonical evidence lineage/digests, review policy ID/version, decision policy ID/version, complete sorted review event IDs and review-set digest, plus the authoritative state_version_before.
+- Supported revision actions are bounded and explicit: create, strengthen, weaken, narrow, broaden and retire. Create must not name a prior revision; every modification/retirement must name the exact current revision ID/version. A stale prior revision cannot be silently rebased.
+- The immutable decision history is authoritative. A rebuildable projection may expose the current accepted revision, but every prior revision and its evidence/reason remain addressable. Corrections and retirements append new versions; they never edit or erase earlier accepted state.
+- An accepted atomic revision advances the shared authoritative cognitive state_version exactly once. Rejected/deferred decisions do not advance it. The event records the expected before/after versions, and append, direct read, decision-history validation, projection consistency and Recovery all independently verify the rule.
+- User preference, AI-owned interest and AI self-model remain distinct state families with explicit canonical subjects. AI-interest acceptance additionally requires Stage 2 attested voluntary-choice evidence; introspection, generated diary text, passive exposure or model self-description alone cannot establish it. Broad personality claims, sensitive inference and third-party profiling remain excluded.
+- Accepted state may later be supplied to deliberation as bounded context only. It does not itself schedule activity, execute tools, send messages or grant ASM permissions.
+
+### D. Required adversarial acceptance tests before enabling the reducer
+
+- A later accepted decision between proposal and acceptance makes the candidate stale even if the original review set was unanimous.
+- Re-resolving evidence at the decision boundary detects changed accepted status, owner/subject binding, identity version, claim digest, source lineage, chronology and support independence.
+- A decision omitting one prior adverse review, adding an unconfigured reviewer, reordering/duplicating review IDs, or supplying a recomputed but incorrect review-set digest is rejected.
+- Two non-identical opinions from one reviewer slot cannot be resolved by choosing the latest or most favorable opinion.
+- Missing reviewers, mixed outcomes, conflicting evidence, requires_human_review, and unverified reviewer independence never auto-accept.
+- Forged decision events through public submit, fake source strings, model payloads or adapter calls are rejected.
+- Create/strengthen/weaken/narrow/broaden/retire enforce exact prior revision identity/version and preserve immutable history.
+- Accepted revision increments shared state_version once; rejected/deferred revisions do not; duplicate delivery is idempotent and changed-content identity reuse conflicts.
+- Direct reads and Recovery reject tampered decision envelopes, evidence lineage, review sets, policy versions and revision projections without invoking external providers.
+- Recovery interruption rolls back all projection changes; replay never re-runs semantic reviewers, external services or side effects.
+
+**Status:** design-only static refinement. Current implementation still has pending-shadow proposals and advisory review records only. There is no decision-time acceptance path or accepted preference/self-model reducer. No code or tests were changed or executed. The 2026-12-02 Billing-first Stage 0 gate and the existing Draft / Open / Unmerged PR policy remain unchanged.
