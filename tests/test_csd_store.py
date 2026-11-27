@@ -447,11 +447,11 @@ store.submit_event(Event(
 
     def test_preopened_connections_serialize_concurrent_writers(self):
         self.store.close()
-        writers = [
-            CSDStore(self.db_path, busy_timeout_ms=10000)
-            for _ in range(8)
-        ]
+        writers = []
         try:
+            for _ in range(8):
+                writers.append(CSDStore(self.db_path, busy_timeout_ms=10000))
+
             def submit(item):
                 index, writer = item
                 return writer.submit_event(self.event(
