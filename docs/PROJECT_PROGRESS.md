@@ -3,7 +3,7 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-27 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Latest code/test checkpoint: `902e759867813c7e36ef0a8ce4ae09f0d66947ba` (CSD transaction/Recovery hardening and SQLite diagnostic tests; not executed)  
+> Latest code/test checkpoint: `a52ddc4e101d97bb34079306a1a53c99525f2ef5` (SQLite diagnostic exception-safety regression and Recovery writer-thread cleanup; not executed)  
 > Live branch / PR #1 head: always fetch the current GitHub ref; this ledger records code checkpoints, not a substitute for live ref verification.  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
@@ -2403,3 +2403,13 @@ Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest
 - **Minor Recovery test cleanup weakness:** the writer thread calls `writer.close()` before `writer_done.set()` in the same `finally` block. If close itself raises, the completion signal is skipped and the close exception is not added to `writer_errors`. When test edits are permitted, put the signal in a nested `finally` and capture close failures.
 - The Recovery concurrency test's 0.5-second non-completion assertion is a timing-based guard after the trace callback observes `BEGIN IMMEDIATE`; it is useful but is not a fully deterministic observation of SQLite's busy-wait state. Treat it as a test-design limitation, not evidence that the test has run or passed.
 - No source code or tests were changed or executed in this audit. The SQLite Windows `SQLITE_READONLY` root cause remains unresolved. Keep WAL and `synchronous=FULL`; no retry, process-local lock, sidecar deletion, or durability downgrade. Do not run or rerun Actions before the documented 2026-12-02 quota check. PR #1 remains Draft / Open / Unmerged.
+
+
+## SQLite diagnostic follow-up — 2026-11-27
+
+- Updated `sqlite_environment_diagnostics()` so a failure reading the parent directory mode is recorded as `parent_mode_error` and `parent_mode = None`, rather than masking the SQLite failure being diagnosed.
+- Added a regression test that injects a parent-directory metadata `PermissionError` and verifies the helper returns diagnostic data instead of raising.
+- Hardened the Recovery-vs-writer test's worker cleanup: writer close failures are captured in `writer_errors`, and `writer_done.set()` is now guaranteed by a nested `finally`.
+- Commit: `a52ddc4e101d97bb34079306a1a53c99525f2ef5`.
+- These are code/test edits only. **No tests were executed** and no Actions workflow was triggered. This does not resolve the Windows `SQLITE_READONLY` root cause. Preserve WAL and `synchronous=FULL`; do not add retries, process-local locks, sidecar deletion, or durability downgrades without evidence.
+- Next: review the updated diff, then wait for the documented 2026-12-02 quota check before hosted execution. PR #1 remains Draft / Open / Unmerged; never merge.
