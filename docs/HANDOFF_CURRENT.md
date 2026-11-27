@@ -11,6 +11,17 @@
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。开始工作时必须重新核对 GitHub 实际状态。PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
 
+## 0.8 Recovery serialization and SQLite diagnosis isolation — 2026-11-27
+
+- `recover()` now acquires `BEGIN IMMEDIATE` before integrity checks, event/payload reads, snapshot validation, replay, and projection replacement. This removes the stale-read/lost-projection-update window against concurrent writers. The tradeoff is that Recovery holds the single-writer slot for the duration of replay; measure later if event logs grow substantially.
+- Added a deterministic Recovery-vs-writer regression test: pause Recovery during replay, attempt a write using a pre-opened connection, verify the writer waits, then verify the final projection includes both events.
+- Added isolated SQLite scenarios: concurrent connection bootstrap with no writes; concurrent writes using pre-opened connections; and the original combined concurrent open/write test.
+- Added failure diagnostics for SQLite error code/name, Python/SQLite versions, resolved DB path, parent writability, DB/WAL/SHM metadata, and connection PRAGMAs where available.
+
+No tests were run in this session. The Windows `SQLITE_READONLY` root cause remains unknown pending execution of the isolated scenarios in the affected environment. WAL and `synchronous=FULL` remain unchanged; no generic retry or process-local lock was added. Latest related test commits: `734d7dc39a91898048d75642d8366e1a3d1a465f`, `81cd519b00edb160e18e44a726620c6a215f8c4d`, `d32b426d633093b91df5c68859032435265e147b`, `69907f069db14887e60aed1bc813781f6433b12d`, and `c4fb8b1e0fd995dd7c1038b97292458b78005276`. PR #1 remains Draft / Open / Unmerged.
+
+---
+
 ## 0.7 CSD cleanup hardening — 2026-11-27
 
 Two focused changes are now committed, with regression tests added; neither has been executed in this session:
