@@ -3,7 +3,7 @@
 **最后核对：** 2026-11-27（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**最近代码提交：** `5dbadb20f823b0662e02996b83428a475cf7e8e8`（修复 Windows ACL NUL 检查及语义审查超长输入测试；尚未执行测试）  
+**最近代码/测试提交：** `902e759867813c7e36ef0a8ce4ae09f0d66947ba`（CSD 事务与 Recovery 加固、SQLite 诊断测试；尚未执行）  
 **本轮审查开始时的分支 / PR #1 head（2026-11-27）：** `54fd52618374b447fe197ee6ec9a82f80211d905`（之后本轮继续产生文档修正提交）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`  
@@ -1292,3 +1292,13 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Do not apply a module-level lock or generic transaction retry as a presumed fix. A Python lock does not coordinate separate processes, and busy timeout does not repair filesystem readonly state. Do not change WAL or `synchronous=FULL` during diagnosis.
 - Next diagnostic: capture `sqlite_errorcode`/`sqlite_errorname`, Python/SQLite versions, resolved DB path, DB parent and DB/`-wal`/`-shm` existence/size/readonly metadata, plus connection PRAGMA values (`journal_mode`, `locking_mode`, `database_list`) at the failure boundary. Then compare simultaneous bootstrap without writes, writes using pre-opened connections, and the combined scenario. No ACL mutation or sidecar deletion.
 - No code changed and no test executed in this static pass. PR #1 remains Draft / Open / Unmerged; never merge.
+
+
+## 0.9 静态持久化审查补充 — 2026-11-27
+
+- Live branch ref was checked against GitHub: `feature/csd-cognitive-memory-slice` pointed to `ec0b5e6731c4f4ce293f432f8aac84e2914a3ba8` at the start of this audit. PR #1 was fetched directly and confirmed Open / Draft / Unmerged, base `main`. The current head commit has no associated workflow runs and no combined status entries; this is absence of CI evidence, not a pass.
+- Static review of `CSDStore.recover()` confirms that `BEGIN IMMEDIATE` encloses integrity checks, event/payload validation, snapshot selection, replay, and projection replacement. Existing recovery tests cover snapshot-plus-tail replay, corrupt-snapshot fallback, corrupt-payload fail-closed behavior, and process interruption during event append / after commit. No snapshot regression was identified by this static pass. A dedicated process-interruption test during Recovery itself remains a useful future regression case; no claim of crash-test coverage for Recovery is made.
+- **Confirmed test-diagnostics defect:** `sqlite_environment_diagnostics()` calls `path.parent.stat()` outside its best-effort error handling. If the parent directory disappears or metadata access raises `OSError`, the diagnostic helper can mask the original SQLite exception. Fix this when code/test edits are permitted by recording the metadata error as a diagnostic field instead of raising.
+- **Minor Recovery test cleanup weakness:** the writer thread calls `writer.close()` before `writer_done.set()` in the same `finally` block. If close itself raises, the completion signal is skipped and the close exception is not added to `writer_errors`. When test edits are permitted, put the signal in a nested `finally` and capture close failures.
+- The Recovery concurrency test's 0.5-second non-completion assertion is a timing-based guard after the trace callback observes `BEGIN IMMEDIATE`; it is useful but is not a fully deterministic observation of SQLite's busy-wait state. Treat it as a test-design limitation, not evidence that the test has run or passed.
+- No source code or tests were changed or executed in this audit. The SQLite Windows `SQLITE_READONLY` root cause remains unresolved. Keep WAL and `synchronous=FULL`; no retry, process-local lock, sidecar deletion, or durability downgrade. Do not run or rerun Actions before the documented 2026-12-02 quota check. PR #1 remains Draft / Open / Unmerged.
