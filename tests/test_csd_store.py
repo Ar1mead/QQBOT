@@ -23,10 +23,15 @@ def sqlite_environment_diagnostics(connection, database_path, error=None):
         "sqlite_version": sqlite3.sqlite_version,
         "database_path": str(path),
         "parent_writable": os.access(path.parent, os.W_OK),
-        "parent_mode": oct(stat.S_IMODE(path.parent.stat().st_mode)),
         "sqlite_errorcode": getattr(error, "sqlite_errorcode", None),
         "sqlite_errorname": getattr(error, "sqlite_errorname", None),
     }
+    try:
+        diagnostics["parent_mode"] = oct(stat.S_IMODE(path.parent.stat().st_mode))
+    except OSError as exc:
+        # Diagnostics must never hide the SQLite failure they are meant to explain.
+        diagnostics["parent_mode"] = None
+        diagnostics["parent_mode_error"] = f"{type(exc).__name__}: {exc}"
     if connection is not None:
         for key, statement in (
             ("journal_mode", "PRAGMA journal_mode"),
@@ -109,6 +114,21 @@ class CSDStoreTests(unittest.TestCase):
             source="test.fixture",
             payload=payload if payload is not None else {"label": "sample"},
         )
+
+    def test_sqlite_environment_diagnostics_preserves_parent_stat_failure(self):
+        with patch.object(Path, "stat", side_effect=PermissionError("synthetic metadata denial")):
+            diagnostics = sqlite_environment_diagnostics(
+                None,
+                self.db_path,
+                sqlite3.OperationalError("original SQLite failure"),
+            )
+
+        self.assertIsNone(diagnostics["parent_mode"])
+        self.assertEqual(
+            diagnostics["parent_mode_error"],
+            "PermissionError: synthetic metadata denial",
+        )
+        self.assertEqual(diagnostics["database_path"], str(self.db_path.resolve()))
 
     def test_constructor_closes_connection_when_schema_initialization_fails(self):
         failed_path = self.db_path.parent / "constructor-failure.sqlite3"
@@ -259,9 +279,13 @@ class CSDStoreTests(unittest.TestCase):
             except BaseException as exc:
                 writer_errors.append(exc)
             finally:
-                if writer is not None:
-                    writer.close()
-                writer_done.set()
+                try:
+                    if writer is not None:
+                        writer.close()
+                except BaseException as exc:
+                    writer_errors.append(exc)
+                finally:
+                    writer_done.set()
 
         recovery_thread = threading.Thread(
             target=run_recovery,
