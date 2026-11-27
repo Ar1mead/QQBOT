@@ -393,6 +393,36 @@ class CognitiveMemoryStoreTests(unittest.TestCase):
         result = self.store.recover()
         self.assertEqual(result["accepted_memories"], 1)
 
+    def test_interrupted_recovery_rolls_back_all_projection_changes(self):
+        self.seed_pending()
+        self.assertEqual(
+            self.store.evaluate_proposal("proposal-synthetic-1")["status"],
+            "accepted",
+        )
+        expected_memories = self.store.get_memories()
+        expected_proposal = self.store.get_proposal("proposal-synthetic-1")
+        original_apply = self.store._apply_projection_event
+        calls = 0
+
+        def fail_during_replay(db, event, sequence, *, internal):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise RuntimeError("synthetic interruption during Recovery replay")
+            return original_apply(db, event, sequence, internal=internal)
+
+        self.store._apply_projection_event = fail_during_replay
+        try:
+            with self.assertRaisesRegex(RuntimeError, "synthetic interruption"):
+                self.store.recover()
+        finally:
+            self.store._apply_projection_event = original_apply
+
+        self.assertEqual(self.store.get_memories(), expected_memories)
+        self.assertEqual(self.store.get_proposal("proposal-synthetic-1"), expected_proposal)
+        self.assertTrue(self.store.get_state_snapshot()["projection_consistent"])
+
+
     def test_recovery_detects_accepted_memory_content_tampering(self):
         self.seed_pending()
         self.assertEqual(
