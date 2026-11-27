@@ -2384,3 +2384,12 @@ Also split the original concurrent-writer diagnostic into three cases:
 The combined and bootstrap tests now attach diagnostics on failure: SQLite error code/name, Python and SQLite versions, resolved database path, parent writability, DB/WAL/SHM existence/size/mode/read-only metadata, and connection journal/locking/database-list PRAGMAs when a connection is available. No permissions or sidecars are changed by diagnostics.
 
 **Verification status:** all changes and new tests are committed but have not been executed in this session. The original Windows `SQLITE_READONLY` cause remains unknown until these three cases run in the affected Windows environment or an equivalent environment. Do not claim the concurrency bug is empirically reproduced or that the fixes pass. Preserve WAL and `synchronous=FULL`; no generic retry, process-global lock, journal-mode switch, or durability downgrade was introduced. PR #1 remains Draft / Open / Unmerged.
+
+
+### Follow-up review of Recovery and diagnostic tests — 2026-11-27
+
+The Recovery-vs-writer regression test was adjusted so the writer connection is created and used in the same worker thread (respecting sqlite3's default thread affinity) and is already open before Recovery begins. The test pauses Recovery during replay, signals the writer's `BEGIN IMMEDIATE` through SQLite's trace callback, verifies the writer remains blocked, then checks the final projection contains both events.
+
+The SQLite diagnostic helper additionally records the parent directory mode and the connection's `PRAGMA synchronous`. The three isolation scenarios remain: concurrent bootstrap/no writes, pre-opened concurrent writers, and the original combined open/write scenario.
+
+Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest test commit: `902e759867813c7e36ef0a8ce4ae09f0d66947ba`. The latest test refinements supersede the earlier test commit list in the previous checkpoint. No tests have been executed; all conclusions remain code-review/test-design status only.
