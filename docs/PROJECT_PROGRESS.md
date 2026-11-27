@@ -3,7 +3,7 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-27 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Latest code/test checkpoint: `b748d460070e819b0ad5f5d39a1b9ade2cd09087` (interrupted-Recovery atomic rollback regression added; not executed)  
+> Latest code/test checkpoint: `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e` (mixed memory/motivation/goal Recovery-after-reopen regression added; not executed)  
 > Live branch / PR #1 head: always fetch the current GitHub ref; this ledger records code checkpoints, not a substitute for live ref verification.  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
@@ -2447,3 +2447,14 @@ Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest
 - **Not executed:** no local test run and no hosted Actions run. This is regression coverage only, not a passing result.
 - This test targets the typed cognitive store's Recovery transaction boundary. It complements the generic `store.py` snapshot validator work but does not resolve Windows SQLite `SQLITE_READONLY`.
 - Preserve WAL and `synchronous=FULL`; do not trigger hosted Actions before the quota check. PR #1 remains Draft / Open / Unmerged.
+
+
+## Mixed cognitive-family Recovery after reopen — 2026-11-27
+
+- Added `tests/test_csd_goals.py::test_mixed_memory_motivation_goal_history_recovers_after_reopen`.
+- The synthetic event history accepts one episodic memory, one motivation signal, creates a goal from that signal, explicitly activates it, then pauses it. The test checks the shared authoritative state version and all three projections before Recovery, after Recovery, and after closing/reopening the same SQLite database.
+- The expected state version is 5: one accepted memory decision, one accepted motivation decision, one goal-batch decision, one activation decision, and one pause decision. The goal must remain paused at goal version 3.
+- Code/test commit: `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e`.
+- **Not executed:** no local tests were run and no GitHub Actions workflow was triggered. This is added regression coverage only, not a pass.
+- Static review still finds no newly confirmed defect in the reviewed motivation/goal transition paths. This test closes one specific mixed-family Recovery/reopen coverage gap; it does not establish production runtime correctness.
+- Windows SQLite `SQLITE_READONLY` remains unresolved. Preserve WAL and `synchronous=FULL`; do not trigger Actions before the documented quota check. PR #1 remains Draft / Open / Unmerged.
