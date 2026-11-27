@@ -2356,3 +2356,15 @@ Additional transaction-boundary check: the schema bootstrap uses `isolation_leve
 **Next safe sequence:** (a) prepare a focused test for constructor failure cleanup; (b) prepare tests for COMMIT/ROLLBACK error preservation using controlled connection wrappers or fault injection; (c) prepare a deterministic Recovery-vs-writer race test; (d) separately continue the original `SQLITE_READONLY` diagnosis with extended SQLite error code/name, Python/SQLite versions, resolved path, sidecar/parent metadata, and isolated bootstrap/pre-opened-writer scenarios. Do not conflate these issues or apply one generic lock/retry patch to all of them. Keep WAL and `synchronous=FULL` unchanged.
 
 No code or tests were changed or executed. The two earlier targeted corrections remain unverified. PR #1 remains Draft / Open / Unmerged.
+
+
+## CSD cleanup hardening — constructor and transaction exit — 2026-11-27
+
+Implemented two narrowly scoped persistence hardening changes on the active feature branch:
+
+1. `CSDStore.__init__` now closes the SQLite connection if any post-connect initialization step (row factory/PRAGMA/schema initialization) raises. Cleanup is best-effort and suppresses close-time failures so the original initialization exception is preserved.
+2. `_Transaction.__exit__` now attempts rollback after a failed COMMIT only if the connection still reports an active transaction. If rollback also fails, the COMMIT exception remains primary and the rollback exception is chained as its cause. When the transaction body already raised, a rollback failure is chained beneath the original body exception rather than masking it. When no transaction remains active, no unnecessary rollback is issued.
+
+Added regression tests for constructor connection closure after schema initialization failure, successful rollback after a failed commit, preservation of the body exception when rollback fails, and preservation of the commit exception when rollback also fails.
+
+**Verification status:** these changes and tests were committed to GitHub but were not executed in this session. Do not describe them as passing. They do not resolve the original Windows `SQLITE_READONLY` issue and do not yet address the Recovery-vs-writer race. PR #1 remains Draft / Open / Unmerged.
