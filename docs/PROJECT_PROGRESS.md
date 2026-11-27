@@ -2368,3 +2368,19 @@ Implemented two narrowly scoped persistence hardening changes on the active feat
 Added regression tests for constructor connection closure after schema initialization failure, successful rollback after a failed commit, preservation of the body exception when rollback fails, and preservation of the commit exception when rollback also fails.
 
 **Verification status:** these changes and tests were committed to GitHub but were not executed in this session. Do not describe them as passing. They do not resolve the original Windows `SQLITE_READONLY` issue and do not yet address the Recovery-vs-writer race. PR #1 remains Draft / Open / Unmerged.
+
+
+## CSD Recovery serialization and SQLite diagnosis isolation — 2026-11-27
+
+Implemented a Recovery concurrency correction. Public `recover()` now enters the store's `BEGIN IMMEDIATE` transaction before integrity checks, event/payload reads, snapshot validation, replay, and projection replacement. The full read/validate/rebuild/write operation therefore runs under one serialized write transaction; a concurrent writer cannot commit between Recovery's source read and projection replacement. This may hold the SQLite writer slot for the duration of a full replay, which is an intentional correctness tradeoff for this recovery path and should be measured later if event logs become large.
+
+Added a deterministic concurrency regression test that pauses Recovery during replay, starts a writer through a pre-opened connection, and verifies that the writer cannot finish until Recovery releases its transaction; after both complete, the projection must include both events.
+
+Also split the original concurrent-writer diagnostic into three cases:
+- simultaneous connection/bootstrap with no writes;
+- concurrent writes through connections opened before the worker threads start;
+- the original combined open-and-write scenario.
+
+The combined and bootstrap tests now attach diagnostics on failure: SQLite error code/name, Python and SQLite versions, resolved database path, parent writability, DB/WAL/SHM existence/size/mode/read-only metadata, and connection journal/locking/database-list PRAGMAs when a connection is available. No permissions or sidecars are changed by diagnostics.
+
+**Verification status:** all changes and new tests are committed but have not been executed in this session. The original Windows `SQLITE_READONLY` cause remains unknown until these three cases run in the affected Windows environment or an equivalent environment. Do not claim the concurrency bug is empirically reproduced or that the fixes pass. Preserve WAL and `synchronous=FULL`; no generic retry, process-global lock, journal-mode switch, or durability downgrade was introduced. PR #1 remains Draft / Open / Unmerged.
