@@ -3,11 +3,21 @@
 **最后核对：** 2026-11-27（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**最近代码/测试提交：** `a52ddc4e101d97bb34079306a1a53c99525f2ef5`（SQLite 诊断异常保护及 Recovery writer 清理测试；尚未执行）  
+**最近代码/测试提交：** `1d56e654cacec4666c6f4a28a5d3baeff8863087`（SQLite 快照投影校验及回归测试；尚未执行）  
 **本轮审查开始时的分支 / PR #1 head（2026-11-27）：** `54fd52618374b447fe197ee6ec9a82f80211d905`（之后本轮继续产生文档修正提交）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`  
 **仓库可见性：** GitHub 当前报告为 **Public**（不是 Private）
+
+## 1.0 CSD snapshot projection validation — 2026-11-27
+
+- Latest code/test checkpoint: `1d56e654cacec4666c6f4a28a5d3baeff8863087`.
+- Generic `core/csd/store.py` snapshot validation now rejects boolean counters, inconsistent accepted-count/sequence pairs, empty or non-positive event-count entries, and malformed last-event records.
+- Recovery compares the snapshot's final-event metadata with the actual event at its declared sequence. A test mutates the snapshot's final event and recomputes its digest; Recovery must reject that snapshot and replay the event log from sequence 1.
+- Tests added but **not executed**. No Actions run was triggered.
+- Scope: `store.py` is the original generic reference spike; `cognitive.py` is the typed cognitive-memory store. Do not confuse validation of the generic spike with runtime validation of the main cognitive store.
+- Windows SQLite `SQLITE_READONLY` remains unresolved. Honor the 2026-12-02 quota check; preserve WAL and `synchronous=FULL`.
+- PR #1 remains Open / Draft / Unmerged. Never merge.
 
 ## 0.9 SQLite diagnostic follow-up — 2026-11-27
 
