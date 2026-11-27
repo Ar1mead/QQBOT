@@ -3,13 +3,36 @@
 **最后核对：** 2026-11-27（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**最近代码提交：** `b7e170ea525171a1d26c0f9604b863db19010887`（reviewer attribution guard；测试未执行）  
+**最近代码提交：** `5dbadb20f823b0662e02996b83428a475cf7e8e8`（修复 Windows ACL NUL 检查及语义审查超长输入测试；尚未执行测试）  
 **本轮审查开始时的分支 / PR #1 head（2026-11-27）：** `54fd52618374b447fe197ee6ec9a82f80211d905`（之后本轮继续产生文档修正提交）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`  
 **仓库可见性：** GitHub 当前报告为 **Public**（不是 Private）
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。开始工作时必须重新核对 GitHub 实际状态。PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
+
+## 0.3 外部本机运行审查续接 — 2026-11-27
+
+用户补充：WorkBuddy 上的 DeepSeek v4 Pro 是在仓库克隆到用户电脑并实际运行后提出三个问题。将其视为有价值的真实环境报告；但本窗口尚未取得原始控制台输出、完整 traceback、执行命令或 SQLite error code，因此不要声称已独立复现全部故障。
+
+### 已修改
+1. `adapters/worker_backends/windows_acl.py`：两处路径校验原来匹配的是字面字符串 `\\x00`，现改为实际 NUL 字符校验。代码提交：`6ecdef3530059a12fb5445db45079dd1b741b899`。
+2. `tests/test_csd_openai_compatible_semantic_review.py`：超长输入测试原来把大字段放进 proposal 的无关字段；Provider 只序列化 proposal_id、inference_claim 和 direct_source_claims。现将 25,000 字符放入实际会发送的 `inference_claim.reasoning_summary`。没有扩大 Provider 发送字段。测试文件提交：`5dbadb20f823b0662e02996b83428a475cf7e8e8`。
+
+### SQLite 并发故障 — 未修复，继续定位
+- 报告错误：`sqlite3.OperationalError: attempt to write a readonly database`，关联测试 `tests/test_csd_store.py::test_multiple_connections_serialize_concurrent_writers`。
+- 现有测试先在 setUp 中创建数据库/WAL/schema，关闭初始连接，再由 8 个线程各自打开独立 CSDStore 连接并提交 20 个事件；每个新连接仍会执行 `PRAGMA journal_mode=WAL`、`PRAGMA synchronous=FULL` 和 schema-version 检查。
+- 重复 WAL pragma 是需要调查的初始化竞争候选，但当前证据不能证明它就是 SQLITE_READONLY 的根因。Windows 文件只读属性/目录 ACL、SQLite `-wal`/`-shm` sidecar 可写性、杀毒/同步软件干预、数据库实际路径，以及并发初始化时序都仍需排除。
+- **不要**仅提高 busy_timeout、捕获并忽略异常、切换 DELETE journal 或降低同步等级来“修复”测试。不要改变 CSD 持久化可靠性承诺。
+- 下一步需要原始 traceback（至少包括失败的 Python 行）、SQLite `sqlite_errorcode`/`sqlite_errorname`、数据库路径和临时目录位置；再针对具体失败位置设计诊断/回归。当前代码未改，测试未在本窗口运行。
+
+### 验证与 Actions
+- 本窗口没有在用户 Windows 环境运行测试，也没有宣称两个修复已通过测试。
+- 两个代码/测试提交可能自动触发 GitHub Actions；此前 included compute 额度耗尽，禁止手动 rerun 或添加付款方式。若出现 runner_id=0 / steps=[]，它不是测试结果。
+- PR #1 继续保持 Draft / Open / Unmerged，禁止合并。
+- 旧文档中“用户尚未克隆/运行仓库”的表述由本条用户报告更新：现在已知用户侧发生过克隆和实际运行，但尚无原始日志供本窗口独立检查。
+
+---
 
 ## 0.1 本轮续接 checkpoint — 2026-11-26
 
