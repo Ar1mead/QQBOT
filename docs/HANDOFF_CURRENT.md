@@ -9,6 +9,15 @@
 **默认分支：** `main`  
 **仓库可见性：** GitHub 当前报告为 **Public**（不是 Private）
 
+## 1.2 Recovery 中断原子性回归测试 — 2026-11-27
+
+- 新增 `tests/test_csd_cognitive.py::test_interrupted_recovery_rolls_back_all_projection_changes`。
+- 测试先创建并接受一条有证据的记忆，保存原投影；随后在 Recovery 重放第二条事件时注入异常，验证事务回滚后原记忆、提案投影和一致性检查仍正常。
+- 提交：`b748d460070e819b0ad5f5d39a1b9ade2cd09087`。
+- **尚未执行**：没有本地测试，也没有触发 Actions；新增的是回归测试，不是通过结果。
+- 该测试覆盖主认知存储的 Recovery 事务原子性；不代表 Windows SQLite `SQLITE_READONLY` 已解决。
+- 保留 WAL 与 `synchronous=FULL`；额度检查前不触发 hosted Actions。PR #1 保持 Draft / Open / Unmerged。
+
 ## 1.1 主认知存储决策历史与 Recovery 静态审查 — 2026-11-27
 
 本轮检查了当前分支的 `core/csd/cognitive.py`、`core/csd/motivation.py`、`core/csd/goals.py`，以及对应的认知、动机和目标测试。
