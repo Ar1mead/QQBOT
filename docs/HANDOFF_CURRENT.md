@@ -1243,3 +1243,12 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - Next: add/run a narrowly scoped diagnostic that records SQLite error code/name and filesystem/ACL state, then compare serialized constructor initialization against concurrent writers with initialization already complete. Do not add blanket retries, switch journal mode, or lower `synchronous=FULL` without evidence.
 - The separate worker-process cleanup error at `tests/test_worker_windows_process.py:66` ends in WorkBuddy sandbox `sitecustomize.py`'s batch-delete guard. Treat it as a sandbox cleanup restriction, not a project bug; do not modify repository cleanup behavior for it.
 - No code changed and no tests ran during this follow-up. Keep the verification gate closed until real test execution is available. PR #1 stays Draft / Open / Unmerged; never merge.
+
+
+## 0.5 SQLite static audit — WAL semantics — 2026-11-27
+
+- Rechecked the complete live store implementation and concurrent-writer test. Eight threads each construct a fresh `CSDStore` and submit one event (20 total); each constructor currently reissues `PRAGMA journal_mode=WAL` and sets per-connection synchronous mode before the first `BEGIN IMMEDIATE`.
+- Official SQLite documentation: WAL mode persists across close/reopen and applies to all connections once enabled. Reissuing `PRAGMA journal_mode=WAL` on every steady-state connection is unnecessary, but this alone does not prove causation. WAL also relies on access to `-wal`/`-shm` sidecars or a writable database directory. A readonly error is not interchangeable with ordinary `SQLITE_BUSY` writer contention. References: https://www.sqlite.org/wal.html and https://www.sqlite.org/isolation.html.
+- Do not apply a module-level lock or generic transaction retry as a presumed fix. A Python lock does not coordinate separate processes, and busy timeout does not repair filesystem readonly state. Do not change WAL or `synchronous=FULL` during diagnosis.
+- Next diagnostic: capture `sqlite_errorcode`/`sqlite_errorname`, Python/SQLite versions, resolved DB path, DB parent and DB/`-wal`/`-shm` existence/size/readonly metadata, plus connection PRAGMA values (`journal_mode`, `locking_mode`, `database_list`) at the failure boundary. Then compare simultaneous bootstrap without writes, writes using pre-opened connections, and the combined scenario. No ACL mutation or sidecar deletion.
+- No code changed and no test executed in this static pass. PR #1 remains Draft / Open / Unmerged; never merge.
