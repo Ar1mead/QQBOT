@@ -166,11 +166,15 @@ No step in this plan authorizes modifying the SurfCore upstream repository autom
 ## 7. Status
 
 - Source baseline and callback placement: reviewed at the pinned commit.
-- Node/ESM/test conventions: checked from the pinned `package.json` and existing test script.
-- Journal implementation: not started.
-- HTTP service/client: not implemented.
-- Real QQ/DSH connection: not tested.
-- User-local test: not performed.
+- Node/ESM/test conventions: checked from the pinned `package.json` and existing test scripts.
+- **Isolated reference implementation:** present under `integrations/surfcore-qq-journal/` (`observation-policy.mjs` and `observation-journal.mjs`).
+- **Reference unit tests:** written in `observation-journal.test.mjs` and included in the existing Ubuntu/Windows CSD matrix; hosted execution remains unverified because the latest inspected jobs failed before runner allocation.
+- **Production key management:** not implemented; the reference implementation requires an injected HMAC key and does not provision or persist it.
+- **Trusted ACL callback:** not implemented by a production caller; the reference journal requires the host to inject this callback.
+- **SurfCore entry-point integration:** not implemented. No upstream SurfCore file has been changed.
+- **HTTP service/client:** not implemented.
+- **Real QQ/DSH connection and data path:** not implemented or tested.
+- **User-local test:** not performed.
 
 ## 8. Isolated reference implementation in this repository
 
