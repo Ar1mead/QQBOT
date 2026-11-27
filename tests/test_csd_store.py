@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from core.csd import CSDStore, Event, IdempotencyConflict, StorageIntegrityError
 
@@ -40,6 +41,31 @@ class CSDStoreTests(unittest.TestCase):
             source="test.fixture",
             payload=payload if payload is not None else {"label": "sample"},
         )
+
+    def test_constructor_closes_connection_when_schema_initialization_fails(self):
+        failed_path = self.db_path.parent / "constructor-failure.sqlite3"
+        real_connect = sqlite3.connect
+        opened_connections = []
+
+        def tracked_connect(*args, **kwargs):
+            connection = real_connect(*args, **kwargs)
+            opened_connections.append(connection)
+            return connection
+
+        with patch("core.csd.store.sqlite3.connect", side_effect=tracked_connect):
+            with patch.object(
+                CSDStore,
+                "_initialize_schema",
+                side_effect=RuntimeError("synthetic schema initialization failure"),
+            ):
+                with self.assertRaisesRegex(
+                    RuntimeError, "synthetic schema initialization failure"
+                ):
+                    CSDStore(failed_path)
+
+        self.assertEqual(len(opened_connections), 1)
+        with self.assertRaises(sqlite3.ProgrammingError):
+            opened_connections[0].execute("SELECT 1")
 
     def test_accepts_event_and_updates_projection(self):
         result = self.store.submit_event(self.event())
