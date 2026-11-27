@@ -417,10 +417,19 @@ store.submit_event(Event(
         self.store.close()
 
         def open_and_close(index):
-            with CSDStore(self.db_path, busy_timeout_ms=10000) as candidate:
-                return candidate._connection.execute(
-                    "PRAGMA journal_mode"
-                ).fetchone()[0]
+            try:
+                with CSDStore(self.db_path, busy_timeout_ms=10000) as candidate:
+                    return candidate._connection.execute(
+                        "PRAGMA journal_mode"
+                    ).fetchone()[0]
+            except sqlite3.OperationalError as exc:
+                diagnostics = sqlite_environment_diagnostics(
+                    None, self.db_path, exc
+                )
+                raise AssertionError(
+                    "concurrent SQLite connection bootstrap failed; "
+                    f"diagnostics={diagnostics!r}"
+                ) from exc
 
         with ThreadPoolExecutor(max_workers=8) as executor:
             modes = list(executor.map(open_and_close, range(20)))
