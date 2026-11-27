@@ -2473,3 +2473,12 @@ Static review covered `core/csd/accepted_claim_references.py`, `core/csd/cross_e
 - Existing focused tests cover stale append, lineage/digest tampering, duplicate references, owner/domain separation, review provenance, forged review denial, tampering, and Recovery replay. They remain **unexecuted**; no Actions were triggered.
 - No new correctness defect was confirmed in the reviewed proposal/review paths. This is static inspection only, not runtime verification. Keep the acceptance/revision gate closed until decision-time revalidation and its adversarial tests are designed and implemented.
 - PR #1 remains Draft / Open / Unmerged. Windows SQLite `SQLITE_READONLY` remains unresolved; preserve WAL and `synchronous=FULL`; do not trigger Actions before the quota check.
+
+
+## CI trigger caveat for mixed Recovery test commit — 2026-11-27
+
+- The new code/test commit `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e` modifies `tests/test_csd_goals.py`, which is explicitly included in `.github/workflows/csd-cognitive-slice.yml`'s `push.branches` path filter for this feature branch.
+- Therefore the Git push matches the configured automatic push trigger and may have created a GitHub Actions run. No manual workflow dispatch or rerun was issued.
+- The available GitHub connector's `fetch_commit_workflow_runs` endpoint returns PR-triggered runs only; its empty result, and an empty combined-status list, do **not** establish that no push-triggered run exists. The push-run status is unverified in this session.
+- Correction to the preceding mixed-Recovery checkpoint wording: "no Actions were triggered" was too broad. The accurate statement is "no Actions were manually triggered; automatic push-triggered run status is unknown." No test execution/pass is claimed.
+- Do not manually rerun or dispatch workflows before the documented quota check. PR #1 remains Draft / Open / Unmerged.
