@@ -143,9 +143,11 @@ class OpenAICompatibleSemanticReviewProviderTests(unittest.TestCase):
 
     def test_rejects_oversized_input_and_response(self):
         provider, _ = self.provider(response(review_payload()))
-        huge_proposal = {"proposal_id": "p", "large": "x" * 25000}
+        # Proposal metadata beyond proposal_id is intentionally not sent to the
+        # reviewer. Put oversized content in a field that is actually serialized.
+        huge_inference = dict(self.inference, reasoning_summary="x" * 25000)
         with self.assertRaisesRegex(ValueError, "input exceeds"):
-            provider.review_inference(huge_proposal, self.inference, self.support)
+            provider.review_inference(self.proposal, huge_inference, self.support)
 
         oversized = CapturingTransport(b"x" * 262145)
         provider = OpenAICompatibleSemanticReviewProvider(
