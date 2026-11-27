@@ -1233,3 +1233,13 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - 这是 SurfCore 旧日志/feed 的问题，不代表 CSD Journal 已经运行。不能宣称整个本机日志/文件都没有 QQ 原始 ID。新 Journal 自身仍必须保证原始标识不进入其记录、诊断、CSD、提示词或投影。
 - 不复用旧 feed。若项目最终要求全安装范围的隐私保证，另立 SurfCore 变更，处理未来日志脱敏/伪名化、feed schema 版本和历史日志/备份保留；不得静默改写或删除旧文件。
 - 本轮无源代码/本机文件变更，无测试或 QQ 账号操作。Stage 0 门槛不变。
+
+
+## 0.4 SQLite traceback follow-up — 2026-11-27
+
+- The owner supplied the retained WorkBuddy traceback from the deleted local clone. The concurrent-writer test fails at `tests/test_csd_store.py:217`; the worker calls `CSDStore.submit_event`, and SQLite raises at `core/csd/store.py:212` on `BEGIN IMMEDIATE`: `sqlite3.OperationalError: attempt to write a readonly database`.
+- Eight worker threads each construct a separate `CSDStore` on the same pre-existing database (20 total writes; 10-second busy timeout). Every constructor currently executes `PRAGMA journal_mode=WAL`, `PRAGMA synchronous=FULL`, and schema initialization/version checking.
+- This makes concurrent connection bootstrap/WAL setup a plausible cause, but not a proven root cause. A readonly error at `BEGIN IMMEDIATE` can also reflect database/parent-directory or WAL/SHM sidecar access/ACL state. The traceback omitted `sqlite_errorcode`, `sqlite_errorname`, Python/SQLite versions, and the resolved DB/temp paths. Treat the suggested module-level lock as a candidate experiment, not an accepted fix.
+- Next: add/run a narrowly scoped diagnostic that records SQLite error code/name and filesystem/ACL state, then compare serialized constructor initialization against concurrent writers with initialization already complete. Do not add blanket retries, switch journal mode, or lower `synchronous=FULL` without evidence.
+- The separate worker-process cleanup error at `tests/test_worker_windows_process.py:66` ends in WorkBuddy sandbox `sitecustomize.py`'s batch-delete guard. Treat it as a sandbox cleanup restriction, not a project bug; do not modify repository cleanup behavior for it.
+- No code changed and no tests ran during this follow-up. Keep the verification gate closed until real test execution is available. PR #1 stays Draft / Open / Unmerged; never merge.
