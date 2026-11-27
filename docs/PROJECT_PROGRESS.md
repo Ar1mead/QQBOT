@@ -2458,3 +2458,18 @@ Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest
 - **Not executed:** no local tests were run and no GitHub Actions workflow was triggered. This is added regression coverage only, not a pass.
 - Static review still finds no newly confirmed defect in the reviewed motivation/goal transition paths. This test closes one specific mixed-family Recovery/reopen coverage gap; it does not establish production runtime correctness.
 - Windows SQLite `SQLITE_READONLY` remains unresolved. Preserve WAL and `synchronous=FULL`; do not trigger Actions before the documented quota check. PR #1 remains Draft / Open / Unmerged.
+
+
+## Cross-episode evidence and review boundary audit — 2026-11-27
+
+Static review covered `core/csd/accepted_claim_references.py`, `core/csd/cross_episode_proposals.py`, `core/csd/cross_episode_review.py`, and their focused tests.
+
+- Historical references are reconstructed from immutable accepted-memory decision/proposal/observation history at an exclusive sequence boundary. V1 references are limited to `source_assertion` claims; inference claims are not recursively promoted into evidence.
+- Candidate building accepts only opaque keys from the supplied context, rejects duplicate aliases of the same memory/claim, separates support from counter-evidence, and counts independent support by distinct source event IDs.
+- CSD append validation re-resolves each reference in the candidate event's historical prefix and compares the full persisted lineage/digest/state-version envelope. A stale snapshot cannot be appended as if it were current.
+- Reviewer input is rebuilt from the proposal's historical prefix, including exact source observations and support/counter-evidence. Durable review records bind proposal identity/sequence/digests, review-input digest, state version, reviewer ID/version, and bounded opinion fields; Recovery/direct reads revalidate this record against the same historical boundary.
+- A later state change does not rewrite what an earlier reviewer saw. It does mean the proposal cannot be treated as a current accepted preference without a separate decision-time revalidation path.
+- The cross-episode proposal remains `pending_shadow`; review is an advisory audit event and does not advance authoritative state_version, create accepted preference/self-model state, or authorize Life Engine activity. No decision-time acceptance API, complete-review-set adjudication, preference revision reducer, or Life Engine consumption is implemented.
+- Existing focused tests cover stale append, lineage/digest tampering, duplicate references, owner/domain separation, review provenance, forged review denial, tampering, and Recovery replay. They remain **unexecuted**; no Actions were triggered.
+- No new correctness defect was confirmed in the reviewed proposal/review paths. This is static inspection only, not runtime verification. Keep the acceptance/revision gate closed until decision-time revalidation and its adversarial tests are designed and implemented.
+- PR #1 remains Draft / Open / Unmerged. Windows SQLite `SQLITE_READONLY` remains unresolved; preserve WAL and `synchronous=FULL`; do not trigger Actions before the quota check.
