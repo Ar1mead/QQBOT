@@ -19,6 +19,23 @@ class FailingReducerStore(CSDStore):
         raise RuntimeError("synthetic reducer failure")
 
 
+class FaultingTransactionConnection:
+    def __init__(self, *, fail_commit=False, fail_rollback=False):
+        self.fail_commit = fail_commit
+        self.fail_rollback = fail_rollback
+        self.in_transaction = True
+        self.statements = []
+
+    def execute(self, statement):
+        self.statements.append(statement)
+        if statement == "COMMIT" and self.fail_commit:
+            raise sqlite3.OperationalError("synthetic commit failure")
+        if statement == "ROLLBACK" and self.fail_rollback:
+            raise sqlite3.OperationalError("synthetic rollback failure")
+        if statement in {"COMMIT", "ROLLBACK"}:
+            self.in_transaction = False
+
+
 class CSDStoreTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -66,6 +83,35 @@ class CSDStoreTests(unittest.TestCase):
         self.assertEqual(len(opened_connections), 1)
         with self.assertRaises(sqlite3.ProgrammingError):
             opened_connections[0].execute("SELECT 1")
+
+    def test_transaction_rolls_back_after_commit_failure(self):
+        connection = FaultingTransactionConnection(fail_commit=True)
+        with self.assertRaisesRegex(sqlite3.OperationalError, "synthetic commit failure"):
+            with CSDStore._Transaction(connection):
+                pass
+        self.assertEqual(connection.statements, ["COMMIT", "ROLLBACK"])
+        self.assertFalse(connection.in_transaction)
+
+    def test_transaction_preserves_body_error_when_rollback_fails(self):
+        connection = FaultingTransactionConnection(fail_rollback=True)
+        with self.assertRaisesRegex(RuntimeError, "primary body failure") as raised:
+            with CSDStore._Transaction(connection):
+                raise RuntimeError("primary body failure")
+        self.assertIsInstance(raised.exception.__cause__, sqlite3.OperationalError)
+        self.assertIn("ROLLBACK", connection.statements)
+
+    def test_transaction_preserves_commit_error_when_rollback_fails(self):
+        connection = FaultingTransactionConnection(
+            fail_commit=True,
+            fail_rollback=True,
+        )
+        with self.assertRaisesRegex(
+            sqlite3.OperationalError, "synthetic commit failure"
+        ) as raised:
+            with CSDStore._Transaction(connection):
+                pass
+        self.assertIsInstance(raised.exception.__cause__, sqlite3.OperationalError)
+        self.assertIn("ROLLBACK", connection.statements)
 
     def test_accepts_event_and_updates_projection(self):
         result = self.store.submit_event(self.event())
