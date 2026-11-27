@@ -6,6 +6,7 @@ from pathlib import Path
 import sqlite3
 import subprocess
 import sys
+import threading
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -159,6 +160,86 @@ class CSDStoreTests(unittest.TestCase):
             self.assertEqual(result.source_snapshot_id, snapshot_id)
             self.assertEqual(result.replayed_events, 1)
             self.assertEqual(result.state, expected)
+
+    def test_recovery_serializes_concurrent_writer_before_projection_replace(self):
+        self.store.submit_event(self.event("before-recovery"))
+        self.store.close()
+
+        replay_started = threading.Event()
+        allow_replay_to_finish = threading.Event()
+        recovery_results = []
+        recovery_errors = []
+
+        class PausingRecoveryStore(CSDStore):
+            def _reduce(self, state, event, sequence):
+                replay_started.set()
+                if not allow_replay_to_finish.wait(timeout=10):
+                    raise TimeoutError("recovery replay was not released")
+                return super()._reduce(state, event, sequence)
+
+        def run_recovery():
+            try:
+                with PausingRecoveryStore(self.db_path) as recovering:
+                    recovery_results.append(recovering.recover())
+            except BaseException as exc:
+                recovery_errors.append(exc)
+
+        recovery_thread = threading.Thread(
+            target=run_recovery,
+            name="csd-recovery-race-test",
+        )
+        writer_thread = None
+        writer_attempted_begin = threading.Event()
+        writer_done = threading.Event()
+        writer_results = []
+        writer_errors = []
+
+        recovery_thread.start()
+        try:
+            self.assertTrue(replay_started.wait(timeout=5))
+
+            def run_writer():
+                try:
+                    with CSDStore(self.db_path, busy_timeout_ms=10000) as writer:
+                        writer._connection.set_trace_callback(
+                            lambda statement: writer_attempted_begin.set()
+                            if statement.strip().upper() == "BEGIN IMMEDIATE"
+                            else None
+                        )
+                        writer_results.append(
+                            writer.submit_event(self.event("during-recovery"))
+                        )
+                except BaseException as exc:
+                    writer_errors.append(exc)
+                finally:
+                    writer_done.set()
+
+            writer_thread = threading.Thread(
+                target=run_writer,
+                name="csd-concurrent-writer-test",
+            )
+            writer_thread.start()
+            self.assertTrue(writer_attempted_begin.wait(timeout=5))
+            self.assertFalse(
+                writer_done.wait(timeout=0.25),
+                "writer should wait while Recovery owns the write transaction",
+            )
+        finally:
+            allow_replay_to_finish.set()
+            recovery_thread.join(timeout=10)
+            if writer_thread is not None:
+                writer_thread.join(timeout=10)
+
+        self.assertFalse(recovery_thread.is_alive(), "Recovery thread did not finish")
+        self.assertIsNotNone(writer_thread)
+        self.assertFalse(writer_thread.is_alive(), "writer thread did not finish")
+        self.assertEqual(recovery_errors, [])
+        self.assertEqual(writer_errors, [])
+        self.assertEqual(recovery_results[0].state["accepted_event_count"], 1)
+        with CSDStore(self.db_path) as reopened:
+            final = reopened.get_state_snapshot()
+            self.assertEqual(final["through_sequence"], 2)
+            self.assertEqual(final["state"]["accepted_event_count"], 2)
 
     def test_corrupt_snapshot_is_rejected_and_rebuilt_from_event_log(self):
         self.store.submit_event(self.event())
