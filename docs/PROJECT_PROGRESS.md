@@ -4,9 +4,16 @@
 > Last updated: 2026-11-27 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
 > Latest code checkpoint: `b7e170ea525171a1d26c0f9604b863db19010887` (reviewer-attribution guard; tests unexecuted)  
-> Current live branch / PR head before the 2026-11-27 documentation-only continuation: `ee465fbf5527bb5abcc9194678150e013735530e` (documentation-only commits follow; re-read live ref next session)  
+> Current live branch / PR #1 head (verified 2026-11-27): `54fd52618374b447fe197ee6ec9a82f80211d905` (documentation-only commits follow this code checkpoint)  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
+
+## Live audit correction — 2026-11-27
+
+- **Live branch / PR #1 head verified for this correction:** `54fd52618374b447fe197ee6ec9a82f80211d905`. Comparing `b7e170e` to this head shows 91 documentation-only commits across four Markdown files; the latest code-bearing checkpoint remains `b7e170ea525171a1d26c0f9604b863db19010887`.
+- **Repository visibility:** GitHub currently reports this repository as **public**. Earlier private-repository wording is historical policy context, not the current visibility. Do not change repository visibility or enable paid Actions usage without an explicit decision.
+- **PR #1:** Open / Draft / Unmerged. Its old description cited the historical `20ef3c5` / Run #481 / 365-test result; that result is not current verification. The latest inspected Run #814 did not allocate Ubuntu or Windows runners (`runner_id=0`, blank runner name, `steps=[]`), so no tests ran and no pass/fail result exists for the current code checkpoint.
+- **Current implementation truth:** the QQ Journal reference implementation and tests exist under `integrations/surfcore-qq-journal/`; they are not integrated into SurfCore and are not a production QQ data path. See the corrected blueprint §7–§8.
 
 ## Current checkpoint — 2026-11-26 (decision/replay architecture audit; tests remain blocked)
 
