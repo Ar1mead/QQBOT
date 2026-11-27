@@ -1367,3 +1367,13 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - **Minor Recovery test cleanup weakness:** the writer thread calls `writer.close()` before `writer_done.set()` in the same `finally` block. If close itself raises, the completion signal is skipped and the close exception is not added to `writer_errors`. When test edits are permitted, put the signal in a nested `finally` and capture close failures.
 - The Recovery concurrency test's 0.5-second non-completion assertion is a timing-based guard after the trace callback observes `BEGIN IMMEDIATE`; it is useful but is not a fully deterministic observation of SQLite's busy-wait state. Treat it as a test-design limitation, not evidence that the test has run or passed.
 - No source code or tests were changed or executed in this audit. The SQLite Windows `SQLITE_READONLY` root cause remains unresolved. Keep WAL and `synchronous=FULL`; no retry, process-local lock, sidecar deletion, or durability downgrade. Do not run or rerun Actions before the documented 2026-12-02 quota check. PR #1 remains Draft / Open / Unmerged.
+
+
+## 1.5 新增测试提交的 Actions 自动触发状态说明 — 2026-11-27
+
+- `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e` 修改了 `tests/test_csd_goals.py`；该文件明确位于 `.github/workflows/csd-cognitive-slice.yml` 的 feature branch `push.paths` 列表中。
+- 因此该 Git push 匹配工作流配置的自动 push 触发条件，可能已经创建 Actions run。本轮没有手动 dispatch 或 rerun。
+- 当前可用 GitHub 查询接口的 `fetch_commit_workflow_runs` 只返回 PR-triggered runs；返回空数组以及 combined status 为空，都不能证明不存在 push-triggered run。该自动运行的实际状态本轮无法核实。
+- **更正前一节措辞：**“没有触发 Actions”过于宽泛。准确说法是“没有手动触发 Actions；自动 push-triggered run 状态未知”。没有测试执行或通过结论。
+- 额度检查前不要手动 dispatch/rerun。PR #1 保持 Draft / Open / Unmerged。
+
