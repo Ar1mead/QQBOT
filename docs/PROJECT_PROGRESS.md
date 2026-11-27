@@ -3,7 +3,7 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-27 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Latest code/test checkpoint: `a52ddc4e101d97bb34079306a1a53c99525f2ef5` (SQLite diagnostic exception-safety regression and Recovery writer-thread cleanup; not executed)  
+> Latest code/test checkpoint: `1d56e654cacec4666c6f4a28a5d3baeff8863087` (SQLite snapshot projection validation and regression coverage; not executed)  
 > Live branch / PR #1 head: always fetch the current GitHub ref; this ledger records code checkpoints, not a substitute for live ref verification.  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
@@ -2413,3 +2413,15 @@ Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest
 - Commit: `a52ddc4e101d97bb34079306a1a53c99525f2ef5`.
 - These are code/test edits only. **No tests were executed** and no Actions workflow was triggered. This does not resolve the Windows `SQLITE_READONLY` root cause. Preserve WAL and `synchronous=FULL`; do not add retries, process-local locks, sidecar deletion, or durability downgrades without evidence.
 - Next: review the updated diff, then wait for the documented 2026-12-02 quota check before hosted execution. PR #1 remains Draft / Open / Unmerged; never merge.
+
+
+## CSD snapshot projection validation follow-up — 2026-11-27
+
+- Static review found the generic reference `CSDStore` snapshot validator accepted Python booleans as integers, did not require `accepted_event_count == through_sequence`, allowed zero/empty event-count entries, and only checked that the final event was a mapping.
+- Tightened the projection shape: exact top-level fields; integer-but-not-boolean counters; accepted count must equal the snapshot sequence; positive non-boolean per-type counts; zero-sequence snapshots must have empty counts and no last event; nonzero last-event metadata must have the exact expected keys and non-empty strings.
+- Recovery now compares snapshot `last_event` to the actual event at `through_sequence` before using it. A digest-recomputed but history-mismatched snapshot is rejected and the event log is replayed from the beginning.
+- Added regression coverage for boolean counters, count/sequence mismatch, malformed last-event shape, and a snapshot whose final-event ID is altered while its digest is recomputed.
+- Commits: `cd84d7571d29dc78bc597b41bfd2e71fc63c7959` (validator/recovery), `4c8941e5311b60610e4ce8eda4ee479d3f902f02` (tests), `1d56e654cacec4666c6f4a28a5d3baeff8863087` (test import correction).
+- Scope note: `store.py` is the original generic persistence spike. The main typed cognitive store is `cognitive.py`; this fix does not imply the main cognitive store has been runtime-validated.
+- **Not executed:** tests remain unrun and no Actions workflow was triggered. Windows SQLite `SQLITE_READONLY` remains unresolved. Honor the 2026-12-02 quota check; keep WAL and `synchronous=FULL`.
+- PR #1 remains Open / Draft / Unmerged. Never merge.
