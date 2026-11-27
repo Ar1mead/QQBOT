@@ -424,26 +424,44 @@ class CSDStore:
         if not isinstance(state, dict):
             return False
         required = {"accepted_event_count", "event_counts", "last_event", "last_sequence"}
-        if required - set(state):
+        if set(state) != required:
             return False
-        if not isinstance(state["accepted_event_count"], int) or state["accepted_event_count"] < 0:
+        accepted_count = state["accepted_event_count"]
+        last_sequence = state["last_sequence"]
+        if (
+            not isinstance(accepted_count, int)
+            or isinstance(accepted_count, bool)
+            or accepted_count < 0
+            or not isinstance(last_sequence, int)
+            or isinstance(last_sequence, bool)
+            or last_sequence != through_sequence
+            or accepted_count != through_sequence
+        ):
             return False
         if not isinstance(state["event_counts"], dict):
             return False
         if any(
-            not isinstance(key, str) or not isinstance(value, int) or value < 0
+            not isinstance(key, str)
+            or not key
+            or not isinstance(value, int)
+            or isinstance(value, bool)
+            or value <= 0
             for key, value in state["event_counts"].items()
         ):
             return False
-        if sum(state["event_counts"].values()) != state["accepted_event_count"]:
+        if sum(state["event_counts"].values()) != accepted_count:
             return False
-        if state["last_sequence"] != through_sequence:
-            return False
-        if through_sequence == 0 and state["last_event"] is not None:
-            return False
-        if through_sequence > 0 and not isinstance(state["last_event"], dict):
-            return False
-        return True
+        if through_sequence == 0:
+            return state["last_event"] is None and not state["event_counts"]
+        last_event = state["last_event"]
+        return (
+            isinstance(last_event, dict)
+            and set(last_event) == {"event_id", "event_type", "source"}
+            and all(
+                isinstance(last_event.get(key), str) and bool(last_event[key].strip())
+                for key in ("event_id", "event_type", "source")
+            )
+        )
 
     def recover(self) -> RecoveryResult:
         """Rebuild the projection from validated durable records; never dispatch actions."""
@@ -539,6 +557,16 @@ class CSDStore:
             if not self._validate_projection(state, through):
                 rejected.append(f"{snapshot_id}: invalid projection shape")
                 continue
+            if through > 0:
+                event_at_offset = events[through - 1][1]
+                expected_last_event = {
+                    "event_id": event_at_offset.event_id,
+                    "event_type": event_at_offset.event_type,
+                    "source": event_at_offset.source,
+                }
+                if state["last_event"] != expected_last_event:
+                    rejected.append(f"{snapshot_id}: last event does not match event history")
+                    continue
             valid_snapshot = snapshot
             break
 
