@@ -1388,3 +1388,16 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - 不运行本地测试，不手动触发或重跑 Actions，直到原定额度检查。Windows SQLite `SQLITE_READONLY` 仍未解决。保留 WAL 与 `synchronous=FULL`，不添加猜测性重试、进程锁、sidecar 删除或 durability 降级。
 - PR #1 继续保持 Draft / Open / Unmerged，绝不合并。
 
+
+
+## 1.7 动机生命周期、目标来源与 Life Engine sink 静态审查 — 2026-11-27
+
+- 检查 `core/csd/motivation.py`、`core/csd/goals.py`、`core/life_engine/contracts.py`、`core/life_engine/engine.py`、`core/life_engine/csd_adapter.py` 及对应测试。
+- 动机 weaken/contextualize/pause/resolve 都会形成新的不可变 signal version；版本表由已接受决策事件重建，并与 latest projection 对照，旧版本仍可供历史来源引用。
+- Goal 创建时按 proposal 事件之前的历史前缀读取来源 signal，要求当时状态 active，并保存准确的 signal ID/version。后续 signal 修订不会改写既有 goal 的来源引用。
+- 已有测试覆盖：来源 signal 从 version 1 强化到 version 2 后，goal 仍保留 version 1；来源 signal 暂停后，goal 仍保留原始 lineage。Goal activation 是单独、显式且版本校验的状态转换，只检查当前 candidate goal/version，不重新要求原始动机仍 active。这把“承诺形成时的历史理由”和“当前动机状态”分开。来源 signal 若已 resolved，是否应提示重新审视/限制 activation，属于待定策略问题，本轮不改变。
+- Life Engine validation：新建 goal 必须引用当前 active signal；goal-linked activity 必须指向 active goal；signal-linked activity 必须引用 active signal。Activation/pause/resume 是分离的、按版本检查的 goal 转换。
+- 当前 CSD snapshot adapter 不提供 activity options/active activities；sink 只持久化 goal proposal 和 goal transition，不执行 start/continue/stop activity，相关请求返回 not executed，等待 ASM 治理和可信 runtime 接入。LifeEngine.consider() 只做一次 read/deliberate/validate/submit，不自我调度、不重试、不调用工具、不执行副作用。
+- 静态审查未确认新正确性缺陷；没有执行测试。混合 Recovery 测试仍未执行；自动 push-triggered Actions 状态仍未知；没有手动 dispatch/rerun。
+- 在可信 activity-option provider、ASM 授权、权限撤销、stop-condition enforcement 和持久化 activity lifecycle 实现并测试前，不接入真实外部活动执行。PR #1 保持 Draft / Open / Unmerged。
+
