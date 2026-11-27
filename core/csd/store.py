@@ -223,9 +223,23 @@ class CSDStore:
 
         def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> bool:
             if exc_type is None:
-                self.connection.execute("COMMIT")
-            else:
-                self.connection.execute("ROLLBACK")
+                try:
+                    self.connection.execute("COMMIT")
+                except BaseException as commit_error:
+                    if self.connection.in_transaction:
+                        try:
+                            self.connection.execute("ROLLBACK")
+                        except BaseException as rollback_error:
+                            raise commit_error.with_traceback(
+                                commit_error.__traceback__
+                            ) from rollback_error
+                    raise
+            elif self.connection.in_transaction:
+                try:
+                    self.connection.execute("ROLLBACK")
+                except BaseException as rollback_error:
+                    # Preserve the application failure as the primary exception.
+                    raise exc.with_traceback(traceback) from rollback_error
             return False
 
     def _transaction(self) -> "CSDStore._Transaction":
