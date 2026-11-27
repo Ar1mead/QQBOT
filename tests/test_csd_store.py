@@ -23,6 +23,7 @@ def sqlite_environment_diagnostics(connection, database_path, error=None):
         "sqlite_version": sqlite3.sqlite_version,
         "database_path": str(path),
         "parent_writable": os.access(path.parent, os.W_OK),
+        "parent_mode": oct(stat.S_IMODE(path.parent.stat().st_mode)),
         "sqlite_errorcode": getattr(error, "sqlite_errorcode", None),
         "sqlite_errorname": getattr(error, "sqlite_errorname", None),
     }
@@ -30,6 +31,7 @@ def sqlite_environment_diagnostics(connection, database_path, error=None):
         for key, statement in (
             ("journal_mode", "PRAGMA journal_mode"),
             ("locking_mode", "PRAGMA locking_mode"),
+            ("synchronous", "PRAGMA synchronous"),
             ("database_list", "PRAGMA database_list"),
         ):
             try:
