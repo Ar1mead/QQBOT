@@ -1412,3 +1412,6 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - 未来 CSD-reserved revision decision event 应绑定 proposal、subject/owner、精确 prior revision、revision action、evidence lineage、review policy/decision policy 版本和 review-set digest。create/strengthen/weaken/narrow/broaden/retire 均保留不可变版本历史；accepted atomic revision 将 shared state_version 恰好推进一次，rejected/deferred 不推进。Recovery 只确定性重放持久化事件，不调用外部 reviewer/provider。
 - Stage 4 接受机制依赖 §3.21 的 Stage 1–3：先完成 canonical subject binding、attested interaction/agency evidence 和 subject-bound Motivation/Goal/candidate。AI interest 不能仅由内省、日记或模型自述形成。
 - 本轮仅更新设计，不修改源码/测试，不执行测试或 Actions。2026-12-02 前仍遵守 Billing-first 门槛；不运行本地测试、不手动 dispatch/rerun。Windows SQLite SQLITE_READONLY 未解决；保留 WAL 和 synchronous=FULL。PR #1 仍为 Draft / Open / Unmerged。
+
+
+- 额外澄清 §3.32：未来 reviewer event 必须有 CSD-issued review_round_id、固定 reviewer slot 和版本化 roster；每个 required slot 恰好一条有效意见，缺失/重复/多余意见都不能被静默忽略。当前 reviewer ID/version 只是 attribution，不证明真实模型调用或 reviewer 独立性。未来需要可信 orchestrator receipt 绑定 policy/request/response digest，并通过内部 CSD append；无法证明来源/独立性时只能 defer 或要求人工裁决。现有 review v1 永远只作为历史 advisory，不追认成完整 attested review round。
