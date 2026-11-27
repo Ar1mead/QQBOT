@@ -215,8 +215,14 @@ class CSDStoreTests(unittest.TestCase):
 
         replay_started = threading.Event()
         allow_replay_to_finish = threading.Event()
+        writer_ready = threading.Event()
+        allow_writer_to_submit = threading.Event()
+        writer_attempted_begin = threading.Event()
+        writer_done = threading.Event()
         recovery_results = []
         recovery_errors = []
+        writer_errors = []
+        writer_results = []
 
         class PausingRecoveryStore(CSDStore):
             def _reduce(self, state, event, sequence):
@@ -232,57 +238,61 @@ class CSDStoreTests(unittest.TestCase):
             except BaseException as exc:
                 recovery_errors.append(exc)
 
+        def run_writer():
+            writer = None
+            try:
+                # Create the connection in the same thread that will use it.
+                writer = CSDStore(self.db_path, busy_timeout_ms=10000)
+                writer._connection.set_trace_callback(
+                    lambda statement: writer_attempted_begin.set()
+                    if statement.strip().upper() == "BEGIN IMMEDIATE"
+                    else None
+                )
+                writer_ready.set()
+                if not allow_writer_to_submit.wait(timeout=10):
+                    raise TimeoutError("writer was not released")
+                writer_results.append(
+                    writer.submit_event(self.event("during-recovery"))
+                )
+            except BaseException as exc:
+                writer_errors.append(exc)
+            finally:
+                if writer is not None:
+                    writer.close()
+                writer_done.set()
+
         recovery_thread = threading.Thread(
             target=run_recovery,
             name="csd-recovery-race-test",
         )
-        writer_store = CSDStore(self.db_path, busy_timeout_ms=10000)
-        writer_attempted_begin = threading.Event()
-        writer_store._connection.set_trace_callback(
-            lambda statement: writer_attempted_begin.set()
-            if statement.strip().upper() == "BEGIN IMMEDIATE"
-            else None
+        writer_thread = threading.Thread(
+            target=run_writer,
+            name="csd-concurrent-writer-test",
         )
-        writer_thread = None
-        writer_done = threading.Event()
-        writer_results = []
-        writer_errors = []
-
-        recovery_thread.start()
+        recovery_started = False
+        writer_thread.start()
         try:
+            self.assertTrue(writer_ready.wait(timeout=5))
+            recovery_thread.start()
+            recovery_started = True
             self.assertTrue(replay_started.wait(timeout=5))
-
-            def run_writer():
-                try:
-                    writer_results.append(
-                        writer_store.submit_event(self.event("during-recovery"))
-                    )
-                except BaseException as exc:
-                    writer_errors.append(exc)
-                finally:
-                    writer_store.close()
-                    writer_done.set()
-
-            writer_thread = threading.Thread(
-                target=run_writer,
-                name="csd-concurrent-writer-test",
-            )
-            writer_thread.start()
+            allow_writer_to_submit.set()
             self.assertTrue(writer_attempted_begin.wait(timeout=5))
             self.assertFalse(
                 writer_done.wait(timeout=0.5),
                 "writer should wait while Recovery owns the write transaction",
             )
         finally:
+            allow_writer_to_submit.set()
             allow_replay_to_finish.set()
-            recovery_thread.join(timeout=10)
-            if writer_thread is not None:
-                writer_thread.join(timeout=10)
-            else:
-                writer_store.close()
+            if recovery_started:
+                recovery_thread.join(timeout=10)
+            writer_thread.join(timeout=10)
 
-        self.assertFalse(recovery_thread.is_alive(), "Recovery thread did not finish")
-        self.assertIsNotNone(writer_thread)
+        self.assertFalse(
+            recovery_thread.is_alive() if recovery_started else False,
+            "Recovery thread did not finish",
+        )
         self.assertFalse(writer_thread.is_alive(), "writer thread did not finish")
         self.assertEqual(recovery_errors, [])
         self.assertEqual(writer_errors, [])
