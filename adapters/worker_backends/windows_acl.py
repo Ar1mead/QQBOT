@@ -117,7 +117,7 @@ class _AclObjectHandle:
 
     def __init__(self, path: str, desired_access: int, expected_directory: bool | None) -> None:
         require_win64()
-        if not isinstance(path, str) or not path or "\\x00" in path:
+        if not isinstance(path, str) or not path or "\x00" in path:
             raise ValueError("path must be a non-empty filesystem path")
         if not os.path.isabs(path):
             raise ValueError("ACL target path must be absolute")
@@ -382,7 +382,7 @@ MAX_RUNTIME_TREE_ENTRIES: Final[int] = 100000
 def _runtime_tree_entries(root: str) -> list[tuple[str, bool]]:
     """Enumerate a pinned runtime tree without following any reparse point."""
     require_win64()
-    if not isinstance(root, str) or not root or "\\x00" in root or not os.path.isabs(root):
+    if not isinstance(root, str) or not root or "\x00" in root or not os.path.isabs(root):
         raise ValueError("runtime root must be an absolute NUL-free directory path")
     root = os.path.abspath(root)
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
