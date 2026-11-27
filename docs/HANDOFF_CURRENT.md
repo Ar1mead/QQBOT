@@ -1377,3 +1377,14 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - **更正前一节措辞：**“没有触发 Actions”过于宽泛。准确说法是“没有手动触发 Actions；自动 push-triggered run 状态未知”。没有测试执行或通过结论。
 - 额度检查前不要手动 dispatch/rerun。PR #1 保持 Draft / Open / Unmerged。
 
+
+
+## 1.6 本轮续接检查点 — 2026-11-27
+
+- 已重新读取当前分支的项目进度、交接文档、主认知存储、动机/目标实现和测试。
+- 复核混合历史测试 `test_mixed_memory_motivation_goal_history_recovers_after_reopen`：它按顺序创建并接受 episodic memory、motivation signal、goal batch、goal activation、goal pause，随后比较 Recovery 前后及数据库重开后的三类投影。预期全局状态版本为 5，目标为 paused/version 3。测试仍未执行。
+- 修正文档中“没有触发 Actions”的旧表述：没有手动 dispatch/rerun；但新增测试文件命中 workflow 的 push path filter，自动 push-triggered run 可能存在。当前可用查询只覆盖 PR-triggered runs，故自动运行状态未知。不得声称没有自动运行。
+- 下一步静态审查：动机信号后续 weaken/contextualize/pause/resolve 时，旧目标引用的历史版本是否不可变；目标创建和激活是否会把旧信号快照误当作当前仍有效的行动授权；再检查 Life Engine sink 是否严格区分“目标状态变化”和“真正执行外部任务”。
+- 不运行本地测试，不手动触发或重跑 Actions，直到原定额度检查。Windows SQLite `SQLITE_READONLY` 仍未解决。保留 WAL 与 `synchronous=FULL`，不添加猜测性重试、进程锁、sidecar 删除或 durability 降级。
+- PR #1 继续保持 Draft / Open / Unmerged，绝不合并。
+
