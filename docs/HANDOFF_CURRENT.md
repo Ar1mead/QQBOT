@@ -9,6 +9,19 @@
 **默认分支：** `main`  
 **仓库可见性：** GitHub 当前报告为 **Public**（不是 Private）
 
+## 1.1 主认知存储决策历史与 Recovery 静态审查 — 2026-11-27
+
+本轮检查了当前分支的 `core/csd/cognitive.py`、`core/csd/motivation.py`、`core/csd/goals.py`，以及对应的认知、动机和目标测试。
+
+- 主认知存储通过统一的决策重放上下文维护 memory / motivation / goal 决策族共享的全局状态版本；决策必须匹配其前序事件历史计算出的状态版本，且布尔值不能冒充整数版本。
+- 记忆决策核对 proposal ID/event ID、证据引用、证据先后顺序和类型、策略族及语义审查历史。
+- 动机决策根据历史提案和交互证据进行确定性重算；目标批量创建、激活、暂停/恢复均按事件顺序重建目标状态，并将投影表与事件历史核对。
+- Recovery 在同一个写事务内检查事件历史并重建本地投影；不调用外部 evaluator/provider，不应重放外部副作用。
+- 本轮静态检查没有确认新的正确性缺陷，但这不是运行时正确性证明。没有运行测试，也没有触发 Actions。
+- 尚需补充/保留混合 memory/motivation/goal 事件在崩溃、重启、Recovery 下的端到端验证，以及 Recovery 中断测试和“绝不重放外部副作用”的验证。
+- Windows SQLite `SQLITE_READONLY` 根因仍未解决。遵守额度检查安排，不提前触发 Actions；保留 WAL 与 `synchronous=FULL`。
+- PR #1 继续保持 Open / Draft / Unmerged，禁止合并。
+
 ## 1.0 CSD snapshot projection validation — 2026-11-27
 
 - Latest code/test checkpoint: `1d56e654cacec4666c6f4a28a5d3baeff8863087`.
