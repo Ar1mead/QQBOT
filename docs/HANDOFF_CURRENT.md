@@ -4,13 +4,21 @@
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
 **最近代码提交：** `b7e170ea525171a1d26c0f9604b863db19010887`（reviewer attribution guard；测试未执行）  
-**当前分支 / PR #1 head（2026-11-27 本轮文档更新前实时核对）：** `ee465fbf5527bb5abcc9194678150e013735530e`（本轮随后仅有文档专用提交；下次续接仍须重新读取）  
+**当前分支 / PR #1 head（2026-11-27 实时核对）：** `54fd52618374b447fe197ee6ec9a82f80211d905`（相对代码检查点仅有文档提交）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
-**默认分支：** `main`
+**默认分支：** `main`  
+**仓库可见性：** GitHub 当前报告为 **Public**（不是 Private）
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。开始工作时必须重新核对 GitHub 实际状态。PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
 
 ## 0.1 本轮续接 checkpoint — 2026-11-26
+
+## 0.2 实时审查修正 — 2026-11-27
+
+- 当前活动分支与 PR #1 head：`54fd52618374b447fe197ee6ec9a82f80211d905`。与代码检查点 `b7e170ea525171a1d26c0f9604b863db19010887` 比较，后续 91 次提交仅修改四份 Markdown 文档；因此代码检查点仍是 `b7e170e`，不能把文档 HEAD 误写成新的代码提交。
+- 仓库当前可见性为 **Public**。旧记录中“私有仓库”的表述属于历史状态/一般安全原则；当前不要擅自更改仓库可见性，也不要启用付费 Actions。
+- PR #1 的原描述仍引用历史 `20ef3c5`、Run #481/#485 和每平台 365 tests。这些只代表历史验证，不能代表当前分支。最新检查的 Run #814 在 runner 分配前失败（Ubuntu/Windows 均 `runner_id=0`、空 runner name、`steps=[]`），所以当前没有测试通过或失败的结果。
+- SurfCore QQ Journal 已有独立参考实现及测试，但没有接入 SurfCore、没有生产调用者、没有真实 QQ 数据链路。具体状态以设计蓝图 §7–§8 为准。
 
 - 本轮实时核对活动分支 `feature/csd-cognitive-memory-slice` 的 HEAD 与 PR #1 head：最新代码 checkpoint 为 `b7e170ea525171a1d26c0f9604b863db19010887`（reviewer attribution guard，测试未执行）；随后仅同步项目文档。PR #1：Open、Draft=true、Merged=false，base `main`。继续禁止合并和同步 fork。
 - **跨经历审查记录事件已实现：** `cognition.cross_episode_review_recorded.v1` 由 CSD 保留 authority source；review event 绑定候选事件 ID/sequence/payload digest、review input digest、state version、reviewer identity/version 和规范化的 bounded opinion。append 时重建候选证据快照并校验 artifact 绑定；事件 ID 基于规范化 payload 确定，重复投递幂等。
