@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 import inspect
+import os
 from pathlib import Path
 import sqlite3
+import stat
 import subprocess
 import sys
 import threading
@@ -12,6 +14,52 @@ import unittest
 from unittest.mock import patch
 
 from core.csd import CSDStore, Event, IdempotencyConflict, StorageIntegrityError
+
+
+def sqlite_environment_diagnostics(connection, database_path):
+    path = Path(database_path).resolve()
+    diagnostics = {
+        "python_version": sys.version,
+        "sqlite_version": sqlite3.sqlite_version,
+        "database_path": str(path),
+        "parent_writable": os.access(path.parent, os.W_OK),
+        "sqlite_errorcode": None,
+        "sqlite_errorname": None,
+    }
+    if connection is not None:
+        for key, statement in (
+            ("journal_mode", "PRAGMA journal_mode"),
+            ("locking_mode", "PRAGMA locking_mode"),
+            ("database_list", "PRAGMA database_list"),
+        ):
+            try:
+                diagnostics[key] = [tuple(row) for row in connection.execute(statement).fetchall()]
+            except sqlite3.Error as exc:
+                diagnostics[key] = f"{type(exc).__name__}: {exc}"
+    files = {}
+    for label, candidate in (
+        ("database", path),
+        ("wal", Path(f"{path}-wal")),
+        ("shm", Path(f"{path}-shm")),
+    ):
+        try:
+            metadata = candidate.stat()
+            files[label] = {
+                "exists": True,
+                "size": metadata.st_size,
+                "mode": oct(stat.S_IMODE(metadata.st_mode)),
+                "readonly_mode_bit": not bool(metadata.st_mode & stat.S_IWRITE),
+                "windows_readonly_attribute": bool(
+                    getattr(metadata, "st_file_attributes", 0)
+                    & getattr(stat, "FILE_ATTRIBUTE_READONLY", 1)
+                ),
+            }
+        except FileNotFoundError:
+            files[label] = {"exists": False}
+        except OSError as exc:
+            files[label] = f"{type(exc).__name__}: {exc}"
+    diagnostics["files"] = files
+    return diagnostics
 
 
 class FailingReducerStore(CSDStore):
@@ -362,19 +410,73 @@ store.submit_event(Event(
             self.assertEqual(result["status"], "duplicate")
             self.assertEqual(reopened.get_state_snapshot()["state"]["accepted_event_count"], 1)
 
+    def test_concurrent_connection_bootstrap_without_writes(self):
+        self.store.close()
+
+        def open_and_close(index):
+            with CSDStore(self.db_path, busy_timeout_ms=10000) as candidate:
+                return candidate._connection.execute(
+                    "PRAGMA journal_mode"
+                ).fetchone()[0]
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            modes = list(executor.map(open_and_close, range(20)))
+        self.assertEqual(modes, ["wal"] * 20)
+
+    def test_preopened_connections_serialize_concurrent_writers(self):
+        self.store.close()
+        writers = [
+            CSDStore(self.db_path, busy_timeout_ms=10000)
+            for _ in range(8)
+        ]
+        try:
+            def submit(item):
+                index, writer = item
+                return writer.submit_event(self.event(
+                    event_id=f"preopened-{index}",
+                    payload={"index": index},
+                ))
+
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                results = list(executor.map(submit, enumerate(writers)))
+        finally:
+            for writer in writers:
+                writer.close()
+
+        self.assertEqual(
+            sum(result["status"] == "accepted" for result in results),
+            len(writers),
+        )
+        with CSDStore(self.db_path) as reopened:
+            self.assertEqual(
+                reopened.get_state_snapshot()["state"]["accepted_event_count"],
+                len(writers),
+            )
+
     def test_multiple_connections_serialize_concurrent_writers(self):
         self.store.close()
 
         def submit(index):
             with CSDStore(self.db_path, busy_timeout_ms=10000) as writer:
-                return writer.submit_event(Event(
-                    event_id=f"concurrent-{index}",
-                    occurred_at="2026-11-14T12:00:00+00:00",
-                    correlation_id="concurrent-test",
-                    event_type="test.concurrent.v1",
-                    source="test.worker",
-                    payload={"index": index},
-                ))
+                try:
+                    return writer.submit_event(Event(
+                        event_id=f"concurrent-{index}",
+                        occurred_at="2026-11-14T12:00:00+00:00",
+                        correlation_id="concurrent-test",
+                        event_type="test.concurrent.v1",
+                        source="test.worker",
+                        payload={"index": index},
+                    ))
+                except sqlite3.OperationalError as exc:
+                    diagnostics = sqlite_environment_diagnostics(
+                        writer._connection, self.db_path
+                    )
+                    raise AssertionError(
+                        "concurrent SQLite write failed; "
+                        f"errorcode={getattr(exc, 'sqlite_errorcode', None)!r}, "
+                        f"errorname={getattr(exc, 'sqlite_errorname', None)!r}, "
+                        f"diagnostics={diagnostics!r}"
+                    ) from exc
 
         with ThreadPoolExecutor(max_workers=8) as executor:
             results = list(executor.map(submit, range(20)))
