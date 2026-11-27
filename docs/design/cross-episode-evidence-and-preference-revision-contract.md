@@ -1353,3 +1353,17 @@ Any stale state, missing/extra review, altered lineage, unresolved subject, inva
 - Recovery interruption rolls back all projection changes; replay never re-runs semantic reviewers, external services or side effects.
 
 **Status:** design-only static refinement. Current implementation still has pending-shadow proposals and advisory review records only. There is no decision-time acceptance path or accepted preference/self-model reducer. No code or tests were changed or executed. The 2026-12-02 Billing-first Stage 0 gate and the existing Draft / Open / Unmerged PR policy remain unchanged.
+
+
+## 3.32 Review-round identity and reviewer invocation provenance — design clarification (2026-11-27)
+
+Section 3.31's review-set contract requires an explicit round boundary; proposal identity alone is not enough once a proposal can be reviewed more than once.
+
+- A future versioned review event must bind a stable review_round_id, proposal event ID/sequence/digest, review-input digest, review policy ID/version and reviewer slot ID. The round ID is CSD/pipeline-issued, not model-selected. A new round must be created only by an explicit policy transition; old rounds and opinions remain immutable.
+- The configured roster is a canonical ordered set of reviewer slots. Each slot binds the allowed reviewer identity/version and a configured provider/backend profile. A round is complete only when every required slot has exactly one valid opinion and no unaccounted opinion exists for that round. Event ordering and timestamps do not select a winner.
+- Current reviewer ID/version fields are durable attribution only. The existing pipeline checks that the artifact identity matches its configured provider before append, but the event does not independently prove which external model actually produced the opinion or that two reviewers are independent. Do not describe these fields as cryptographic attestation or verified independence.
+- A future trusted review orchestrator must create an invocation receipt bound to the round/slot, policy digest, exact request digest and bounded response digest, then pass it through a CSD-internal append path. The receipt's trust must derive from the controlled invocation boundary or a verifiable attestation mechanism, not a caller-supplied source string or model payload. Recovery validates the persisted receipt and event lineage without re-running the provider.
+- If the invocation boundary cannot establish the required provenance or independence, the policy must require human adjudication or defer; it must not simulate independence by assigning different reviewer names to the same unverified output.
+- The initial implementation must version this schema separately from the current review-record v1 event. Existing v1 review events remain historical advisory records and cannot be retroactively treated as round-complete or attested votes.
+
+**Status:** design clarification only. No source code or tests changed or executed. Stage 0 and the Draft / Open / Unmerged PR policy remain unchanged.
