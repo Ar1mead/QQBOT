@@ -3,11 +3,21 @@
 **最后核对：** 2026-11-27（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**最近代码/测试提交：** `1d56e654cacec4666c6f4a28a5d3baeff8863087`（SQLite 快照投影校验及回归测试；尚未执行）  
+**最近代码/测试提交：** `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e`（混合记忆/动机/目标 Recovery 与重开回归测试；尚未执行）  
 **本轮审查开始时的分支 / PR #1 head（2026-11-27）：** `54fd52618374b447fe197ee6ec9a82f80211d905`（之后本轮继续产生文档修正提交）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`  
 **仓库可见性：** GitHub 当前报告为 **Public**（不是 Private）
+
+## 1.3 混合认知事件历史 Recovery 与重开回归测试 — 2026-11-27
+
+- 新增 `tests/test_csd_goals.py::test_mixed_memory_motivation_goal_history_recovers_after_reopen`。
+- 合成历史依次接受一条 episodic memory、一条 motivation signal，再由该 signal 创建目标，显式激活并暂停目标。
+- 测试核对共享 `state_version=5`，以及 memory、motivation、goal 三类投影在 Recovery 前、Recovery 后、关闭数据库并重新打开后的内容完全一致；目标最终应为 `paused`、`goal_version=3`。
+- 代码/测试提交：`777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e`。
+- **尚未执行**：没有本地测试，也没有触发 GitHub Actions；这只是新增回归测试，不是通过结果。
+- 本项只补齐混合事件历史的 Recovery/reopen 覆盖，不证明 SQLite/Windows 运行时问题已解决。
+- Windows `SQLITE_READONLY` 根因仍未解决；保留 WAL 与 `synchronous=FULL`，额度检查前不触发 Actions。PR #1 继续保持 Draft / Open / Unmerged。
 
 ## 1.2 Recovery 中断原子性回归测试 — 2026-11-27
 
