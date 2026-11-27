@@ -791,6 +791,104 @@ class CSDGoalActivationTests(unittest.TestCase):
         )
         return goal_id
 
+    def test_mixed_memory_motivation_goal_history_recovers_after_reopen(self):
+        observation = event(
+            "mixed-recovery-memory-observation",
+            OBSERVATION_EVENT,
+            "test.observation",
+            {
+                "observation_id": "mixed-recovery-memory-observation",
+                "observation_kind": "text_fixture",
+                "content": "A synthetic observation for mixed-family Recovery.",
+                "source_ref": "fixture://mixed-recovery/memory",
+                "observed_at": "2026-11-15T08:00:00+00:00",
+                "coverage": {"modality": "text", "complete_for_fixture": True},
+            },
+        )
+        self.store.submit_event(observation)
+        self.store.submit_event(event(
+            "mixed-recovery-memory-proposal-event",
+            PROPOSAL_EVENT,
+            "test.memory_candidate_fixture",
+            {
+                "proposal_id": "mixed-recovery-memory",
+                "memory_kind": "episodic_candidate",
+                "candidate_content": "A synthetic memory for mixed-family Recovery.",
+                "evidence_event_ids": ["mixed-recovery-memory-observation"],
+                "origin": {"component": "test.memory_candidate_fixture", "version": "0.1"},
+                "uncertainty": {"label": "fixture_only", "confidence": None},
+                "based_on": {"state_version": self.store.get_state_snapshot()["state_version"]},
+                "operation": "create",
+            },
+            at="2026-11-15T08:01:00+00:00",
+        ))
+        self.assertEqual(
+            self.store.evaluate_proposal("mixed-recovery-memory")["status"],
+            "accepted",
+        )
+
+        signal_id = add_internal_signal(self.store, "mixed-recovery")
+        goal_id = "goal-mixed-recovery-goal"
+        goal_proposal_id = "mixed-recovery-goal"
+        self.store.submit_event(goal_event(
+            goal_proposal_id,
+            [signal_id],
+            state_version=self.store.get_state_snapshot()["state_version"],
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_batch_proposal(goal_proposal_id)["status"],
+            "accepted",
+        )
+
+        activation_id = "mixed-recovery-activation"
+        self.store.submit_event(goal_activation_event(
+            activation_id,
+            goal_id,
+            state_version=self.store.get_state_snapshot()["state_version"],
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_activation_proposal(activation_id)["status"],
+            "accepted",
+        )
+
+        pause_id = "mixed-recovery-pause"
+        self.store.submit_event(goal_pause_resume_event(
+            pause_id,
+            goal_id,
+            state_version=self.store.get_state_snapshot()["state_version"],
+            expected_goal_version=2,
+            operation="pause",
+        ))
+        self.assertEqual(
+            self.store.evaluate_goal_pause_resume_proposal(pause_id)["status"],
+            "accepted",
+        )
+
+        before_snapshot = self.store.get_state_snapshot()
+        before_memories = self.store.get_memories()
+        before_signals = self.store.get_motivation_signals()
+        before_goals = self.store.get_goals()
+        self.assertEqual(before_snapshot["state_version"], 5)
+        self.assertEqual(len(before_memories), 1)
+        self.assertEqual(len(before_signals), 1)
+        self.assertEqual(len(before_goals), 1)
+        self.assertEqual(before_goals[0]["status"], "paused")
+        self.assertEqual(before_goals[0]["goal_version"], 3)
+
+        self.store.recover()
+        self.assertEqual(self.store.get_state_snapshot(), before_snapshot)
+        self.assertEqual(self.store.get_memories(), before_memories)
+        self.assertEqual(self.store.get_motivation_signals(), before_signals)
+        self.assertEqual(self.store.get_goals(), before_goals)
+
+        self.store.close()
+        self.store = CognitiveMemoryStore(self.path)
+        self.assertEqual(self.store.get_state_snapshot(), before_snapshot)
+        self.assertEqual(self.store.get_memories(), before_memories)
+        self.assertEqual(self.store.get_motivation_signals(), before_signals)
+        self.assertEqual(self.store.get_goals(), before_goals)
+
+
     def test_goal_validation_reuses_motivation_projection_scan_per_transaction(self):
         signal_id = add_internal_signal(self.store, "projection-scan-dedup")
         version = self.store.get_state_snapshot()["state_version"]
