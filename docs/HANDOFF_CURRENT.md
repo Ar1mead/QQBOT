@@ -4,7 +4,7 @@
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
 **最近代码提交：** `b7e170ea525171a1d26c0f9604b863db19010887`（reviewer attribution guard；测试未执行）  
-**当前分支 / PR #1 head（2026-11-27 实时核对）：** `54fd52618374b447fe197ee6ec9a82f80211d905`（相对代码检查点仅有文档提交）  
+**本轮审查开始时的分支 / PR #1 head（2026-11-27）：** `54fd52618374b447fe197ee6ec9a82f80211d905`（之后本轮继续产生文档修正提交）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`  
 **仓库可见性：** GitHub 当前报告为 **Public**（不是 Private）
