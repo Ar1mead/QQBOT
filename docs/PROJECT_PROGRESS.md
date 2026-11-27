@@ -3,10 +3,19 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-27 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Latest code checkpoint: `b7e170ea525171a1d26c0f9604b863db19010887` (reviewer-attribution guard; tests unexecuted)  
-> Live branch / PR #1 head at the start of the 2026-11-27 audit: `54fd52618374b447fe197ee6ec9a82f80211d905` (this audit then adds documentation-only correction commits)  
+> Latest code checkpoint: `5dbadb20f823b0662e02996b83428a475cf7e8e8` (Windows ACL NUL validation + semantic-review size-test correction; not yet executed)  
+> Live branch / PR #1 head: always fetch the current GitHub ref; this ledger records code checkpoints, not a substitute for live ref verification.  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
+
+## Runtime review follow-up — 2026-11-27
+
+- **External execution evidence:** the owner reports that WorkBuddy's DeepSeek v4 Pro reviewed the repository after it was cloned and actually run on the owner's computer, and identified three issues. The exact console output/traceback and command have not yet been supplied to this audit, so this is owner-reported local execution evidence, not an independently reproduced run.
+- **Issue 1 — fixed:** `adapters/worker_backends/windows_acl.py` contained two checks for the literal characters `\\x00` rather than an actual NUL character. Both now use the actual NUL escape. Commit: `6ecdef3530059a12fb5445db45079dd1b741b899`.
+- **Issue 2 — fixed:** `tests/test_csd_openai_compatible_semantic_review.py::test_rejects_oversized_input_and_response` put 25,000 characters in an unrelated proposal field that the provider intentionally does not serialize. The test now puts oversized content in `inference_claim.reasoning_summary`, which is included in the bounded request JSON. Provider behavior was deliberately left unchanged. Commit: `5dbadb20f823b0662e02996b83428a475cf7e8e8`.
+- **Issue 3 — open investigation:** the reported `sqlite3.OperationalError: attempt to write a readonly database` concerns `test_multiple_connections_serialize_concurrent_writers`. Static inspection confirms that the fixture pre-creates the database in WAL mode, closes its original connection, and then opens eight independent connections concurrently; each constructor still executes `PRAGMA journal_mode=WAL`, sets synchronous mode, and checks schema version before the 20 writes. This is a candidate initialization/sidecar contention point, but the error alone does not distinguish SQLite locking from Windows file/ACL/readonly-attribute or WAL/`-shm`/`-wal` access problems. **No speculative database code change has been made.** Obtain the exact traceback, failing line, SQLite error code/name, and database/temp path before changing durability or initialization semantics.
+- **Verification:** this audit did not execute the test suite on the owner's Windows machine. The two code/test commits may trigger the repository workflow automatically; do not manually rerun Actions while included usage is exhausted. A queued/failed-before-runner workflow is not test evidence. No test is marked passed by these changes.
+- Earlier statements that the owner had not cloned or run the repository are superseded by the owner-reported WorkBuddy local execution above; no raw logs have yet been independently inspected. PR #1 remains Draft / Open / Unmerged; never merge.
 
 ## Live audit correction — 2026-11-27
 
