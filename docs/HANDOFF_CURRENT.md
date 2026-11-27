@@ -18,7 +18,7 @@
 - Added isolated SQLite scenarios: concurrent connection bootstrap with no writes; concurrent writes using pre-opened connections; and the original combined concurrent open/write test.
 - Added failure diagnostics for SQLite error code/name, Python/SQLite versions, resolved DB path, parent writability, DB/WAL/SHM metadata, and connection PRAGMAs where available.
 
-No tests were run in this session. The Windows `SQLITE_READONLY` root cause remains unknown pending execution of the isolated scenarios in the affected environment. WAL and `synchronous=FULL` remain unchanged; no generic retry or process-local lock was added. Latest related test commits: `734d7dc39a91898048d75642d8366e1a3d1a465f`, `81cd519b00edb160e18e44a726620c6a215f8c4d`, `d32b426d633093b91df5c68859032435265e147b`, `69907f069db14887e60aed1bc813781f6433b12d`, and `c4fb8b1e0fd995dd7c1038b97292458b78005276`. PR #1 remains Draft / Open / Unmerged.
+No tests were run in this session. The Windows `SQLITE_READONLY` root cause remains unknown pending execution of the isolated scenarios in the affected environment. WAL and `synchronous=FULL` remain unchanged; no generic retry or process-local lock was added. Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`; latest test commit: `902e759867813c7e36ef0a8ce4ae09f0d66947ba`. The Recovery-vs-writer test creates and uses its writer connection in the same worker thread and opens it before Recovery starts. Diagnostic output includes parent directory mode and `PRAGMA synchronous`. PR #1 remains Draft / Open / Unmerged.
 
 ---
 
