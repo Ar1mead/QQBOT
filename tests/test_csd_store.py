@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+
 from concurrent.futures import ThreadPoolExecutor
 import inspect
 import os
