@@ -9,6 +9,20 @@
 **默认分支：** `main`  
 **仓库可见性：** GitHub 当前报告为 **Public**（不是 Private）
 
+## 1.4 跨经历证据与审查边界静态审查 — 2026-11-27
+
+检查文件：`core/csd/accepted_claim_references.py`、`core/csd/cross_episode_proposals.py`、`core/csd/cross_episode_review.py` 及对应测试。
+
+- 历史引用从不可变事件历史重建，并使用 exclusive `through_sequence` 边界；v1 只允许引用已接受记忆中的 `source_assertion`，不把 inference claim 递归升级为证据。
+- 候选生成只接受 pipeline 提供的 opaque reference keys；拒绝同一 claim 的别名重复、support/counter 重叠，并按不同 source event ID 计算独立支持数。
+- CSD append 时会在写事务中按候选事件之前的历史前缀重新解析引用，核对 memory/proposal/decision/claim/source-event lineage、digest 和 state version。
+- Reviewer 输入按候选 proposal 的历史前缀重建，包含原始来源观察和正反证据。持久化 review 绑定 proposal 序号与 digest、review-input digest、state version、reviewer ID/version 和受限意见；Recovery/direct read 会重新验证。
+- 后续状态变化不会改写旧 reviewer 当时看到的证据快照，但旧候选不能因此被当作当前已接受偏好。真正接受前仍需独立的 decision-time revalidation。
+- 当前 cross-episode proposal 仍是 `pending_shadow`；review 只是 advisory audit，不增加 authoritative state_version，不生成 accepted preference/self-model，也不能驱动 Life Engine。decision-time acceptance、完整 review set 裁决、偏好修订 reducer 和 Life Engine 消费均未实现。
+- 现有测试覆盖 stale append、lineage/digest tampering、重复引用、owner/domain 隔离、review provenance、伪造 review 拒绝、tampering 和 Recovery replay；**均尚未执行**。
+- 静态审查未确认新的正确性缺陷。这不是运行时验证。继续保持接受/人格修订 gate 关闭，先设计 decision-time revalidation 及其对抗测试。
+- PR #1 保持 Draft / Open / Unmerged；Windows SQLite `SQLITE_READONLY` 仍未解决；保留 WAL 与 `synchronous=FULL`，额度检查前不触发 Actions。
+
 ## 1.3 混合认知事件历史 Recovery 与重开回归测试 — 2026-11-27
 
 - 新增 `tests/test_csd_goals.py::test_mixed_memory_motivation_goal_history_recovers_after_reopen`。
