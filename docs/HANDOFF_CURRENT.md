@@ -3,11 +3,20 @@
 **最后核对：** 2026-11-27（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
-**最近代码/测试提交：** `902e759867813c7e36ef0a8ce4ae09f0d66947ba`（CSD 事务与 Recovery 加固、SQLite 诊断测试；尚未执行）  
+**最近代码/测试提交：** `a52ddc4e101d97bb34079306a1a53c99525f2ef5`（SQLite 诊断异常保护及 Recovery writer 清理测试；尚未执行）  
 **本轮审查开始时的分支 / PR #1 head（2026-11-27）：** `54fd52618374b447fe197ee6ec9a82f80211d905`（之后本轮继续产生文档修正提交）  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`  
 **仓库可见性：** GitHub 当前报告为 **Public**（不是 Private）
+
+## 0.9 SQLite diagnostic follow-up — 2026-11-27
+
+- Latest code/test commit: `a52ddc4e101d97bb34079306a1a53c99525f2ef5`.
+- Fixed the diagnostics helper so parent-directory `stat()` errors are retained as diagnostic metadata and cannot mask the original SQLite failure; added a focused regression test.
+- Fixed Recovery-vs-writer test cleanup so writer close exceptions are captured and the completion event is always signalled.
+- **Not executed:** no local test run and no GitHub Actions run was triggered. These edits are not a test pass and do not diagnose the Windows `SQLITE_READONLY` root cause.
+- Next action: review the final diff, then honor the 2026-12-02 Billing/runner check before running the focused tests. Do not repeatedly rerun Actions while runner allocation is failing. Keep WAL and `synchronous=FULL`; no generic retry, lock, sidecar deletion, or durability downgrade.
+- PR #1 remains Open / Draft / Unmerged. Never merge.
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。开始工作时必须重新核对 GitHub 实际状态。PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
 
