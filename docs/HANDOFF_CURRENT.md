@@ -1401,3 +1401,14 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 - 静态审查未确认新正确性缺陷；没有执行测试。混合 Recovery 测试仍未执行；自动 push-triggered Actions 状态仍未知；没有手动 dispatch/rerun。
 - 在可信 activity-option provider、ASM 授权、权限撤销、stop-condition enforcement 和持久化 activity lifecycle 实现并测试前，不接入真实外部活动执行。PR #1 保持 Draft / Open / Unmerged。
 
+
+
+## 19. 最新续接补充 — 2026-11-27（跨经历候选决策时审查与修订协议）
+
+- 当前代码已重新核对：cross_episode_proposals.py 只持久化 pending-shadow 候选；cross_episode_review.py 将 reviewer 结果写成不可变审查记录，并绑定 proposal event、sequence、proposal digest、review-input digest、state_version 和 reviewer ID/version。CSD 对 review 事件在 append/direct read/Recovery 中按其历史前缀重建输入并验证。审查记录仍是 advisory，不改变权威 state_version，也不接受偏好。
+- 发现并明确未来接受阶段不能采用“最新一条审查”或简单多数票：一个 proposal/review round 可能有多个不可变意见。设计要求未来由版本化 CSD review policy 指定完整 reviewer roster；决策必须列出全部应计入的 review event IDs 和 canonical review-set digest。一个 reviewer slot 出现多条非同一意见时，首版必须 fail closed，不能挑选最新/最有利意见。
+- 首个自动接受策略应保守：完整 reviewer set、已验证的审查独立性、全部 required reviewers 均为 supported，且无 human-review 标记，才允许继续；uncertain/conflicting/unsupported/insufficient-context、缺失 reviewer、混合意见、重复冲突或要求人工复核都不能自动接受。Reviewer ID/version 仅是归属信息，不单独证明独立性。
+- 决策事件必须在 CSD 写事务内，以决策事件 sequence 之前的 exclusive historical prefix 重新验证：proposal/state_version 是否仍新鲜、每条 evidence 的 accepted lineage/claim digest/source events/subject owner/identity version、support-counter 分离、独立 source event 数量，以及完整 review set。state_version 已变化则旧候选和旧 reviews 不能静默 rebase，必须重新生成候选并重新审查。
+- 未来 CSD-reserved revision decision event 应绑定 proposal、subject/owner、精确 prior revision、revision action、evidence lineage、review policy/decision policy 版本和 review-set digest。create/strengthen/weaken/narrow/broaden/retire 均保留不可变版本历史；accepted atomic revision 将 shared state_version 恰好推进一次，rejected/deferred 不推进。Recovery 只确定性重放持久化事件，不调用外部 reviewer/provider。
+- Stage 4 接受机制依赖 §3.21 的 Stage 1–3：先完成 canonical subject binding、attested interaction/agency evidence 和 subject-bound Motivation/Goal/candidate。AI interest 不能仅由内省、日记或模型自述形成。
+- 本轮仅更新设计，不修改源码/测试，不执行测试或 Actions。2026-12-02 前仍遵守 Billing-first 门槛；不运行本地测试、不手动 dispatch/rerun。Windows SQLite SQLITE_READONLY 未解决；保留 WAL 和 synchronous=FULL。PR #1 仍为 Draft / Open / Unmerged。
