@@ -109,13 +109,22 @@ class CSDStore:
             timeout=busy_timeout_ms / 1000,
             isolation_level=None,
         )
-        self._connection.row_factory = sqlite3.Row
-        self._connection.execute("PRAGMA foreign_keys = ON")
-        self._connection.execute(f"PRAGMA busy_timeout = {int(busy_timeout_ms)}")
-        # Prototype candidate only; not a production durability guarantee.
-        self._connection.execute(f"PRAGMA journal_mode = {journal_mode}")
-        self._connection.execute(f"PRAGMA synchronous = {synchronous}")
-        self._initialize_schema()
+        try:
+            self._connection.row_factory = sqlite3.Row
+            self._connection.execute("PRAGMA foreign_keys = ON")
+            self._connection.execute(f"PRAGMA busy_timeout = {int(busy_timeout_ms)}")
+            # Prototype candidate only; not a production durability guarantee.
+            self._connection.execute(f"PRAGMA journal_mode = {journal_mode}")
+            self._connection.execute(f"PRAGMA synchronous = {synchronous}")
+            self._initialize_schema()
+        except BaseException:
+            # Do not leak a partially initialized connection. Preserve the
+            # original initialization exception even if close() also fails.
+            try:
+                self._connection.close()
+            except BaseException:
+                pass
+            raise
 
     def close(self) -> None:
         self._connection.close()
