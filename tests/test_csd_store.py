@@ -16,15 +16,15 @@ from unittest.mock import patch
 from core.csd import CSDStore, Event, IdempotencyConflict, StorageIntegrityError
 
 
-def sqlite_environment_diagnostics(connection, database_path):
+def sqlite_environment_diagnostics(connection, database_path, error=None):
     path = Path(database_path).resolve()
     diagnostics = {
         "python_version": sys.version,
         "sqlite_version": sqlite3.sqlite_version,
         "database_path": str(path),
         "parent_writable": os.access(path.parent, os.W_OK),
-        "sqlite_errorcode": None,
-        "sqlite_errorname": None,
+        "sqlite_errorcode": getattr(error, "sqlite_errorcode", None),
+        "sqlite_errorname": getattr(error, "sqlite_errorname", None),
     }
     if connection is not None:
         for key, statement in (
@@ -472,7 +472,7 @@ store.submit_event(Event(
                     ))
                 except sqlite3.OperationalError as exc:
                     diagnostics = sqlite_environment_diagnostics(
-                        writer._connection, self.db_path
+                        writer._connection, self.db_path, exc
                     )
                     raise AssertionError(
                         "concurrent SQLite write failed; "
