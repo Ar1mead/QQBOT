@@ -4,7 +4,7 @@
 > Last updated: 2026-11-27 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
 > Latest code checkpoint: `b7e170ea525171a1d26c0f9604b863db19010887` (reviewer-attribution guard; tests unexecuted)  
-> Current live branch / PR #1 head (verified 2026-11-27): `54fd52618374b447fe197ee6ec9a82f80211d905` (documentation-only commits follow this code checkpoint)  
+> Live branch / PR #1 head at the start of the 2026-11-27 audit: `54fd52618374b447fe197ee6ec9a82f80211d905` (this audit then adds documentation-only correction commits)  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
 
