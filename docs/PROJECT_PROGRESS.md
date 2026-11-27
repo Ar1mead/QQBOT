@@ -2425,3 +2425,15 @@ Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest
 - Scope note: `store.py` is the original generic persistence spike. The main typed cognitive store is `cognitive.py`; this fix does not imply the main cognitive store has been runtime-validated.
 - **Not executed:** tests remain unrun and no Actions workflow was triggered. Windows SQLite `SQLITE_READONLY` remains unresolved. Honor the 2026-12-02 quota check; keep WAL and `synchronous=FULL`.
 - PR #1 remains Open / Draft / Unmerged. Never merge.
+
+
+## Main cognitive-store decision history and Recovery audit — 2026-11-27
+
+- Reviewed the current branch versions of `core/csd/cognitive.py`, `core/csd/motivation.py`, `core/csd/goals.py`, and the corresponding cognitive, motivation, and goal regression suites.
+- Confirmed by static inspection that the typed cognitive store uses one global authoritative decision replay context for memory, motivation, and goal decision families. Decisions are checked against the state version reconstructed from the preceding event prefix; boolean values are explicitly excluded from integer state-version fields.
+- Memory decisions bind proposal ID/event ID, evidence references, evidence chronology/type, policy family, and semantic-review history. Motivation decisions are re-evaluated deterministically from their historical proposal and interaction evidence. Goal batch, activation, and pause/resume decisions are replayed in sequence against reconstructed goal and signal state; projection tables are reconciled against the event history.
+- Recovery holds its writer transaction while validating the event stream and rebuilding projections, and does not call an external evaluator/provider. The reviewed path is designed to rebuild local state only, not replay external side effects.
+- No new correctness defect was confirmed in this static pass. This is not proof of runtime correctness: no tests were run, and no Actions workflow was triggered.
+- Review limitation: static review covered the key decision/recovery paths and named regression suites, not every code path in the repository. The Windows SQLite `SQLITE_READONLY` issue remains unresolved.
+- Follow-up before enabling autonomous life actions: add/retain end-to-end tests covering mixed memory/motivation/goal events through crash/reopen/Recovery, plus explicit interruption during Recovery and validation that no external side effect is replayed.
+- Preserve the existing quota plan; do not trigger hosted Actions until the documented quota check. Preserve WAL and `synchronous=FULL`. PR #1 remains Draft / Open / Unmerged.
