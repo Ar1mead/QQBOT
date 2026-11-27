@@ -447,14 +447,19 @@ class CSDStore:
 
     def recover(self) -> RecoveryResult:
         """Rebuild the projection from validated durable records; never dispatch actions."""
-        integrity = self._connection.execute("PRAGMA integrity_check").fetchone()[0]
+        with self._transaction() as connection:
+            return self._recover_locked(connection)
+
+    def _recover_locked(self, connection: sqlite3.Connection) -> RecoveryResult:
+        """Rebuild projection while holding the database write transaction."""
+        integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
         if integrity != "ok":
             raise StorageIntegrityError(f"SQLite integrity_check failed: {integrity}")
-        fk_errors = self._connection.execute("PRAGMA foreign_key_check").fetchall()
+        fk_errors = connection.execute("PRAGMA foreign_key_check").fetchall()
         if fk_errors:
             raise StorageIntegrityError("SQLite foreign_key_check found violations")
 
-        rows = self._connection.execute(
+        rows = connection.execute(
             "SELECT e.sequence, e.event_id, e.occurred_at, e.correlation_id, e.event_type, "
             "e.source, e.payload_ref, e.event_digest, p.payload_json "
             "FROM events AS e LEFT JOIN event_payloads AS p ON p.payload_ref = e.payload_ref "
@@ -505,7 +510,7 @@ class CSDStore:
                 )
             )
 
-        snapshots = self._connection.execute(
+        snapshots = connection.execute(
             "SELECT snapshot_id, through_sequence, state_json, state_digest "
             "FROM snapshots ORDER BY through_sequence DESC, created_at DESC"
         ).fetchall()
@@ -553,12 +558,11 @@ class CSDStore:
             state = self._reduce(state, event, sequence)
             replayed += 1
 
-        with self._transaction() as connection:
-            connection.execute(
-                "UPDATE projection_state SET state_json = ?, updated_through_sequence = ? "
-                "WHERE singleton = 1",
-                (_canonical_json(state), int(state["last_sequence"])),
-            )
+        connection.execute(
+            "UPDATE projection_state SET state_json = ?, updated_through_sequence = ? "
+            "WHERE singleton = 1",
+            (_canonical_json(state), int(state["last_sequence"])),
+        )
 
         return RecoveryResult(
             state=state,
