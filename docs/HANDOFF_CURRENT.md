@@ -11,6 +11,20 @@
 
 > **本文件是唯一的当前交接说明。** 每次交接直接更新本文件，不再创建新的日期命名交接文件。开始工作时必须重新核对 GitHub 实际状态。PR #1 必须保持 Draft / Open / Unmerged，禁止合并。
 
+## 0.7 CSD cleanup hardening — 2026-11-27
+
+Two focused changes are now committed, with regression tests added; neither has been executed in this session:
+
+- `CSDStore.__init__` closes its newly opened connection if any subsequent initialization step raises, while preserving the original exception if close also fails.
+- `_Transaction.__exit__` attempts rollback after a failed COMMIT only when `connection.in_transaction` remains true. If rollback also fails, the COMMIT error remains primary with rollback chained as its cause. If the transaction body failed and rollback fails, the original body exception remains primary with rollback chained beneath it.
+- Added tests for constructor cleanup, rollback after failed COMMIT, body-error preservation on rollback failure, and COMMIT-error preservation when rollback also fails.
+
+**Commits:** store constructor cleanup `6a5e3c3d4ca7d32f1db7e57402973a0e633d528c`; transaction cleanup `5f3963877527df54ce32b310905cada6de60f560`; constructor regression test `cf2f23ebeda9a70e2cee95873fc6a79f24bae473`; transaction regression tests `4d24f45b9ef658418ef365cb9b6e0b1f85cd7c80`.
+
+These changes do not diagnose/fix the original Windows `SQLITE_READONLY` report and do not yet fix Recovery's read-before-write race. Next: review/test the new changes when an authorized test environment is available; then design the Recovery serialization change and deterministic concurrency test. PR #1 remains Draft / Open / Unmerged.
+
+---
+
 ## 0.6 CSD persistence audit — 2026-11-27
 
 Live code review of `core/csd/store.py` and `tests/test_csd_store.py` found three additional risks. These are static findings only; no code was changed and no tests were executed.
