@@ -3,7 +3,7 @@
 > Repository: `Ar1mead/QQBOT`  
 > Last updated: 2026-11-27 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
-> Latest code/test checkpoint: `1d56e654cacec4666c6f4a28a5d3baeff8863087` (SQLite snapshot projection validation and regression coverage; not executed)  
+> Latest code/test checkpoint: `b748d460070e819b0ad5f5d39a1b9ade2cd09087` (interrupted-Recovery atomic rollback regression added; not executed)  
 > Live branch / PR #1 head: always fetch the current GitHub ref; this ledger records code checkpoints, not a substitute for live ref verification.  
 > Default branch: `main`  
 > PR #1 policy: Draft / Open / Unmerged — never merge.
@@ -2437,3 +2437,13 @@ Latest implementation commit: `920f56102abf35e7fa87d33ce569354bcb9c5700`. Latest
 - Review limitation: static review covered the key decision/recovery paths and named regression suites, not every code path in the repository. The Windows SQLite `SQLITE_READONLY` issue remains unresolved.
 - Follow-up before enabling autonomous life actions: add/retain end-to-end tests covering mixed memory/motivation/goal events through crash/reopen/Recovery, plus explicit interruption during Recovery and validation that no external side effect is replayed.
 - Preserve the existing quota plan; do not trigger hosted Actions until the documented quota check. Preserve WAL and `synchronous=FULL`. PR #1 remains Draft / Open / Unmerged.
+
+
+## Recovery interruption atomicity regression — 2026-11-27
+
+- Added `test_interrupted_recovery_rolls_back_all_projection_changes` in `tests/test_csd_cognitive.py`.
+- The test first creates and accepts a grounded memory, snapshots the expected memory/proposal projections, then injects a deterministic exception during the second event of Recovery replay. It asserts the transaction rollback preserves the pre-Recovery projections and that normal consistency-checked reads still succeed after the injected failure is removed.
+- Code/test commit: `b748d460070e819b0ad5f5d39a1b9ade2cd09087`.
+- **Not executed:** no local test run and no hosted Actions run. This is regression coverage only, not a passing result.
+- This test targets the typed cognitive store's Recovery transaction boundary. It complements the generic `store.py` snapshot validator work but does not resolve Windows SQLite `SQLITE_READONLY`.
+- Preserve WAL and `synchronous=FULL`; do not trigger hosted Actions before the quota check. PR #1 remains Draft / Open / Unmerged.
