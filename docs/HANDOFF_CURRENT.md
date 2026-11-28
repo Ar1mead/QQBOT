@@ -1540,3 +1540,10 @@ The dirty state is therefore explained by five add/add paths with different blob
 - Progress 文档同步提交：`6b54ea51913684f081eb13b0bcf05182980e3f54`。
 - 本次只改项目文档；未改源代码/测试，未运行本地测试，未触发 Actions，未改 PR 状态或历史。
 - 新窗口开始时先读取本文件与 `docs/PROJECT_PROGRESS.md`，再实时检查 branch HEAD、PR #1 和 Actions/Billing 状态；不要仅凭本交接中的旧 SHA 假定远端状态未变化。
+
+
+### 文档提交后的最终状态修正 — 2026-11-28
+
+- 上述 PR 数量（1,657 commits / 46,874 additions）是本轮两次文档同步提交之前的快照，不是最终数量。
+- 在第二次文档同步提交 `ce17f3c63152e71c554aa2e8b9a81ff35e2e9a36` 后再次实时核对：branch ref 与 PR #1 head 一致；PR 仍为 Open / Draft / Unmerged，base=`main`，`mergeable=false`；当前返回数量为 1,659 commits、168 changed files、46,927 additions、10 deletions。
+- 本段更新前实时 branch/PR head 为 `ce17f3c63152e71c554aa2e8b9a81ff35e2e9a36`。本次只再更新交接文档；新窗口仍须重新读取实时 ref，不要将该 SHA 当成永远不变的 HEAD。
