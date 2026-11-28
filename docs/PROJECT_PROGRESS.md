@@ -2544,3 +2544,16 @@ Static review covered `core/csd/accepted_claim_references.py`, `core/csd/cross_e
 - Windows launch-plan failure narrowed but not proven: `_checked_staged_file()` returns `realpath`, while the expected path is constructed with `abspath`. A reparse/junction in an ancestor of the staging root can make those strings differ even when the staged file remains under the resolved root. Existing code rejects a reparse point at the root and below but does not walk every ancestor. Next permitted diagnostic should record root, root realpath, target realpath, expected absolute path, and ancestor attributes; do not weaken containment or reparse-point checks. No production path check was changed.
 - SQLite inspection confirms WAL and `synchronous=FULL` remain defaults. Diagnostics and split tests for concurrent bootstrap, pre-opened writers, and the combined scenario are present; the Windows readonly root cause remains unproven. No retry, process lock, sidecar deletion, or durability change was introduced.
 - No local tests, Actions dispatch/rerun, or source/test edits occurred during this audit. Preserve the 2026-12-02 Billing-first gate.
+
+
+### Five-path content reconciliation inventory — 2026-11-28
+
+A line-level content comparison was performed for all five overlapping add/add paths (this is an inventory, not a merge simulation):
+
+- `core/csd/README.md`: every non-empty line in main's version also occurs in the feature version; feature contains additional material.
+- `docs/reports/csd-historical-replay-cost-audit-report-001.md`: every non-empty line in main's version also occurs in the feature version; feature contains additional material.
+- `docs/PROJECT_PROGRESS.md`: main has nine lines absent from feature. They are the 2026-11-16 header/merge-policy and an older next-work queue whose status statements are superseded by the current feature ledger; do not copy them verbatim.
+- `docs/design/cross-episode-evidence-and-preference-revision-contract.md`: main has six lines absent from feature, including the older 2026-11-20 status/date and older independence-count wording. The feature design has the later corrected unique-source-event semantics and newer review/decision requirements; do not restore the stale wording.
+- `tests/test_csd_goals.py`: main has 23 lines absent from feature, all from the earlier SQL trace-callback based projection-scan assertion. The feature version has since replaced the brittle SQL-text assertion with direct invocation-count coverage (the README/history records that the trace-string test failed on both hosted platforms). Preserve the feature test unless a separate review finds coverage was lost.
+
+This inventory indicates the feature side is the more complete/current version for all five paths, with no identified main-only functional change that should be blindly copied. It does not remove Git's add/add conflict or substitute for a future isolated merge rehearsal. No history operation was performed.
