@@ -1415,3 +1415,19 @@ No user-local runtime, DSH/SurfCore integration, QQ/Bilibili account, credential
 
 
 - 额外澄清 §3.32：未来 reviewer event 必须有 CSD-issued review_round_id、固定 reviewer slot 和版本化 roster；每个 required slot 恰好一条有效意见，缺失/重复/多余意见都不能被静默忽略。当前 reviewer ID/version 只是 attribution，不证明真实模型调用或 reviewer 独立性。未来需要可信 orchestrator receipt 绑定 policy/request/response digest，并通过内部 CSD append；无法证明来源/独立性时只能 defer 或要求人工裁决。现有 review v1 永远只作为历史 advisory，不追认成完整 attested review round。
+
+
+## 20. 最新续接检查点 — 2026-11-28（文档/代码/CI 一致性复核）
+
+- 当前分支 HEAD（本次审查起点）：`145023b6ec8a08be899c4962b79328ba3db51a4a`。最近源码/测试提交仍为 `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e`；之后的提交均为文档-only。
+- 代码与当前进度描述的功能边界一致：cross-episode proposal 为 pending-shadow；review v1 是不可变 advisory audit event；没有 decision-time acceptance、accepted preference/self-model reducer；Life Engine 不执行真实活动，也不自我调度。
+- 当前 cross-episode candidate owner 只是粗粒度 user/ai discriminator，没有 canonical subject reference/identity version；reviewer ID/version 是 attribution，不是调用来源/独立性证明；没有 review-round roster 或 trusted invocation receipt。Life snapshot 的 activity options 和 active activities 均为空；sink 只持久化 goal proposal、activation、pause/resume；activity start/continue/stop 与 abandon/revise 均 not executed。
+- 重要语义限制：`independent_support_event_count` 实际仅计数不同 source event IDs，未按来源身份/账号/对话/资源/内容分组，不能证明独立来源。该字段目前应理解为 unique source-event count。设计文档已更正，未来 acceptance 必须建立单独的来源独立性策略。
+- **CI 状态纠正：** 自动 push run #822（ID `46004503780`，commit `777ba9d2...`）已通过 Actions API 和 job logs 核实。Windows 与 Ubuntu runner 均分配并执行，不是 runner 未分配。
+  - 两平台 compileall、SurfCore journal、CSD cognitive-memory、Motivation、Goal 等前置 suites 均通过。
+  - Windows 在 `test_worker_windows_launch_plan.py::test_builds_exact_host_pinned_command_and_working_directory` 失败，报错 `staged interpreter path does not match the verified manifest`，位置 `windows_launch_plan.py:162`。可能是 realpath 与 abspath 在 Windows temp/junction 路径下不一致，尚未证明；先增加诊断再修改安全校验。
+  - Ubuntu 在 `test_worker_windows_handle_cleanup.py` 两个测试失败，因 mock 没有补上 Linux 不存在的 `ctypes.get_last_error`；这是测试夹具跨平台问题，不是 Windows 原生清理逻辑在 Linux 的运行结果。
+  - 后续 suites 被 matrix job 的 fail-fast 顺序跳过，包括 cross-episode proposal/review tests。故当前 cross-episode changes 仍未获得 CI 验证。
+  - Run：https://github.com/Ar1mead/QQBOT/actions/runs/46004503780。未手动 dispatch/rerun；本轮没有触发新 Actions。
+- **PR #1 集成状态：** Open / Draft / Unmerged；GitHub reports mergeable=false / mergeable_state=dirty，1,646 commits、168 changed files、46,676 additions、10 deletions。PR base SHA `05cfce6211ad072342201697d324d610d0fb40d1`，当前 main HEAD `5165326eebc0963ffcaf3795a7bd1df97c802ee0`，compare reports diverged / behind 8. 具体冲突来源未确认；不要 merge/rebase/retarget，先独立审查分支祖先与冲突。
+- 本轮只读检查 GitHub 源码、文档、PR metadata 和 Actions logs；无源码/测试修改、无本地测试、无 Actions rerun/dispatch、无 QQ 操作。Windows SQLite `SQLITE_READONLY` 未解决；保留 WAL / `synchronous=FULL`。2026-12-02 Billing-first gate remains.
