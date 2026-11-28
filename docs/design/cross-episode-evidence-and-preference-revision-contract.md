@@ -1,6 +1,6 @@
 # Cross-Episode Evidence and Preference Revision Contract
 
- > Status: partially implemented — historical claim resolver and CSD-owned pending-shadow proposal event with append-time validation and Recovery replay exist; reviewer v2, decision-time revalidation, and accepted preference/self-model revision remain unimplemented.
+ > Status: partially implemented — historical claim resolver, CSD-owned pending-shadow proposal event, provider-neutral review pipeline, and v1 advisory audit event with append/direct-read/Recovery validation exist; trusted reviewer-round attestation, decision-time revalidation, and accepted preference/self-model revision remain unimplemented.
 > Updated: 2026-11-27.
 > Scope: allow a model to propose a cautious pattern across multiple accepted episodes without allowing it to write identity state.
 
@@ -51,7 +51,7 @@ Rules:
 - \`source_event_ids\` are copied from the accepted claim's evidence lineage. The model cannot add, remove, or rewrite them.
 - References must point to \`status=accepted\` memories only. Pending, rejected, deferred, needs-more-evidence, missing, or inconsistent projections fail closed.
 - Duplicate references to the same claim do not count as independent evidence.
-- Independence is measured by distinct underlying source event IDs, not the number of claims or repeated references.
+- The v1 metric counts distinct underlying source event IDs, not claims or repeated references. This is event-ID deduplication only: it does not prove independent origins. Multiple events may still come from the same person, account, conversation, source artifact, platform, or repeated content. Treat the persisted `independent_support_event_count` field as a legacy-named unique-source-event count, not proof of independent evidence. A future acceptance policy must define and validate source-origin grouping/independence separately.
 - The proposal's \`based_on.state_version\` binds the exact CSD snapshot used to resolve references. A later state change makes the candidate stale and it must be re-evaluated or deferred.
 
 The pipeline should send the model only a bounded allowlist of resolved references and claim contents. The model returns selected reference keys, not arbitrary IDs. The pipeline resolves those keys back to canonical references before persistence.
@@ -77,7 +77,7 @@ Implemented in core/csd/cross_episode_proposals.py and core/csd/cognitive.py:
 - Strict schema v1 and exact field allowlists; model output cannot inject authority fields, CSD event IDs, direct state mutations, actions or ASM dispatch instructions.
 - The builder resolves only opaque support/counter-evidence keys from the pipeline context, re-resolving each against the expected CSD state.
 - Requires at least one support reference; counter-evidence is separately typed and cannot overlap support. Repeated aliases of the same historical claim are rejected.
-- Computes independent support-event count from distinct underlying source event IDs, not claim/key count.
+- Computes a unique support-event count from distinct underlying source event IDs, not claim/key count; this does not establish independent source origins.
 - Separates user-owned preference_candidate from AI-owned interest_candidate, with separate coarse domain allowlists.
 - Requires explicit scope, exclusions, uncertainty, alternatives and limitations. Every result is pending_shadow / shadow.
 - append_cross_episode_proposal persists a CSD-owned immutable event. In the same SQLite write transaction, CSD re-resolves every reference against the exclusive event-history prefix and verifies canonical lineage, claim digest, source-event IDs, accepted status, state version and independent-event count.
@@ -261,7 +261,7 @@ The first durable cross-episode event family is now implemented as `cognition.cr
 
 The test cases are added to the repository workflow, but the current branch has no verified CI execution yet.
 
-## 3.7 Cross-episode reviewer v2 — implementation status (2026-11-20)
+## 3.7 Cross-episode review pipeline — implementation status (2026-11-20)
 
 The provider-neutral read-only pipeline is now implemented in `core/csd/cross_episode_review.py`:
 
@@ -319,7 +319,7 @@ Required decision transaction:
 2. Load the unique pending-shadow proposal and its immutable proposal event. Reject missing, ambiguous, already-decided, malformed, or non-pending candidates.
 3. Verify the proposal's `based_on_state_version` against the authoritative state version at the decision prefix. If it no longer matches, reject/defer as stale; do not silently refresh the proposal's evidence or reinterpret its original snapshot.
 4. Re-resolve every support and counter-evidence `(memory_id, claim_id)` using the accepted-claim resolver at the decision prefix. Compare the canonical accepted decision/proposal lineage, claim digest, source-event IDs, and state version with the proposal's persisted reference envelope. Never accept copied claim text or reviewer-selected keys as authority.
-5. Recompute distinct independent source-event counts and support/counter overlap from the re-resolved references. Duplicate references and multiple claims from one source event must not inflate independent episode counts.
+5. Recompute distinct source-event counts and support/counter overlap from the re-resolved references; apply a separate source-origin independence policy rather than treating distinct event IDs as proof of independent origins. Duplicate references and multiple claims from one source event must not inflate independent episode counts.
 6. Load the exact prior CSD-owned review record set for this proposal and this reconstructed review-input digest. The decision event must name the exact review event ID(s); it must not use an implicit "latest review", first-match, or provider-preferred lookup. Verify every referenced event is before the decision, belongs to this proposal, matches the proposal and review-input digests, and passes reviewer identity/version and opinion-schema validation. Also enumerate all prior review records for the same proposal/snapshot so the decision cannot omit an unfavorable opinion by selecting only a favorable record.
 7. Apply deterministic CSD policy to the complete review set. Only an eligible `supported` opinion can proceed to a candidate-specific acceptance policy; `uncertain`, `conflicting`, `unsupported`, `insufficient_context`, sensitive-risk flags, or `requires_human_review` must not auto-accept. If multiple non-identical review records exist for the same proposal/snapshot, the first implementation must treat the set as ambiguous and refuse automatic acceptance unless a separately specified, CSD-owned supersession/adjudication protocol explicitly resolves it. A reviewer opinion alone is never sufficient.
 8. Append a CSD-reserved decision event containing the exact proposal/review event references and complete reviewed-set digest, decision-time state version, canonical evidence lineage/digests, policy ID/version, outcome, and deterministic reason. The append and accepted-state reducer update must be atomic and idempotent.
@@ -1367,3 +1367,35 @@ Section 3.31's review-set contract requires an explicit round boundary; proposal
 - The initial implementation must version this schema separately from the current review-record v1 event. Existing v1 review events remain historical advisory records and cannot be retroactively treated as round-complete or attested votes.
 
 **Status:** design clarification only. No source code or tests changed or executed. Stage 0 and the Draft / Open / Unmerged PR policy remain unchanged.
+
+
+## 3.33 2026-11-28 文档/代码一致性复核与 Actions 运行状态更正
+
+### Implementation alignment
+
+- The active branch's latest source/test commit remains `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e`; commits after it through HEAD `145023b6ec8a08be899c4962b79328ba3db51a4a` are documentation-only.
+- Re-read the current proposal, review, accepted-claim resolver, cognitive event validation/replay, Motivation/Goal, Life Engine adapter/sink and corresponding focused tests. The documented functional boundary remains accurate: cross-episode proposals are pending-shadow only; v1 review records are immutable advisory audit events; no decision-time acceptance, preference/self-model revision reducer, or Life Engine activity execution exists.
+- The CSD Life snapshot reader returns no activity options or active activities. The sink persists candidate goals and explicit goal activation/pause/resume transitions only; activity start/continue/stop and abandon/revise goal choices are not executed. `LifeEngine.consider()` is a single read/deliberate/validate/submit call, not a scheduler or autonomous runtime.
+- The current cross-episode candidate's owner is only the coarse `user`/ `ai` discriminator plus an allowlisted domain. It does not contain canonical subject references or identity-version binding. The review event's reviewer ID/version are attribution only; no review-round roster or trusted invocation attestation exists. This matches the Stage 1–3 prerequisites and §3.31–3.32 design gates; do not promote these fields into stronger trust claims.
+- **Evidence-count semantic correction:** code derives `independent_support_event_count` by counting distinct source event IDs. It does not cluster source events by actor/account/conversation/artifact/origin or prove independent origins. The field is a unique-event count only. The design text now says so explicitly; future acceptance must separately define source-origin independence and test repeated/related observations.
+
+### Actual Actions run found — correction to earlier “unknown” status
+
+- Direct repository Actions run listing identifies automatic push run **#822**, run ID `46004503780`, triggered by code/test commit `777ba9d2...` on 2026-11-27. No manual dispatch or rerun was issued.
+- Both Ubuntu and Windows jobs allocated runners. The run completed with failure; this is not a runner-allocation failure and it is not a complete test pass.
+- Both OS jobs passed compileall, the SurfCore journal reference tests, the CSD cognitive-memory tests, CSD motivation tests, and CSD goal tests. They also passed the earlier adapter/worker suites up to their respective first failure.
+- Windows failed at `tests/test_worker_windows_launch_plan.py::test_builds_exact_host_pinned_command_and_working_directory`: `ValueError: staged interpreter path does not match the verified manifest` at `adapters/worker_backends/windows_launch_plan.py:162`. The comparison uses a path returned through `realpath` against an `abspath` expectation; path/junction normalization is a plausible cause but is not yet proven. Add path diagnostics before changing the security check.
+- Ubuntu failed in `tests/test_worker_windows_handle_cleanup.py` because two mocked Windows cleanup cases call `ctypes.get_last_error`, which is unavailable on Linux; those two tests did not patch that Windows-only API, unlike neighboring cases. This is a confirmed cross-platform test-fixture defect; it is not evidence that Windows native cleanup itself fails on Ubuntu.
+- Because each matrix job stops at its first failed test step, later suites were skipped, including `test_csd_cross_episode_proposals.py` and `test_csd_cross_episode_review.py`. Thus the latest cross-episode code remains without CI execution evidence.
+- Run log: https://github.com/Ar1mead/QQBOT/actions/runs/46004503780. Do not rerun before the Billing-first quota check; no new workflow was triggered during this audit.
+
+### PR/base status
+
+- PR #1 remains Open / Draft / Unmerged, head `145023b6...`, base ref `main`.
+- GitHub currently reports `mergeable=false`, `mergeable_state=dirty`, 1,646 commits, 168 changed files, 46,676 additions and 10 deletions. The PR metadata's base SHA is `05cfce6211ad072342201697d324d610d0fb40d1`, while current `main` is `5165326eebc0963ffcaf3795a7bd1df97c802ee0`; compare reports the feature branch diverged and is 8 commits behind main. This is a separate unresolved branch/PR integration risk. Do not merge or retarget automatically; inspect ancestry/conflicts as a dedicated task before any merge consideration.
+
+### Verification boundary
+
+- This was a GitHub source/document/log inspection only. No local tests, Actions dispatch, rerun, source edits, or QQ operations were performed.
+- Windows SQLite `SQLITE_READONLY` remains unresolved. Preserve WAL and `synchronous=FULL`.
+- The existing 2026-12-02 Billing-first check remains the next gate before any additional test execution. PR #1 remains Draft / Open / Unmerged.
