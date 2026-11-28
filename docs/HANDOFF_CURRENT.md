@@ -1547,3 +1547,40 @@ The dirty state is therefore explained by five add/add paths with different blob
 - 上述 PR 数量（1,657 commits / 46,874 additions）是本轮两次文档同步提交之前的快照，不是最终数量。
 - 在第二次文档同步提交 `ce17f3c63152e71c554aa2e8b9a81ff35e2e9a36` 后再次实时核对：branch ref 与 PR #1 head 一致；PR 仍为 Open / Draft / Unmerged，base=`main`，`mergeable=false`；当前返回数量为 1,659 commits、168 changed files、46,927 additions、10 deletions。
 - 本段更新前实时 branch/PR head 为 `ce17f3c63152e71c554aa2e8b9a81ff35e2e9a36`。本次只再更新交接文档；新窗口仍须重新读取实时 ref，不要将该 SHA 当成永远不变的 HEAD。
+
+
+## 本轮续接更新 — 2026-11-28（CI 修复方案与额度门槛）
+
+### 当前远端状态
+- 活动分支 `feature/csd-cognitive-memory-slice` 的实时 HEAD 与 PR #1 head 一致：`acd115db970ffde0ddb04bf760c469dc0608233a`。
+- PR #1 仍为 Open / Draft / Unmerged，base=`main`；GitHub 返回 `mergeable=false` / dirty，1,660 commits、168 changed files。不要 merge、关闭、转 Ready、改 base、rebase、force-push 或重写历史。
+- 最新 Actions 列表首屏仍以 Run #822（ID `46004503780`）为最新：push / completed / failure，运行代码 SHA `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e`。#813–#821 也均为失败。当前 HEAD 的 combined status 没有状态项。不要把“当前 HEAD 没有状态项”误写成“所有触发方式都没有 workflow 记录”。
+- Billing 与 runner capacity 仍无法通过当前连接读取，状态是**无法验证**，不是额度已恢复或 runner 不可用。按此前约定约 2026-12-02 再查；在此之前不 dispatch、不 rerun、不推送会命中 workflow 的源代码/测试修改。
+
+### 本轮完成的静态步骤
+1. 重新读取两份项目文档、Windows launch-plan 实现、相关测试、workflow path filters，并核对 branch ref、PR #1、最近 Actions。
+2. Linux 两个 close-failure retry 测试的修复已收敛：测试夹具分别 mock `<module>.ctypes.get_last_error`（`return_value=5, create=True`）和 `<module>.ctypes.WinError`（`side_effect=OSError("close failed"), create=True`）。生产 Windows cleanup 逻辑不改。
+3. Windows 路径修复应使用两套路径变量：
+   - lexical metadata path：`abspath(join(root, pinned_relative_path))`；
+   - resolved target path：`realpath(lexical_metadata_path)`。
+   `_checked_staged_file()` 返回的是 realpath，因此它应与 resolved target 比较；`staged.interpreter_path` / `staged.entrypoint_path` 的 metadata 校验仍与 lexical abspath 比较。保留 lstat、每段链接/reparse 检查、regular-file 检查和 commonpath containment。
+4. 回归测试建议使用只替换 `windows_launch_plan` 模块自身 `os` 引用的 path proxy，模拟 `realpath` 返回规范化路径前缀；不要 patch 进程全局共享的 `os.path`。保留已有 symlink/reparse、digest tampering、metadata escape 测试。CI 原始日志没有具体 staged/root 路径值，所以 junction/reparse ancestor 仍是未证实的具体现场根因。
+5. workflow 的 push path filter 明确包含 `adapters/**`、`tests/test_worker_windows_handle_cleanup.py`、`tests/test_worker_windows_launch_plan.py`。代码/测试推送会自动触发 Ubuntu/Windows matrix；本次只更新文档，docs 路径不在该 workflow 的 path filter 中。
+
+### 本轮执行边界
+- 只更新 `docs/PROJECT_PROGRESS.md` 与本文件。
+- 未修改源代码或测试；未运行本地测试；未 dispatch/rerun Actions；未改变 PR 状态、base/head 或提交历史。
+- SQLite readonly 问题仍独立待诊断；Run #822 日志无该错误。保留 WAL 与 `synchronous=FULL`，等待用户提供完整 traceback、SQLite error code/name 和数据库/sidecar 诊断。
+
+### 下个窗口必须执行的顺序
+1. 先读取本文件和 `docs/PROJECT_PROGRESS.md`，再实时获取 branch HEAD、PR #1、Actions 最新 runs；不要假定本交接 SHA 仍是最新。
+2. 先核对 Billing 和 runner capacity（约定检查日 2026-12-02）。如果仍无法验证，不要推送任何命中 workflow path filter 的文件。
+3. 资源允许后，只修改上述三个文件，先运行：
+   - `python -m unittest discover -s tests -p "test_worker_windows_handle_cleanup.py" -v`
+   - `python -m unittest discover -s tests -p "test_worker_windows_launch_plan.py" -v`
+4. 两个专项测试通过后，再运行完整 Ubuntu/Windows matrix；只有真实执行步骤和结果均可见时才更新测试状态。
+5. 随后再更新项目文档与本交接文档。不要顺带改 SQLite WAL/synchronous、不要做 speculative retry/锁、不要碰 PR ancestry/add-add 冲突。
+
+### 本轮文档提交
+- Project Progress 文档提交：`dd746491fa877802bba560b900a44db1418e642e`。
+- 本交接文档已在该提交之后读取；本次更新将单独提交。最终 HEAD 以完成后再次读取的 GitHub branch ref / PR head 为准。
