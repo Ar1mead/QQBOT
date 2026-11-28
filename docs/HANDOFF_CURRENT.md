@@ -1455,3 +1455,20 @@ A line-level content comparison was performed for all five overlapping add/add p
 - `tests/test_csd_goals.py`: main has 23 lines absent from feature, all from the earlier SQL trace-callback based projection-scan assertion. The feature version has since replaced the brittle SQL-text assertion with direct invocation-count coverage (the README/history records that the trace-string test failed on both hosted platforms). Preserve the feature test unless a separate review finds coverage was lost.
 
 This inventory indicates the feature side is the more complete/current version for all five paths, with no identified main-only functional change that should be blindly copied. It does not remove Git's add/add conflict or substitute for a future isolated merge rehearsal. No history operation was performed.
+
+
+### Run #822 raw-log verification — 2026-11-28
+
+Downloaded and inspected both completed matrix-job logs (run ID `46004503780`):
+
+- Ubuntu job `140524155219`: the cleanup test command ran 6 tests; exactly the job-handle and process-handle close-failure retry tests errored with `AttributeError: module 'ctypes' has no attribute 'get_last_error'`, at the Windows-only error construction lines in `windows_job.py` and `windows_process.py`. The other four tests passed. This confirms the earlier test-fixture diagnosis from raw logs.
+- Windows job `140524154828`: native handle cleanup test step passed. The launch-plan command ran 9 tests; exactly `test_builds_exact_host_pinned_command_and_working_directory` errored at the path comparison in `windows_launch_plan.py:162`; the other eight tests passed.
+- The Windows log reports the checkout at `D:\\a\\QQBOT\\QQBOT`, but the failing test emits no staged-root, realpath, abspath, or manifest path values. Therefore the suspected junction/reparse ancestor remains unproven. Next useful evidence must come from a narrowly scoped diagnostic test or rerun after Billing/runner availability is explicitly checked; do not dispatch/rerun now.
+- Ubuntu stopped after cleanup tests; Windows stopped after launch-plan tests. The cross-episode proposal and review test steps were skipped in both jobs, so they have no Run #822 execution evidence.
+- These raw logs contain no SQLite readonly failure. The reported Windows SQLite readonly issue is separate local evidence and remains unresolved; do not conflate it with Run #822.
+
+### SQLite constructor/diagnostic review — 2026-11-28
+
+- Every CSDStore connection currently executes `PRAGMA journal_mode=WAL` and `PRAGMA synchronous=FULL` before schema initialization. This is a possible area to instrument under concurrent Windows initialization, not a proven cause of the later `BEGIN IMMEDIATE` readonly error.
+- Existing diagnostics include SQLite error code/name, journal/locking/synchronous/database-list PRAGMAs, parent writability/mode, and database/WAL/SHM existence, size, mode and Windows readonly attribute. No source change is justified without the actual failing local diagnostic payload.
+- No local tests or GitHub Actions were run in this follow-up.
