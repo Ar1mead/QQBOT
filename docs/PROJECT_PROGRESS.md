@@ -2517,3 +2517,19 @@ Static review covered `core/csd/accepted_claim_references.py`, `core/csd/cross_e
 
 
 - Follow-up clarification in design §3.32: future review records need an explicit CSD-issued review_round_id and reviewer slot; the roster must account for exactly one opinion per required slot. Existing reviewer ID/version values are attribution only, not proof of model invocation or independent review. A trusted orchestrator receipt must bind policy/request/response digests through an internal CSD path; if provenance or independence cannot be established, defer or require human adjudication. Existing v1 reviews remain advisory and cannot be retroactively counted as an attested complete round.
+
+
+## 2026-11-28 文档/代码一致性复核与 Actions 状态更正
+
+- 当前 feature branch HEAD 为 `145023b6ec8a08be899c4962b79328ba3db51a4a`；核对最近 30 个提交，最后一个源码/测试提交仍是 `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e`，其后的提交均为文档更新。
+- 重新检查跨经历 proposal/review、accepted-claim resolver、cognitive event validation/replay、Motivation/Goal、Life Engine adapter/sink 和对应测试。文档中的核心实现边界与代码一致：cross-episode proposal 仍为 pending-shadow；review v1 是不可变 advisory audit event；没有 decision-time acceptance、accepted preference/self-model reducer，也没有真实 activity execution。
+- 代码中的 cross-episode owner 目前只有粗粒度 `user`/`ai` 和 domain，缺 canonical subject reference / identity version。reviewer ID/version 只是 attribution，没有 CSD-issued review round roster 或 trusted invocation attestation。Life Engine snapshot 没有 activity options/active activities；sink 只持久化 goal proposal 与 activation/pause/resume transitions，不执行 activity start/continue/stop，也不执行 abandon/revise；`consider()` 不自我调度。
+- **证据独立性语义更正：** 当前 `independent_support_event_count` 只统计不同 source event ID，没有按 actor/account/conversation/source artifact/origin 分组，也不能证明这些事件来自独立来源。字段名沿用历史命名，但当前语义只是 unique source-event count。设计文档已补充限制；未来接受策略必须另行定义 source-origin independence。
+- **Actions 自动运行状态已查明，纠正此前“未知”：** run #822（ID `46004503780`）由 2026-11-27 push commit `777ba9d2...` 自动触发，Ubuntu/Windows 两个 runner 均实际分配并执行。没有手动 dispatch/rerun。
+  - 两个平台均通过 compileall、SurfCore journal tests、CSD cognitive-memory、Motivation、Goal 等前置测试。
+  - Windows 在 `test_worker_windows_launch_plan.py::test_builds_exact_host_pinned_command_and_working_directory` 失败：`staged interpreter path does not match the verified manifest`（`windows_launch_plan.py:162`）。realpath/abspath 路径归一化差异是待验证假设，不能先改安全校验。
+  - Ubuntu 在 `test_worker_windows_handle_cleanup.py` 两个 mock cleanup tests 失败：`ctypes.get_last_error` 在 Linux 不存在，测试没有像相邻用例那样 mock 该 Windows-only API。这是已确认的跨平台测试夹具问题。
+  - 两个 matrix job 均因首个失败测试步骤停止，后续测试被 skip，包括 cross-episode proposal/review tests。因此最新 cross-episode 实现仍无 CI 执行证据。
+  - 运行记录：https://github.com/Ar1mead/QQBOT/actions/runs/46004503780。此次检查没有触发或重跑 Actions；额度检查前禁止再运行。
+- **PR 集成风险：** PR #1 仍 Open / Draft / Unmerged，但 GitHub 当前返回 `mergeable=false`、`mergeable_state=dirty`，1,646 commits、168 changed files、46,676 additions、10 deletions。PR base SHA `05cfce6211ad072342201697d324d610d0fb40d1`，当前 main HEAD `5165326eebc0963ffcaf3795a7bd1df97c802ee0`；compare 显示分支 diverged 且 behind 8 commits。尚未确认 dirty 的具体冲突来源；不自动 rebase/merge/retarget，需单独审查 ancestry/conflicts。
+- 本轮只读检查 GitHub 源码、文档和 Actions 日志；无本地测试、无 Actions dispatch/rerun、无源码修改、无 QQ 操作。Windows SQLite `SQLITE_READONLY` 仍未解决；保留 WAL 与 `synchronous=FULL`。2026-12-02 Billing-first 门槛继续有效。
