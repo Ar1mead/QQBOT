@@ -1,7 +1,7 @@
 # Project Progress Ledger
 
 > Repository: `Ar1mead/QQBOT`  
-> Last updated: 2026-11-27 (UTC+08:00)  
+> Last updated: 2026-11-28 (UTC+08:00)  
 > Active development branch: `feature/csd-cognitive-memory-slice`  
 > Latest code/test checkpoint: `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e` (mixed memory/motivation/goal Recovery-after-reopen regression added; not executed)  
 > Live branch / PR #1 head: always fetch the current GitHub ref; this ledger records code checkpoints, not a substitute for live ref verification.  
@@ -2600,3 +2600,14 @@ This explains the eight commits behind main: they are one CSD test-file introduc
 - `tests/test_csd_goals.py`: main's 1,744-line version contains 23 unique lines around a SQLite trace-callback SQL-string assertion. Feature's 1,853-line version replaces that brittle matcher with direct validator invocation counters, retains the active-transaction guard, and adds 87 lines of later regression coverage including mixed memory/motivation/goal Recovery after reopen. Preserve the feature test implementation; do not copy the main-only trace callback block.
 
 The dirty state is therefore explained by five add/add paths with different blobs, but the content review found no main-only functional change currently identified for blind transplantation. This remains an evidence-based content inventory, not a merge/rebase rehearsal; do not rewrite history or alter PR base/head without explicit user authorization.
+
+
+## Handoff synchronization — 2026-11-28
+
+- Re-read this ledger and `docs/HANDOFF_CURRENT.md` against the live GitHub branch and PR metadata. This documentation sync began from branch/PR head `f5bf1a8c7d8664ea64f0b518d82f3b77ee978a03`; the live ref and PR head agreed.
+- PR #1 is Open / Draft / Unmerged, targets `main`, and remains non-mergeable. It reports 1,657 commits, 168 changed files, 46,874 additions and 10 deletions. Do not merge, retarget, rebase, force-push or otherwise rewrite history without explicit authorization.
+- The latest code/test checkpoint remains `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e`. The later commits are documentation-only; no source or test code was changed in this synchronization.
+- User direction reconfirmed: continue prioritizing correctness, reliability and completeness; do not lower engineering standards merely to accelerate delivery. At the same time, avoid repeating broad audits without a concrete blocker or implementation consequence.
+- Current immediate blockers remain the two Run #822 CI failures (Linux-only test fixture missing a mock for `ctypes.get_last_error`; Windows launch-plan path comparison needs diagnostics), the unresolved Windows SQLite readonly report, and unavailable/unconfirmed Actions capacity. Run #822 did execute tests; it did not pass as a whole. Cross-episode proposal/review suites were skipped after earlier job failures.
+- Next gate: around 2026-12-02, inspect GitHub Billing and runner availability before any new Actions run. If capacity is available, make the narrowly scoped fixture/diagnostic corrections, run focused tests first, then the full Ubuntu/Windows matrix. Do not manually rerun or create spend before that check.
+- No local tests, Actions dispatch/rerun, code edits, merge, or history operation occurred during this documentation synchronization.
