@@ -1,10 +1,10 @@
 # 个体 AI 项目 — 当前交接入口
 
-**最后核对：** 2026-11-27（UTC+08:00）  
+**最后核对：** 2026-11-28（UTC+08:00）  
 **仓库：** `Ar1mead/QQBOT`  
 **活动分支：** `feature/csd-cognitive-memory-slice`  
 **最近代码/测试提交：** `777ba9d2ef7a2c0e3b25300ebe018571d9cbc50e`（混合记忆/动机/目标 Recovery 与重开回归测试；尚未执行）  
-**本轮审查开始时的分支 / PR #1 head（2026-11-27）：** `54fd52618374b447fe197ee6ec9a82f80211d905`（之后本轮继续产生文档修正提交）  
+**本轮同步前实时分支 / PR #1 head（2026-11-28）：** `f5bf1a8c7d8664ea64f0b518d82f3b77ee978a03`  
 **PR：** #1 — Open / Draft / Unmerged（本次实时读取确认）  
 **默认分支：** `main`  
 **仓库可见性：** GitHub 当前报告为 **Public**（不是 Private）
@@ -1498,3 +1498,45 @@ This explains the eight commits behind main: they are one CSD test-file introduc
 - `tests/test_csd_goals.py`: main's 1,744-line version contains 23 unique lines around a SQLite trace-callback SQL-string assertion. Feature's 1,853-line version replaces that brittle matcher with direct validator invocation counters, retains the active-transaction guard, and adds 87 lines of later regression coverage including mixed memory/motivation/goal Recovery after reopen. Preserve the feature test implementation; do not copy the main-only trace callback block.
 
 The dirty state is therefore explained by five add/add paths with different blobs, but the content review found no main-only functional change currently identified for blind transplantation. This remains an evidence-based content inventory, not a merge/rebase rehearsal; do not rewrite history or alter PR base/head without explicit user authorization.
+
+
+## 当前窗口交接快照 — 2026-11-28（实时核对）
+
+### 仓库与 PR 状态
+
+- 仓库：`Ar1mead/QQBOT`；活动分支：`feature/csd-cognitive-memory-slice`；默认分支：`main`。
+- 本轮开始同步前，GitHub branch ref 与 PR #1 head 一致：`f5bf1a8c7d8664ea64f0b518d82f3b77ee978a03`。
+- PR #1：Open / Draft / Unmerged，base=`main`，`mergeable=false`；1,657 commits、168 changed files、46,874 additions、10 deletions。必须继续保持 Draft / Open / Unmerged；未经用户明确授权，不得 merge、关闭、转 Ready、改 base、rebase、force-push 或重写历史。
+- 本次项目进度文档同步提交：`6b54ea51913684f081eb13b0bcf05182980e3f54`。本交接文档随后更新；以本次最终 GitHub 分支 ref 为准，不要把本段记录的同步前 SHA 当成最终 HEAD。
+
+### 项目方向与用户刚确认的要求
+
+- 用户确认：项目仍以完善为主，优先正确性、可靠性、持久性和完整性，不为赶进度降低标准。
+- 但不能无限循环在审查和文档上。每轮审查都应对应具体风险、验证门槛或实现结果；没有明确收益的重复审计不应替代实际推进。
+- 之前给出的时间估计只是规划级粗估：约 2–4 周收紧基础可靠性，再用约 2–4 个月逐步形成可持续运行的个体 AI 原型；不是承诺工期，也不是已完成进度。
+- 目标仍是具有长期连续记忆、能形成并修正偏好/目标、持续自主思考和活动、拥有私人空间，并能在明确权限边界内与外部世界交互的个体 AI。
+
+### 最新可确认的实现边界
+
+- 已有：CSD 持久化事件与 Recovery；历史证据解析；跨经历候选生成和 advisory review 记录；Motivation 版本生命周期；Goal 候选/激活/暂停恢复；Life Engine 的有限 consider 流程；Worker Host 协议、运行包验证与逐次 staging 基础。
+- 尚未有：跨经历候选的决策时接受 API；接受后的偏好/自我模型版本化 reducer；经可信审查轮次和调用凭证证明的审查独立性；完整自主调度/活动执行；真实 QQ/B站生产数据链路；长期运行行为验证。
+- 跨经历候选仍为 `pending_shadow`；review 仅是 advisory evidence，不是接受决定。不同 `source_event_id` 只能计为不同事件，不能宣称已证明来源独立。
+- Life Engine 当前不是完整自主生活循环；goal activation/pause 不等于执行活动。Recovery 只重建本地投影，不得重放外部副作用。
+- Worker Host 目前不能被描述为已经完成生产级 OS sandbox / 生产 subprocess executor。
+
+### CI 与未解决问题
+
+- 最新已检查的 Run #822（ID `46004503780`）实际启动了 Ubuntu 与 Windows runners，但两边均未完整通过：
+  - Ubuntu：6 个 native handle cleanup tests 中 2 个因 Linux 环境没有 `ctypes.get_last_error` 而报错；属于测试 mock 缺失的明确问题，不能因此修改 Windows 生产清理语义。
+  - Windows：9 个 launch-plan tests 中 1 个 `test_builds_exact_host_pinned_command_and_working_directory` 在 `windows_launch_plan.py:162` 因 staged interpreter path mismatch 报错。可能与 `realpath` / `abspath` 或 junction/reparse ancestor 有关，但日志没有实际路径诊断，根因仍未证实；不能通过放松 containment/reparse 检查来“修复”。
+  - 两个 job 均在前述步骤失败后停止，因此 cross-episode proposal/review tests 在 Run #822 中被跳过，没有该轮 CI 结果。
+- Windows SQLite `attempt to write a readonly database` 仍未定位。不要推断为 Run #822 的错误；原始 Run #822 日志没有该 SQLite 故障。保留 WAL 与 `synchronous=FULL`，不要加无证据 retry、进程锁或删除 sidecar。
+- 下一次 Actions 门槛：约 2026-12-02 先检查 Billing 与 runner capacity；确认有可用额度/runner 后，先运行聚焦测试，再运行完整 Ubuntu/Windows matrix。此前不要手动 dispatch/rerun 或产生费用。
+- 如果额度恢复，优先修复 Linux 测试 mock，并为 Windows path mismatch 加入只输出必要路径/祖先属性的诊断，再基于证据修复；SQLite 问题需要用户本机完整 traceback、SQLite error code/name、数据库与 sidecar 路径/属性。
+
+### 本次同步记录
+
+- 本次重新读取并核对了 `docs/PROJECT_PROGRESS.md`、本文件、活动分支 ref 和 PR #1 元数据。
+- Progress 文档同步提交：`6b54ea51913684f081eb13b0bcf05182980e3f54`。
+- 本次只改项目文档；未改源代码/测试，未运行本地测试，未触发 Actions，未改 PR 状态或历史。
+- 新窗口开始时先读取本文件与 `docs/PROJECT_PROGRESS.md`，再实时检查 branch HEAD、PR #1 和 Actions/Billing 状态；不要仅凭本交接中的旧 SHA 假定远端状态未变化。
