@@ -2574,3 +2574,29 @@ Downloaded and inspected both completed matrix-job logs (run ID `46004503780`):
 - Every CSDStore connection currently executes `PRAGMA journal_mode=WAL` and `PRAGMA synchronous=FULL` before schema initialization. This is a possible area to instrument under concurrent Windows initialization, not a proven cause of the later `BEGIN IMMEDIATE` readonly error.
 - Existing diagnostics include SQLite error code/name, journal/locking/synchronous/database-list PRAGMAs, parent writability/mode, and database/WAL/SHM existence, size, mode and Windows readonly attribute. No source change is justified without the actual failing local diagnostic payload.
 - No local tests or GitHub Actions were run in this follow-up.
+
+
+## Main-branch eight-commit ancestry audit — 2026-11-28
+
+The main-only history after the shared initialization commit was enumerated directly from GitHub's commit API. It is a single-parent linear chain, not an unrelated root or a merge of a second project:
+
+1. `7b34af53365786f086e42c4e1dc00b011f795ba9` — `test(csd): guard transaction-scoped validation reuse`; adds `tests/test_csd_goals.py`.
+2. `47e2b9df5d86199227d9d5fbe533f9829e2a5761` — `docs: record Stage 0 contract hardening`; adds `docs/PROJECT_PROGRESS.md`.
+3. `85f2267f48f30f0325ce52b9509b38d5f9806226` — same message; adds `core/csd/README.md`.
+4. `92dea5e194906ff8a4c724c4d1dbec7267965fc0` — same message; adds `docs/reports/csd-historical-replay-cost-audit-report-001.md`.
+5. `71926ba82c81b947b5b0dea13efb8a3c1de4555b` — `revert: restore project docs on main`; removes a short later status tail from the progress document, not the file itself.
+6. `da38ab12a53591986e019d6348232ab6eb806c71` — same revert message; removes a short later status tail from the CSD README, not the file itself.
+7. `c5d748dd3c521fdf65d5d5d5fa0dec09de0cacda` — same revert message; removes a later verification-status tail from the historical replay report, not the file itself.
+8. `5165326eebc0963ffcaf3795a7bd1df97c802ee0` — `Document Motivation and Goal lifecycle boundaries`; adds `docs/design/cross-episode-evidence-and-preference-revision-contract.md`.
+
+This explains the eight commits behind main: they are one CSD test-file introduction, three documentation-file introductions, three partial documentation reverts, and one design-document introduction. There is no evidence of a hidden second codebase or a feature-history import. The PR's 1,655 commits are the accumulated feature lineage after the common root (the count increased as this audit's documentation commits were added).
+
+### Exact five-path content reconciliation (refreshed)
+
+- `core/csd/README.md`: current feature file contains all non-empty main lines plus later material; no main-only line was found.
+- `docs/reports/csd-historical-replay-cost-audit-report-001.md`: current feature file contains all non-empty main lines plus later material; no main-only line was found.
+- `docs/PROJECT_PROGRESS.md`: main has nine unique lines, consisting of its 2026-11-16 header/merge-policy and an old six-item next-work queue. These are historical/superseded status, not missing current work. Feature has the current ledger and latest audit.
+- `docs/design/cross-episode-evidence-and-preference-revision-contract.md`: main has six unique lines, including the older 2026-11-20 status and the claim that distinct source event IDs measure independent evidence. Feature supersedes this with the 2026-11-27 review/identity requirements and explicitly corrects the metric to unique source-event count, not source-origin independence.
+- `tests/test_csd_goals.py`: main's 1,744-line version contains 23 unique lines around a SQLite trace-callback SQL-string assertion. Feature's 1,853-line version replaces that brittle matcher with direct validator invocation counters, retains the active-transaction guard, and adds 87 lines of later regression coverage including mixed memory/motivation/goal Recovery after reopen. Preserve the feature test implementation; do not copy the main-only trace callback block.
+
+The dirty state is therefore explained by five add/add paths with different blobs, but the content review found no main-only functional change currently identified for blind transplantation. This remains an evidence-based content inventory, not a merge/rebase rehearsal; do not rewrite history or alter PR base/head without explicit user authorization.
